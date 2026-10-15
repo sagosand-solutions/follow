@@ -2,10 +2,11 @@ import { CONFIG } from './config.js';
 import { checkQuestion, QUESTION_ID } from './question-check.js';
 
 const cache = new Map();
+const versionQuery = () => (CONFIG.release ? `?v=${CONFIG.release}` : '');
 
 async function getJson(path) {
   if (cache.has(path)) return cache.get(path);
-  const res = await fetch(`${CONFIG.dataPath}${path}`, { cache: 'no-cache' });
+  const res = await fetch(`${CONFIG.dataPath}${path}${versionQuery()}`, { cache: 'no-cache' });
   if (!res.ok) {
     const err = new Error(`${path}: ${res.status}`);
     err.status = res.status;
