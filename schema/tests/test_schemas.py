@@ -1,0 +1,440 @@
+"""Contract tests for the question and concept-map schemas.
+
+Run from the repository root::
+
+    pip install 'jsonschema>=4.18,<5'
+    python3 -m unittest discover -s schema/tests -v
+
+The suite validates both schemas, checks the seed concept map and the example
+question, checks referential integrity of the seed map, executes the example
+snippet and confirms that a broad set of mutated inputs is rejected. A few tests
+deliberately show cases that JSON Schema does not decide; those belong to the
+separate semantic validator.
+"""
+
+import copy
+import json
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+from jsonschema import Draft202012Validator
+
+SCHEMA_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = SCHEMA_DIR.parent
+QUESTION_SCHEMA_PATH = SCHEMA_DIR / "question.schema.json"
+MAP_SCHEMA_PATH = SCHEMA_DIR / "concept-map.schema.json"
+CONCEPTS_PATH = SCHEMA_DIR / "concepts" / "python-v0.json"
+EXAMPLE_PATH = REPO_ROOT / "content" / "examples" / "independent-if.json"
+
+LEVEL_ORDER = {"beginner": 0, "intermediate": 1, "advanced": 2}
+
+
+def load(path):
+    with Path(path).open(encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def build_validator(path):
+    schema = load(path)
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema)
+
+
+def pop_key(*path):
+    def mutate(obj):
+        target = obj
+        for key in path[:-1]:
+            target = target[key]
+        del target[path[-1]]
+
+    return mutate
+
+
+def set_key(value, *path):
+    def mutate(obj):
+        target = obj
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+
+    return mutate
+
+
+def add_extra_key(*path):
+    def mutate(obj):
+        target = obj
+        for key in path:
+            target = target[key]
+        target["unexpected_extra"] = "x"
+
+    return mutate
+
+
+def find_cycle(edges):
+    """Return True if the prerequisite graph contains a directed cycle."""
+    state = {}
+
+    def visit(node):
+        state[node] = "visiting"
+        for nxt in edges.get(node, ()):
+            if state.get(nxt) == "visiting":
+                return True
+            if state.get(nxt) is None and visit(nxt):
+                return True
+        state[node] = "done"
+        return False
+
+    return any(state.get(node) is None and visit(node) for node in edges)
+
+
+class TestSchemaSelfValidation(unittest.TestCase):
+    def test_question_schema_is_valid(self):
+        build_validator(QUESTION_SCHEMA_PATH)
+
+    def test_map_schema_is_valid(self):
+        build_validator(MAP_SCHEMA_PATH)
+
+    def test_schemas_are_self_contained(self):
+        def collect_refs(node, found):
+            if isinstance(node, dict):
+                if isinstance(node.get("$ref"), str):
+                    found.append(node["$ref"])
+                for value in node.values():
+                    collect_refs(value, found)
+            elif isinstance(node, list):
+                for item in node:
+                    collect_refs(item, found)
+
+        for path in (QUESTION_SCHEMA_PATH, MAP_SCHEMA_PATH):
+            schema = load(path)
+            self.assertNotIn("$id", schema)
+            refs = []
+            collect_refs(schema, refs)
+            self.assertTrue(refs, f"{path.name} defines no $ref entries")
+            for ref in refs:
+                self.assertTrue(ref.startswith("#/$defs/"), f"non-local ref: {ref}")
+
+
+class TestSeedConceptMap(unittest.TestCase):
+    def setUp(self):
+        self.map = load(CONCEPTS_PATH)
+        self.validator = build_validator(MAP_SCHEMA_PATH)
+
+    def test_seed_map_validates(self):
+        errors = sorted(self.validator.iter_errors(self.map), key=str)
+        self.assertEqual(errors, [], "\n".join(str(e) for e in errors))
+
+    def test_seed_map_counts(self):
+        self.assertEqual(len(self.map["concepts"]), 18)
+        self.assertEqual(len(self.map["misconceptions"]), 20)
+
+    def test_seed_map_referential_integrity(self):
+        concepts = self.map["concepts"]
+        misconceptions = self.map["misconceptions"]
+
+        concept_ids = [c["id"] for c in concepts]
+        self.assertEqual(len(concept_ids), len(set(concept_ids)))
+
+        levels = {c["id"]: c["level"] for c in concepts}
+        edges = {}
+        for concept in concepts:
+            edges[concept["id"]] = concept["prerequisites"]
+            for prerequisite in concept["prerequisites"]:
+                self.assertIn(prerequisite, levels)
+                self.assertNotEqual(prerequisite, concept["id"])
+                self.assertLessEqual(
+                    LEVEL_ORDER[levels[prerequisite]],
+                    LEVEL_ORDER[levels[concept["id"]]],
+                )
+        self.assertFalse(find_cycle(edges), "prerequisite graph has a cycle")
+
+        misconception_ids = [m["id"] for m in misconceptions]
+        self.assertEqual(len(misconception_ids), len(set(misconception_ids)))
+        for misconception in misconceptions:
+            for concept_id in misconception["concepts"]:
+                self.assertIn(concept_id, levels)
+
+
+class TestExampleQuestion(unittest.TestCase):
+    def setUp(self):
+        self.example = load(EXAMPLE_PATH)
+        self.validator = build_validator(QUESTION_SCHEMA_PATH)
+        self.map = load(CONCEPTS_PATH)
+
+    def test_example_validates(self):
+        errors = sorted(self.validator.iter_errors(self.example), key=str)
+        self.assertEqual(errors, [], "\n".join(str(e) for e in errors))
+
+    def test_example_references_exist_in_seed_map(self):
+        levels = {c["id"] for c in self.map["concepts"]}
+        misconception_concepts = {
+            m["id"]: set(m["concepts"]) for m in self.map["misconceptions"]
+        }
+        tagged = set(self.example["concepts"])
+        for concept_id in tagged:
+            self.assertIn(concept_id, levels)
+        for option in self.example["options"]:
+            misconception_id = option["misconception"]
+            if misconception_id is None:
+                continue
+            self.assertIn(misconception_id, misconception_concepts)
+            self.assertTrue(
+                misconception_concepts[misconception_id] & tagged,
+                f"{misconception_id} is not tied to a tagged concept",
+            )
+
+    def test_example_snippet_executes_as_declared(self):
+        snippets = {s["id"]: s["code"] for s in self.example["snippets"]}
+        cases = self.example["verification"]["cases"]
+        self.assertTrue(cases)
+        for case in cases:
+            code = snippets[case["snippet_id"]]
+            expected = case["expected"]
+            completed = subprocess.run(
+                [sys.executable, "-c", code],
+                input=case["stdin"].encode("utf-8"),
+                capture_output=True,
+            )
+            self.assertEqual(
+                completed.returncode,
+                expected["exit_code"],
+                f"exit code for {case['id']}",
+            )
+            self.assertEqual(
+                completed.stdout,
+                expected["stdout"].encode("utf-8"),
+                f"stdout for {case['id']}",
+            )
+            if "stderr_contains" in expected:
+                self.assertIn(
+                    expected["stderr_contains"].encode("utf-8"),
+                    completed.stderr,
+                )
+            elif expected["exit_code"] == 0:
+                self.assertEqual(completed.stderr, b"")
+
+    def test_interpreter_meets_baseline(self):
+        self.assertGreaterEqual(sys.version_info[:2], (3, 11))
+
+
+class TestQuestionMutations(unittest.TestCase):
+    def setUp(self):
+        self.example = load(EXAMPLE_PATH)
+        self.validator = build_validator(QUESTION_SCHEMA_PATH)
+
+    def base_mutations(self):
+        return [
+            # required fields omitted at each object level
+            ("missing-schema_version", pop_key("schema_version")),
+            ("missing-id", pop_key("id")),
+            ("missing-language", pop_key("language")),
+            ("missing-locale", pop_key("locale")),
+            ("missing-type", pop_key("type")),
+            ("missing-level", pop_key("level")),
+            ("missing-difficulty", pop_key("difficulty")),
+            ("missing-concepts", pop_key("concepts")),
+            ("missing-prompt", pop_key("prompt")),
+            ("missing-snippets", pop_key("snippets")),
+            ("missing-options", pop_key("options")),
+            ("missing-explanation", pop_key("explanation")),
+            ("missing-verification", pop_key("verification")),
+            ("missing-author", pop_key("author")),
+            ("missing-license", pop_key("license")),
+            ("missing-snippet-id", pop_key("snippets", 0, "id")),
+            ("missing-snippet-code", pop_key("snippets", 0, "code")),
+            ("missing-option-text", pop_key("options", 0, "text")),
+            ("missing-option-score", pop_key("options", 0, "score")),
+            ("missing-option-feedback", pop_key("options", 0, "feedback")),
+            ("missing-option-misconception", pop_key("options", 0, "misconception")),
+            ("missing-verification-status", pop_key("verification", "status")),
+            ("missing-verification-cases", pop_key("verification", "cases")),
+            ("missing-verification-rationale", pop_key("verification", "rationale")),
+            ("missing-case-id", pop_key("verification", "cases", 0, "id")),
+            ("missing-case-snippet_id", pop_key("verification", "cases", 0, "snippet_id")),
+            ("missing-case-stdin", pop_key("verification", "cases", 0, "stdin")),
+            ("missing-case-expected", pop_key("verification", "cases", 0, "expected")),
+            ("missing-expected-stdout", pop_key("verification", "cases", 0, "expected", "stdout")),
+            ("missing-expected-exit_code", pop_key("verification", "cases", 0, "expected", "exit_code")),
+            ("missing-author-name", pop_key("author", "name")),
+            # wrong constants
+            ("wrong-schema_version", set_key("0.2", "schema_version")),
+            ("wrong-language", set_key("javascript", "language")),
+            ("wrong-locale", set_key("sv", "locale")),
+            ("wrong-license", set_key("MIT", "license")),
+            ("wrong-verification-status", set_key("passed", "verification", "status")),
+            # unknown enum values
+            ("unknown-type", set_key("debug", "type")),
+            ("unknown-level", set_key("expert", "level")),
+            # wrong types
+            ("difficulty-string", set_key("0.5", "difficulty")),
+            ("difficulty-bool", set_key(True, "difficulty")),
+            ("concepts-string", set_key("py.conditionals", "concepts")),
+            ("options-object", set_key({}, "options")),
+            ("option-score-string", set_key("1", "options", 0, "score")),
+            ("expected-exit_code-string", set_key("0", "verification", "cases", 0, "expected", "exit_code")),
+            ("expected-stdout-number", set_key(0, "verification", "cases", 0, "expected", "stdout")),
+            ("highlight-lines-string", set_key("2", "snippets", 0, "highlight_lines")),
+            # boolean score and off-grid score
+            ("score-boolean", set_key(True, "options", 1, "score")),
+            ("score-0.25", set_key(0.25, "options", 1, "score")),
+            # bad identifiers
+            ("question-id-leading-digit", set_key("1-bad", "id")),
+            ("question-id-too-short", set_key("ab", "id")),
+            ("option-id-uppercase", set_key("Bad", "options", 0, "id")),
+            ("concept-tag-uppercase", set_key(["py.Bad"], "concepts")),
+            ("snippet-id-empty", set_key("", "snippets", 0, "id")),
+            ("case-id-space", set_key("case bad", "verification", "cases", 0, "id")),
+            # numeric ranges
+            ("difficulty-negative", set_key(-0.1, "difficulty")),
+            ("difficulty-above-one", set_key(1.1, "difficulty")),
+            ("highlight-line-zero", set_key([0], "snippets", 0, "highlight_lines")),
+            ("exit-code-too-large", set_key(256, "verification", "cases", 0, "expected", "exit_code")),
+            ("exit-code-negative", set_key(-1, "verification", "cases", 0, "expected", "exit_code")),
+            # option counts
+            ("options-four", pop_key("options", 4)),
+            ("options-empty", set_key([], "options")),
+            # empty strings and arrays
+            ("prompt-empty", set_key("", "prompt")),
+            ("explanation-empty", set_key("", "explanation")),
+            ("concepts-empty", set_key([], "concepts")),
+            ("snippets-empty", set_key([], "snippets")),
+            ("option-text-empty", set_key("", "options", 0, "text")),
+            ("feedback-empty", set_key("", "options", 0, "feedback")),
+            ("verification-cases-empty", set_key([], "verification", "cases")),
+            ("verification-rationale-empty", set_key("", "verification", "rationale")),
+            ("snippet-code-empty", set_key("", "snippets", 0, "code")),
+            # duplicate values in unique arrays
+            ("concepts-duplicate", set_key(["py.conditionals", "py.conditionals"], "concepts")),
+            # nonzero exit without stderr_contains
+            (
+                "nonzero-exit-without-stderr",
+                set_key(1, "verification", "cases", 0, "expected", "exit_code"),
+            ),
+            # score-dependent rules
+            ("score-one-nonnull-misconception", set_key("py.independent-if-is-elif", "options", 0, "misconception")),
+            ("score-one-with-partial_reason", set_key("because", "options", 0, "partial_reason")),
+            ("score-zero-null-misconception", set_key(None, "options", 2, "misconception")),
+            ("score-zero-with-partial_reason", set_key("because", "options", 2, "partial_reason")),
+            ("score-half-missing-partial_reason", pop_key("options", 1, "partial_reason")),
+            ("score-half-null-misconception", set_key(None, "options", 1, "misconception")),
+            # unknown property at every object level
+            ("extra-root-property", add_extra_key()),
+            ("extra-snippet-property", add_extra_key("snippets", 0)),
+            ("extra-option-property", add_extra_key("options", 0)),
+            ("extra-verification-property", add_extra_key("verification")),
+            ("extra-case-property", add_extra_key("verification", "cases", 0)),
+            ("extra-expected-property", add_extra_key("verification", "cases", 0, "expected")),
+            ("extra-author-property", add_extra_key("author")),
+        ]
+
+    def test_mutations_are_rejected(self):
+        for label, mutate in self.base_mutations():
+            with self.subTest(label=label):
+                question = copy.deepcopy(self.example)
+                mutate(question)
+                errors = list(self.validator.iter_errors(question))
+                self.assertTrue(errors, f"mutation accepted: {label}")
+
+    def test_too_many_options_rejected(self):
+        question = copy.deepcopy(self.example)
+        for index in range(4):
+            question["options"].append(
+                {
+                    "id": f"opt-extra-{index}",
+                    "text": f"Extra distractor {index}.",
+                    "score": 0,
+                    "feedback": f"Feedback {index}.",
+                    "misconception": "py.independent-if-is-elif",
+                }
+            )
+        self.assertEqual(len(question["options"]), 9)
+        self.assertTrue(list(self.validator.iter_errors(question)))
+
+
+class TestDelegatedToSemanticValidator(unittest.TestCase):
+    """Cases JSON Schema intentionally does not decide."""
+
+    def setUp(self):
+        self.example = load(EXAMPLE_PATH)
+        self.validator = build_validator(QUESTION_SCHEMA_PATH)
+
+    def assert_valid(self, question):
+        errors = sorted(self.validator.iter_errors(question), key=str)
+        self.assertEqual(errors, [], "\n".join(str(e) for e in errors))
+
+    def test_duplicate_embedded_ids_pass_schema(self):
+        question = copy.deepcopy(self.example)
+        question["options"][1]["id"] = question["options"][0]["id"]
+        self.assert_valid(question)
+
+    def test_score_counts_pass_schema(self):
+        question = copy.deepcopy(self.example)
+        question["options"][1]["score"] = 1
+        question["options"][1]["misconception"] = None
+        question["options"][1].pop("partial_reason")
+        self.assert_valid(question)
+
+    def test_whitespace_only_string_passes_schema(self):
+        question = copy.deepcopy(self.example)
+        question["prompt"] = "   "
+        self.assert_valid(question)
+
+    def test_highlight_line_beyond_source_passes_schema(self):
+        question = copy.deepcopy(self.example)
+        question["snippets"][0]["highlight_lines"] = [99]
+        self.assert_valid(question)
+
+    def test_duplicate_map_ids_pass_schema(self):
+        mapdata = load(CONCEPTS_PATH)
+        clone = copy.deepcopy(mapdata["concepts"][0])
+        clone["title"] = "A different title"
+        mapdata["concepts"].append(clone)
+        errors = sorted(build_validator(MAP_SCHEMA_PATH).iter_errors(mapdata), key=str)
+        self.assertEqual(errors, [], "\n".join(str(e) for e in errors))
+
+
+class TestMapMutations(unittest.TestCase):
+    def setUp(self):
+        self.map = load(CONCEPTS_PATH)
+        self.validator = build_validator(MAP_SCHEMA_PATH)
+
+    def test_mutations_are_rejected(self):
+        mutations = [
+            ("missing-schema_version", pop_key("schema_version")),
+            ("missing-language", pop_key("language")),
+            ("missing-concepts", pop_key("concepts")),
+            ("missing-misconceptions", pop_key("misconceptions")),
+            ("wrong-schema_version", set_key("0.2", "schema_version")),
+            ("wrong-language", set_key("javascript", "language")),
+            ("concepts-empty", set_key([], "concepts")),
+            ("misconceptions-empty", set_key([], "misconceptions")),
+            ("concept-missing-id", pop_key("concepts", 0, "id")),
+            ("concept-missing-title", pop_key("concepts", 0, "title")),
+            ("concept-missing-level", pop_key("concepts", 0, "level")),
+            ("concept-missing-prerequisites", pop_key("concepts", 0, "prerequisites")),
+            ("misconception-missing-id", pop_key("misconceptions", 0, "id")),
+            ("misconception-missing-title", pop_key("misconceptions", 0, "title")),
+            ("misconception-missing-description", pop_key("misconceptions", 0, "description")),
+            ("misconception-missing-concepts", pop_key("misconceptions", 0, "concepts")),
+            ("concept-id-uppercase", set_key("py.Bad", "concepts", 0, "id")),
+            ("concept-id-no-namespace", set_key("values", "concepts", 0, "id")),
+            ("concept-invalid-level", set_key("expert", "concepts", 0, "level")),
+            ("concept-title-empty", set_key("", "concepts", 0, "title")),
+            ("misconception-concepts-empty", set_key([], "misconceptions", 0, "concepts")),
+            ("misconception-description-empty", set_key("", "misconceptions", 0, "description")),
+            ("extra-root-property", add_extra_key()),
+            ("extra-concept-property", add_extra_key("concepts", 0)),
+            ("extra-misconception-property", add_extra_key("misconceptions", 0)),
+        ]
+        for label, mutate in mutations:
+            with self.subTest(label=label):
+                mapdata = copy.deepcopy(self.map)
+                mutate(mapdata)
+                errors = list(self.validator.iter_errors(mapdata))
+                self.assertTrue(errors, f"mutation accepted: {label}")
+
+
+if __name__ == "__main__":
+    unittest.main()
