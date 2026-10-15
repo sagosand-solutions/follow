@@ -59,6 +59,18 @@
       ]
     },
     {
+      "id": "py-generator-error-lifecycle",
+      "type": "output",
+      "level": "advanced",
+      "difficulty": 0.8,
+      "concepts": [
+        "py.functions",
+        "py.iterators",
+        "py.generators",
+        "py.exceptions"
+      ]
+    },
+    {
       "id": "py-shared-default-ai-review",
       "type": "ai-review",
       "level": "intermediate",

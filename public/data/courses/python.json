@@ -45,6 +45,22 @@
           ]
         }
       ]
+    },
+    {
+      "level": "advanced",
+      "title": "Under the hood",
+      "lessons": [
+        {
+          "id": "generators",
+          "title": "Generators and errors",
+          "builds_on": [
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-generator-error-lifecycle"
+          ]
+        }
+      ]
     }
   ]
 }
