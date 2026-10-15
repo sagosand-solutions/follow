@@ -46,7 +46,8 @@ export async function questionView({ id }) {
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
-  return { title: titleOf(q), node: root };
+  const pageTitle = where ? `${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}` : titleOf(q);
+  return { title: pageTitle, node: root };
 }
 
 function titleOf(q) {
@@ -125,7 +126,7 @@ function draw(ctx, prev, stale = false) {
   if (answered && prev.outcome === 'unknown') unknownRow.querySelector('input').checked = true;
   group.append(unknownRow);
 
-  const feedback = h('div', { class: 'feedback', id: 'feedback', role: 'region', 'aria-live': 'polite', 'aria-label': t('q.feedback') });
+  const feedback = h('div', { class: 'feedback', id: 'feedback', role: 'region', 'aria-label': t('q.feedback') });
   const hint = h('p', { class: 'hint', id: 'hint' }, t('q.hint'));
   const check = h('button', { type: 'button', class: 'button button--primary', 'aria-disabled': 'true', 'aria-describedby': 'hint' }, t('q.check'));
   const actions = h('div', { class: 'actions' }, check, hint);
