@@ -34,3 +34,10 @@ test('cycles when storage throws on read and write', () => {
   const seen = [cycleTheme(broken), cycleTheme(broken), cycleTheme(broken)];
   assert.deepEqual(seen, ['light', 'dark', 'auto']);
 });
+
+test('a choice that cannot be saved outranks an older readable stored value', () => {
+  resetSessionTheme();
+  const backend = { getItem: () => 'dark', setItem() { throw new Error('quota'); } };
+  assert.deepEqual([cycleTheme(backend), cycleTheme(backend), cycleTheme(backend)], ['auto', 'light', 'dark']);
+  assert.equal(readTheme(backend), 'dark');
+});

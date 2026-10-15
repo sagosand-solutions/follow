@@ -1,10 +1,13 @@
 const KEY = 'ui.theme';
 const ORDER = ['auto', 'light', 'dark'];
 let sessionMode = 'auto';
+// Set when a choice could not be saved: the page-view choice then outranks any older stored value.
+let sessionOverrides = false;
 
 // For tests: forget the choice remembered for this page view.
 export function resetSessionTheme() {
   sessionMode = 'auto';
+  sessionOverrides = false;
 }
 
 function defaultStorage() {
@@ -16,6 +19,7 @@ function defaultStorage() {
 }
 
 export function readTheme(storage = defaultStorage()) {
+  if (sessionOverrides) return sessionMode;
   try {
     const v = storage && storage.getItem(KEY);
     if (ORDER.includes(v)) return v;
@@ -48,7 +52,7 @@ export function cycleTheme(storage = defaultStorage()) {
   try {
     if (storage) storage.setItem(KEY, mode);
   } catch {
-    /* storage unavailable: the choice lasts for this page view only */
+    sessionOverrides = true; /* the choice lasts for this page view only */
   }
   applyTheme(mode);
   return mode;
