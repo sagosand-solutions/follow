@@ -13,7 +13,20 @@
           "builds_on": [],
           "questions": [
             "m1-assignment-snapshot",
-            "m1-even-accumulator"
+            "m1-even-accumulator",
+            "py-remove-loop-reset"
+          ]
+        },
+        {
+          "id": "strings-and-boundaries",
+          "title": "Strings, indexing and truthiness",
+          "builds_on": [
+            "values-and-loops"
+          ],
+          "questions": [
+            "py-string-prefix-source",
+            "py-list-last-boundary",
+            "py-nonempty-false-string"
           ]
         }
       ]
@@ -40,8 +53,20 @@
             "values-and-loops"
           ],
           "questions": [
+            "py-remove-global-counter",
             "py-shared-default-ai-review",
             "py-closure-loop-readers"
+          ]
+        },
+        {
+          "id": "dictionary-defaults",
+          "title": "Defaults and truthiness",
+          "builds_on": [
+            "strings-and-boundaries",
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-dict-default-or-equivalence"
           ]
         }
       ]
@@ -58,6 +83,17 @@
           ],
           "questions": [
             "py-generator-error-lifecycle"
+          ]
+        },
+        {
+          "id": "complexity",
+          "title": "Counting the hidden work",
+          "builds_on": [
+            "values-and-loops",
+            "lists-and-mutation"
+          ],
+          "questions": [
+            "py-prefix-duplicate-complexity"
           ]
         }
       ]

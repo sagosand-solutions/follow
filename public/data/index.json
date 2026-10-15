@@ -3,84 +3,160 @@
   "onboarding_question": "m1-assignment-snapshot",
   "questions": [
     {
-      "id": "m1-assignment-snapshot",
-      "type": "output",
-      "level": "beginner",
-      "difficulty": 0.18,
       "concepts": [
         "py.values",
         "py.assignment"
-      ]
+      ],
+      "difficulty": 0.18,
+      "id": "m1-assignment-snapshot",
+      "level": "beginner",
+      "type": "output"
     },
     {
-      "id": "m1-even-accumulator",
-      "type": "output",
-      "level": "beginner",
-      "difficulty": 0.32,
       "concepts": [
         "py.iteration",
         "py.numeric-operators",
         "py.conditionals",
         "py.assignment"
-      ]
+      ],
+      "difficulty": 0.32,
+      "id": "m1-even-accumulator",
+      "level": "beginner",
+      "type": "output"
     },
     {
-      "id": "m1-list-iadd-equivalence",
-      "type": "equivalence",
-      "level": "intermediate",
-      "difficulty": 0.53,
       "concepts": [
         "py.assignment",
         "py.lists",
         "py.mutation-aliasing"
-      ]
+      ],
+      "difficulty": 0.53,
+      "id": "m1-list-iadd-equivalence",
+      "level": "intermediate",
+      "type": "equivalence"
     },
     {
-      "id": "m1-negative-index-guard",
-      "type": "crashing-input",
-      "level": "intermediate",
-      "difficulty": 0.61,
       "concepts": [
         "py.lists",
         "py.booleans",
         "py.conditionals",
         "py.exceptions"
-      ]
+      ],
+      "difficulty": 0.61,
+      "id": "m1-negative-index-guard",
+      "level": "intermediate",
+      "type": "crashing-input"
     },
     {
-      "id": "py-closure-loop-readers",
-      "type": "output",
-      "level": "intermediate",
-      "difficulty": 0.61,
       "concepts": [
         "py.functions",
         "py.scope",
         "py.iteration"
-      ]
+      ],
+      "difficulty": 0.61,
+      "id": "py-closure-loop-readers",
+      "level": "intermediate",
+      "type": "output"
     },
     {
-      "id": "py-generator-error-lifecycle",
-      "type": "output",
-      "level": "advanced",
-      "difficulty": 0.8,
+      "concepts": [
+        "py.dictionaries",
+        "py.booleans",
+        "py.functions",
+        "py.iteration"
+      ],
+      "difficulty": 0.56,
+      "id": "py-dict-default-or-equivalence",
+      "level": "intermediate",
+      "type": "equivalence"
+    },
+    {
       "concepts": [
         "py.functions",
         "py.iterators",
         "py.generators",
         "py.exceptions"
-      ]
+      ],
+      "difficulty": 0.8,
+      "id": "py-generator-error-lifecycle",
+      "level": "advanced",
+      "type": "output"
     },
     {
-      "id": "py-shared-default-ai-review",
-      "type": "ai-review",
+      "concepts": [
+        "py.lists"
+      ],
+      "difficulty": 0.27,
+      "id": "py-list-last-boundary",
+      "level": "beginner",
+      "type": "crashing-input"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.booleans",
+        "py.conditionals"
+      ],
+      "difficulty": 0.18,
+      "id": "py-nonempty-false-string",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.lists",
+        "py.iteration"
+      ],
+      "difficulty": 0.82,
+      "id": "py-prefix-duplicate-complexity",
+      "level": "advanced",
+      "type": "complexity"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope",
+        "py.assignment",
+        "py.exceptions"
+      ],
+      "difficulty": 0.62,
+      "id": "py-remove-global-counter",
       "level": "intermediate",
-      "difficulty": 0.52,
+      "type": "remove-line"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.iteration",
+        "py.conditionals",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.38,
+      "id": "py-remove-loop-reset",
+      "level": "beginner",
+      "type": "remove-line"
+    },
+    {
       "concepts": [
         "py.functions",
         "py.default-arguments",
         "py.mutation-aliasing",
         "py.lists"
-      ]
+      ],
+      "difficulty": 0.52,
+      "id": "py-shared-default-ai-review",
+      "level": "intermediate",
+      "type": "ai-review"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "difficulty": 0.2,
+      "id": "py-string-prefix-source",
+      "level": "beginner",
+      "type": "output"
     }
   ]
 }
