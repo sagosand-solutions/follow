@@ -1,0 +1,12 @@
+# Intern dokumentation: teamets resonemang, uppgifter och beslut publiceras aldrig
+/team/
+
+# Hemligheter och lokal konfiguration
+.env
+.env.*
+!.env.example
+
+# Agentverktygens lokala filer
+.claude/
+.pi/
+.opencode/
