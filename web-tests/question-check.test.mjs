@@ -27,8 +27,8 @@ test('rejects wrong option structure', () => {
 
   const noHalf = clone(q);
   noHalf.options.find((o) => o.score === 0.5).score = 0;
-  assert.equal(checkQuestion(noHalf, q.id), 'wrong option misconception' && checkQuestion(noHalf, q.id));
-  assert.notEqual(checkQuestion(noHalf, q.id), null);
+  // The former half option now claims score 0 but still has partial_reason, which only a half option may have.
+  assert.equal(checkQuestion(noHalf, q.id), 'wrong option has partial_reason');
 
   const twoFull = clone(q);
   twoFull.options.find((o) => o.score === 0).score = 1;
