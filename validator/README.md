@@ -31,6 +31,14 @@ nonfinite errors identify the JSON document because Python's object hooks do not
 supply source offsets. Issue paths use RFC 6901 JSON pointers; the empty pointer
 means the entire document. Output ordering is deterministic.
 
+## Bounded file inputs
+
+CLI/export inputs share fixed limits: 256 KiB per JSON file, 512 question inputs,
+16 MiB actual question bytes per invocation, and 32 nested containers. Count,
+byte and lexical depth checks happen before question parsing/execution; limit
+failures are `input-limit` / exit 1. See [INPUT_LIMITS.md](INPUT_LIMITS.md) for
+exact boundary semantics, scope and the explicit non-sandbox limitations.
+
 ## Execution: trusted code only
 
 **The local runner is NOT a sandbox. Never use it for untrusted contributions,
