@@ -1,0 +1,7 @@
+{
+  "data_version": 1,
+  "onboarding_question": "ui-fixture-independent-if",
+  "questions": [
+    { "id": "ui-fixture-independent-if", "type": "output", "level": "beginner", "difficulty": 0.25, "concepts": ["py.conditionals", "py.assignment"] }
+  ]
+}

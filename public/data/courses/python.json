@@ -1,0 +1,14 @@
+{
+  "id": "python",
+  "title": "Python: reading code",
+  "language": "python",
+  "levels": [
+    {
+      "level": "beginner",
+      "title": "Foundations",
+      "lessons": [
+        { "id": "conditionals", "title": "Conditions", "builds_on": [], "questions": ["ui-fixture-independent-if"] }
+      ]
+    }
+  ]
+}

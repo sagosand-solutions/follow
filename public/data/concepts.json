@@ -1,0 +1,12 @@
+{
+  "schema_version": "0.1",
+  "language": "python",
+  "concepts": [
+    { "id": "py.assignment", "title": "Assignment", "level": "beginner", "prerequisites": [] },
+    { "id": "py.conditionals", "title": "Conditionals", "level": "beginner", "prerequisites": [] }
+  ],
+  "misconceptions": [
+    { "id": "py.independent-if-is-elif", "title": "Separate if statements act like elif", "description": "Separate if statements act like mutually exclusive elif branches.", "concepts": ["py.conditionals"] },
+    { "id": "py.truthiness-only-booleans", "title": "Only True and False can control an if", "description": "Only literal True/False can control a conditional.", "concepts": ["py.conditionals"] }
+  ]
+}
