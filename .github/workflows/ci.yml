@@ -57,4 +57,5 @@ jobs:
           node-version: "24"
       - name: Web tests
         run: |
-          if [ -d web-tests ]; then node --test web-tests/; else echo "No web tests yet"; fi
+          # A glob, not a directory: Node 24 treats a directory argument as a module path.
+          node --test 'web-tests/*.test.mjs'
