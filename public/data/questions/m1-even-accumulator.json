@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1",
+  "id": "m1-even-accumulator",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.32,
+  "concepts": ["py.iteration", "py.numeric-operators", "py.conditionals", "py.assignment"],
+  "prompt": "What does this program print, and which trace explains it? Choose the option whose output and explanation are both correct. For an integer n, n % 2 is its remainder after division by 2.",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "total = 0\nfor n in range(1, 5):\n    if n % 2 == 0:\n        total = total + n\nprint(total)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "ignore-condition",
+      "text": "10. The loop visits 1, 2, 3, and 4 and adds every visited number to total.",
+      "score": 0,
+      "feedback": "The range is right, but the if condition allows only even numbers through. Neither 1 nor 3 is added. The total is 2 + 4, or 6.",
+      "misconception": "py.if-body-unconditional"
+    },
+    {
+      "id": "inclusive-stop",
+      "text": "6. The loop visits 1, 2, 3, 4, and 5, but only 2 and 4 pass the condition and get added.",
+      "score": 0.5,
+      "feedback": "The output and selected even numbers are right, but range(1, 5) does not visit 5: the stop is excluded. That error happens not to change the total here because 5 is odd.",
+      "misconception": "py.range-stop-inclusive",
+      "partial_reason": "Correct: predicts 6 and identifies 2 and 4 as the added values. Incorrect: includes 5 among the loop values. The wrong inclusive-stop rule happens to preserve the result for this odd stop bound."
+    },
+    {
+      "id": "odd-remainders",
+      "text": "4. The condition n % 2 == 0 selects the odd numbers 1 and 3, which are added together.",
+      "score": 0,
+      "feedback": "Remainder zero means an integer divides evenly by 2, so the condition selects even numbers, not odd numbers. The program adds 2 and 4, giving 6.",
+      "misconception": "py.modulo-parity-reversed"
+    },
+    {
+      "id": "exclusive-stop-filter",
+      "text": "6. The loop visits 1, 2, 3, and 4; the condition selects 2 and 4, and total accumulates their sum.",
+      "score": 1,
+      "feedback": "Yes. range excludes 5. The total changes from 0 to 2 when n is 2, then to 6 when n is 4. The print is outside the loop, so it prints 6 once.",
+      "misconception": null
+    },
+    {
+      "id": "keep-last-even",
+      "text": "4. The loop visits 1, 2, 3, and 4, and total keeps only the last even number, 4.",
+      "score": 0,
+      "feedback": "The statement is total = total + n, not total = n. It retains the earlier 2 and adds 4, so the final total is 6.",
+      "misconception": "py.accumulator-overwrites"
+    }
+  ],
+  "explanation": "range(1, 5) supplies 1, 2, 3, 4. Only 2 and 4 have remainder zero on division by 2. The accumulator first becomes 2 and then 6. Since print is outside the loop, the sole output line is 6. An inclusive-stop explanation accidentally predicts the same total but describes the loop incorrectly.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "exact-output",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {"stdout": "6\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "The literal stdout case verifies the shown result. Human tracing establishes the actual loop values and distinguishes the correct explanation from the inclusive-stop explanation, which predicts the same output.",
+    "limitations": "An output check cannot validate an option's claimed internal trace. The named misconceptions and distractor appeal remain editorial hypotheses pending review and learner data."
+  },
+  "author": {"name": "Anonymous contributor"},
+  "license": "CC-BY-SA-4.0"
+}
