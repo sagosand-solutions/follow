@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-comprehension-keeps-outer",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.54,
+  "concepts": ["py.assignment", "py.iteration", "py.scope", "py.comprehensions"],
+  "prompt": "Run this as a fresh Python 3 script. What complete line does it print, and which explanation of the comprehension's value binding is correct? Choose the option whose output and explanation are both correct.",
+  "snippets": [
+    {"id": "main", "code": "value = 7\nsquares = [value * value for value in range(3)]\nprint(value, squares)\n", "highlight_lines": [2]}
+  ],
+  "options": [
+    {
+      "id": "loop-name-leaks-out",
+      "text": "2 [0, 1, 4]. The comprehension overwrites the outer value, leaving the last loop value 2 there.",
+      "score": 0,
+      "feedback": "Python 3 list comprehensions have their own iteration binding. Their loop variable does not overwrite this surrounding value, which stays 7. The actual line is 7 [0, 1, 4].",
+      "misconception": "py.comprehension-leaks-name"
+    },
+    {
+      "id": "inclusive-range",
+      "text": "7 [0, 1, 4, 9]. The comprehension keeps the outer binding separate, and range(3) includes the final value 3.",
+      "score": 0,
+      "feedback": "The separate outer binding is right, but range(3) supplies only 0, 1 and 2. It excludes 3, so the list has three entries and the line is 7 [0, 1, 4].",
+      "misconception": "py.range-stop-inclusive"
+    },
+    {
+      "id": "temporary-overwrite-and-restore",
+      "text": "7 [0, 1, 4]. The comprehension changes the outer value through 0, 1 and 2, then restores its previous value 7 when it finishes.",
+      "score": 0.5,
+      "feedback": "The complete output is right, but no save-and-restore of the outer binding is needed. The comprehension uses a separate iteration binding; the surrounding value is never overwritten here.",
+      "misconception": "py.comprehension-restores-outer",
+      "partial_reason": "Correct: predicts the outer value 7 and all three list entries 0, 1, 4. Incorrect: claims that this comprehension overwrites and later restores the outer binding instead of keeping a separate iteration binding."
+    },
+    {
+      "id": "expression-uses-outer",
+      "text": "7 [49, 49, 49]. Each expression reads the outer value 7 instead of the comprehension's iteration value.",
+      "score": 0,
+      "feedback": "Inside this comprehension, value * value uses the comprehension's iteration binding, successively 0, 1 and 2. The outer value stays 7, but the list is [0, 1, 4], not three copies of 49.",
+      "misconception": "py.comprehension-expression-uses-outer"
+    },
+    {
+      "id": "separate-comprehension-binding",
+      "text": "7 [0, 1, 4]. The comprehension's own value binding supplies 0, 1 and 2 to the expression without overwriting the surrounding value.",
+      "score": 1,
+      "feedback": "Correct. The inner binding produces the three squares; the surrounding value remains 7 throughout this script's comprehension.",
+      "misconception": null
+    }
+  ],
+  "explanation": "range(3) supplies 0, 1 and 2. The expression value * value uses the list comprehension's own binding, giving [0, 1, 4]. The surrounding value still refers to 7. This is separate binding behavior in Python 3, not a rule that the outer name is overwritten and restored afterward. The statement is about observable name binding, not a particular interpreter's frame-allocation strategy.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "outer-and-squares", "snippet_id": "main", "stdin": "", "expected": {"stdout": "7 [0, 1, 4]\n", "exit_code": 0}}
+    ],
+    "rationale": "Run the exact displayed script and compare its full stdout line. Manual scope reasoning checks how the expression and surrounding name are bound. A final-value trace cannot by itself distinguish separate binding from a hypothetical overwrite-and-restore mechanism.",
+    "limitations": "Python 3.11+ stable observable semantics only, not an implementation-specific frame claim or Python 2 behavior. No hidden side-effect or exception program is executed to prove the scope explanation. Rubric and difficulty are uncalibrated."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

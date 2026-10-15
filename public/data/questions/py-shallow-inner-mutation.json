@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "id": "py-shallow-inner-mutation",
+  "language": "python",
+  "locale": "en",
+  "type": "equivalence",
+  "level": "intermediate",
+  "difficulty": 0.51,
+  "concepts": ["py.assignment", "py.lists", "py.mutation-aliasing"],
+  "prompt": "An editor replaces plain list assignment with a full list slice. Each complete program starts fresh and performs only the shown inner-list append. Do the two programs print the same line, and which explanation of the outer and inner lists is correct? Compare these exact programs, not every possible later operation.",
+  "snippets": [
+    {
+      "id": "assignment",
+      "label": "Plain assignment",
+      "code": "rows = [[1], [2]]\ncopied = rows\ncopied[0].append(9)\nprint(rows)\n",
+      "highlight_lines": [2, 3]
+    },
+    {
+      "id": "slice",
+      "label": "Full slice",
+      "code": "rows = [[1], [2]]\ncopied = rows[:]\ncopied[0].append(9)\nprint(rows)\n",
+      "highlight_lines": [2, 3]
+    }
+  ],
+  "options": [
+    {
+      "id": "append-never-mutates",
+      "text": "Yes. Both print [[1], [2]], because append returns a new inner list and does not change its receiver.",
+      "score": 0,
+      "feedback": "append changes its receiver. In both programs copied[0] refers to the original first inner list, so appending 9 changes rows[0]. Both actually print [[1, 9], [2]].",
+      "misconception": "py.append-nonmutating"
+    },
+    {
+      "id": "slice-is-deep-copy",
+      "text": "No. Plain assignment prints [[1, 9], [2]], but the slice prints [[1], [2]] because slicing also copies the inner lists.",
+      "score": 0,
+      "feedback": "A full list slice copies the outer container, not the nested lists. Its first element still refers to the original first inner list, so the slice program also prints [[1, 9], [2]].",
+      "misconception": "py.shallow-copy-is-deep"
+    },
+    {
+      "id": "slice-aliases-outer-too",
+      "text": "Yes. Both print [[1, 9], [2]], because a full slice returns the same outer list, exactly like plain assignment.",
+      "score": 0.5,
+      "feedback": "Both complete outputs are right, but the outer-list claim is wrong. A full slice makes a new outer list whose elements refer to the existing inner lists. Sharing the first inner list is enough for this append to affect rows.",
+      "misconception": "py.slice-shares-outer-container",
+      "partial_reason": "Correct: both programs print exactly [[1, 9], [2]], so their shown outputs match. Incorrect: slicing returns the same outer list; it creates a new outer list while preserving references to the existing inner lists."
+    },
+    {
+      "id": "same-inner-different-outer",
+      "text": "Yes. Both print [[1, 9], [2]]. The slice creates a new outer list, but both programs still reach the same original inner list at index 0.",
+      "score": 1,
+      "feedback": "Correct. Plain assignment shares the outer list too; slicing does not. Nevertheless both share the first inner list with rows, and that is the object append changes here.",
+      "misconception": null
+    },
+    {
+      "id": "nested-mutable-items-illegal",
+      "text": "Neither prints a line: both raise TypeError while creating rows, because a list cannot contain mutable lists as elements.",
+      "score": 0,
+      "feedback": "Lists may contain other lists. Mutable elements are allowed; dictionary-key hashability restrictions do not apply to list elements. Both programs run and print [[1, 9], [2]].",
+      "misconception": "py.list-items-must-be-immutable"
+    }
+  ],
+  "explanation": "Plain assignment gives rows and copied the same outer list. A full slice creates a different outer list but copies references to its elements, not the inner lists themselves. Therefore copied[0] in either program is the original first inner list. append mutates that list, so both programs print [[1, 9], [2]]. Matching this inner-mutation output does not mean the outer containers are identical or that all later operations would be equivalent.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "assignment-inner-mutation", "snippet_id": "assignment", "stdin": "", "expected": {"stdout": "[[1, 9], [2]]\n", "exit_code": 0}},
+      {"id": "slice-inner-mutation", "snippet_id": "slice", "stdin": "", "expected": {"stdout": "[[1, 9], [2]]\n", "exit_code": 0}}
+    ],
+    "rationale": "Execute both exact displayed programs independently. Their complete outputs match for this shown operation. Human object-reference reasoning distinguishes new-outer/shared-inner semantics from the incorrect same-outer explanation, which happens to predict the same outputs.",
+    "limitations": "Equal traces here are not a general proof of equivalence or an identity test for the outer lists. No hidden identity-check program is executed. Half credit, distractor appeal and difficulty remain editorial and uncalibrated."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
