@@ -1,0 +1,58 @@
+# CI for pull requests and main.
+# Runs on GitHub-hosted runners only: this repository is public, so untrusted
+# pull requests must never reach a self-hosted runner.
+# Question code is validated statically here; it is never executed in CI until
+# a hardened sandbox runner exists.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Validator and schema (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install validator dependencies
+        run: python -m pip install -r validator/requirements.txt
+      - name: Validator tests
+        run: python -m unittest discover -s validator/tests -v
+      - name: Schema tests
+        run: python -m unittest discover -s schema/tests -v
+      - name: Validate questions (static only)
+        run: python -m validator public/data/questions/*.json
+
+  web:
+    name: Web tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Web tests
+        run: |
+          if [ -d web-tests ]; then node --test web-tests/; else echo "No web tests yet"; fi
