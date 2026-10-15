@@ -139,7 +139,7 @@
   "about.limits.2": "Progress is saved only in this browser. There are no accounts yet.",
   "about.limits.3": "A question's code is checked by running it, but whether a question teaches well is a human judgement, and we can be wrong.",
   "about.privacy.title": "Privacy",
-  "about.privacy.text": "This site does not use cookies, analytics or third-party services. Your answers stay in your browser's local storage.",
+  "about.privacy.text": "This site uses no cookies, analytics, tracking or external fonts. Your answers stay in your browser's local storage and are not sent anywhere. The site is delivered through a hosting provider and a content delivery network, which process ordinary web requests (such as your IP address) to serve the pages.",
   "about.license.title": "Licenses",
   "about.license.text": "The platform is AGPL-3.0, the question schema and validator are MIT, and questions are CC BY-SA 4.0.",
   "about.source": "Source code"
