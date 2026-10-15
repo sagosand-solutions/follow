@@ -16,10 +16,10 @@
     {
       "id": "primary",
       "label": "program",
-      "code": "value = 10\nif value > 0:\n    label = \"positive\"\nif value > 100:\n    label = \"huge\"\nprint(label)\n",
+      "code": "label = \"start\"\nvalue = 10\nif value > 0:\n    label = \"positive\"\nif value > 100:\n    label = \"huge\"\nprint(label)\n",
       "highlight_lines": [
-        2,
-        4
+        3,
+        5
       ]
     }
   ],
@@ -28,7 +28,7 @@
       "id": "opt-correct",
       "text": "It prints positive, because both if statements are evaluated and only the first condition is true.",
       "score": 1,
-      "feedback": "Correct. The two if statements are independent: each condition is tested, the first is true and the second is false, so label is \"positive\" when it is printed.",
+      "feedback": "Correct. label starts as \"start\", the two if statements are independent, the first condition is true and the second is false, so label is \"positive\" when it is printed.",
       "misconception": null
     },
     {
@@ -41,9 +41,9 @@
     },
     {
       "id": "opt-no-boolean",
-      "text": "It stops with a NameError, because value > 0 produces a number and only a literal True or False can control an if statement.",
+      "text": "It prints start, because only a literal True or False can control an if statement, so the comparison conditions are not accepted and neither body runs.",
       "score": 0,
-      "feedback": "A comparison produces a bool, and an if tests any expression for truthiness. The first condition is true, so label is assigned and no NameError occurs.",
+      "feedback": "An if tests any expression for truthiness. The first condition (value > 0) is true, so label becomes \"positive\" and is printed; the initial \"start\" is not what remains.",
       "misconception": "py.truthiness-only-booleans"
     },
     {
@@ -55,13 +55,13 @@
     },
     {
       "id": "opt-accumulate",
-      "text": "It prints positivehuge, because each assignment adds the new text to the previous value of label, as if using +=.",
+      "text": "It prints startpositive, because each assignment adds the new text to the previous value of label, as if using +=.",
       "score": 0,
-      "feedback": "An ordinary assignment replaces the value rather than adding to it. If the second if ran at all, label would become exactly \"huge\", never \"positivehuge\".",
+      "feedback": "An ordinary assignment replaces the value rather than adding to it. The first executed assignment sets label to exactly \"positive\", not \"startpositive\", and the second if does not run.",
       "misconception": "py.assignment-accumulates"
     }
   ],
-  "explanation": "Both if statements are independent. value is 10, so the first condition (value > 0) is true and label becomes \"positive\". The second condition (value > 100) is false, so label is not changed. The program prints positive.",
+  "explanation": "label starts as \"start\". Both if statements are independent. value is 10, so the first condition (value > 0) is true and label becomes \"positive\". The second condition (value > 100) is false, so label is not changed. The program prints positive.",
   "verification": {
     "status": "specified",
     "cases": [
@@ -75,7 +75,7 @@
         }
       }
     ],
-    "rationale": "Running the primary snippet with no input writes \"positive\\n\" and exits 0, which supports the correct option: the first condition matches and the second does not. It does not show that independent if statements can never behave like elif for other inputs, and it does not validate the explanations in the other options.",
+    "rationale": "Running the primary snippet with no input writes \"positive\\n\" and exits 0, which supports the correct option: the first condition matches and the second does not, so the initial \"start\" is replaced once. It does not show that independent if statements can never behave like elif for other inputs, and it does not validate the explanations in the other options.",
     "limitations": "One deterministic input only. Rewrite equivalence, asymptotic complexity and whether the half-credit option is genuinely half right are not established by execution."
   },
   "author": {

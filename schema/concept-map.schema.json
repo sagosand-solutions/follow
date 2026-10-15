@@ -37,7 +37,10 @@
   "$defs": {
     "conceptId": {
       "type": "string",
-      "pattern": "^py\\.[a-z][a-z0-9-]*$"
+      "pattern": "^py\\.[a-z][a-z0-9-]*$",
+      "not": {
+        "pattern": "\\s"
+      }
     },
     "level": {
       "enum": [

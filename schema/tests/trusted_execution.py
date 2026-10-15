@@ -12,7 +12,8 @@ With no arguments it runs ``content/examples/independent-if.json``.
 The helper runs each declared verification case on the local interpreter with a
 timeout and isolated mode, then compares stdout and the exit code. It is
 trusted-only: it does NOT isolate the network or the filesystem and is not a
-sandbox. Untrusted content must go through the separate validator runner.
+sandbox. Untrusted code must not be executed at all until an approved hardened
+runner exists; only static validation is allowed for untrusted content now.
 """
 
 import json

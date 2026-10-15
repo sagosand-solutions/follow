@@ -268,5 +268,6 @@ python3 schema/tests/trusted_execution.py content/examples/independent-if.json
 
 This helper is trusted-only. It uses a timeout and isolated Python mode, but that
 is **not** a sandbox: it does not isolate the network or the filesystem and must
-only be used on code that a human has already inspected. Untrusted content must
-go through the separate validator runner, which owns isolation.
+only be used on code that a human has already inspected. Untrusted code must not
+be executed at all until an approved hardened runner exists; for untrusted
+content, only static validation is appropriate now.
