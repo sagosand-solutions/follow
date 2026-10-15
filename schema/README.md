@@ -73,7 +73,7 @@ answers by ID rather than by position.
 | `id` | string | Local ID, unique within `snippets`. |
 | `code` | string | Nonempty. Rendered exactly as text; line numbers are display metadata and are never inserted into copied source. |
 | `label` | string | Optional, nonempty. |
-| `highlight_lines` | array | Optional, nonempty, unique integers `>= 1`. The validator rejects a value greater than the actual source line count. |
+| `highlight_lines` | array | Optional, unique integers `>= 1`; may be empty. The validator rejects a value greater than the actual source line count. |
 
 Source line count is computed with `splitlines`; an empty final segment after a
 terminal newline is not an extra source line. Later snippets are visible
@@ -100,9 +100,9 @@ Scoring and the score-dependent rules:
 - **Score `0`** requires a misconception ID and forbids `partial_reason`.
 - **Score `0.5`** requires both a misconception ID and a `partial_reason`.
 
-The schema checks the *shape* of these rules (types, allowed score values, the
-`if`/`then` linkage between score and the other fields). It cannot count how many
-options have each score; that count is a validator check.
+The schema declares the *shape* of these rules (types, allowed score values, the
+`if`/`then` linkage between score and the other fields). It does not count how
+many options have each score; that count is a validator check.
 
 Every wrong option maps to a named misconception. The same misconception may
 appear in more than one option if that is justified, but avoid redundant
@@ -120,12 +120,13 @@ that explicit split is not acceptable, and the schema enforces its presence.
 
 ### Verification
 
-`verification` records what was observed when the code was run. It is never a
-self-asserted quality approval.
+`verification` declares the expectations for how the displayed code should behave
+when run. It is not a self-asserted quality approval and it does not claim that
+the code was executed as part of static validation.
 
 | Field | Type | Rule |
 |---|---|---|
-| `status` | string | Constant `"specified"`. It records that cases are specified, not that the question passed review. |
+| `status` | string | Constant `"specified"`. It declares that cases are specified, not that the question passed review. |
 | `cases` | array | Nonempty, unique Case objects. |
 | `rationale` | string | Nonempty. How the cases support the correct answer and what they cannot establish. |
 | `limitations` | string | Optional, nonempty. Known gaps. |
@@ -210,18 +211,21 @@ These are three different things, and reports must not blur them.
 
 - **Static validation** (JSON Schema, plus the semantic validator) checks
   structure, types, domains, identifier uniqueness, score counts and
-  cross-document references. It runs no code. JSON Schema cannot generally prove
-  that IDs inside arrays are unique (only that an entire entry is not duplicated),
-  that score counts are correct, that the concept map has no cycles, or that
-  `highlight_lines` fit the source. It also cannot reject whitespace-only
-  strings. Those cases are handled by the validator and are intentionally out of
-  scope for the schema.
-- **Execution** runs the displayed snippet with the given stdin in a sandbox and
-  compares stdout and the exit code. Passing execution shows that the declared
-  observations hold. It does **not** show that the correct option logically
-  follows from those observations. Equivalence over all inputs, asymptotic
-  complexity, pedagogical validity and genuine half credit are not machine-proven
-  by a run.
+  cross-document references. It runs no code. This project's schema does not
+  enforce per-array identifier uniqueness (JSON Schema's `uniqueItems` only
+  rejects an identical whole entry), correct score counts, an acyclic concept
+  graph, or `highlight_lines` within the actual source. Those checks belong to
+  the semantic validator and are intentionally out of scope for the schema. JSON
+  Schema could express some of them with `contains`/`minContains`/`pattern`, but
+  this contract keeps them in the validator instead.
+- **Execution** runs the displayed snippet with the given stdin and compares
+  stdout and the exit code. The local runner is **trusted-only**: it is a
+  convenience for content the author already inspected and it does **not**
+  isolate the network or the filesystem. A hardened sandbox is a separate
+  deliverable. Passing execution shows that the declared expectations hold. It
+  does **not** show that the correct option logically follows from those
+  observations. Equivalence over all inputs, asymptotic complexity, pedagogical
+  validity and genuine half credit are not machine-proven by a run.
 - **Human review** decides whether the question is correct, well-tagged, has a
   strong set of distractors and a genuine half-credit option. Automated checks
   only prepare that review.
@@ -237,7 +241,9 @@ versioned runtime field.
 
 ## Running the tests
 
-The suite uses the standard library `unittest` plus the `jsonschema` package:
+The suite uses the standard library `unittest` plus the `jsonschema` package.
+It is fully static: it validates structure and references and never executes
+question code.
 
 ```
 pip install 'jsonschema>=4.18,<5'
@@ -245,5 +251,22 @@ python3 -m unittest discover -s schema/tests -v
 ```
 
 The test suite validates both schemas, checks that the seed concept map and the
-example question pass, checks referential integrity of the seed map, executes the
-example snippet, and confirms that a set of mutated inputs is rejected.
+example question pass, checks referential integrity of the seed map, and confirms
+that a set of mutated inputs is rejected. It also documents, with explicit tests,
+the cases that the schema deliberately leaves to the semantic validator.
+
+## Trusted-only local execution
+
+Executing a displayed snippet is a separate, explicit opt-in step and is not part
+of the static test suite. Use `schema/tests/trusted_execution.py`, which runs the
+declared verification cases of a question file on the local interpreter and
+reports the interpreter version, actual stdout, exit code and stderr:
+
+```
+python3 schema/tests/trusted_execution.py content/examples/independent-if.json
+```
+
+This helper is trusted-only. It uses a timeout and isolated Python mode, but that
+is **not** a sandbox: it does not isolate the network or the filesystem and must
+only be used on code that a human has already inspected. Untrusted content must
+go through the separate validator runner, which owns isolation.

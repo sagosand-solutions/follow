@@ -14,7 +14,6 @@ separate semantic validator.
 
 import copy
 import json
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -185,36 +184,6 @@ class TestExampleQuestion(unittest.TestCase):
                 f"{misconception_id} is not tied to a tagged concept",
             )
 
-    def test_example_snippet_executes_as_declared(self):
-        snippets = {s["id"]: s["code"] for s in self.example["snippets"]}
-        cases = self.example["verification"]["cases"]
-        self.assertTrue(cases)
-        for case in cases:
-            code = snippets[case["snippet_id"]]
-            expected = case["expected"]
-            completed = subprocess.run(
-                [sys.executable, "-c", code],
-                input=case["stdin"].encode("utf-8"),
-                capture_output=True,
-            )
-            self.assertEqual(
-                completed.returncode,
-                expected["exit_code"],
-                f"exit code for {case['id']}",
-            )
-            self.assertEqual(
-                completed.stdout,
-                expected["stdout"].encode("utf-8"),
-                f"stdout for {case['id']}",
-            )
-            if "stderr_contains" in expected:
-                self.assertIn(
-                    expected["stderr_contains"].encode("utf-8"),
-                    completed.stderr,
-                )
-            elif expected["exit_code"] == 0:
-                self.assertEqual(completed.stderr, b"")
-
     def test_interpreter_meets_baseline(self):
         self.assertGreaterEqual(sys.version_info[:2], (3, 11))
 
@@ -384,6 +353,11 @@ class TestDelegatedToSemanticValidator(unittest.TestCase):
     def test_highlight_line_beyond_source_passes_schema(self):
         question = copy.deepcopy(self.example)
         question["snippets"][0]["highlight_lines"] = [99]
+        self.assert_valid(question)
+
+    def test_empty_highlight_lines_pass_schema(self):
+        question = copy.deepcopy(self.example)
+        question["snippets"][0]["highlight_lines"] = []
         self.assert_valid(question)
 
     def test_duplicate_map_ids_pass_schema(self):

@@ -47,18 +47,18 @@
       "misconception": "py.truthiness-only-booleans"
     },
     {
-      "id": "opt-last-text",
-      "text": "It prints huge, because the name label is bound to whichever label text appears last in the source.",
+      "id": "opt-if-body-always",
+      "text": "It prints huge, because both if bodies run regardless of their conditions, so the last assignment wins.",
       "score": 0,
-      "feedback": "Only the first branch runs here, so label is never reassigned. The text \"huge\" is present in the source but is not executed, and source order by itself does not change a name.",
-      "misconception": "py.assignment-is-equation"
+      "feedback": "An if body runs only when its own condition is true. Here value > 100 is false, so the second body is skipped and label stays \"positive\".",
+      "misconception": "py.if-body-unconditional"
     },
     {
-      "id": "opt-fallthrough",
-      "text": "It prints huge, because a true if makes the next if statement run as though it were an else branch.",
+      "id": "opt-accumulate",
+      "text": "It prints positivehuge, because each assignment adds the new text to the previous value of label, as if using +=.",
       "score": 0,
-      "feedback": "A later if is not an else branch; it has its own condition, value > 100, which is false for value = 10, so label stays \"positive\".",
-      "misconception": "py.independent-if-is-elif"
+      "feedback": "An ordinary assignment replaces the value rather than adding to it. If the second if ran at all, label would become exactly \"huge\", never \"positivehuge\".",
+      "misconception": "py.assignment-accumulates"
     }
   ],
   "explanation": "Both if statements are independent. value is 10, so the first condition (value > 0) is true and label becomes \"positive\". The second condition (value > 100) is false, so label is not changed. The program prints positive.",
