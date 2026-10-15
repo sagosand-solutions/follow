@@ -17,7 +17,7 @@ course content is licensed separately under **CC BY-SA 4.0** (see
 |---|---|
 | `question.schema.json` | JSON Schema (draft 2020-12) for one question. |
 | `concept-map.schema.json` | JSON Schema (draft 2020-12) for the shared concept map. |
-| `concepts/python-v0.json` | Initial Python concept map: 18 concepts and 20 misconceptions. |
+| `concepts/python-v0.json` | Initial Python concept map: 18 concepts and 43 misconceptions. |
 | `tests/` | Standard-library `unittest` suite that validates the schemas, the vocabulary and an example question. |
 | `../content/examples/independent-if.json` | One illustrative question in this contract (CC BY-SA 4.0). |
 
@@ -25,6 +25,11 @@ All content is UTF-8 JSON. Question content is **plain text**: no HTML, no
 Markdown, no template syntax. Rendered output must be inserted as text. A string
 that is only whitespace is allowed by the schema but rejected by the validator,
 which is the semantic layer (see below).
+
+A prose field may contain an optional matched pair of backticks as a display hint
+for inline code. This is not Markdown: only textual or code nodes are produced,
+an unpaired backtick stays literal text, and no field requires a hint. A fallback
+renderer may show the backticks literally.
 
 ## Interchange decision
 

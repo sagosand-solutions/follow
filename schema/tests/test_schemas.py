@@ -128,7 +128,7 @@ class TestSeedConceptMap(unittest.TestCase):
 
     def test_seed_map_counts(self):
         self.assertEqual(len(self.map["concepts"]), 18)
-        self.assertEqual(len(self.map["misconceptions"]), 20)
+        self.assertEqual(len(self.map["misconceptions"]), 43)
 
     def test_seed_map_referential_integrity(self):
         concepts = self.map["concepts"]
