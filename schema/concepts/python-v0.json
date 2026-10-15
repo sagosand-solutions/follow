@@ -1,0 +1,323 @@
+{
+  "schema_version": "0.1",
+  "language": "python",
+  "concepts": [
+    {
+      "id": "py.values",
+      "title": "Values and basic types",
+      "level": "beginner",
+      "prerequisites": []
+    },
+    {
+      "id": "py.assignment",
+      "title": "Names and assignment",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.numeric-operators",
+      "title": "Numeric operators",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.booleans",
+      "title": "Booleans and truthiness",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.conditionals",
+      "title": "Conditional statements",
+      "level": "beginner",
+      "prerequisites": [
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.strings",
+      "title": "Strings",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.lists",
+      "title": "Lists",
+      "level": "beginner",
+      "prerequisites": [
+        "py.assignment"
+      ]
+    },
+    {
+      "id": "py.iteration",
+      "title": "Iteration over sequences",
+      "level": "beginner",
+      "prerequisites": [
+        "py.conditionals",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.functions",
+      "title": "Functions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.assignment",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.scope",
+      "title": "Name scope and lookup",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.mutation-aliasing",
+      "title": "Mutation and aliasing",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.lists",
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.dictionaries",
+      "title": "Dictionaries",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.lists",
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.exceptions",
+      "title": "Exceptions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.comprehensions",
+      "title": "Comprehensions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.default-arguments",
+      "title": "Default arguments",
+      "level": "advanced",
+      "prerequisites": [
+        "py.functions",
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.iterators",
+      "title": "Iterators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.generators",
+      "title": "Generators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.complexity",
+      "title": "Algorithmic complexity",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ]
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "py.assignment-copies-value",
+      "title": "Assignment always copies the value",
+      "description": "Assignment always makes an independent copy, even for mutable objects.",
+      "concepts": [
+        "py.assignment",
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.assignment-is-equation",
+      "title": "Assignment is an algebraic equation",
+      "description": "Assignment establishes a persistent algebraic relationship between names.",
+      "concepts": [
+        "py.assignment"
+      ]
+    },
+    {
+      "id": "py.floor-is-truncate",
+      "title": "Floor division truncates toward zero",
+      "description": "Integer floor division truncates toward zero for negative operands.",
+      "concepts": [
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.precedence-left-to-right",
+      "title": "Arithmetic is strictly left to right",
+      "description": "All arithmetic operators are evaluated strictly left to right.",
+      "concepts": [
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.truthiness-only-booleans",
+      "title": "Only literal booleans control conditionals",
+      "description": "Only literal True/False can control a conditional.",
+      "concepts": [
+        "py.booleans",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.independent-if-is-elif",
+      "title": "Separate if statements are mutually exclusive",
+      "description": "Separate if statements act like mutually exclusive elif branches.",
+      "concepts": [
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.slice-end-inclusive",
+      "title": "Slice stop index is inclusive",
+      "description": "The stop index is included in a slice.",
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.index-starts-one",
+      "title": "Indexing starts at one",
+      "description": "The first item has index one.",
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.range-stop-inclusive",
+      "title": "range includes its stop bound",
+      "description": "range includes its stop bound.",
+      "concepts": [
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.return-is-print",
+      "title": "Returning and printing are the same",
+      "description": "Printing a result makes it the function return value.",
+      "concepts": [
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.local-rebinds-global",
+      "title": "Local assignment rebinds the global",
+      "description": "Assignment inside a function automatically rebinds a same-named global.",
+      "concepts": [
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.shallow-copy-is-deep",
+      "title": "A shallow copy is a deep copy",
+      "description": "Copying the outer container also copies all nested mutable objects.",
+      "concepts": [
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.dict-iteration-values",
+      "title": "Dictionary iteration yields values",
+      "description": "Iterating a dictionary yields values rather than keys.",
+      "concepts": [
+        "py.dictionaries"
+      ]
+    },
+    {
+      "id": "py.except-catches-everything",
+      "title": "A typed except catches everything",
+      "description": "A typed except clause catches every exception.",
+      "concepts": [
+        "py.exceptions"
+      ]
+    },
+    {
+      "id": "py.comprehension-leaks-name",
+      "title": "Comprehension loop variable leaks",
+      "description": "Python 3 list-comprehension loop variables overwrite the enclosing variable.",
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.default-recreated",
+      "title": "Mutable defaults are recreated per call",
+      "description": "A mutable default is created anew for each function call.",
+      "concepts": [
+        "py.default-arguments"
+      ]
+    },
+    {
+      "id": "py.iterator-restarts",
+      "title": "An exhausted iterator restarts",
+      "description": "Reusing an exhausted iterator restarts it.",
+      "concepts": [
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.generator-eager",
+      "title": "Generators run eagerly",
+      "description": "A generator body runs fully when the generator is created.",
+      "concepts": [
+        "py.generators"
+      ]
+    },
+    {
+      "id": "py.nested-loops-always-quadratic",
+      "title": "Nested loops are always quadratic",
+      "description": "Any syntactically nested loop is necessarily quadratic in input size.",
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.single-loop-always-linear",
+      "title": "A single loop is always linear",
+      "description": "Any single loop has linear complexity, irrespective of work in its body.",
+      "concepts": [
+        "py.complexity"
+      ]
+    }
+  ]
+}

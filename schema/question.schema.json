@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Question contract v0.1",
+  "description": "Static interchange contract for one code-reading question, as plain-text JSON. JSON Schema enforces field presence, types, value domains and score-dependent shape. Identifier uniqueness, score counts, cross-file references and other semantic rules are enforced by the validator, not here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "language",
+    "locale",
+    "type",
+    "level",
+    "difficulty",
+    "concepts",
+    "prompt",
+    "snippets",
+    "options",
+    "explanation",
+    "verification",
+    "author",
+    "license"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "id": {
+      "$ref": "#/$defs/questionId"
+    },
+    "language": {
+      "const": "python"
+    },
+    "locale": {
+      "const": "en"
+    },
+    "type": {
+      "enum": [
+        "output",
+        "crashing-input",
+        "remove-line",
+        "equivalence",
+        "complexity",
+        "ai-review"
+      ]
+    },
+    "level": {
+      "$ref": "#/$defs/level"
+    },
+    "difficulty": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "concepts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/conceptId"
+      }
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "snippets": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/snippet"
+      }
+    },
+    "options": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/option"
+      }
+    },
+    "explanation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verification": {
+      "$ref": "#/$defs/verification"
+    },
+    "author": {
+      "$ref": "#/$defs/author"
+    },
+    "license": {
+      "const": "CC-BY-SA-4.0"
+    }
+  },
+  "$defs": {
+    "questionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "localId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,79}$"
+    },
+    "conceptId": {
+      "type": "string",
+      "pattern": "^py\\.[a-z][a-z0-9-]*$"
+    },
+    "level": {
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ]
+    },
+    "snippet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "code"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localId"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "highlight_lines": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "score",
+        "feedback",
+        "misconception"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localId"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "score": {
+          "type": "number",
+          "enum": [
+            0,
+            0.5,
+            1
+          ]
+        },
+        "feedback": {
+          "type": "string",
+          "minLength": 1
+        },
+        "misconception": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/conceptId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "partial_reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "score": {
+                "const": 1
+              }
+            },
+            "required": [
+              "score"
+            ]
+          },
+          "then": {
+            "properties": {
+              "misconception": {
+                "type": "null"
+              }
+            },
+            "not": {
+              "required": [
+                "partial_reason"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "score": {
+                "const": 0
+              }
+            },
+            "required": [
+              "score"
+            ]
+          },
+          "then": {
+            "properties": {
+              "misconception": {
+                "type": "string"
+              }
+            },
+            "not": {
+              "required": [
+                "partial_reason"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "score": {
+                "const": 0.5
+              }
+            },
+            "required": [
+              "score"
+            ]
+          },
+          "then": {
+            "properties": {
+              "misconception": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "partial_reason"
+            ]
+          }
+        }
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "cases",
+        "rationale"
+      ],
+      "properties": {
+        "status": {
+          "const": "specified"
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/case"
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limitations": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "snippet_id",
+        "stdin",
+        "expected"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localId"
+        },
+        "snippet_id": {
+          "$ref": "#/$defs/localId"
+        },
+        "stdin": {
+          "type": "string"
+        },
+        "expected": {
+          "$ref": "#/$defs/expected"
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stdout",
+        "exit_code"
+      ],
+      "properties": {
+        "stdout": {
+          "type": "string"
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "stderr_contains": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "exit_code": {
+                "minimum": 1
+              }
+            },
+            "required": [
+              "exit_code"
+            ]
+          },
+          "then": {
+            "required": [
+              "stderr_contains"
+            ]
+          }
+        }
+      ]
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
