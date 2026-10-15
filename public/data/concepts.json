@@ -621,6 +621,181 @@
       "description": "or always returns its right-hand operand even when the left operand is truthy.",
       "id": "py.or-always-fallback",
       "title": "or always takes its fallback"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Integer floor division rounds its quotient to the nearest integer rather than toward negative infinity.",
+      "id": "py.floor-rounds-nearest",
+      "title": "Floor division rounds to nearest"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "The // operator returns the same fractional quotient as / for integer operands.",
+      "id": "py.floor-is-true-division",
+      "title": "Floor and true division are identical"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Floor division replaces a negative numerator with its positive magnitude before dividing.",
+      "id": "py.floor-ignores-negative-sign",
+      "title": "Division ignores a negative numerator"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Multiplication groups before exponentiation in an expression containing both operators.",
+      "id": "py.multiplication-before-power",
+      "title": "Multiplication binds before exponentiation"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Addition groups before multiplication, even without parentheses requesting that grouping.",
+      "id": "py.addition-before-multiplication",
+      "title": "Addition binds before multiplication"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Normal operator precedence is applied across parentheses rather than using parentheses to override grouping.",
+      "id": "py.parentheses-do-not-override-precedence",
+      "title": "Parentheses cannot change grouping"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.mutation-aliasing"
+      ],
+      "description": "A full list slice returns the same outer list instead of making a new outer container with shared element references.",
+      "id": "py.slice-shares-outer-container",
+      "title": "A full slice aliases its outer list"
+    },
+    {
+      "concepts": [
+        "py.lists"
+      ],
+      "description": "Lists reject mutable list elements with TypeError, confusing list elements with hashable-only contexts such as dictionary keys.",
+      "id": "py.list-items-must-be-immutable",
+      "title": "List items must be immutable"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ],
+      "description": "A Python 3 list comprehension overwrites the outer loop-variable binding during iteration and then restores its former value afterward.",
+      "id": "py.comprehension-restores-outer",
+      "title": "Comprehension restores an overwritten outer name"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ],
+      "description": "The expression in a list comprehension reads a same-named outer binding instead of the comprehension's iteration binding.",
+      "id": "py.comprehension-expression-uses-outer",
+      "title": "Comprehension expression ignores its loop binding"
+    },
+    {
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ],
+      "description": "A dictionary always yields its string keys in alphabetical order rather than insertion order.",
+      "id": "py.dict-iteration-sorts-keys",
+      "title": "Dictionary iteration sorts keys"
+    },
+    {
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ],
+      "description": "Iterating a dictionary directly yields key-value pairs as though iterating its items view.",
+      "id": "py.dict-iteration-pairs",
+      "title": "Dictionary iteration yields pairs"
+    },
+    {
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ],
+      "description": "Direct dictionary iteration raises TypeError unless keys() is explicitly called.",
+      "id": "py.dict-needs-keys-method",
+      "title": "A dictionary needs keys() to be iterable"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "No except clause can catch KeyError, regardless of the exception type named by that clause.",
+      "id": "py.keyerror-uncatchable",
+      "title": "KeyError cannot be caught"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "Completing a finally block normally discards an escaping exception and permits execution after the try statement.",
+      "id": "py.finally-suppresses-error",
+      "title": "Cleanup suppresses an escaping exception"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "An exception not matched by an except clause bypasses the associated finally block.",
+      "id": "py.uncaught-skips-finally",
+      "title": "Uncaught exceptions skip cleanup"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "An explicit call to built-in next previews an iterator element without consuming it, unlike iteration by a collection constructor.",
+      "id": "py.next-peeks-without-consuming",
+      "title": "Explicit next previews without advancing"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "All Python container iterators safely continue after their underlying container grows during iteration.",
+      "id": "py.all-iterators-allow-size-change",
+      "title": "Every container iterator tolerates growth"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.numeric-operators"
+      ],
+      "description": "The sum n + floor(n/2) + floor(n/4) + ... is exactly 2n-1 for every positive integer n, not just powers of two.",
+      "id": "py.halving-always-two-n-minus-one",
+      "title": "Integer halving always totals 2n minus 1"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "A halving outer loop makes the total running time logarithmic regardless of the work performed by its inner loop.",
+      "id": "py.outer-loop-alone-determines-cost",
+      "title": "Outer iterations alone determine loop cost"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Multiplying outer iteration count by the maximum inner-loop length always gives a tight total bound even when inner lengths shrink geometrically.",
+      "id": "py.max-inner-bound-gives-tight-product",
+      "title": "Maximum inner bound always gives a tight product"
     }
   ],
   "schema_version": "0.1"

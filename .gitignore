@@ -10,3 +10,8 @@
 .claude/
 .pi/
 .opencode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
