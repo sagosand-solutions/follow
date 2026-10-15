@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Concept map contract v0.1",
+  "description": "Static interchange contract for the shared Python concept map, as plain-text JSON. JSON Schema enforces field presence, types and value domains. Global identifier uniqueness, prerequisite existence and acyclicity, level ordering and cross-document reference checks are enforced by the validator, not here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "language",
+    "concepts",
+    "misconceptions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "language": {
+      "const": "python"
+    },
+    "concepts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/concept"
+      }
+    },
+    "misconceptions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/misconception"
+      }
+    }
+  },
+  "$defs": {
+    "conceptId": {
+      "type": "string",
+      "pattern": "^py\\.[a-z][a-z0-9-]*$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "level": {
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ]
+    },
+    "concept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "level",
+        "prerequisites"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/conceptId"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "$ref": "#/$defs/level"
+        },
+        "prerequisites": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/conceptId"
+          }
+        }
+      }
+    },
+    "misconception": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "description",
+        "concepts"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/conceptId"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concepts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/conceptId"
+          }
+        }
+      }
+    }
+  }
+}
