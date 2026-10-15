@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  padding: var(--s-5) var(--s-4);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--lh-body);
+}
+main { max-width: var(--wide); margin-inline: auto; }
+h2 { font-size: var(--text-lg); margin-block: var(--s-6) var(--s-2); }
+.demo-button {
+  min-height: var(--tap);
+  padding-inline: var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.demo-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
