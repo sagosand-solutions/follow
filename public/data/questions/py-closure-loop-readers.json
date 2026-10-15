@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1",
+  "id": "py-closure-loop-readers",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.61,
+  "concepts": ["py.functions", "py.scope", "py.iteration"],
+  "prompt": "Run this as a fresh Python script. Which option gives the printed result and correctly explains how the readers obtain value?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "def make_readers():\n    readers = []\n    for value in range(3):\n        readers.append(lambda: value)\n    return readers\n\nreaders = make_readers()\nprint([reader() for reader in readers])\n",
+      "highlight_lines": [3, 4, 5, 8]
+    }
+  ],
+  "options": [
+    {
+      "id": "capture-each-value",
+      "text": "It prints [0, 1, 2]. Each lambda copies the current loop value when it is defined.",
+      "score": 0,
+      "feedback": "These lambdas do not snapshot the integer at definition time. They refer to the same enclosing binding, which contains 2 by the time the readers are called.",
+      "misconception": "py.closure-captures-value"
+    },
+    {
+      "id": "freeze-at-return",
+      "text": "It prints [2, 2, 2]. Returning from make_readers copies its final value into each lambda, freezing that integer in the reader.",
+      "score": 0.5,
+      "feedback": "The printed list is right, but return does not copy or freeze the integer into the readers. They retain access to an enclosing binding and read it when called.",
+      "misconception": "py.closure-freezes-on-return",
+      "partial_reason": "Correct: the result is [2, 2, 2]. Incorrect: the enclosing function's return freezes or copies the value into each closure; the readers instead access the retained binding at call time."
+    },
+    {
+      "id": "locals-disappear",
+      "text": "It raises NameError instead of printing a list, because value becomes unavailable when make_readers returns.",
+      "score": 0,
+      "feedback": "A closure can retain access to an enclosing function's local binding after that function returns. The value binding remains available to these readers.",
+      "misconception": "py.closure-loses-bindings"
+    },
+    {
+      "id": "shared-binding",
+      "text": "It prints [2, 2, 2]. All three readers access the same enclosing value binding when called, after the loop has left it at 2.",
+      "score": 1,
+      "feedback": "Correct. The three functions share one enclosing binding of value. The loop has finished before any reader is called, and its final assigned value is 2.",
+      "misconception": null
+    },
+    {
+      "id": "inclusive-stop",
+      "text": "It prints [3, 3, 3, 3]. range(3) includes 3, so the loop creates four readers, and all use the final value 3.",
+      "score": 0,
+      "feedback": "range(3) excludes 3: it produces only 0, 1 and 2, creating three readers rather than four. They share the final binding, whose value is 2, so the actual output is [2, 2, 2].",
+      "misconception": "py.range-stop-inclusive"
+    }
+  ],
+  "explanation": "The for loop repeatedly rebinds one local name value. Each lambda has a free reference to that enclosing binding, rather than an independent copy of its value. The binding remains accessible after make_readers returns. Since the readers are called only after the loop, and nothing subsequently changes the binding, all return 2. Returning the list does not freeze closure values.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "after-loop",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {"stdout": "[2, 2, 2]\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "The displayed script checks the result after the enclosing function returns. Runtime name resolution and retained enclosing bindings require semantic review; this one trace does not disprove every incorrect model that happens to predict the same list.",
+    "limitations": "The half-credit answer has the right trace but a wrong capture mechanism. No later rebinding example is silently added to the snippet."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
