@@ -8,7 +8,7 @@ export function setMessages(obj) {
 }
 
 export async function loadLocale(locale = CONFIG.defaultLocale) {
-  const res = await fetch(`${CONFIG.i18nPath}${locale}.json`, { cache: 'no-cache' });
+  const res = await fetch(`${CONFIG.i18nPath}${locale}.json${CONFIG.release ? `?v=${CONFIG.release}` : ''}`, { cache: 'no-cache' });
   if (!res.ok) throw new Error(`i18n ${res.status}`);
   setMessages(await res.json());
 }

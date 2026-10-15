@@ -45,7 +45,7 @@ export async function courseView() {
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
     const result = store.importJson(await file.text());
-    message.textContent = result.ok ? (result.imported ? t('course.import.ok', { count: result.imported }) : t('course.import.none')) : result.error;
+    message.textContent = result.ok ? (result.imported ? t('course.import.ok', { count: result.imported }) : t('course.import.none')) : t(`course.import.error.${result.error}`);
     fileInput.value = '';
     if (result.ok && result.imported) refresh();
   });

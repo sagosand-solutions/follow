@@ -201,7 +201,6 @@
 .hint--nudge { color: var(--ink); font-weight: 600; }
 @media (max-width: 47.99rem) {
   .question .actions:not(.actions--row) { position: sticky; inset-block-end: 0; z-index: 5; padding: var(--s-3) 0 calc(var(--s-3) + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--line); }
-  .question .stack > .code { margin-inline: calc(-1 * var(--s-4)); border-radius: 0; border-inline: 0; }
 }
 
 .feedback:empty { display: none; }

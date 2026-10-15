@@ -13,7 +13,7 @@ export async function aboutView() {
       h('p', {}, t('about.p2')),
       h('section', { class: 'banner' }, h('h2', { class: 'banner__title' }, t('about.limits.title')), h('ul', {}, [1, 2, 3].map((n) => h('li', {}, t(`about.limits.${n}`))))),
       h('section', {}, h('h2', {}, t('about.privacy.title')), h('p', {}, t('about.privacy.text'))),
-      h('section', {}, h('h2', {}, t('about.license.title')), h('p', {}, t('about.license.text')), h('p', {}, h('a', { href: CONFIG.repoUrl }, t('about.source')))),
+      h('section', {}, h('h2', {}, t('about.license.title')), h('p', {}, t('about.license.text')), h('p', {}, h('a', { href: CONFIG.licenseUrl }, t('q.license')), ' · ', h('a', { href: CONFIG.repoUrl }, t('about.source')))),
     ),
   };
 }

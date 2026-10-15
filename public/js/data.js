@@ -1,10 +1,12 @@
 import { CONFIG } from './config.js';
+import { checkQuestion, QUESTION_ID } from './question-check.js';
 
 const cache = new Map();
+const versionQuery = () => (CONFIG.release ? `?v=${CONFIG.release}` : '');
 
 async function getJson(path) {
   if (cache.has(path)) return cache.get(path);
-  const res = await fetch(`${CONFIG.dataPath}${path}`, { cache: 'no-cache' });
+  const res = await fetch(`${CONFIG.dataPath}${path}${versionQuery()}`, { cache: 'no-cache' });
   if (!res.ok) {
     const err = new Error(`${path}: ${res.status}`);
     err.status = res.status;
@@ -23,39 +25,20 @@ export const loadIndex = () => getJson('index.json');
 export const loadCourse = () => getJson('courses/python.json');
 export const loadConcepts = () => getJson('concepts.json');
 
-const ID = /^[a-z][a-z0-9-]{2,79}$/;
-
 export async function loadQuestion(id) {
-  if (!ID.test(id)) {
+  if (typeof id !== 'string' || !QUESTION_ID.test(id)) {
     const err = new Error('bad id');
     err.status = 404;
     throw err;
   }
-  const q = await getJson(`questions/${id}.json`);
-  validateQuestion(q, id);
-  return q;
-}
-
-// Defensive client-side check: refuse to render a question that does not match what the view relies on.
-export function validateQuestion(q, id) {
-  const bad = (why) => {
-    throw new Error(`question ${id}: ${why}`);
-  };
-  if (!q || typeof q !== 'object') bad('not an object');
-  if (q.schema_version !== '0.1') bad('unsupported schema_version');
-  if (q.id !== id) bad('id mismatch');
-  if (typeof q.prompt !== 'string' || !q.prompt.trim()) bad('prompt');
-  if (!Array.isArray(q.snippets) || q.snippets.length === 0) bad('snippets');
-  if (!Array.isArray(q.options) || q.options.length < 2) bad('options');
-  for (const s of q.snippets) if (typeof s.code !== 'string' || typeof s.id !== 'string') bad('snippet');
-  const ids = new Set();
-  for (const o of q.options) {
-    if (typeof o.id !== 'string' || typeof o.text !== 'string' || typeof o.feedback !== 'string') bad('option fields');
-    if (![0, 0.5, 1].includes(o.score)) bad('option score');
-    if (ids.has(o.id)) bad('duplicate option id');
-    ids.add(o.id);
+  const path = `questions/${id}.json`;
+  const q = await getJson(path);
+  const problem = checkQuestion(q, id);
+  if (problem) {
+    cache.delete(path); // never keep malformed data: a retry fetches it again
+    throw new Error(`question ${id}: ${problem}`);
   }
-  if (q.options.filter((o) => o.score === 1).length !== 1) bad('exactly one correct option');
+  return q;
 }
 
 // Course helpers
