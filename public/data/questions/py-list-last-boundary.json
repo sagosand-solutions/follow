@@ -1,0 +1,66 @@
+{
+  "schema_version": "0.1",
+  "id": "py-list-last-boundary",
+  "language": "python",
+  "locale": "en",
+  "type": "crashing-input",
+  "level": "beginner",
+  "difficulty": 0.27,
+  "concepts": ["py.lists"],
+  "prompt": "Run this program separately with each of the one-line integer inputs -1, 0, 2 and 3. Which of these inputs raises IndexError, and which indexing rule is correct? Assume each input line is supplied as written; parsing errors are not at issue.",
+  "snippets": [
+    {"id": "main", "code": "colors = [\"red\", \"blue\", \"green\"]\nindex = int(input())\nprint(colors[index])\n"}
+  ],
+  "options": [
+    {
+      "id": "upper-bound-without-lower-bound",
+      "text": "Only 3. Any index smaller than len(colors) is safe, with no lower bound on negative indices.",
+      "score": 0.5,
+      "feedback": "Only 3 does fail among these inputs, but the rule is incomplete. For this list, valid indices run from -3 to 2. An index such as -4 is smaller than the length but is not safe.",
+      "misconception": "py.upper-bound-guard-covers-negative",
+      "partial_reason": "Correct: identifies exactly the failing input 3 in the stated set. Incorrect: claims there is no negative lower bound; a list of length 3 permits negative indices only down to -3."
+    },
+    {
+      "id": "negative-and-high-invalid",
+      "text": "-1 and 3. Negative indices are never valid, and index 3 is past the three zero-based positions.",
+      "score": 0,
+      "feedback": "Index 3 is too large, but -1 is valid: it selects the last item, green. Python supports negative indices within the list's length. Only 3 raises IndexError here.",
+      "misconception": "py.negative-index-invalid"
+    },
+    {
+      "id": "length-is-valid-index",
+      "text": "None. Index 3 is allowed because the length is 3; -1, 0 and 2 are also allowed.",
+      "score": 0,
+      "feedback": "A three-element list's nonnegative indices are 0, 1 and 2, not 3. Its length is the excluded upper bound, so input 3 raises IndexError.",
+      "misconception": "py.index-upper-bound-inclusive"
+    },
+    {
+      "id": "one-based-positions",
+      "text": "Only 0. Positive positions run from 1 to 3, and -1 still counts backward to the last item.",
+      "score": 0,
+      "feedback": "The from-end interpretation of -1 is fine, but ordinary indices start at 0. Index 0 selects red; index 3 is outside the list. Only 3 fails.",
+      "misconception": "py.index-starts-one"
+    },
+    {
+      "id": "bounded-zero-and-negative-indices",
+      "text": "Only 3. Nonnegative indices are 0, 1 and 2; -1 selects the last item, and the valid negative indices extend down to -3.",
+      "score": 1,
+      "feedback": "Correct. Inputs -1 and 2 both print green, and 0 prints red. Input 3 would need a fourth item and raises IndexError.",
+      "misconception": null
+    }
+  ],
+  "explanation": "A list of length 3 has nonnegative indices 0, 1 and 2. It also accepts -1, -2 and -3, counting from the end. For the four inputs in the prompt, -1 prints green, 0 prints red, 2 prints green, and 3 raises IndexError before printing anything. Merely checking that an index is below the length would miss invalid negative values.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "last-from-end", "snippet_id": "main", "stdin": "-1\n", "expected": {"stdout": "green\n", "exit_code": 0}},
+      {"id": "first-from-start", "snippet_id": "main", "stdin": "0\n", "expected": {"stdout": "red\n", "exit_code": 0}},
+      {"id": "last-from-start", "snippet_id": "main", "stdin": "2\n", "expected": {"stdout": "green\n", "exit_code": 0}},
+      {"id": "past-end", "snippet_id": "main", "stdin": "3\n", "expected": {"stdout": "", "exit_code": 1, "stderr_contains": "IndexError: list index out of range"}}
+    ],
+    "rationale": "Execute the exact displayed program for every input named in the prompt, comparing literal stdout and exit status and a stable error substring. Human reasoning checks the boundary rule, including the incorrect universal lower-bound claim in the partial answer.",
+    "limitations": "The four observations establish the stated finite input set, not a general indexing theorem or fairness of the proposed scoring. No claim about arbitrary input text or empirical calibration."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
