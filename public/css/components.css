@@ -167,6 +167,7 @@
 /* === question === */
 .question { max-width: var(--wide); }
 .question__title { font-size: var(--text-2xl); max-width: var(--measure); }
+.question__title--long { font-size: var(--text-lg); line-height: 1.5; font-weight: 600; }
 .question .stack > :not(.code) { max-width: var(--measure); }
 .question .stack > .code { max-width: none; margin-block: 0; }
 

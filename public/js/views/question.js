@@ -78,7 +78,7 @@ function draw(ctx, prev) {
   }
   const chips = h('p', { class: 'chips' }, h('span', { class: 'chip' }, t(`type.${q.type}`)), q.level ? h('span', { class: 'chip' }, t(`level.${q.level}`)) : null);
 
-  const title = h('h1', { id: 'q-title', class: 'question__title' }, renderInline(q.prompt));
+  const title = h('h1', { id: 'q-title', class: q.prompt.length > 90 ? 'question__title question__title--long' : 'question__title' }, renderInline(q.prompt));
 
   const snippets = q.snippets.map((s) =>
     renderCodeBlock({
