@@ -5,11 +5,72 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from validator import Limits, RunResult, TrustedLocalRunner
 from validator.runner import verify_question
 from helpers import question
+
+
+def assert_process_stopped(stat, timeout=1):
+    """A reaped process or zombie is stopped; a live process must fail the check."""
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            # Do not check exists() first: /proc can disappear before open/read.
+            contents = stat.read_text()
+        except (FileNotFoundError, ProcessLookupError):
+            # ENOENT at open, or ESRCH if the task vanishes after open but
+            # before the procfs read. Both mean the observed process is gone.
+            return
+        # comm is parenthesized and can contain spaces or closing parentheses.
+        state = contents.rsplit(")", 1)[1].split()[0]
+        if state == "Z":
+            return
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"Process still live at {stat}: state={state}")
+        time.sleep(0.01)
+
+
+class CleanupObservationTests(unittest.TestCase):
+    def test_reaped_before_first_read(self):
+        for error in (FileNotFoundError, ProcessLookupError):
+            with self.subTest(error=error):
+                stat = Mock()
+                stat.read_text.side_effect = error("process reaped")
+                assert_process_stopped(stat)
+                stat.read_text.assert_called_once_with()
+                stat.exists.assert_not_called()
+
+    def test_reaped_between_observations(self):
+        for error in (FileNotFoundError, ProcessLookupError):
+            with self.subTest(error=error):
+                stat = Mock()
+                stat.read_text.side_effect = ["123 (python) S 1", error("process reaped")]
+                with patch.object(time, "monotonic", return_value=0), patch.object(time, "sleep") as sleep:
+                    assert_process_stopped(stat)
+                self.assertEqual(stat.read_text.call_count, 2)
+                sleep.assert_called_once_with(0.01)
+
+    def test_live_then_zombie(self):
+        stat = Mock()
+        stat.read_text.side_effect = ["123 (name with ) spaces) R 1", "123 (name with ) spaces) Z 1"]
+        with patch.object(time, "monotonic", return_value=0), patch.object(time, "sleep"):
+            assert_process_stopped(stat)
+        self.assertEqual(stat.read_text.call_count, 2)
+
+    def test_live_process_is_not_cleanup_success(self):
+        stat = Mock()
+        stat.read_text.return_value = "123 (python) S 1"
+        with patch.object(time, "monotonic", side_effect=[0, 1]):
+            with self.assertRaisesRegex(AssertionError, "Process still live.*state=S"):
+                assert_process_stopped(stat)
+
+    def test_other_io_errors_are_not_hidden(self):
+        stat = Mock()
+        stat.read_text.side_effect = PermissionError("not observable")
+        with self.assertRaises(PermissionError):
+            assert_process_stopped(stat)
 
 
 class FakeRunner:
@@ -50,6 +111,8 @@ class BoundaryTests(unittest.TestCase):
         with patch("subprocess.Popen", side_effect=AssertionError("must not run")):
             self.assertEqual(TrustedLocalRunner().run("print(1)", "", Limits()).status, "unavailable")
             with patch("sys.platform", "unsupported"):
+                self.assertEqual(TrustedLocalRunner(allow_trusted_code=True).run("print(1)", "", Limits()).status, "unavailable")
+            with patch("os.geteuid", return_value=0):
                 self.assertEqual(TrustedLocalRunner(allow_trusted_code=True).run("print(1)", "", Limits()).status, "unavailable")
             with patch("resource.getrlimit", side_effect=OSError("not available")):
                 self.assertEqual(TrustedLocalRunner(allow_trusted_code=True).run("print(1)", "", Limits()).status, "unavailable")
@@ -110,11 +173,7 @@ class LocalSmokeTests(unittest.TestCase):
         pid = int(result.stdout.strip())
         # Reparented children can remain zombies until the system reaper runs.
         stat = Path(f"/proc/{pid}/stat")
-        deadline = time.monotonic() + 1
-        while stat.exists() and stat.read_text().split()[2] != "Z" and time.monotonic() < deadline:
-            time.sleep(0.01)
-        if stat.exists():
-            self.assertEqual(stat.read_text().split()[2], "Z")
+        assert_process_stopped(stat)
 
 
 if __name__ == "__main__":
