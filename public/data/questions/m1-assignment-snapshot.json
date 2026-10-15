@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1",
+  "id": "m1-assignment-snapshot",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.18,
+  "concepts": ["py.values", "py.assignment"],
+  "prompt": "What does this program print, and which explanation of assignment is correct? Choose the option with both the correct output and the correct explanation.",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "x = 3\ny = 1\ny = x + 2\nx = 8\nprint(x, y)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "linked-expression",
+      "text": "8 10. The assignment y = x + 2 keeps y linked to x, so changing x updates y.",
+      "score": 0,
+      "feedback": "The right-hand side x + 2 is evaluated when the assignment runs, giving 5. It is not saved as a formula to run again when x changes. The output is 8 5.",
+      "misconception": "py.assignment-is-equation"
+    },
+    {
+      "id": "evaluated-now",
+      "text": "8 5. The assignment to y evaluates x + 2 immediately; assigning 8 to x later does not recalculate y.",
+      "score": 1,
+      "feedback": "Yes. When y = x + 2 runs, x is 3, so y becomes 5. The next assignment binds x to 8 and leaves y bound to 5.",
+      "misconception": null
+    },
+    {
+      "id": "universal-copy",
+      "text": "8 5. Every assignment makes an independent copy of its object, so two names can never share one list.",
+      "score": 0.5,
+      "feedback": "The output 8 5 is right, but the copying rule is wrong. Assignment binds a name to an object; it does not generally copy it. Two names can refer to the same list. Here x is rebound, and y remains 5.",
+      "misconception": "py.assignment-copies-value",
+      "partial_reason": "Correct: predicts both printed integers, 8 and 5. Incorrect: claims that assignment always copies objects and rules out shared lists. The concrete output alone does not justify that generalization."
+    },
+    {
+      "id": "first-value-fixed",
+      "text": "3 1. Each name keeps its first assigned value, so both y = x + 2 and x = 8 are ignored.",
+      "score": 0,
+      "feedback": "Ordinary names are not fixed constants. y = x + 2 replaces y's initial 1 with 5, and x = 8 replaces x's initial 3 with 8. Both rebindings take effect, so the output is 8 5.",
+      "misconception": "py.first-binding-is-permanent"
+    },
+    {
+      "id": "implicit-addition",
+      "text": "11 6. After a name is initialized, = adds the right-hand-side result to its old value, so both later assignments accumulate.",
+      "score": 0,
+      "feedback": "Ordinary = replaces a binding; it does not accumulate. y becomes 3 + 2, which is 5, rather than 1 + 3 + 2. x then becomes 8, rather than 3 + 8. The output is 8 5.",
+      "misconception": "py.assignment-accumulates"
+    }
+  ],
+  "explanation": "Assignments evaluate their right-hand sides at that moment. y = x + 2 binds y to 5 and replaces its previous value of 1. x = 8 then changes only x's binding. The program prints 8 5. This is not evidence that assignment copies arbitrary objects: list objects can be shared by several names.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "exact-output",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {"stdout": "8 5\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "Run the exact displayed program as a script and compare stdout literally. Language-level reasoning about evaluation and rebinding supports the explanation and refutes the universal copying claim.",
+    "limitations": "One integer trace does not establish semantics for all object types, distractor appeal, or genuine half-credit quality. Those require independent review."
+  },
+  "author": {"name": "Anonymous contributor"},
+  "license": "CC-BY-SA-4.0"
+}

@@ -1,0 +1,85 @@
+{
+  "schema_version": "0.1",
+  "id": "m1-list-iadd-equivalence",
+  "language": "python",
+  "locale": "en",
+  "type": "equivalence",
+  "level": "intermediate",
+  "difficulty": 0.53,
+  "concepts": ["py.assignment", "py.lists", "py.mutation-aliasing"],
+  "prompt": "An editor replaces list concatenation followed by assignment with +=. The snippets are separate complete programs, each starting fresh. Do they print exactly the same values for both items and alias? Choose the correct comparison and explanation. Only these built-in lists of integers are in scope.",
+  "snippets": [
+    {
+      "id": "original",
+      "label": "Original",
+      "code": "items = [2, 4]\nalias = items\nitems = items + [6]\nprint(items, alias)\n",
+      "highlight_lines": [3]
+    },
+    {
+      "id": "rewrite",
+      "label": "Rewrite",
+      "code": "items = [2, 4]\nalias = items\nitems += [6]\nprint(items, alias)\n",
+      "highlight_lines": [3]
+    }
+  ],
+  "options": [
+    {
+      "id": "assignment-copied",
+      "text": "Yes. Both print [2, 4, 6] [2, 4], because alias = items creates an independent copy before either update.",
+      "score": 0,
+      "feedback": "alias = items does not copy the list. In the rewrite, both names still refer to the list that += extends, so the second printed list is [2, 4, 6].",
+      "misconception": "py.assignment-copies-value"
+    },
+    {
+      "id": "check-only-items",
+      "text": "Yes. Both finish with items equal to [2, 4, 6], so replacing the update preserves the complete printed output.",
+      "score": 0.5,
+      "feedback": "The final contents of items are right, but the comparison omits alias. The original leaves alias as [2, 4]; the rewrite changes the shared list to [2, 4, 6]. The complete output is different.",
+      "misconception": "py.equivalence-ignores-aliases",
+      "partial_reason": "Correct: items contains [2, 4, 6] in both programs. Incorrect: concludes that the full output is preserved without checking alias, whose contents differ."
+    },
+    {
+      "id": "reversed-mutation",
+      "text": "No. The original prints [2, 4, 6] [2, 4, 6], while the rewrite prints [2, 4, 6] [2, 4], because + mutates a list and += copies it.",
+      "score": 0,
+      "feedback": "The list operations are reversed here. + constructs a new list, leaving alias attached to the old one. For a built-in list, += extends the existing list, so alias observes the extension.",
+      "misconception": "py.plus-mutates-iadd-copies"
+    },
+    {
+      "id": "iadd-is-none",
+      "text": "No. The rewrite prints None [2, 4, 6], because += changes the list and then assigns None to items.",
+      "score": 0,
+      "feedback": "This confuses augmented list assignment with assigning the result of a method such as append. List += leaves items bound to the extended list, not None. Both names print [2, 4, 6] in the rewrite.",
+      "misconception": "py.iadd-returns-none"
+    },
+    {
+      "id": "new-list-vs-mutation",
+      "text": "No. The original prints [2, 4, 6] [2, 4]; the rewrite prints [2, 4, 6] [2, 4, 6]. The first update creates a new list, while the second extends the shared list.",
+      "score": 1,
+      "feedback": "Yes. Initially both names refer to one list. The original rebinds items to a new concatenated list; the rewrite extends the list already shared with alias.",
+      "misconception": null
+    }
+  ],
+  "explanation": "alias = items shares the original list. In the original, items + [6] constructs a new list and = rebinds only items; alias still refers to [2, 4]. In the rewrite, built-in list += extends the original list, so both names refer to [2, 4, 6]. Matching the first printed list is insufficient for preserving the full output.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "original-output",
+        "snippet_id": "original",
+        "stdin": "",
+        "expected": {"stdout": "[2, 4, 6] [2, 4]\n", "exit_code": 0}
+      },
+      {
+        "id": "rewrite-output",
+        "snippet_id": "rewrite",
+        "stdin": "",
+        "expected": {"stdout": "[2, 4, 6] [2, 4, 6]\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "Run each exact displayed program from a fresh interpreter. Their unequal literal outputs demonstrate non-equivalence for this concrete replacement; language-level reasoning explains the aliasing difference.",
+    "limitations": "This is a concrete counterexample, not a proof about arbitrary operand types. Quality of the partial-credit explanation and diagnostic appeal require independent review."
+  },
+  "author": {"name": "Anonymous contributor"},
+  "license": "CC-BY-SA-4.0"
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.1",
+  "id": "m1-negative-index-guard",
+  "language": "python",
+  "locale": "en",
+  "type": "crashing-input",
+  "level": "intermediate",
+  "difficulty": 0.61,
+  "concepts": ["py.lists", "py.booleans", "py.conditionals", "py.exceptions"],
+  "prompt": "Consider only the four one-line integer inputs -3, -1, 0, and 2. The program is run fresh for each input. Which of those inputs raises IndexError, and why? Assume the input line is supplied, so parsing and end-of-input errors are not at issue.",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "items = [4, 8]\nindex = int(input())\nif index < len(items) and items[index] > 0:\n    print(\"positive\")\nelse:\n    print(\"outside\")\n",
+      "highlight_lines": [3]
+    }
+  ],
+  "options": [
+    {
+      "id": "all-negative-invalid",
+      "text": "-3 and -1. Both are negative, and Python lists reject every negative index.",
+      "score": 0,
+      "feedback": "A negative index can be valid: -1 selects the last item, 8. For this two-element list, -3 is too far back and raises IndexError. Only -3 crashes among the listed inputs.",
+      "misconception": "py.negative-index-invalid"
+    },
+    {
+      "id": "both-invalid-indices",
+      "text": "-3 and 2. Both are out of bounds for this list, and and evaluates items[index] for both inputs.",
+      "score": 0.5,
+      "feedback": "You correctly identify the crash for -3, whose upper-bound check is true. But and short-circuits: for 2, the check 2 < 2 is false, so items[2] is never evaluated. Only -3 crashes.",
+      "misconception": "py.and-evaluates-both",
+      "partial_reason": "Correct: identifies -3 as an invalid index that is actually evaluated and crashes. Incorrect: also predicts a crash for 2 by evaluating the right-hand side of and despite a false left-hand side."
+    },
+    {
+      "id": "negative-beyond-length",
+      "text": "Only -3. It passes index < len(items) but is below the valid negative-index range. Input 2 fails the first check, so and skips indexing.",
+      "score": 1,
+      "feedback": "Yes. The valid indices are -2, -1, 0, and 1. Input -3 reaches an invalid lookup; -1 and 0 access positive values; 2 short-circuits to the else branch.",
+      "misconception": null
+    },
+    {
+      "id": "upper-bound-is-enough",
+      "text": "None. The check index < len(items) rejects every invalid list index before the lookup can run.",
+      "score": 0,
+      "feedback": "That check only enforces an upper bound. It accepts -3 because -3 < 2, but -3 is invalid for a two-element list. A safe check allowing Python's negative indices would also require index >= -len(items).",
+      "misconception": "py.upper-bound-guard-covers-negative"
+    },
+    {
+      "id": "zero-invalid",
+      "text": "-3 and 0. The index -3 is too far back, and list positions start at 1, so items[0] also raises IndexError.",
+      "score": 0,
+      "feedback": "The failure for -3 is real, but Python lists use zero-based indexing. items[0] is the first value, 4, so input 0 prints positive rather than crashing. Only -3 crashes among these inputs.",
+      "misconception": "py.index-starts-one"
+    }
+  ],
+  "explanation": "For a two-element built-in list, negative indices -2 and -1 are valid; -3 is not. The upper-bound check accepts -3 and the lookup raises IndexError. Input -1 accesses 8 and input 0 accesses 4, so both print positive. Input 2 makes index < len(items) false; and skips the lookup and the program prints outside. Only -3 crashes among the four listed inputs.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "too-negative",
+        "snippet_id": "main",
+        "stdin": "-3\n",
+        "expected": {"stdout": "", "exit_code": 1, "stderr_contains": "IndexError: list index out of range"}
+      },
+      {
+        "id": "valid-negative",
+        "snippet_id": "main",
+        "stdin": "-1\n",
+        "expected": {"stdout": "positive\n", "exit_code": 0}
+      },
+      {
+        "id": "valid-zero",
+        "snippet_id": "main",
+        "stdin": "0\n",
+        "expected": {"stdout": "positive\n", "exit_code": 0}
+      },
+      {
+        "id": "short-circuited-upper-bound",
+        "snippet_id": "main",
+        "stdin": "2\n",
+        "expected": {"stdout": "outside\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "Run the exact displayed snippet once for each of the four inputs in the prompt. Assert exact stdout and exit code, and a stable IndexError substring for the one deliberate exception. Manual reasoning checks valid negative indices and short-circuit control flow.",
+    "limitations": "The finite input set is exhaustive only for this prompt, not for all possible stdin. Execution alone does not validate half credit, misconception diagnosis, or distractor appeal."
+  },
+  "author": {"name": "Anonymous contributor"},
+  "license": "CC-BY-SA-4.0"
+}
