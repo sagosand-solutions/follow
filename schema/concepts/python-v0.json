@@ -510,6 +510,84 @@
         "py.lists",
         "py.conditionals"
       ]
+    },
+    {
+      "id": "py.slice-stop-is-count",
+      "title": "Slice stop is a length",
+      "description": "The stop bound of a two-bound slice is the number of elements to take, independently of its start bound.",
+      "concepts": ["py.strings", "py.lists"]
+    },
+    {
+      "id": "py.slice-mutates-source",
+      "title": "Slicing replaces its source",
+      "description": "Evaluating a slice changes the source sequence to contain only the selected elements.",
+      "concepts": ["py.strings", "py.lists"]
+    },
+    {
+      "id": "py.index-upper-bound-inclusive",
+      "title": "Index equal to length is valid",
+      "description": "An index equal to the sequence length is valid, as though the upper indexing bound were inclusive.",
+      "concepts": ["py.strings", "py.lists"]
+    },
+    {
+      "id": "py.all-strings-truthy",
+      "title": "Every string is truthy",
+      "description": "Every string is true in a condition, including the empty string.",
+      "concepts": ["py.strings", "py.booleans", "py.conditionals"]
+    },
+    {
+      "id": "py.string-content-is-truth-value",
+      "title": "String spelling determines truth",
+      "description": "The text False inside a nonempty string makes that string false in a condition.",
+      "concepts": ["py.strings", "py.booleans", "py.conditionals"]
+    },
+    {
+      "id": "py.if-else-both-run",
+      "title": "Both if and else bodies execute",
+      "description": "An if/else statement executes both bodies rather than selecting one according to its condition.",
+      "concepts": ["py.conditionals"]
+    },
+    {
+      "id": "py.global-required-for-read",
+      "title": "Reading globals requires a declaration",
+      "description": "A function can never read a module-global name without a global declaration.",
+      "concepts": ["py.scope"]
+    },
+    {
+      "id": "py.local-read-falls-back-global",
+      "title": "Unbound locals fall back to globals",
+      "description": "A local read before its first local assignment falls back to a same-named global.",
+      "concepts": ["py.scope"]
+    },
+    {
+      "id": "py.unbound-local-is-syntax-error",
+      "title": "Unbound locals are syntax errors",
+      "description": "Reading a local before assignment is rejected when defining the function with SyntaxError rather than failing when the read executes.",
+      "concepts": ["py.scope", "py.exceptions"]
+    },
+    {
+      "id": "py.get-default-for-falsy",
+      "title": "Dictionary defaults replace falsy values",
+      "description": "dict.get uses its default for a stored falsy value, not just a missing key.",
+      "concepts": ["py.dictionaries"]
+    },
+    {
+      "id": "py.or-only-none-or-empty-string",
+      "title": "or replaces only None and empty strings",
+      "description": "or replaces only None or the empty string with its right operand and passes all other values through unchanged, including numeric zero and empty containers.",
+      "concepts": ["py.booleans"]
+    },
+    {
+      "id": "py.or-returns-bool",
+      "title": "or returns a Boolean result",
+      "description": "or returns a bool describing combined truth rather than one of its operand values.",
+      "concepts": ["py.booleans"]
+    },
+    {
+      "id": "py.or-always-fallback",
+      "title": "or always takes its fallback",
+      "description": "or always returns its right-hand operand even when the left operand is truthy.",
+      "concepts": ["py.booleans"]
     }
   ]
 }

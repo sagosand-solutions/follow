@@ -13,6 +13,7 @@ separate semantic validator.
 """
 
 import copy
+import hashlib
 import json
 import sys
 import unittest
@@ -127,7 +128,19 @@ class TestSeedConceptMap(unittest.TestCase):
 
     def test_seed_map_counts(self):
         self.assertEqual(len(self.map["concepts"]), 18)
-        self.assertEqual(len(self.map["misconceptions"]), 43)
+        self.assertEqual(len(self.map["misconceptions"]), 56)
+        expected = {
+            "py.slice-stop-is-count", "py.slice-mutates-source", "py.index-upper-bound-inclusive",
+            "py.all-strings-truthy", "py.string-content-is-truth-value", "py.if-else-both-run",
+            "py.global-required-for-read", "py.local-read-falls-back-global", "py.unbound-local-is-syntax-error",
+            "py.get-default-for-falsy", "py.or-only-none-or-empty-string", "py.or-returns-bool", "py.or-always-fallback",
+        }
+        self.assertEqual({m["id"] for m in self.map["misconceptions"][43:]}, expected)
+        self.assertNotIn("py.or-only-empty-string", {m["id"] for m in self.map["misconceptions"]})
+        # Additive vocabulary revisions must preserve all initial definitions.
+        baseline = {**self.map, "misconceptions": self.map["misconceptions"][:43]}
+        digest = hashlib.sha256(json.dumps(baseline, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(digest, "49ccf22efef986c8d6a4a11e1f69c1c501d7d91c1c31d89edb51e48b1bb23c4f")
 
     def test_seed_map_referential_integrity(self):
         concepts = self.map["concepts"]
