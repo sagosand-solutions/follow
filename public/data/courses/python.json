@@ -1,0 +1,50 @@
+{
+  "id": "python",
+  "title": "Python: reading code",
+  "language": "python",
+  "levels": [
+    {
+      "level": "beginner",
+      "title": "Foundations",
+      "lessons": [
+        {
+          "id": "values-and-loops",
+          "title": "Values, assignment and loops",
+          "builds_on": [],
+          "questions": [
+            "m1-assignment-snapshot",
+            "m1-even-accumulator"
+          ]
+        }
+      ]
+    },
+    {
+      "level": "intermediate",
+      "title": "Reading with care",
+      "lessons": [
+        {
+          "id": "lists-and-mutation",
+          "title": "Lists and mutation",
+          "builds_on": [
+            "values-and-loops"
+          ],
+          "questions": [
+            "m1-list-iadd-equivalence",
+            "m1-negative-index-guard"
+          ]
+        },
+        {
+          "id": "functions-and-scope",
+          "title": "Functions, defaults and closures",
+          "builds_on": [
+            "values-and-loops"
+          ],
+          "questions": [
+            "py-shared-default-ai-review",
+            "py-closure-loop-readers"
+          ]
+        }
+      ]
+    }
+  ]
+}

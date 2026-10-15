@@ -1,0 +1,102 @@
+/* Design tokens v0. Source of truth for public/css/tokens.css.
+   All text/background pairs below were checked against WCAG AA (>= 4.5:1 text, >= 3:1 UI borders).
+   Theme: follows the OS by default; <html data-theme="light|dark"> overrides it. */
+
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg: #fffaf1;
+  --surface: #fbf2e5;          /* cards, options */
+  --surface-2: #f4e3c8;        /* hover, progress track */
+  --code-bg: #f6ecdb;
+  --code-mark: #f0dfc0;        /* marked line background */
+  --code-mark-edge: #a64024;   /* marked line left edge */
+
+  /* text */
+  --ink: #32231b;
+  --muted: #66524a;
+  --linenum: #7a6a5e;
+  --on-accent: #fffaf1;
+
+  /* brand / interaction */
+  --accent: #a64024;
+  --accent-hover: #8f3419;
+  --link: #17396e;
+  --focus: #17396e;
+  --line: #e3d2b8;             /* decorative dividers (not required to meet 3:1) */
+  --line-strong: #a8896b;      /* borders of interactive controls (3.1:1 on --bg) */
+
+  /* feedback: always paired with an icon and a word, never colour alone */
+  --ok: #245a38;      --ok-bg: #e7f1ea;
+  --partial: #7a5200; --partial-bg: #f8ecc8;
+  --bad: #8a2f4d;     --bad-bg: #f7e3e8;
+
+  /* syntax */
+  --tok-keyword: #8a2c6b;
+  --tok-string: #1f6b3a;
+  --tok-number: #8a4b00;
+  --tok-comment: #685a50;
+  --tok-function: #17396e;
+  --tok-builtin: #0f6070;
+  --tok-decorator: #7a4a8a;
+
+  /* type */
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+  --text-code: 0.9375rem;      /* code is never below 15px */
+  --lh-body: 1.65;
+  --lh-tight: 1.2;
+  --lh-code: 1.6;
+
+  /* space: 4px base */
+  --s-1: 0.25rem; --s-2: 0.5rem; --s-3: 0.75rem; --s-4: 1rem; --s-5: 1.5rem;
+  --s-6: 2rem; --s-7: 3rem; --s-8: 4.5rem;
+
+  --radius: 8px;
+  --radius-sm: 4px;
+  --shadow: 0 12px 36px rgba(111, 68, 31, 0.09);
+  --measure: 40rem;            /* reading column */
+  --wide: 64rem;               /* page max width */
+  --tap: 3rem;                 /* min touch target (48px) */
+  --dur: 160ms;
+}
+
+/* Dark values are declared twice (OS-driven and manual) because CSS cannot share a block between
+   a media query and an attribute selector without a build step. Keep the two blocks identical. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1f1914; --surface: #2a221b; --surface-2: #3a2f24;
+    --code-bg: #17120e; --code-mark: #3a2f24; --code-mark-edge: #f29b6e;
+    --ink: #f1e6d6; --muted: #bda98f; --linenum: #a08f7c; --on-accent: #1f1914;
+    --accent: #f29b6e; --accent-hover: #f7b08a; --link: #9bb5e8; --focus: #9bb5e8;
+    --line: #3a2f24; --line-strong: #8a7560;
+    --ok: #8fcea6; --ok-bg: #22302a;
+    --partial: #e6c078; --partial-bg: #33291a;
+    --bad: #eba3b9; --bad-bg: #352029;
+    --tok-keyword: #e59ac6; --tok-string: #9bd5a8; --tok-number: #efb072; --tok-comment: #a89684;
+    --tok-function: #9bb5e8; --tok-builtin: #7fd0dd; --tok-decorator: #c9a8e0;
+    --shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1f1914; --surface: #2a221b; --surface-2: #3a2f24;
+  --code-bg: #17120e; --code-mark: #3a2f24; --code-mark-edge: #f29b6e;
+  --ink: #f1e6d6; --muted: #bda98f; --linenum: #a08f7c; --on-accent: #1f1914;
+  --accent: #f29b6e; --accent-hover: #f7b08a; --link: #9bb5e8; --focus: #9bb5e8;
+  --line: #3a2f24; --line-strong: #8a7560;
+  --ok: #8fcea6; --ok-bg: #22302a;
+  --partial: #e6c078; --partial-bg: #33291a;
+  --bad: #eba3b9; --bad-bg: #352029;
+  --tok-keyword: #e59ac6; --tok-string: #9bd5a8; --tok-number: #efb072; --tok-comment: #a89684;
+  --tok-function: #9bb5e8; --tok-builtin: #7fd0dd; --tok-decorator: #c9a8e0;
+  --shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
