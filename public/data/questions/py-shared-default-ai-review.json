@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1",
+  "id": "py-shared-default-ai-review",
+  "language": "python",
+  "locale": "en",
+  "type": "ai-review",
+  "level": "intermediate",
+  "difficulty": 0.52,
+  "concepts": ["py.functions", "py.default-arguments", "py.mutation-aliasing", "py.lists"],
+  "prompt": "An AI claims: Each call below gets its own empty tags list, so each printed list contains only the tag passed in that call. Review the exact code as a fresh Python script. Which review gives both the actual output and a correct explanation of when the default list is created?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "def add_tag(tag, tags=[]):\n    tags.append(tag)\n    return tags\n\nprint(add_tag(\"red\"))\nprint(add_tag(\"blue\"))\n",
+      "highlight_lines": [1, 2, 5, 6]
+    }
+  ],
+  "options": [
+    {
+      "id": "fresh-per-call",
+      "text": "It prints ['red'] and then ['blue']. The AI is right: the default expression creates a new list for each omitted argument.",
+      "score": 0,
+      "feedback": "The default expression is evaluated when def executes, not on each call. Both calls omit tags and therefore mutate the same default list. The second printed list contains both tags.",
+      "misconception": "py.default-recreated"
+    },
+    {
+      "id": "definition-time",
+      "text": "It prints ['red'] and then ['red', 'blue']. The AI is wrong: one list is created when def executes, and both calls reuse it.",
+      "score": 1,
+      "feedback": "Correct. append mutates the shared default list. The first print happens before the second mutation, so it displays only red; the second print displays both tags.",
+      "misconception": null
+    },
+    {
+      "id": "lazy-default",
+      "text": "It prints ['red'] and then ['red', 'blue']. The AI is wrong: the shared default list is first created by the first call that omits tags, then reused.",
+      "score": 0.5,
+      "feedback": "The output and reuse are right, but the creation time is wrong. The list already exists after the def statement executes, before the first call.",
+      "misconception": "py.default-created-on-first-call",
+      "partial_reason": "Correct: both printed lists and the fact that the calls share a list. Incorrect: the default list is created on the first omitted-argument call; it is actually created when the function definition executes."
+    },
+    {
+      "id": "append-copy",
+      "text": "It prints [] twice. append returns a new list without changing tags, and its return value is ignored.",
+      "score": 0,
+      "feedback": "append changes the receiving list in place; it does not return a new list. Ignoring its return value does not undo the mutation. The two prints show ['red'] and then ['red', 'blue'].",
+      "misconception": "py.append-nonmutating"
+    },
+    {
+      "id": "illegal-default",
+      "text": "It raises TypeError before printing anything, because Python forbids a mutable list as a function's default argument.",
+      "score": 0,
+      "feedback": "Ordinary Python function definitions permit mutable defaults. They can cause unintended sharing, but are not forbidden. This script runs and prints the accumulated list.",
+      "misconception": "py.mutable-default-forbidden"
+    }
+  ],
+  "explanation": "The empty-list expression is evaluated once when the function definition executes. Both omitted-argument calls bind tags to that same list. The first call appends red and is printed immediately. The second appends blue to the existing list and prints both values. If omitted calls should be independent, use a None default and create a new list inside the function when tags is None. That remedy does not automatically copy a caller-supplied list.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "fresh-script",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {"stdout": "['red']\n['red', 'blue']\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "Running the exact displayed script checks the two printed lists. Definition-time allocation, rather than lazy first-call allocation, follows from Python's default-argument semantics and needs argument review; this trace alone does not distinguish those models.",
+    "limitations": "The None-sentinel remedy is explanatory, not a displayed or machine-verified rewrite. Pedagogical validity and half credit require review."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
