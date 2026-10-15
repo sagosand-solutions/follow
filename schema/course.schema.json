@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Python course structure v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "language", "levels"],
+  "properties": {
+    "id": {"const": "python"},
+    "title": {"$ref": "#/$defs/text"},
+    "language": {"const": "python"},
+    "levels": {
+      "type": "array", "minItems": 1, "maxItems": 3,
+      "items": {"$ref": "#/$defs/level"}
+    }
+  },
+  "$defs": {
+    "text": {"type": "string", "minLength": 1},
+    "localId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,79}$", "not": {"pattern": "\\s"}},
+    "questionId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,79}$", "not": {"pattern": "\\s"}},
+    "level": {
+      "type": "object", "additionalProperties": false,
+      "required": ["level", "title", "lessons"],
+      "properties": {
+        "level": {"enum": ["beginner", "intermediate", "advanced"]},
+        "title": {"$ref": "#/$defs/text"},
+        "lessons": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/lesson"}}
+      }
+    },
+    "lesson": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "builds_on", "questions"],
+      "properties": {
+        "id": {"$ref": "#/$defs/localId"},
+        "title": {"$ref": "#/$defs/text"},
+        "builds_on": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/localId"}},
+        "questions": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/questionId"}}
+      }
+    }
+  }
+}

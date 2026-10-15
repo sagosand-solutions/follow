@@ -67,13 +67,13 @@ def _ordered(issues):
     return sorted(issues, key=lambda i: (i.path, i.code, i.message))
 
 
-def _schema(data, name):
+def _schema(data, name, *, schema_dir=None):
     try:
         from jsonschema import Draft202012Validator
         from referencing import Registry
     except ImportError as exc:
         raise SetupError("Install validator/requirements.txt in a virtual environment") from exc
-    path = SCHEMA_DIR / name
+    path = (SCHEMA_DIR if schema_dir is None else Path(schema_dir)) / name
     try:
         schema = load_json(path)
         Draft202012Validator.check_schema(schema)
@@ -122,8 +122,8 @@ def _duplicates(items, path, field="id"):
     return issues
 
 
-def validate_map(map_data):
-    issues = _schema(map_data, "concept-map.schema.json")
+def validate_map(map_data, *, schema_dir=None):
+    issues = _schema(map_data, "concept-map.schema.json", schema_dir=schema_dir)
     if issues:
         return issues
     issues = _blanks(map_data)
@@ -166,9 +166,9 @@ def validate_map(map_data):
     return _ordered(issues)
 
 
-def validate_question(question, map_data):
-    issues = _schema(question, "question.schema.json")
-    map_issues = validate_map(map_data)
+def validate_question(question, map_data, *, schema_dir=None):
+    issues = _schema(question, "question.schema.json", schema_dir=schema_dir)
+    map_issues = validate_map(map_data, schema_dir=schema_dir)
     if issues or map_issues:
         return _ordered(issues + [Issue("map-" + i.code, "/concept-map" + i.path, i.message) for i in map_issues])
     issues = _blanks(question)
