@@ -2,11 +2,514 @@
   "schema_version": "0.1",
   "language": "python",
   "concepts": [
-    { "id": "py.assignment", "title": "Assignment", "level": "beginner", "prerequisites": [] },
-    { "id": "py.conditionals", "title": "Conditionals", "level": "beginner", "prerequisites": [] }
+    {
+      "id": "py.values",
+      "title": "Values and basic types",
+      "level": "beginner",
+      "prerequisites": []
+    },
+    {
+      "id": "py.assignment",
+      "title": "Names and assignment",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.numeric-operators",
+      "title": "Numeric operators",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.booleans",
+      "title": "Booleans and truthiness",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.conditionals",
+      "title": "Conditional statements",
+      "level": "beginner",
+      "prerequisites": [
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.strings",
+      "title": "Strings",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ]
+    },
+    {
+      "id": "py.lists",
+      "title": "Lists",
+      "level": "beginner",
+      "prerequisites": [
+        "py.assignment"
+      ]
+    },
+    {
+      "id": "py.iteration",
+      "title": "Iteration over sequences",
+      "level": "beginner",
+      "prerequisites": [
+        "py.conditionals",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.functions",
+      "title": "Functions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.assignment",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.scope",
+      "title": "Name scope and lookup",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.mutation-aliasing",
+      "title": "Mutation and aliasing",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.lists",
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.dictionaries",
+      "title": "Dictionaries",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.lists",
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.exceptions",
+      "title": "Exceptions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.comprehensions",
+      "title": "Comprehensions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.default-arguments",
+      "title": "Default arguments",
+      "level": "advanced",
+      "prerequisites": [
+        "py.functions",
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.iterators",
+      "title": "Iterators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.generators",
+      "title": "Generators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.complexity",
+      "title": "Algorithmic complexity",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ]
+    }
   ],
   "misconceptions": [
-    { "id": "py.independent-if-is-elif", "title": "Separate if statements act like elif", "description": "Separate if statements act like mutually exclusive elif branches.", "concepts": ["py.conditionals"] },
-    { "id": "py.truthiness-only-booleans", "title": "Only True and False can control an if", "description": "Only literal True/False can control a conditional.", "concepts": ["py.conditionals"] }
+    {
+      "id": "py.assignment-copies-value",
+      "title": "Assignment always copies the value",
+      "description": "Assignment always makes an independent copy, even for mutable objects.",
+      "concepts": [
+        "py.assignment",
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.assignment-is-equation",
+      "title": "Assignment is an algebraic equation",
+      "description": "Assignment establishes a persistent algebraic relationship between names.",
+      "concepts": [
+        "py.assignment"
+      ]
+    },
+    {
+      "id": "py.floor-is-truncate",
+      "title": "Floor division truncates toward zero",
+      "description": "Integer floor division truncates toward zero for negative operands.",
+      "concepts": [
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.precedence-left-to-right",
+      "title": "Arithmetic is strictly left to right",
+      "description": "All arithmetic operators are evaluated strictly left to right.",
+      "concepts": [
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.truthiness-only-booleans",
+      "title": "Only literal booleans control conditionals",
+      "description": "Only literal True/False can control a conditional.",
+      "concepts": [
+        "py.booleans",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.independent-if-is-elif",
+      "title": "Separate if statements are mutually exclusive",
+      "description": "Separate if statements act like mutually exclusive elif branches.",
+      "concepts": [
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.slice-end-inclusive",
+      "title": "Slice stop index is inclusive",
+      "description": "The stop index is included in a slice.",
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.index-starts-one",
+      "title": "Indexing starts at one",
+      "description": "The first item has index one.",
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.range-stop-inclusive",
+      "title": "range includes its stop bound",
+      "description": "range includes its stop bound.",
+      "concepts": [
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.return-is-print",
+      "title": "Returning and printing are the same",
+      "description": "Printing a result makes it the function return value.",
+      "concepts": [
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.local-rebinds-global",
+      "title": "Local assignment rebinds the global",
+      "description": "Assignment inside a function automatically rebinds a same-named global.",
+      "concepts": [
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.shallow-copy-is-deep",
+      "title": "A shallow copy is a deep copy",
+      "description": "Copying the outer container also copies all nested mutable objects.",
+      "concepts": [
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.dict-iteration-values",
+      "title": "Dictionary iteration yields values",
+      "description": "Iterating a dictionary yields values rather than keys.",
+      "concepts": [
+        "py.dictionaries"
+      ]
+    },
+    {
+      "id": "py.except-catches-everything",
+      "title": "A typed except catches everything",
+      "description": "A typed except clause catches every exception.",
+      "concepts": [
+        "py.exceptions"
+      ]
+    },
+    {
+      "id": "py.comprehension-leaks-name",
+      "title": "Comprehension loop variable leaks",
+      "description": "Python 3 list-comprehension loop variables overwrite the enclosing variable.",
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.default-recreated",
+      "title": "Mutable defaults are recreated per call",
+      "description": "A mutable default is created anew for each function call.",
+      "concepts": [
+        "py.default-arguments"
+      ]
+    },
+    {
+      "id": "py.iterator-restarts",
+      "title": "An exhausted iterator restarts",
+      "description": "Reusing an exhausted iterator restarts it.",
+      "concepts": [
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.generator-eager",
+      "title": "Generators run eagerly",
+      "description": "A generator body runs fully when the generator is created.",
+      "concepts": [
+        "py.generators"
+      ]
+    },
+    {
+      "id": "py.nested-loops-always-quadratic",
+      "title": "Nested loops are always quadratic",
+      "description": "Any syntactically nested loop is necessarily quadratic in input size.",
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.single-loop-always-linear",
+      "title": "A single loop is always linear",
+      "description": "Any single loop has linear complexity, irrespective of work in its body.",
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.default-created-on-first-call",
+      "title": "Mutable default created on first call",
+      "description": "A default object is created on the first call omitting that argument rather than when def executes.",
+      "concepts": [
+        "py.default-arguments"
+      ]
+    },
+    {
+      "id": "py.append-nonmutating",
+      "title": "append creates a new list",
+      "description": "append returns a new list and leaves its receiver unchanged.",
+      "concepts": [
+        "py.lists",
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.mutable-default-forbidden",
+      "title": "Mutable defaults are forbidden",
+      "description": "Python rejects mutable function defaults with TypeError.",
+      "concepts": [
+        "py.default-arguments"
+      ]
+    },
+    {
+      "id": "py.closure-freezes-on-return",
+      "title": "Closure values freeze on return",
+      "description": "A closure's free-variable values freeze when its enclosing function returns.",
+      "concepts": [
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.closure-loses-bindings",
+      "title": "Closures lose enclosing bindings",
+      "description": "Enclosing local bindings disappear on return, so closures cannot read them.",
+      "concepts": [
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.closure-captures-value",
+      "title": "Closure captures the loop value",
+      "description": "A closure copies a loop variable's current value when the function is defined.",
+      "concepts": [
+        "py.scope"
+      ]
+    },
+    {
+      "id": "py.next-default-catches-errors",
+      "title": "next default suppresses all errors",
+      "description": "next(iterator, default) suppresses all exceptions, not just StopIteration.",
+      "concepts": [
+        "py.iterators",
+        "py.exceptions"
+      ]
+    },
+    {
+      "id": "py.finally-after-caller-handler",
+      "title": "Caller handler runs before finally",
+      "description": "The caller's except handler executes before the generator's finally during stack unwinding.",
+      "concepts": [
+        "py.exceptions"
+      ]
+    },
+    {
+      "id": "py.external-handler-resumes-generator",
+      "title": "Caught error resumes the generator",
+      "description": "Catching an escaped exception in the caller lets a generator resume after the unhandled raise.",
+      "concepts": [
+        "py.generators",
+        "py.exceptions"
+      ]
+    },
+    {
+      "id": "py.slice-copies-entire-source",
+      "title": "A slice copies the entire list",
+      "description": "A list slice always copies the entire source list regardless of stop bound.",
+      "concepts": [
+        "py.lists",
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.sequential-costs-multiply",
+      "title": "Sequential costs multiply",
+      "description": "Sequential linear operations within a loop multiply to a quadratic per-iteration cost.",
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.list-operations-logarithmic",
+      "title": "List slicing and membership are logarithmic",
+      "description": "Ordinary list slices and membership use balanced search trees and take logarithmic time.",
+      "concepts": [
+        "py.complexity",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.first-binding-is-permanent",
+      "title": "First binding is permanent",
+      "description": "A name retains its first assigned value and later assignments are ignored.",
+      "concepts": [
+        "py.assignment"
+      ]
+    },
+    {
+      "id": "py.assignment-accumulates",
+      "title": "Assignment implicitly accumulates",
+      "description": "An ordinary assignment adds the right-hand-side result to the target's previous value, as if using +=.",
+      "concepts": [
+        "py.assignment"
+      ]
+    },
+    {
+      "id": "py.if-body-unconditional",
+      "title": "Conditional body always executes",
+      "description": "A loop's if body executes for every visited item regardless of its condition.",
+      "concepts": [
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.modulo-parity-reversed",
+      "title": "Modulo parity is reversed",
+      "description": "For an integer n, n % 2 == 0 identifies odd rather than even values.",
+      "concepts": [
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.accumulator-overwrites",
+      "title": "Accumulator keeps only the last value",
+      "description": "The update total = total + n discards the previous total and behaves like total = n.",
+      "concepts": [
+        "py.assignment",
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.equivalence-ignores-aliases",
+      "title": "Equivalence ignores aliases",
+      "description": "Matching one updated variable is sufficient for program equivalence even when another observable name aliases its original object.",
+      "concepts": [
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.plus-mutates-iadd-copies",
+      "title": "List addition mutation is reversed",
+      "description": "Built-in list + mutates the old list, whereas built-in list += creates an independent list.",
+      "concepts": [
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.iadd-returns-none",
+      "title": "List augmented assignment produces None",
+      "description": "List += mutates the list and then binds its target to None, confusing augmented assignment with the result of methods such as append.",
+      "concepts": [
+        "py.mutation-aliasing"
+      ]
+    },
+    {
+      "id": "py.negative-index-invalid",
+      "title": "All negative list indices are invalid",
+      "description": "Any negative index raises IndexError instead of counting backward from the end of a built-in list.",
+      "concepts": [
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.and-evaluates-both",
+      "title": "Boolean and always evaluates both sides",
+      "description": "The right operand of and is evaluated even when its left operand is false.",
+      "concepts": [
+        "py.booleans",
+        "py.conditionals"
+      ]
+    },
+    {
+      "id": "py.upper-bound-guard-covers-negative",
+      "title": "Upper-bound guard ensures valid negative indices",
+      "description": "index < len(items) alone guarantees safe list indexing even for arbitrary negative integer indices.",
+      "concepts": [
+        "py.lists",
+        "py.conditionals"
+      ]
+    }
   ]
 }
