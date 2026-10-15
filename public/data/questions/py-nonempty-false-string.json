@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-nonempty-false-string",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.18,
+  "concepts": ["py.strings", "py.booleans", "py.conditionals"],
+  "prompt": "What does this program print, and which rule explains the selected branch? Notice that the assigned value is a quoted string, not the boolean value False. Choose the option with both the correct output and the correct rule.",
+  "snippets": [
+    {"id": "main", "code": "status = \"False\"\nif status:\n    print(\"open\")\nelse:\n    print(\"closed\")\n"}
+  ],
+  "options": [
+    {
+      "id": "only-booleans-allowed",
+      "text": "It raises TypeError and prints nothing. Only the boolean values True and False may be used directly in an if condition.",
+      "score": 0,
+      "feedback": "Python allows strings in conditions. An empty string is false, and a nonempty string is true. This string is nonempty, so the program prints open.",
+      "misconception": "py.truthiness-only-booleans"
+    },
+    {
+      "id": "string-is-nonempty",
+      "text": "It prints open once. A nonempty string is true in a condition; the letters False do not make it the boolean False.",
+      "score": 1,
+      "feedback": "Correct. The string contains five characters, so it is truthy. The if body runs and the else body is skipped.",
+      "misconception": null
+    },
+    {
+      "id": "execute-both-alternatives",
+      "text": "It prints open and then closed on separate lines. An if/else statement executes both bodies in order.",
+      "score": 0,
+      "feedback": "An if/else selects one body, not both. Since status is a nonempty string, only the if body runs and only open is printed.",
+      "misconception": "py.if-else-both-run"
+    },
+    {
+      "id": "spelling-converts-to-false",
+      "text": "It prints closed once. A string containing the word False is false when used as a condition.",
+      "score": 0,
+      "feedback": "Truthiness does not parse the string's English spelling. This is a nonempty string, not the boolean False, so the if body prints open.",
+      "misconception": "py.string-content-is-truth-value"
+    },
+    {
+      "id": "every-string-is-true",
+      "text": "It prints open once. Every string is true in a condition, even an empty string.",
+      "score": 0.5,
+      "feedback": "The output is right, but the rule is too broad. Nonempty strings are true; the empty string is false. This particular string is nonempty, so it prints open.",
+      "misconception": "py.all-strings-truthy",
+      "partial_reason": "Correct: predicts exactly the printed line open for this string. Incorrect: claims that empty strings are also true, rather than distinguishing empty from nonempty strings."
+    }
+  ],
+  "explanation": "The quotes create a string containing the five characters False. Nonempty strings are truthy regardless of their spelling, while the empty string is false. The if branch therefore prints open once and the else branch does not run. The unquoted boolean False would be a different value.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "nonempty-string", "snippet_id": "main", "stdin": "", "expected": {"stdout": "open\n", "exit_code": 0}}
+    ],
+    "rationale": "Run the exact displayed script and compare stdout and exit status. Documentation and manual reasoning establish the empty/nonempty rule; the one nonempty example cannot by itself refute a false claim about all strings.",
+    "limitations": "The general truthiness explanation and genuine half credit require human review. No empirical calibration or prevalence claim."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
