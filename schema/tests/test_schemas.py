@@ -128,14 +128,27 @@ class TestSeedConceptMap(unittest.TestCase):
 
     def test_seed_map_counts(self):
         self.assertEqual(len(self.map["concepts"]), 18)
-        self.assertEqual(len(self.map["misconceptions"]), 56)
+        self.assertEqual(len(self.map["misconceptions"]), 77)
         expected = {
             "py.slice-stop-is-count", "py.slice-mutates-source", "py.index-upper-bound-inclusive",
             "py.all-strings-truthy", "py.string-content-is-truth-value", "py.if-else-both-run",
             "py.global-required-for-read", "py.local-read-falls-back-global", "py.unbound-local-is-syntax-error",
             "py.get-default-for-falsy", "py.or-only-none-or-empty-string", "py.or-returns-bool", "py.or-always-fallback",
         }
-        self.assertEqual({m["id"] for m in self.map["misconceptions"][43:]}, expected)
+        self.assertEqual({m["id"] for m in self.map["misconceptions"][43:56]}, expected)
+        expected_next = {
+            "py.floor-rounds-nearest", "py.floor-is-true-division", "py.floor-ignores-negative-sign",
+            "py.multiplication-before-power", "py.addition-before-multiplication", "py.parentheses-do-not-override-precedence",
+            "py.slice-shares-outer-container", "py.list-items-must-be-immutable", "py.comprehension-restores-outer",
+            "py.comprehension-expression-uses-outer", "py.dict-iteration-sorts-keys", "py.dict-iteration-pairs",
+            "py.dict-needs-keys-method", "py.keyerror-uncatchable", "py.finally-suppresses-error", "py.uncaught-skips-finally",
+            "py.next-peeks-without-consuming", "py.all-iterators-allow-size-change", "py.halving-always-two-n-minus-one",
+            "py.outer-loop-alone-determines-cost", "py.max-inner-bound-gives-tight-product",
+        }
+        self.assertEqual({m["id"] for m in self.map["misconceptions"][56:77]}, expected_next)
+        previous = {**self.map, "misconceptions": self.map["misconceptions"][:56]}
+        previous_digest = hashlib.sha256(json.dumps(previous, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(previous_digest, "ec02b128b352ccb0ed4319bdef9bce1534f221103b1e1bf72a53ce1c8a37f565")
         self.assertNotIn("py.or-only-empty-string", {m["id"] for m in self.map["misconceptions"]})
         # Additive vocabulary revisions must preserve all initial definitions.
         baseline = {**self.map, "misconceptions": self.map["misconceptions"][:43]}
