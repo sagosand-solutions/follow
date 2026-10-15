@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.1",
+  "id": "py-dictionary-iteration-order",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.43,
+  "concepts": ["py.dictionaries", "py.iteration", "py.lists"],
+  "prompt": "Run this as a fresh Python script. Which option gives the exact printed list and a correct rule for what direct dictionary iteration yields and in what order?",
+  "snippets": [
+    {"id":"main","code":"weights = {\"blue\": 2, \"red\": 4}\nseen = []\nfor entry in weights:\n    seen.append(entry)\nprint(seen)\n","highlight_lines":[1,3,4]}
+  ],
+  "options": [
+    {
+      "id":"iterate-values",
+      "text":"It prints [2, 4]. Direct dictionary iteration yields the stored values.",
+      "score":0,
+      "feedback":"Direct iteration yields keys, not values. Each append therefore adds blue and then red. Iterating weights.values() would yield 2 and 4 instead.",
+      "misconception":"py.dict-iteration-values"
+    },
+    {
+      "id":"iterate-pairs",
+      "text":"It prints [('blue', 2), ('red', 4)]. Direct dictionary iteration yields a key-value tuple on each iteration.",
+      "score":0,
+      "feedback":"Key-value tuples are supplied by weights.items(), not direct iteration over weights. Here entry is a key string on each iteration, so the printed list is ['blue', 'red'].",
+      "misconception":"py.dict-iteration-pairs"
+    },
+    {
+      "id":"keys-in-insertion-order",
+      "text":"It prints ['blue', 'red']. Direct iteration yields keys in insertion order, which is blue followed by red here.",
+      "score":1,
+      "feedback":"Correct. The dictionary literal inserts blue before red, and direct iteration yields those keys in that order. It does not sort the keys or automatically yield values or pairs.",
+      "misconception":null
+    },
+    {
+      "id":"keys-method-required",
+      "text":"It raises TypeError before printing anything. A dictionary itself is not iterable; keys() must be called first.",
+      "score":0,
+      "feedback":"Dictionaries are directly iterable. Iterating weights is a shortcut for iterating its keys, so no explicit keys() call is required and this program prints ['blue', 'red'].",
+      "misconception":"py.dict-needs-keys-method"
+    },
+    {
+      "id":"correct-list-wrong-sorting-rule",
+      "text":"It prints ['blue', 'red']. A dictionary always sorts its string keys alphabetically before yielding them.",
+      "score":0.5,
+      "feedback":"The entire printed list is right, but the ordering rule is wrong. Dictionary iteration preserves insertion order. Alphabetical order happens to match this literal's insertion order; it is not imposed by the dictionary.",
+      "misconception":"py.dict-iteration-sorts-keys",
+      "partial_reason":"Correct: both yielded keys and the complete printed list ['blue', 'red']. Incorrect: claims dictionaries alphabetically sort their string keys; Python instead preserves their insertion order."
+    }
+  ],
+  "explanation":"The dictionary inserts blue, then red. Direct iteration yields each key in insertion order, so the loop appends the two strings and prints ['blue', 'red']. To obtain values or key-value pairs, one would explicitly use values() or items(). The observed alphabetical order is coincidental, not evidence that dictionaries sort their keys.",
+  "verification": {
+    "status":"specified",
+    "cases":[{"id":"keys-and-order","snippet_id":"main","stdin":"","expected":{"stdout":"['blue', 'red']\n","exit_code":0}}],
+    "rationale":"The exact displayed script checks the complete printed list. Both the true insertion-order rule and a false alphabetical-order model predict this particular list, so documentation and independent reasoning are needed to distinguish those explanations.",
+    "limitations":"This is not a test of arbitrary key types or mutation during iteration. Passing execution does not prove a universal order rule, genuine half credit or distractor appeal. No empirical prevalence or calibrated difficulty is claimed."
+  },
+  "author":{"name":"Code reading contributors"},
+  "license":"CC-BY-SA-4.0"
+}

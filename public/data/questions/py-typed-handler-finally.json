@@ -1,0 +1,61 @@
+{
+  "schema_version":"0.1",
+  "id":"py-typed-handler-finally",
+  "language":"python",
+  "locale":"en",
+  "type":"output",
+  "level":"intermediate",
+  "difficulty":0.6,
+  "concepts":["py.exceptions"],
+  "prompt":"Run this as a fresh Python script. Which option gives the complete stdout, whether an exception escapes, and a correct explanation? An exception traceback is stderr, not a line of stdout. The finally block contains no return or new exception.",
+  "snippets":[
+    {"id":"main","code":"try:\n    raise KeyError(\"missing\")\nexcept ValueError:\n    print(\"handled\")\nfinally:\n    print(\"cleanup\")\nprint(\"after\")\n","highlight_lines":[2,3,5,6,7]}
+  ],
+  "options":[
+    {
+      "id":"typed-handler-catches-all",
+      "text":"Stdout is handled, cleanup, after on three lines, with no escaping exception. The except ValueError clause catches every exception raised in the try block.",
+      "score":0,
+      "feedback":"A typed handler does not catch every exception. KeyError is not a ValueError, so this handler is skipped. Cleanup still prints, then KeyError escapes and the final print is not reached.",
+      "misconception":"py.except-catches-everything"
+    },
+    {
+      "id":"right-trace-uncatchable-type",
+      "text":"Stdout is cleanup on one line, and KeyError escapes. Cleanup runs, but KeyError cannot be caught by any except clause, whatever exception type that clause names.",
+      "score":0.5,
+      "feedback":"The entire stdout and escaping exception are right. The universal claim is wrong: an except KeyError clause, or a handler for a suitable base class, can catch KeyError. This particular except ValueError clause does not match it.",
+      "misconception":"py.keyerror-uncatchable",
+      "partial_reason":"Correct: stdout contains only cleanup and the program terminates with an uncaught KeyError. Incorrect: claims KeyError is uncatchable by any except clause, rather than merely unmatched by the ValueError handler shown here."
+    },
+    {
+      "id":"cleanup-discards-error",
+      "text":"Stdout is cleanup and then after on two lines, with no escaping exception. Completing finally normally discards the unmatched KeyError.",
+      "score":0,
+      "feedback":"Normal completion of this finally block does not discard the saved exception. It prints cleanup, then KeyError propagates. The after line is never printed.",
+      "misconception":"py.finally-suppresses-error"
+    },
+    {
+      "id":"unmatched-handler-cleanup-propagation",
+      "text":"Stdout is cleanup on one line, and KeyError escapes. It does not match ValueError; finally still runs, then the pending exception propagates instead of reaching the last print.",
+      "score":1,
+      "feedback":"Correct. The handler's type does not match KeyError. The finally print executes during propagation, but it neither catches nor suppresses the error, so print after is not reached.",
+      "misconception":null
+    },
+    {
+      "id":"unmatched-error-skips-finally",
+      "text":"Stdout is empty and KeyError escapes. An exception with no matching except clause skips both that handler and its associated finally block.",
+      "score":0,
+      "feedback":"The unmatched handler is skipped, but the finally block is not. It prints cleanup before the pending KeyError propagates. Predicting KeyError alone misses the complete stdout observation.",
+      "misconception":"py.uncaught-skips-finally"
+    }
+  ],
+  "explanation":"KeyError and ValueError are different exception classes; KeyError does not inherit from ValueError. The displayed typed handler therefore does not run. The finally block executes and prints cleanup. Because it does not replace or suppress the pending exception, KeyError then propagates and the last print is not reached. KeyError is catchable in general, just not by the particular handler shown.",
+  "verification":{
+    "status":"specified",
+    "cases":[{"id":"cleanup-and-unmatched-error","snippet_id":"main","stdin":"","expected":{"stdout":"cleanup\n","exit_code":1,"stderr_contains":"KeyError: 'missing'"}}],
+    "rationale":"Run the exact displayed script and compare all stdout, expected normal exit code and stable KeyError text. The observation supports cleanup plus propagation, not the false claim that no possible handler could catch KeyError. Type matching and finally semantics require separate review.",
+    "limitations":"Matching stdout and a deliberate exception is not a sandbox or proof of general exception rules. The rubric requires the complete stdout AND escaping-exception result; a zero option that names KeyError but misses cleanup does not match that complete observation. Pedagogical quality and difficulty remain uncalibrated."
+  },
+  "author":{"name":"Code reading contributors"},
+  "license":"CC-BY-SA-4.0"
+}

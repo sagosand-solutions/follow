@@ -1,0 +1,61 @@
+{
+  "schema_version":"0.1",
+  "id":"py-geometric-halving-work",
+  "language":"python",
+  "locale":"en",
+  "type":"complexity",
+  "level":"advanced",
+  "difficulty":0.78,
+  "concepts":["py.complexity","py.iteration","py.numeric-operators","py.functions"],
+  "prompt":"The parameter n is a positive integer. Analyze only halving_work(n), excluding the final print. Use a unit-cost RAM model: each integer addition, floor division, comparison, assignment and range step costs constant time, abstracting away Python integer bit costs. Theta means a tight asymptotic bound. Which option gives the printed count for n = 8, the tight running-time bound as n grows, and a correct argument? The single displayed run is only a behavior example, not timing evidence.",
+  "snippets":[
+    {"id":"main","code":"def halving_work(n):\n    width = n\n    count = 0\n    while width > 0:\n        for _ in range(width):\n            count += 1\n        width //= 2\n    return count\n\nprint(halving_work(8))\n","highlight_lines":[4,5,6,7]}
+  ],
+  "options":[
+    {
+      "id":"outer-loop-only",
+      "text":"It prints 15 and takes Theta(log n) time. width is halved each outer iteration, so counting those outer iterations alone gives the total running time.",
+      "score":0,
+      "feedback":"The printed count is right, but outer iterations alone miss the inner work. The first pass already performs n increments. Adding all geometrically shrinking pass lengths gives a linear total, not logarithmic time.",
+      "misconception":"py.outer-loop-alone-determines-cost"
+    },
+    {
+      "id":"sum-shrinking-widths",
+      "text":"It prints 15 and takes Theta(n) time. The inner lengths are n, floor(n/2), floor(n/4), and so on; their sum is at least n and less than 2n, so including loop overhead still gives a linear total.",
+      "score":1,
+      "feedback":"Correct. For 8, the widths are 8, 4, 2 and 1, totaling 15 increments. Generally the geometric sum is bounded below by n and above by 2n; outer bookkeeping is no larger in order, so total time is Theta(n).",
+      "misconception":null
+    },
+    {
+      "id":"nested-implies-square",
+      "text":"It prints 15 and takes Theta(n squared) time. Any loop syntactically nested inside another loop necessarily gives a quadratic running time.",
+      "score":0,
+      "feedback":"Correctly tracing 8 does not make that general complexity rule valid. The inner length shrinks geometrically rather than remaining n for n passes. The total length is less than 2n, so syntactic nesting here is linear, not quadratic.",
+      "misconception":"py.nested-loops-always-quadratic"
+    },
+    {
+      "id":"correct-bound-wrong-exact-formula",
+      "text":"It prints 15 and takes Theta(n) time. For every positive integer n, the inner body runs exactly 2n - 1 times, since repeated integer halving always gives that exact geometric sum.",
+      "score":0.5,
+      "feedback":"The shown count and linear bound are right, but the exact formula is not universal. For n = 3, widths 3 and 1 total 4, not 5. The formula 2n - 1 holds for powers of two; the bound between n and 2n is enough in general.",
+      "misconception":"py.halving-always-two-n-minus-one",
+      "partial_reason":"Correct: the displayed input prints 15 and the general tight running-time bound is Theta(n). Incorrect: the exact inner-iteration count is 2n - 1 for every positive integer; integer rounding makes that exact formula false outside powers of two."
+    },
+    {
+      "id":"maximum-times-passes-is-tight",
+      "text":"It prints 15 and takes Theta(n log n) time. Multiplying the logarithmic number of outer passes by the maximum inner length n always gives a tight total bound, even when the widths shrink.",
+      "score":0,
+      "feedback":"That product gives an upper bound, not a tight one here. It charges every pass as if its width were n and ignores geometric shrinkage. Summing the actual pass lengths gives Theta(n), while O(n log n) is only a loose upper bound.",
+      "misconception":"py.max-inner-bound-gives-tight-product"
+    }
+  ],
+  "explanation":"For n = 8, width takes 8, 4, 2 and 1, so count is 15. For any positive n, the total inner work is S = n + floor(n/2) + floor(n/4) + ... until zero. The first term gives S >= n; removing floors and extending the geometric series gives S < 2n. There are only logarithmically many outer passes, and each nonempty pass contributes at least one inner step, so constant bookkeeping per pass is bounded by the same linear order. Thus total time is Theta(n) in the stated unit-cost model. The exact identity S = 2n - 1 need not hold when rounding occurs, even though the linear bound does.",
+  "verification":{
+    "status":"specified",
+    "cases":[{"id":"power-of-two-example","snippet_id":"main","stdin":"","expected":{"stdout":"15\n","exit_code":0}}],
+    "rationale":"The exact displayed script checks the count 15 for n = 8 only. The tight running time instead follows from the explicit cost model and separately reviewed geometric upper and lower bounds. A matching output or timing experiment is not an asymptotic proof.",
+    "limitations":"The n = 3 counterexample in feedback is a transparent mathematical trace, not an undisplayed contract execution case. Integer bit complexity, resource limits, nonpositive inputs, arbitrary numeric objects and real timing are outside the stated model. Difficulty and scoring are editorial, not calibrated."
+  },
+  "author":{"name":"Code reading contributors"},
+  "license":"CC-BY-SA-4.0"
+}
