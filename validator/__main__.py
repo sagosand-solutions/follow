@@ -1,4 +1,15 @@
 # SPDX-License-Identifier: MIT
-from .cli import main
+import sys
 
-raise SystemExit(main())
+
+def main(argv=None):
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args[:1] == ["export"]:
+        from .export import main as export_main
+        return export_main(args[1:])
+    from .cli import main as validate_main
+    return validate_main(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
