@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "id": "py-remove-global-counter",
+  "language": "python",
+  "locale": "en",
+  "type": "remove-line",
+  "level": "intermediate",
+  "difficulty": 0.62,
+  "concepts": ["py.functions", "py.scope", "py.assignment", "py.exceptions"],
+  "prompt": "The changed script removes only line 4, global count, from the original script. Run each complete script fresh. The original prints 11 on two lines. Which option correctly describes what changes, including any exception and when it occurs, and gives a correct explanation? Output here means stdout, not an exception traceback on stderr.",
+  "snippets": [
+    {
+      "id": "original",
+      "label": "Original",
+      "code": "count = 10\n\ndef increment():\n    global count\n    count += 1\n    return count\n\nprint(increment())\nprint(count)\n",
+      "highlight_lines": [4, 5, 8, 9]
+    },
+    {
+      "id": "changed",
+      "label": "Only global count removed",
+      "code": "count = 10\n\ndef increment():\n    count += 1\n    return count\n\nprint(increment())\nprint(count)\n",
+      "highlight_lines": [4, 7, 8]
+    }
+  ],
+  "options": [
+    {
+      "id": "automatic-global-update",
+      "text": "Nothing changes: the changed script also prints 11 twice. Assignment in a function automatically updates a same-named variable already defined at module level.",
+      "score": 0,
+      "feedback": "Without global, the assignment makes count local in increment. It does not automatically select the module binding. The local must be read for += before it has a value, so the call raises UnboundLocalError before either print outputs a line.",
+      "misconception": "py.local-rebinds-global"
+    },
+    {
+      "id": "correct-local-read-error",
+      "text": "The changed script prints nothing and raises UnboundLocalError when increment is called. Its assignment makes count local, but += must read that local before it has been assigned a value.",
+      "score": 1,
+      "feedback": "Correct. The changed function is defined successfully. Its first execution reads an unbound local at count += 1. The first outer print never receives a return value, and execution never reaches the second print.",
+      "misconception": null
+    },
+    {
+      "id": "global-never-readable",
+      "text": "The changed script prints nothing and raises UnboundLocalError when increment is called. A global declaration is required whenever any function reads any module-global variable.",
+      "score": 0.5,
+      "feedback": "The changed result, exception and timing are right, but the universal reading rule is false. A function can read a module global without declaring it. Here the assignment makes count local, and += reads that uninitialized local.",
+      "misconception": "py.global-required-for-read",
+      "partial_reason": "Correct: no stdout and a call-time UnboundLocalError for the changed script. Incorrect: claims every read of a module-global variable requires global; the actual failure comes from reading a name classified as local because this function assigns to it."
+    },
+    {
+      "id": "fallback-then-local-write",
+      "text": "The changed script prints 11 and then 10. Its first read falls back to module count, then += creates a local count while leaving the module value unchanged.",
+      "score": 0,
+      "feedback": "An uninitialized local does not fall back to a module-global binding. Because increment assigns to count, its += reads a local with no value and raises UnboundLocalError. Neither print produces output.",
+      "misconception": "py.local-read-falls-back-global"
+    },
+    {
+      "id": "definition-time-syntax-error",
+      "text": "The changed script prints nothing and raises SyntaxError while defining increment. Python rejects any function definition that reads a local before assigning its first value.",
+      "score": 0,
+      "feedback": "The changed function definition is valid Python. The failure is a runtime UnboundLocalError when its local count is read during the call, not a SyntaxError while the function is defined. No stdout alone does not distinguish these events.",
+      "misconception": "py.unbound-local-is-syntax-error"
+    }
+  ],
+  "explanation": "With global count, the original increment reads module count=10, binds it to 11, and returns 11; both prints display 11. Removing the declaration makes count local throughout increment because the function assigns to it. Augmented assignment reads before writing, so the call attempts to read an uninitialized local and raises UnboundLocalError. Function definition succeeds, but neither outer print runs to completion. This does not mean ordinary functions need global merely to read module values.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id":"original-two-lines","snippet_id":"original","stdin":"","expected":{"stdout":"11\n11\n","exit_code":0}},
+      {"id":"changed-call-error","snippet_id":"changed","stdin":"","expected":{"stdout":"","exit_code":1,"stderr_contains":"UnboundLocalError"}}
+    ],
+    "rationale": "Both complete displayed scripts are run exactly as written, in separate fresh processes. Literal stdout and the changed exception substring support the stated observations. Name classification, exception timing and the distinction between global reads and rebinding also require semantic review.",
+    "limitations": "No hidden rewritten snippet or proof harness. Passing runs do not establish the correctness of a universal name-resolution claim, pedagogical validity, or genuine half credit. Only the single marked line is removed."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
