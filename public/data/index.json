@@ -49,12 +49,33 @@
     },
     {
       "concepts": [
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.35,
+      "id": "py-arithmetic-precedence-chain",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.functions",
         "py.scope",
         "py.iteration"
       ],
       "difficulty": 0.61,
       "id": "py-closure-loop-readers",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.iteration",
+        "py.scope",
+        "py.comprehensions"
+      ],
+      "difficulty": 0.54,
+      "id": "py-comprehension-keeps-outer",
       "level": "intermediate",
       "type": "output"
     },
@@ -72,6 +93,29 @@
     },
     {
       "concepts": [
+        "py.dictionaries",
+        "py.iteration",
+        "py.lists"
+      ],
+      "difficulty": 0.43,
+      "id": "py-dictionary-iteration-order",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.generators",
+        "py.iterators",
+        "py.lists",
+        "py.iteration"
+      ],
+      "difficulty": 0.76,
+      "id": "py-generator-append-consumption",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.functions",
         "py.iterators",
         "py.generators",
@@ -84,12 +128,33 @@
     },
     {
       "concepts": [
+        "py.complexity",
+        "py.iteration",
+        "py.numeric-operators",
+        "py.functions"
+      ],
+      "difficulty": 0.78,
+      "id": "py-geometric-halving-work",
+      "level": "advanced",
+      "type": "complexity"
+    },
+    {
+      "concepts": [
         "py.lists"
       ],
       "difficulty": 0.27,
       "id": "py-list-last-boundary",
       "level": "beginner",
       "type": "crashing-input"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.25,
+      "id": "py-negative-floor-rounding",
+      "level": "beginner",
+      "type": "output"
     },
     {
       "concepts": [
@@ -139,6 +204,17 @@
     },
     {
       "concepts": [
+        "py.assignment",
+        "py.lists",
+        "py.mutation-aliasing"
+      ],
+      "difficulty": 0.51,
+      "id": "py-shallow-inner-mutation",
+      "level": "intermediate",
+      "type": "equivalence"
+    },
+    {
+      "concepts": [
         "py.functions",
         "py.default-arguments",
         "py.mutation-aliasing",
@@ -156,6 +232,15 @@
       "difficulty": 0.2,
       "id": "py-string-prefix-source",
       "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "difficulty": 0.6,
+      "id": "py-typed-handler-finally",
+      "level": "intermediate",
       "type": "output"
     }
   ]

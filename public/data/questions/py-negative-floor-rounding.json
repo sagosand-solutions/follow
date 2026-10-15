@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-negative-floor-rounding",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.25,
+  "concepts": ["py.numeric-operators"],
+  "prompt": "What does this program print, and which rule for // is correct? The ordinary mathematical quotient -8 divided by 3 is about -2.67. Choose the option with both the correct result and the correct rounding rule.",
+  "snippets": [
+    {"id": "main", "code": "value = -8\nprint(value // 3)\n"}
+  ],
+  "options": [
+    {
+      "id": "truncate-toward-zero",
+      "text": "-2. The // operator discards the fractional part by moving toward zero.",
+      "score": 0,
+      "feedback": "Moving toward zero would give -2, but floor division moves toward negative infinity. The greatest integer no larger than about -2.67 is -3.",
+      "misconception": "py.floor-is-truncate"
+    },
+    {
+      "id": "nearest-integer",
+      "text": "-3. The // operator rounds to the nearest integer, so a quotient of about -2.67 becomes -3.",
+      "score": 0.5,
+      "feedback": "The result is right for this quotient, but the rounding rule is wrong. // takes the floor, not the nearest integer. For example, -7 // 3 is also -3 even though its nearest integer quotient is -2.",
+      "misconception": "py.floor-rounds-nearest",
+      "partial_reason": "Correct: predicts the complete output -3. Incorrect: describes // as nearest-integer rounding; nearest and floor happen to agree for -8 divided by 3, but not for all quotients."
+    },
+    {
+      "id": "floor-toward-negative-infinity",
+      "text": "-3. The // operator takes the floor: the greatest integer no larger than the mathematical quotient.",
+      "score": 1,
+      "feedback": "Correct. Since -3 is below about -2.67 and -2 is above it, floor division gives -3. For integer operands, this result is an integer.",
+      "misconception": null
+    },
+    {
+      "id": "same-as-true-division",
+      "text": "A fractional result close to -2.67. The operators // and / perform the same division.",
+      "score": 0,
+      "feedback": "The operators differ. / gives a fractional float here, but // takes the floor and prints the integer -3.",
+      "misconception": "py.floor-is-true-division"
+    },
+    {
+      "id": "discard-negative-sign",
+      "text": "2. The // operator first ignores the numerator's negative sign, then divides 8 by 3 and takes the floor.",
+      "score": 0,
+      "feedback": "Floor division does not replace a negative numerator with its magnitude. It uses -8 divided by 3 and takes the floor, giving -3 rather than 2.",
+      "misconception": "py.floor-ignores-negative-sign"
+    }
+  ],
+  "explanation": "For integer operands, // returns the floor of the mathematical quotient. Here the quotient is between -3 and -2, so its floor is -3. This differs from truncating toward zero and from nearest-integer rounding as general rules. The nearest integer merely happens to be -3 for this particular quotient.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "negative-quotient", "snippet_id": "main", "stdin": "", "expected": {"stdout": "-3\n", "exit_code": 0}}
+    ],
+    "rationale": "Run the exact displayed two-line script. Its literal integer output supports the focal result; language-level floor semantics distinguish the correct rule from nearest rounding, which predicts the same result here.",
+    "limitations": "The explanatory -7 example is a language-semantic counterexample, not an additional hidden execution case. A matching -3 output does not prove a general rounding rule or validate the scoring rubric."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

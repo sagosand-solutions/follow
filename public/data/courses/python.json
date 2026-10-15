@@ -18,6 +18,17 @@
           ]
         },
         {
+          "id": "arithmetic",
+          "title": "Numbers and grouping",
+          "builds_on": [
+            "values-and-loops"
+          ],
+          "questions": [
+            "py-negative-floor-rounding",
+            "py-arithmetic-precedence-chain"
+          ]
+        },
+        {
           "id": "strings-and-boundaries",
           "title": "Strings, indexing and truthiness",
           "builds_on": [
@@ -43,7 +54,8 @@
           ],
           "questions": [
             "m1-list-iadd-equivalence",
-            "m1-negative-index-guard"
+            "m1-negative-index-guard",
+            "py-shallow-inner-mutation"
           ]
         },
         {
@@ -60,13 +72,34 @@
         },
         {
           "id": "dictionary-defaults",
-          "title": "Defaults and truthiness",
+          "title": "Dictionaries and defaults",
           "builds_on": [
             "strings-and-boundaries",
             "functions-and-scope"
           ],
           "questions": [
+            "py-dictionary-iteration-order",
             "py-dict-default-or-equivalence"
+          ]
+        },
+        {
+          "id": "comprehensions",
+          "title": "Comprehension scope",
+          "builds_on": [
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-comprehension-keeps-outer"
+          ]
+        },
+        {
+          "id": "exceptions",
+          "title": "Handlers and cleanup",
+          "builds_on": [
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-typed-handler-finally"
           ]
         }
       ]
@@ -82,6 +115,7 @@
             "functions-and-scope"
           ],
           "questions": [
+            "py-generator-append-consumption",
             "py-generator-error-lifecycle"
           ]
         },
@@ -93,7 +127,8 @@
             "lists-and-mutation"
           ],
           "questions": [
-            "py-prefix-duplicate-complexity"
+            "py-prefix-duplicate-complexity",
+            "py-geometric-halving-work"
           ]
         }
       ]

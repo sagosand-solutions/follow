@@ -1,0 +1,61 @@
+{
+  "schema_version":"0.1",
+  "id":"py-generator-append-consumption",
+  "language":"python",
+  "locale":"en",
+  "type":"output",
+  "level":"advanced",
+  "difficulty":0.76,
+  "concepts":["py.generators","py.iterators","py.lists","py.iteration"],
+  "prompt":"Run this as a fresh Python script. The source is the ordinary list numbers, and 5 is appended before the first next call. Which option gives the complete three-line stdout and a correct explanation of evaluation and consumption?",
+  "snippets":[
+    {"id":"main","code":"numbers = [1, 2, 3]\nsquares = (number * number for number in numbers if number % 2 == 1)\nnumbers.append(5)\nprint(next(squares))\nprint(list(squares))\nprint(list(squares))\n","highlight_lines":[2,3,4,5,6]}
+  ],
+  "options":[
+    {
+      "id":"eager-generator-snapshot",
+      "text":"The lines are 1, [9], and []. The generator computes and stores all selected results when its expression is created, before 5 is appended.",
+      "score":0,
+      "feedback":"The generator does not precompute all results. Its filtering and multiplication run as it is advanced. Its list iterator sees the appended 5, so the remaining results after the first next are [9, 25].",
+      "misconception":"py.generator-eager"
+    },
+    {
+      "id":"correct-trace-universal-growth-rule",
+      "text":"The lines are 1, [9, 25], and []. Evaluation is lazy and consumption persists; every Python container iterator safely permits source growth during iteration without size-change errors.",
+      "score":0.5,
+      "feedback":"The whole output and lazy consumption are right, but the universal growth rule is false. This ordinary list iterator sees the appended item. Dictionary iterators do not share a universal guarantee of safe size changes.",
+      "misconception":"py.all-iterators-allow-size-change",
+      "partial_reason":"Correct: all three output lines, lazy body evaluation, and exhaustion after consuming the remaining values. Incorrect: generalizes this list iterator's growth behavior to every Python container iterator; size changes can invalidate dictionary iteration."
+    },
+    {
+      "id":"explicit-next-only-previews",
+      "text":"The lines are 1, [1, 9, 25], and []. The explicit next call previews the first result without consuming it; list then consumes all results.",
+      "score":0,
+      "feedback":"The explicit next call consumes the yielded 1. It is not a peek operation. The first list call therefore receives only [9, 25], and the second receives [] because that same generator is exhausted.",
+      "misconception":"py.next-peeks-without-consuming"
+    },
+    {
+      "id":"lazy-list-source-single-consumption",
+      "text":"The lines are 1, [9, 25], and []. The generator body is evaluated on demand, its list iterator sees the appended 5, next consumes 1, and later consumption leaves the generator exhausted.",
+      "score":1,
+      "feedback":"Correct. The first next yields 1. Continuing skips the even 2 and yields 9 and 25 from 3 and 5. After that the generator is exhausted, so converting it to a list again returns an empty list.",
+      "misconception":null
+    },
+    {
+      "id":"exhaustion-restarts-source",
+      "text":"The lines are 1, [9, 25], and [1, 9, 25]. Once exhausted, using the generator in list again restarts it over the current source list.",
+      "score":0,
+      "feedback":"An exhausted generator does not restart. The second list call consumes the same exhausted object and returns []. Creating a new generator expression would be a separate operation, absent from this code.",
+      "misconception":"py.iterator-restarts"
+    }
+  ],
+  "explanation":"The generator expression obtains an iterator over numbers immediately, but filtering and multiplication are evaluated on demand. An ordinary forward list iterator can observe items appended before it reaches the end, so this one includes 5. next consumes the yielded 1; the first list call continues from there, skips 2, and consumes 9 and 25. The generator is then exhausted and the next list call is empty. This does not mean all container iterators permit size changes; dictionary iteration can fail when its source changes size.",
+  "verification":{
+    "status":"specified",
+    "cases":[{"id":"append-then-consume","snippet_id":"main","stdin":"","expected":{"stdout":"1\n[9, 25]\n[]\n","exit_code":0}}],
+    "rationale":"The exact displayed script checks all three stdout lines with an ordinary list source and explicit sequential consumption. It does not test mutation of every possible container, so the half's universal growth rule requires semantic review against documented iterator behavior.",
+    "limitations":"No concurrency, custom iterator methods, mutation by the generator body, or timing/finalization assumptions. General container mutation rules, genuine half credit, distractor attractiveness and difficulty are not proven by this list example."
+  },
+  "author":{"name":"Code reading contributors"},
+  "license":"CC-BY-SA-4.0"
+}
