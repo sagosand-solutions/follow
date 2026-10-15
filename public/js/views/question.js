@@ -5,7 +5,9 @@ import { seededShuffle, questionSeed } from '../shuffle.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
 import { loadQuestion, loadCourse, loadConcepts, findLessonOf } from '../data.js';
+import { CONFIG } from '../config.js';
 import { navigate } from '../router.js';
+import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 
 const UNKNOWN = '__unknown';
@@ -41,8 +43,9 @@ export async function questionView({ id }) {
   const where = course ? findLessonOf(course, id) : null;
   const root = h('div', { class: 'question' });
   const ctx = { q, where, concepts, root };
-  const prev = store.latest(id);
-  draw(ctx, prev);
+  const record = store.latest(id);
+  const usable = currentAnswer(q, record) ? record : null;
+  draw(ctx, usable, !!record && !usable);
   return { title: titleOf(q), node: root };
 }
 
@@ -64,7 +67,20 @@ function misconceptionTitle(ctx, id) {
 }
 
 // Draws either the unanswered state (prev === null) or the answered state for `prev`.
-function draw(ctx, prev) {
+function codeStrings() {
+  return {
+    copy: t('code.copy'),
+    copied: t('code.copied'),
+    copyFailed: t('code.copyFailed'),
+    ariaLabel: (n, language) => t(n === 1 ? 'code.aria.one' : 'code.aria.many', { lines: n, language }),
+    markedSummary: (lines) => t(lines.length === 1 ? 'code.marked.one' : 'code.marked.many', { lines: lines.join(', ') }),
+    lineMarked: (n) => t('code.lineMarked', { n }),
+    lineUnmarked: (n) => t('code.lineUnmarked', { n }),
+    cursorLine: (n, marked) => t(marked ? 'code.cursorMarked' : 'code.cursor', { n }),
+  };
+}
+
+function draw(ctx, prev, stale = false) {
   const { q, where, root } = ctx;
   const seed = questionSeed(store.seed(), q.id);
   const order = seededShuffle(q.options, seed);
@@ -86,6 +102,7 @@ function draw(ctx, prev) {
       language: q.language || 'python',
       label: s.label || null,
       highlightLines: s.highlight_lines || [],
+      strings: codeStrings(),
     }),
   );
 
@@ -144,7 +161,7 @@ function draw(ctx, prev) {
   });
 
   root.replaceChildren(
-    h('div', { class: 'stack' }, header, chips, title, ...snippets, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q)),
+    h('div', { class: 'stack' }, header, chips, title, ...snippets, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q)),
   );
 
   if (answered) {
@@ -175,7 +192,7 @@ function progressBar(ids, currentId) {
 
 function attribution(q) {
   const name = q.author && q.author.name ? q.author.name : null;
-  return name ? h('p', { class: 'attribution' }, t('q.attribution', { author: name })) : null;
+  return name ? h('p', { class: 'attribution' }, `${t('q.attribution', { author: name })} `, h('a', { href: CONFIG.licenseUrl }, t('q.license'))) : null;
 }
 
 function navActions(ctx) {

@@ -62,14 +62,26 @@ export function createStore({ storage = safeLocalStorage(), prefix, now = () => 
 
   function read() {
     if (backing) {
+      let raw;
       try {
-        const raw = backing.getItem(key);
-        if (raw === null || raw === undefined) return freshState();
-        const parsed = JSON.parse(raw);
-        return isState(parsed) ? parsed : freshState();
+        raw = backing.getItem(key);
       } catch {
-        return freshState();
+        // Storage became unreadable: continue with the last valid snapshot, in memory only.
+        backing = null;
+        store.persistent = false;
+        return memory ? structuredCloneSafe(memory) : freshState();
       }
+      if (raw === null || raw === undefined) return freshState();
+      try {
+        const parsed = JSON.parse(raw);
+        if (isState(parsed)) {
+          memory = structuredCloneSafe(parsed);
+          return parsed;
+        }
+      } catch {
+        /* corrupt data: start fresh, leave the stored value untouched until the next write */
+      }
+      return freshState();
     }
     return memory ? structuredCloneSafe(memory) : freshState();
   }
@@ -143,9 +155,9 @@ export function createStore({ storage = safeLocalStorage(), prefix, now = () => 
     try {
       incoming = JSON.parse(text);
     } catch {
-      return { ok: false, error: 'This file is not valid JSON.' };
+      return { ok: false, error: 'invalid-json' };
     }
-    if (!isState(incoming)) return { ok: false, error: 'This file is not a progress export from this site.' };
+    if (!isState(incoming)) return { ok: false, error: 'invalid-format' };
     const state = read();
     const seen = new Set(state.answers.map(dedupeKey));
     let imported = 0;

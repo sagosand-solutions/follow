@@ -114,3 +114,23 @@ test('import rejects bad input and leaves state unchanged', () => {
   }
   assert.equal(JSON.stringify(s.answers()), before);
 });
+
+test('read failure keeps the last valid state in memory and reports not persistent', () => {
+  const st = fakeStorage();
+  const s = mk(st);
+  const seed = s.seed();
+  s.recordAnswer({ questionId: 'q', optionId: 'a', score: 1 });
+  st.getItem = () => { throw new Error('unreadable'); };
+  assert.equal(s.answers().length, 1);
+  assert.equal(s.seed(), seed);
+  assert.equal(s.persistent, false);
+  s.recordAnswer({ questionId: 'q2', optionId: 'a', score: 0 });
+  assert.equal(s.answers().length, 2);
+  assert.equal(s.seed(), seed);
+});
+
+test('import errors are codes, not prose', () => {
+  const s = mk(fakeStorage());
+  assert.equal(s.importJson('nope').error, 'invalid-json');
+  assert.equal(s.importJson('{}').error, 'invalid-format');
+});

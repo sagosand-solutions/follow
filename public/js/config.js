@@ -5,5 +5,6 @@ export const CONFIG = {
   dataPath: 'data/',
   i18nPath: 'i18n/',
   defaultLocale: 'en',
+  licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
   repoUrl: 'https://github.com/sagosand-solutions/follow',
 };

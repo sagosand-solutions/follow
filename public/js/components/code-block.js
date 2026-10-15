@@ -125,7 +125,7 @@ export function renderCodeBlock({ source, language = 'python', label = null, hig
   copy.addEventListener('click', async () => {
     clearTimeout(state.timer);
     try {
-      await navigator.clipboard.writeText(splitLines(source).join('\n'));
+      await navigator.clipboard.writeText(source);
       say(s.copied);
     } catch {
       const range = document.createRange();

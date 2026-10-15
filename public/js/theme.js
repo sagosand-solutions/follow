@@ -1,5 +1,11 @@
 const KEY = 'ui.theme';
 const ORDER = ['auto', 'light', 'dark'];
+let sessionMode = 'auto';
+
+// For tests: forget the choice remembered for this page view.
+export function resetSessionTheme() {
+  sessionMode = 'auto';
+}
 
 function defaultStorage() {
   try {
@@ -12,19 +18,22 @@ function defaultStorage() {
 export function readTheme(storage = defaultStorage()) {
   try {
     const v = storage && storage.getItem(KEY);
-    return ORDER.includes(v) ? v : 'auto';
+    if (ORDER.includes(v)) return v;
   } catch {
-    return 'auto';
+    /* fall through to the choice made in this page view */
   }
+  return sessionMode;
 }
 
-export function applyTheme(mode, root = document.documentElement) {
+export function applyTheme(mode, root = globalThis.document && globalThis.document.documentElement) {
+  if (!root) return;
   if (mode === 'auto') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', mode);
 }
 
 export function initTheme(storage = defaultStorage()) {
   const mode = readTheme(storage);
+  sessionMode = mode;
   applyTheme(mode);
   return mode;
 }
@@ -35,6 +44,7 @@ export function nextTheme(mode) {
 
 export function cycleTheme(storage = defaultStorage()) {
   const mode = nextTheme(readTheme(storage));
+  sessionMode = mode;
   try {
     if (storage) storage.setItem(KEY, mode);
   } catch {

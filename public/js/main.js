@@ -22,7 +22,14 @@ async function boot() {
     return;
   }
 
-  document.querySelector('.skip-link').textContent = t('site.skip');
+  const skip = document.querySelector('.skip-link');
+  skip.textContent = t('site.skip');
+  // The link must not change the hash: the router would treat '#main' as a route.
+  skip.addEventListener('click', (e) => {
+    e.preventDefault();
+    main.focus();
+    main.scrollIntoView({ block: 'start' });
+  });
   const header = document.getElementById('site-header');
   const tagline = h('a', { class: 'brand', href: '#/' }, CONFIG.productName ? `${CONFIG.productName} · ${t('site.tagline')}` : t('site.tagline'));
   const themeButton = h('button', { type: 'button', class: 'theme-toggle' });

@@ -3,6 +3,7 @@ import { t } from '../i18n.js';
 import { loadCourse, loadQuestion, loadConcepts, flattenLessons } from '../data.js';
 import { store } from '../progress.js';
 import { errorNode } from './errors.js';
+import { currentAnswer } from '../answers.js';
 
 function statusOf(answer) {
   if (!answer) return t('lesson.status.none');
@@ -23,7 +24,20 @@ export async function lessonView({ id }) {
     return { title: t('notfound.title'), node: h('div', { class: 'stack' }, h('h1', {}, t('notfound.title')), h('p', {}, t('notfound.text')), h('p', {}, h('a', { href: '#/course' }, t('notfound.course')))) };
   }
   const { lesson } = entry;
-  const latest = lesson.questions.map((qid) => store.latest(qid));
+  let questions = null;
+  try {
+    questions = await Promise.all(lesson.questions.map((qid) => loadQuestion(qid)));
+  } catch (err) {
+    console.error(err);
+  }
+  // Statuses come from the question as it is now, so a changed question never shows an outdated verdict.
+  const latest = lesson.questions.map((qid, i) => {
+    const record = store.latest(qid);
+    if (!record) return null;
+    if (!questions) return record;
+    const cur = currentAnswer(questions[i], record);
+    return cur ? { outcome: cur.outcome, score: cur.score } : null;
+  });
   const answered = latest.filter(Boolean);
 
   const list = h(
@@ -36,20 +50,20 @@ export async function lessonView({ id }) {
 
   const parts = [h('div', {}, h('p', { class: 'kicker' }, `${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title)), h('section', {}, h('h2', {}, t('lesson.questions')), list)];
 
-  if (answered.length === lesson.questions.length) {
+  if (questions && answered.length === lesson.questions.length) {
     const full = answered.filter((a) => a.outcome === 'answered' && a.score === 1).length;
     const partial = answered.filter((a) => a.outcome === 'answered' && a.score === 0.5).length;
     const wrong = answered.filter((a) => a.outcome === 'answered' && a.score === 0).length;
     const unsure = answered.filter((a) => a.outcome === 'unknown').length;
     const again = h('div', {}, h('p', { class: 'muted' }, t('lesson.lookAgainNone')));
     try {
-      const [questions, concepts] = await Promise.all([Promise.all(lesson.questions.map(loadQuestion)), loadConcepts().catch(() => null)]);
+      const concepts = await loadConcepts().catch(() => null);
       const seen = new Map();
       questions.forEach((q, i) => {
-        const a = latest[i];
-        if (a.outcome !== 'answered') return;
-        const opt = q.options.find((o) => o.id === a.option_id);
-        if (opt && opt.score < 1 && opt.misconception) {
+        const cur = currentAnswer(q, store.latest(q.id));
+        if (!cur || cur.outcome !== 'answered') return;
+        const opt = cur.option;
+        if (opt.score < 1 && opt.misconception) {
           const m = concepts && concepts.misconceptions.find((x) => x.id === opt.misconception);
           if (!seen.has(opt.misconception + q.id)) seen.set(opt.misconception + q.id, { qid: q.id, n: i + 1, title: m ? m.title : opt.misconception });
         }
