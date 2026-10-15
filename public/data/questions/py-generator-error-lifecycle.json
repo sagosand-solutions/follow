@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.1",
+  "id": "py-generator-error-lifecycle",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "advanced",
+  "difficulty": 0.8,
+  "concepts": ["py.functions", "py.iterators", "py.generators", "py.exceptions"],
+  "prompt": "Run this as a fresh Python script. Which option gives all three output lines and correctly explains the cleanup and final next call? The word closed is just a log entry appended by this code.",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "events = []\n\ndef steps():\n    try:\n        yield 1\n        raise ValueError(\"bad\")\n        yield 2\n    finally:\n        events.append(\"closed\")\n\nit = steps()\nprint(next(it))\ntry:\n    next(it)\nexcept ValueError:\n    events.append(\"caught\")\nprint(events)\nprint(next(it, \"done\"))\n",
+      "highlight_lines": [5, 6, 8, 9, 14, 15, 18]
+    }
+  ],
+  "options": [
+    {
+      "id": "cleanup-then-exhausted",
+      "text": "The lines are 1, ['closed', 'caught'], and done. The generator's finally runs before the caller's handler; the escaped ValueError terminates the generator, so the last next uses its exhaustion default.",
+      "score": 1,
+      "feedback": "Correct. The first next suspends at yield 1. The second reaches ValueError, runs finally while unwinding, and propagates the error to the caller. The generator has exited, so the last next returns done.",
+      "misconception": null
+    },
+    {
+      "id": "default-catches-any-error",
+      "text": "The lines are 1, ['closed', 'caught'], and done. Cleanup happens before the handler; the last next is safe because supplying a default makes next suppress every kind of exception from an iterator.",
+      "score": 0.5,
+      "feedback": "The output and cleanup order are right. The general explanation of next is wrong: its default handles exhaustion, not arbitrary exceptions such as ValueError. Here the generator is already exhausted.",
+      "misconception": "py.next-default-catches-errors",
+      "partial_reason": "Correct: all three output lines and the ordering of cleanup before the caller's handler. Incorrect: next(iterator, default) suppresses every exception; it only returns the default on exhaustion."
+    },
+    {
+      "id": "handler-before-cleanup",
+      "text": "The lines are 1, ['caught', 'closed'], and done. The caller catches ValueError first, and then the generator performs its finally cleanup.",
+      "score": 0,
+      "feedback": "The ordering is reversed. The generator's finally runs as the exception leaves that generator, before the caller's except can handle it. The events list is ['closed', 'caught'].",
+      "misconception": "py.finally-after-caller-handler"
+    },
+    {
+      "id": "caller-recovery-resumes",
+      "text": "The lines are 1, ['closed', 'caught'], and 2. After the caller catches ValueError, the generator can continue at the next source line and reach yield 2.",
+      "score": 0,
+      "feedback": "An exception that escapes a generator terminates that generator. Catching it in the caller does not restore the abandoned execution frame. yield 2 is never reached; the final next returns done.",
+      "misconception": "py.external-handler-resumes-generator"
+    },
+    {
+      "id": "iterator-restarts",
+      "text": "The lines are 1, ['closed', 'caught'], and 1. Calling next on a terminated generator starts its function again from the beginning.",
+      "score": 0,
+      "feedback": "A terminated generator remains exhausted. Reusing it does not call steps again. A new call to steps would create a different generator, but this code never makes that call.",
+      "misconception": "py.iterator-restarts"
+    }
+  ],
+  "explanation": "steps returns a suspended generator. The first next yields 1. Resuming it reaches ValueError, and its finally appends closed before the error propagates to the caller's except, which appends caught. The uncaught-in-the-generator error has terminated that generator; the later next therefore gets exhaustion and returns its supplied default. That default is not a general exception handler. Explicit advancement, not garbage collection or shutdown, triggers the cleanup here.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "explicit-resumption",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {"stdout": "1\n['closed', 'caught']\ndone\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "The exact displayed script checks yield, explicit unwinding order, and subsequent exhaustion. The claim that next's default is not a general exception handler requires semantic review; this case does not feed an arbitrary failing iterator to that final call.",
+    "limitations": "A matching trace does not independently prove each causal statement or pedagogical validity. No assertion depends on generator finalization timing."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

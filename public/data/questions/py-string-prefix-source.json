@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-string-prefix-source",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.2,
+  "concepts": ["py.strings"],
+  "prompt": "What single line does this program print, and which explanation of slicing is correct? Choose the option whose output and explanation are both correct.",
+  "snippets": [
+    {"id": "main", "code": "word = \"sunflower\"\nprefix = word[:3]\nprint(prefix, word)\n"}
+  ],
+  "options": [
+    {
+      "id": "include-stop",
+      "text": "sunf sunflower. The slice starts at index 0 and includes the character at stop index 3.",
+      "score": 0,
+      "feedback": "The stop index is excluded. The selected indices are 0, 1 and 2, giving sun, not sunf. Slicing leaves word unchanged, so the output is sun sunflower.",
+      "misconception": "py.slice-end-inclusive"
+    },
+    {
+      "id": "slice-replaces-source",
+      "text": "sun sun. Taking the slice replaces word with the selected prefix before it is printed.",
+      "score": 0,
+      "feedback": "Reading a slice does not replace word. prefix receives the selected string, while word still refers to sunflower. The output is sun sunflower.",
+      "misconception": "py.slice-mutates-source"
+    },
+    {
+      "id": "exclusive-stop-unchanged-source",
+      "text": "sun sunflower. The omitted start means index 0, the stop index 3 is excluded, and word stays unchanged.",
+      "score": 1,
+      "feedback": "Correct. The slice selects s, u and n at indices 0, 1 and 2. It produces a prefix without changing the source string.",
+      "misconception": null
+    },
+    {
+      "id": "stop-means-count",
+      "text": "sun sunflower. The number after the colon always says how many characters to take, regardless of the start index.",
+      "score": 0.5,
+      "feedback": "The printed line is right, but the general rule is wrong. The stop is an excluded index, not a length. It equals the selected length here only because the start is 0.",
+      "misconception": "py.slice-stop-is-count",
+      "partial_reason": "Correct: both printed strings are sun and sunflower, and the source remains unchanged. Incorrect: a slice stop is always a count independent of its start; it is actually an excluded boundary index."
+    },
+    {
+      "id": "one-based-slice",
+      "text": "su sunflower. Character positions start at 1, and the slice excludes position 3.",
+      "score": 0,
+      "feedback": "String indices start at 0, not 1. The first three indices are 0, 1 and 2, all before the excluded stop 3. They give sun, while word remains sunflower.",
+      "misconception": "py.index-starts-one"
+    }
+  ],
+  "explanation": "word[:3] starts at the default index 0 and stops before index 3. It selects sun. The assignment to prefix does not change word, which remains sunflower, so print writes sun sunflower. The stop number happens to equal the slice length for this zero start; it is not generally a character count.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "prefix-and-source", "snippet_id": "main", "stdin": "", "expected": {"stdout": "sun sunflower\n", "exit_code": 0}}
+    ],
+    "rationale": "Execute the exact displayed three-line program and compare its full output. Manual boundary reasoning distinguishes the correct explanation from the wrong stop-as-count rule that happens to predict the same prefix.",
+    "limitations": "This trace does not prove a general slicing rule or the pedagogical value of the half-credit answer. No empirical calibration is claimed."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

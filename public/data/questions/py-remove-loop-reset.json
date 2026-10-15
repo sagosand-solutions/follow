@@ -1,0 +1,74 @@
+{
+  "schema_version": "0.1",
+  "id": "py-remove-loop-reset",
+  "language": "python",
+  "locale": "en",
+  "type": "remove-line",
+  "level": "beginner",
+  "difficulty": 0.38,
+  "concepts": ["py.assignment", "py.iteration", "py.conditionals", "py.numeric-operators"],
+  "prompt": "Delete only line 3 of Original: the total = 0 statement inside the loop. Reset removed shows the complete resulting program. What single number does Reset removed print, and why? Each snippet is a fresh run. For these positive integers, n % 2 == 1 selects odd numbers.",
+  "snippets": [
+    {
+      "id": "original",
+      "label": "Original",
+      "code": "total = 0\nfor n in range(1, 4):\n    total = 0\n    if n % 2 == 1:\n        total = total + n\nprint(total)\n",
+      "highlight_lines": [3]
+    },
+    {
+      "id": "reset-removed",
+      "label": "Reset removed",
+      "code": "total = 0\nfor n in range(1, 4):\n    if n % 2 == 1:\n        total = total + n\nprint(total)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "inclusive-stop-filtered-out",
+      "text": "4. The loop visits 1, 2, 3 and 4. Only 1 and 3 are odd, so their sum is kept without the reset.",
+      "score": 0.5,
+      "feedback": "The total and added values are right, but range(1, 4) does not visit 4: its stop is excluded. That extra imagined even value happens not to change the total in Reset removed.",
+      "misconception": "py.range-stop-inclusive",
+      "partial_reason": "Correct: removing the reset retains the sum 1 + 3, giving 4. Incorrect: the loop visits the stop value 4; its actual values are only 1, 2 and 3."
+    },
+    {
+      "id": "accumulator-keeps-last",
+      "text": "3. The selected values are 1 and 3, but total keeps only the last selected value even without the reset.",
+      "score": 0,
+      "feedback": "The remaining update is total = total + n, not total = n. Without the reset, the earlier 1 remains in total when 3 is added, giving 4.",
+      "misconception": "py.accumulator-overwrites"
+    },
+    {
+      "id": "condition-selects-even",
+      "text": "2. The condition selects the even number 2, so removing the reset leaves a sum of 2.",
+      "score": 0,
+      "feedback": "For these integers, remainder 1 selects odd values, not even ones. The selected values are 1 and 3, and without the reset their sum is 4.",
+      "misconception": "py.modulo-parity-reversed"
+    },
+    {
+      "id": "retain-earlier-contribution",
+      "text": "4. The loop visits 1, 2 and 3. Removing the reset preserves the earlier 1 when 3 is added, so total becomes 1 + 3.",
+      "score": 1,
+      "feedback": "Correct. With no reset inside the loop, total starts at 0, becomes 1, stays 1 for n = 2, and becomes 4 for n = 3.",
+      "misconception": null
+    },
+    {
+      "id": "add-every-value",
+      "text": "6. Removing the reset makes total add every visited number, including 2: 1 + 2 + 3.",
+      "score": 0,
+      "feedback": "Deleting the reset does not delete the if condition. The even value 2 is still skipped. Only 1 and 3 are added, giving 4.",
+      "misconception": "py.if-body-unconditional"
+    }
+  ],
+  "explanation": "The initial total = 0 remains. Original resets total at the start of each iteration and finishes with 3. Reset removed no longer discards earlier contributions: it adds 1, skips 2, and then adds 3 to the existing 1, printing 4. range(1, 4) never supplies 4.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "original-output", "snippet_id": "original", "stdin": "", "expected": {"stdout": "3\n", "exit_code": 0}},
+      {"id": "removed-output", "snippet_id": "reset-removed", "stdin": "", "expected": {"stdout": "4\n", "exit_code": 0}}
+    ],
+    "rationale": "Run both exact displayed programs independently. The second source is the first with exactly line 3 removed, not a hidden harness. Literal outputs verify the concrete change; manual tracing distinguishes the explanations and the incorrect inclusive-stop model.",
+    "limitations": "Matching both output cases does not establish distractor appeal or a calibrated ordering of partial understanding. Wrong-model predictions require separate manual review."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

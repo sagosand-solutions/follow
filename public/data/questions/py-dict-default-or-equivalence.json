@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "id": "py-dict-default-or-equivalence",
+  "language": "python",
+  "locale": "en",
+  "type": "equivalence",
+  "level": "intermediate",
+  "difficulty": 0.56,
+  "concepts": ["py.dictionaries", "py.booleans", "py.functions", "py.iteration"],
+  "prompt": "An editor replaces get with a default by get followed by or. Compare the two complete scripts, each started fresh, for exactly the three displayed profiles: a missing name, an empty-string name, and the name Ada. Which option gives each script's three printed lines and a correct explanation of get and or? The notation '' is repr of an empty string, not an omitted line.",
+  "snippets": [
+    {
+      "id": "original",
+      "label": "Original",
+      "code": "def display_name(profile):\n    return profile.get(\"name\", \"guest\")\n\nfor profile in ({}, {\"name\": \"\"}, {\"name\": \"Ada\"}):\n    print(repr(display_name(profile)))\n",
+      "highlight_lines": [2, 4]
+    },
+    {
+      "id": "rewrite",
+      "label": "Rewrite",
+      "code": "def display_name(profile):\n    return profile.get(\"name\") or \"guest\"\n\nfor profile in ({}, {\"name\": \"\"}, {\"name\": \"Ada\"}):\n    print(repr(display_name(profile)))\n",
+      "highlight_lines": [2, 4]
+    }
+  ],
+  "options": [
+    {
+      "id": "get-replaces-empty",
+      "text": "Both print 'guest', 'guest', 'Ada', each on three lines. They are equivalent here because get uses its default for a stored empty string as well as a missing key.",
+      "score": 0,
+      "feedback": "get returns a stored empty string unchanged. The original's second line is '', not 'guest'. The rewrite replaces that falsy empty string through or, so the shown programs are not equivalent.",
+      "misconception": "py.get-default-for-falsy"
+    },
+    {
+      "id": "or-boolean-result",
+      "text": "The original prints 'guest', '', 'Ada'; the rewrite prints True, True, True. They differ because or returns a Boolean result, not an operand.",
+      "score": 0,
+      "feedback": "or returns one of its operand values, not a forced bool. The rewrite returns the string guest for the first two profiles and the string Ada for the third. It never returns True in this script.",
+      "misconception": "py.or-returns-bool"
+    },
+    {
+      "id": "complete-trace-narrow-rule",
+      "text": "The original prints 'guest', '', 'Ada'; the rewrite prints 'guest', 'guest', 'Ada'. They differ because or replaces only None and empty strings; all other values, including 0, pass through unchanged.",
+      "score": 0.5,
+      "feedback": "Both complete traces and non-equivalence are right. The general rule for or is wrong: numeric zero and empty containers are also falsy and select the right operand. The narrow None/empty-string model only happens to fit the shown profiles.",
+      "misconception": "py.or-only-none-or-empty-string",
+      "partial_reason": "Correct: all six printed lines and the conclusion that the shown scripts differ. Incorrect: or replaces only None and empty strings; it actually chooses the right operand for any falsy left operand, including 0 and empty containers."
+    },
+    {
+      "id": "missing-versus-falsy",
+      "text": "The original prints 'guest', '', 'Ada'; the rewrite prints 'guest', 'guest', 'Ada'. They differ: get's default handles a missing key, while or replaces any falsy left operand and otherwise returns that operand.",
+      "score": 1,
+      "feedback": "Correct. The missing name produces guest in both. A present empty string is preserved by get with a default but replaced by or. Ada is truthy and is preserved in both scripts.",
+      "misconception": null
+    },
+    {
+      "id": "or-always-right",
+      "text": "The original prints 'guest', '', 'Ada'; the rewrite prints 'guest', 'guest', 'guest'. They differ because or always chooses its right-hand fallback.",
+      "score": 0,
+      "feedback": "or does not always choose the fallback. The string Ada is truthy, so the rewrite returns that left operand and prints 'Ada' on its third line. Only the empty-string profile changes the output between these scripts.",
+      "misconception": "py.or-always-fallback"
+    }
+  ],
+  "explanation": "dict.get returns the stored value when a key exists and uses its default only when the key is missing. Thus the original returns guest, the empty string, and Ada. In the rewrite, get without an explicit default returns None for the missing key; None and the empty string are falsy, so or returns guest for both. Ada is truthy, so or returns Ada itself. The empty-string profile is a concrete counterexample to equivalence. or uses truth value, not only a test for None or an empty string, and it returns an operand rather than necessarily a bool.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id":"original-three-profiles","snippet_id":"original","stdin":"","expected":{"stdout":"'guest'\n''\n'Ada'\n","exit_code":0}},
+      {"id":"rewrite-three-profiles","snippet_id":"rewrite","stdin":"","expected":{"stdout":"'guest'\n'guest'\n'Ada'\n","exit_code":0}}
+    ],
+    "rationale": "Both displayed complete scripts explicitly contain all three profile cases and are executed separately. Their differing literal second lines refute equivalence for this finite domain. The general truthiness explanation needs semantic review; a narrow None/empty-string rule also predicts all these concrete outputs.",
+    "limitations": "This finite counterexample is not a proof about arbitrary mappings, custom truth methods or side effects. Numeric-zero and empty-container behavior is explained by language semantics, not claimed as an additional hidden execution case. Difficulty and distractor appeal are uncalibrated."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

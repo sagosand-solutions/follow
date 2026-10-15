@@ -60,6 +60,85 @@
     },
     {
       "concepts": [
+        "py.dictionaries",
+        "py.booleans",
+        "py.functions",
+        "py.iteration"
+      ],
+      "difficulty": 0.56,
+      "id": "py-dict-default-or-equivalence",
+      "level": "intermediate",
+      "type": "equivalence"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.iterators",
+        "py.generators",
+        "py.exceptions"
+      ],
+      "difficulty": 0.8,
+      "id": "py-generator-error-lifecycle",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.lists"
+      ],
+      "difficulty": 0.27,
+      "id": "py-list-last-boundary",
+      "level": "beginner",
+      "type": "crashing-input"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.booleans",
+        "py.conditionals"
+      ],
+      "difficulty": 0.18,
+      "id": "py-nonempty-false-string",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.lists",
+        "py.iteration"
+      ],
+      "difficulty": 0.82,
+      "id": "py-prefix-duplicate-complexity",
+      "level": "advanced",
+      "type": "complexity"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope",
+        "py.assignment",
+        "py.exceptions"
+      ],
+      "difficulty": 0.62,
+      "id": "py-remove-global-counter",
+      "level": "intermediate",
+      "type": "remove-line"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.iteration",
+        "py.conditionals",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.38,
+      "id": "py-remove-loop-reset",
+      "level": "beginner",
+      "type": "remove-line"
+    },
+    {
+      "concepts": [
         "py.functions",
         "py.default-arguments",
         "py.mutation-aliasing",
@@ -69,6 +148,15 @@
       "id": "py-shared-default-ai-review",
       "level": "intermediate",
       "type": "ai-review"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "difficulty": 0.2,
+      "id": "py-string-prefix-source",
+      "level": "beginner",
+      "type": "output"
     }
   ]
 }
