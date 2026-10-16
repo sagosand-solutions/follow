@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Local exam attempt contract v0.1",
+  "description": "Static interchange contract for one local attempt at a chapter examination as plain-text JSON. This is not the question 0.1 contract and stores no machine score or lock flag. JSON Schema enforces field presence, types, value domains, per-object additionalProperties and code-point lengths. Exam binding, part-set equality, assistance monotonicity and status transitions are enforced by validator/exam.py, not here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "attempt_id",
+    "exam_id",
+    "exam_version",
+    "source_hash",
+    "rubric_version",
+    "status",
+    "assisted",
+    "assistance_events",
+    "parts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "attempt_id": {
+      "$ref": "#/$defs/localId"
+    },
+    "exam_id": {
+      "$ref": "#/$defs/localId"
+    },
+    "exam_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_hash": {
+      "$ref": "#/$defs/hash"
+    },
+    "rubric_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "in_progress",
+        "submitted",
+        "abandoned"
+      ]
+    },
+    "assisted": {
+      "type": "boolean"
+    },
+    "assistance_events": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/partState"
+      }
+    }
+  },
+  "$defs": {
+    "localId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "resource_id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "study",
+            "trace",
+            "guided"
+          ]
+        },
+        "resource_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      }
+    },
+    "answeredValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6000
+        }
+      }
+    },
+    "partState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "part_id",
+        "status",
+        "value"
+      ],
+      "properties": {
+        "part_id": {
+          "$ref": "#/$defs/localId"
+        },
+        "status": {
+          "enum": [
+            "answered",
+            "unknown",
+            "unanswered"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/answeredValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "answered"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "$ref": "#/$defs/answeredValue"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "unknown",
+                  "unanswered"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
