@@ -36,7 +36,7 @@
       "score": 0.5,
       "feedback": "The output and reuse are right, but the creation time is wrong. The list already exists after the def statement executes, before the first call.",
       "misconception": "py.default-created-on-first-call",
-      "partial_reason": "Correct: both printed lists and the fact that the calls share a list. Incorrect: the default list is created on the first omitted-argument call; it is actually created when the function definition executes."
+      "partial_reason": "Both printed lists are right, and the calls do share a list. The creation time is wrong: the default list is created when the function definition executes, not on the first call that omits tags."
     },
     {
       "id": "append-copy",

@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.3,
   "concepts": ["py.strings"],
-  "prompt": "What single line does this program print, and which rule for the string method strip is correct? Choose the option with both the correct result and the correct rule.",
+  "prompt": "What single line does this program print? Choose the answer with the right result and rule for the string method strip.",
   "snippets": [
     {"id": "main", "code": "text = \"xyhexyllo!xy\"\nprint(text.strip(\"xy\"))\n"}
   ],
@@ -25,7 +25,7 @@
       "score": 0.5,
       "feedback": "The output is right here, but the argument is not an exact substring. It specifies individual characters x and y to trim repeatedly from either boundary in any order. The middle stays unchanged.",
       "misconception": "py.strip-argument-is-substring",
-      "partial_reason": "Correct: predicts the complete result hexyllo! and keeps the interior xy. Incorrect: treats xy as one exact boundary substring removed once, rather than individual trim characters used repeatedly."
+      "partial_reason": "The complete result hexyllo! and the unchanged interior xy are right. The wrong rule removes xy once as an exact boundary substring. strip repeatedly trims the individual characters instead."
     },
     {
       "id": "right-boundary-only",

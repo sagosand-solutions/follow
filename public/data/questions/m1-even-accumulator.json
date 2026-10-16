@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.32,
   "concepts": ["py.iteration", "py.numeric-operators", "py.conditionals", "py.assignment"],
-  "prompt": "What does this program print, and which trace explains it? Choose the option whose output and explanation are both correct. For an integer n, n % 2 is its remainder after division by 2.",
+  "prompt": "What does this program print? Choose the answer with the right output and trace. For an integer n, n % 2 is its remainder after division by 2.",
   "snippets": [
     {
       "id": "main",
@@ -28,7 +28,7 @@
       "score": 0.5,
       "feedback": "The output and selected even numbers are right, but range(1, 5) does not visit 5: the stop is excluded. That error happens not to change the total here because 5 is odd.",
       "misconception": "py.range-stop-inclusive",
-      "partial_reason": "Correct: predicts 6 and identifies 2 and 4 as the added values. Incorrect: includes 5 among the loop values. The wrong inclusive-stop rule happens to preserve the result for this odd stop bound."
+      "partial_reason": "6 is the right total, and 2 and 4 are the numbers added. But range(1, 5) does not include 5. The wrong inclusive-stop rule leaves this result unchanged here because the stop value is odd."
     },
     {
       "id": "odd-remainders",

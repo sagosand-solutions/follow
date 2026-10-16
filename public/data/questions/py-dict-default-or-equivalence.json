@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.56,
   "concepts": ["py.dictionaries", "py.booleans", "py.functions", "py.iteration"],
-  "prompt": "An editor replaces get with a default by get followed by or. Compare the two complete scripts, each started fresh, for exactly the three displayed profiles: a missing name, an empty-string name, and the name Ada. Which option gives each script's three printed lines and a correct explanation of get and or? The notation '' is repr of an empty string, not an omitted line.",
+  "prompt": "What are each script's three printed lines? Choose the answer with the right output and explanation of get and or.\n\nAn editor replaces get with a default by get followed by or. Compare the two complete scripts, each started fresh, for exactly the three displayed profiles: a missing name, an empty-string name, and the name Ada. The notation '' is repr of an empty string, not an omitted line.",
   "snippets": [
     {
       "id": "original",
@@ -43,7 +43,7 @@
       "score": 0.5,
       "feedback": "Both complete traces and non-equivalence are right. The general rule for or is wrong: numeric zero and empty containers are also falsy and select the right operand. The narrow None/empty-string model only happens to fit the shown profiles.",
       "misconception": "py.or-only-none-or-empty-string",
-      "partial_reason": "Correct: all six printed lines and the conclusion that the shown scripts differ. Incorrect: or replaces only None and empty strings; it actually chooses the right operand for any falsy left operand, including 0 and empty containers."
+      "partial_reason": "All six printed lines and the conclusion that the scripts differ are right. The rule for or is too narrow: any falsy left operand selects the right operand, including 0 and empty containers, not just None and empty strings."
     },
     {
       "id": "missing-versus-falsy",

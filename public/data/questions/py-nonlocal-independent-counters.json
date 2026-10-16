@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.57,
   "concepts": ["py.functions", "py.scope", "py.assignment"],
-  "prompt": "Run this as a fresh Python script. The calls in the first print are evaluated from left to right. Which option gives both complete output lines and a correct account of the count bindings? first and second are functions returned by two separate calls to make_counter.",
+  "prompt": "What are the two complete output lines, and which count bindings change? Choose the answer with the right explanation. Run the script fresh; calls in the first print are evaluated from left to right. first and second are functions returned by two separate calls to make_counter.",
   "snippets": [
     {
       "id": "main",
@@ -20,7 +20,7 @@
       "id": "one-counter-for-all-factory-calls",
       "text": "The lines are 1 2 3 and 100. All calls to make_counter share one enclosing count binding, so both returned functions advance the same counter; the module count is separate.",
       "score": 0,
-      "feedback": "Each call to make_counter creates a new enclosing count binding initialized to 0. The two first calls use one binding and reach 1 then 2; second uses a different binding and reaches 1. The module count stays 100.",
+      "feedback": "Each make_counter call creates a separate count binding initialized to 0. The first two calls use first's binding and reach 1 then 2; second uses another and reaches 1. The module count stays 100.",
       "misconception": "py.factory-calls-share-nonlocals"
     },
     {
@@ -29,7 +29,7 @@
       "score": 0.5,
       "feedback": "Both lines and the independent persistent counters are right. The final general rule is wrong: nonlocal searches enclosing function scopes for the nearest existing binding of the name; an intermediate function scope without that binding is skipped. The immediately surrounding function happens to bind count here.",
       "misconception": "py.nonlocal-nearest-scope-without-binding",
-      "partial_reason": "Correct: predicts the complete 1 2 1 / 100 trace, including persistent state, independence between factory calls and unchanged module count. Incorrect: claims the immediately surrounding function scope is always the target whether or not it binds the name, rather than the nearest enclosing function scope that does bind it."
+      "partial_reason": "The full 1 2 1 / 100 trace is right: state persists, the factory calls are independent and the module count is unchanged. The false rule always chooses the immediately surrounding function, even without a binding. nonlocal instead targets the nearest enclosing function scope that binds the name."
     },
     {
       "id": "reset-nonlocal-on-every-inner-call",

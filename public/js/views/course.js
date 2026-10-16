@@ -5,9 +5,8 @@ import { store } from '../progress.js';
 import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
-import { readState } from '../course-nav.js';
 import { summaryNode } from '../components/summary.js';
-import { nextUp, hasProgress } from '../course-nav.js';
+import { nextUp, hasProgress, readState } from '../course-nav.js';
 
 export async function courseView() {
   let course;

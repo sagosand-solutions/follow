@@ -7,7 +7,7 @@
   "level": "advanced",
   "difficulty": 0.82,
   "concepts": ["py.complexity", "py.lists", "py.iteration"],
-  "prompt": "Analyze has_duplicate(values) for a list of n distinct plain integers, so it never returns early. Use a CPython-style array-backed list cost model: copying k element references costs Theta(k), checking membership among k unequal integers costs Theta(k), and each integer comparison, iteration step and index operation costs constant time. Analyze only the function call, excluding construction of the example input and printing. As n grows, which option gives the tight running-time bound and a correct explanation? The displayed six-element call is only a behavior example. Theta means a tight asymptotic bound.",
+  "prompt": "What is the tight running-time bound for has_duplicate(values) as n grows? Choose the answer with the right explanation.\n\nThe input is a list of n distinct plain integers, so the function never returns early. Analyze only the function call, not construction of the example input or printing.\n\nUse a CPython-style array-backed list cost model: copying k element references costs Theta(k), checking membership among k unequal integers costs Theta(k), and each integer comparison, iteration step and index operation costs constant time. Theta means a tight asymptotic bound. The displayed six-element call is only a behavior example.",
   "snippets": [
     {
       "id": "main",
@@ -20,9 +20,9 @@
       "id": "full-source-every-slice",
       "text": "Theta(n squared). Each slice still returns only the requested prefix, but Python first copies all n references into a temporary list and then removes the unwanted suffix. That full copy happens on every iteration.",
       "score": 0.5,
-      "feedback": "The total bound and returned prefix are right, but the alleged internal full-copy-then-trim algorithm is wrong in the stated model. Slicing copies the selected index references, not all n first. Summing those growing prefix costs still gives quadratic time.",
+      "feedback": "The total bound and returned prefixes are right. But slicing copies only the selected prefix references, not all n followed by trimming. The growing prefix costs still add to quadratic time.",
       "misconception": "py.slice-copies-entire-source",
-      "partial_reason": "Correct: the total bound is Theta(n squared), each returned slice is the requested prefix, and no distinct input value is found in its earlier prefix. Incorrect: claims every slice first copies all n references internally and then removes the suffix, rather than copying the selected prefix references."
+      "partial_reason": "The Theta(n squared) total and returned prefixes are right: no distinct value is found in its earlier prefix. The wrong claim is that every slice first copies all n references and then removes the suffix. It copies the selected prefix references instead."
     },
     {
       "id": "single-loop-linear",

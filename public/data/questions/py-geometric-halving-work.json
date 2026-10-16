@@ -7,7 +7,7 @@
   "level":"advanced",
   "difficulty":0.78,
   "concepts":["py.complexity","py.iteration","py.numeric-operators","py.functions"],
-  "prompt":"The parameter n is a positive integer. Analyze only halving_work(n), excluding the final print. Use a unit-cost RAM model: each integer addition, floor division, comparison, assignment and range step costs constant time, abstracting away Python integer bit costs. Theta means a tight asymptotic bound. Which option gives the printed count for n = 8, the tight running-time bound as n grows, and a correct argument? The single displayed run is only a behavior example, not timing evidence.",
+  "prompt":"What count is printed for n = 8, and what is the tight running-time bound as n grows? Choose the answer with a correct argument.\n\nThe parameter n is a positive integer. Analyze only halving_work(n), excluding the final print. Use a unit-cost RAM model: each integer addition, floor division, comparison, assignment and range step costs constant time, abstracting away Python integer bit costs.\n\nTheta means a tight asymptotic bound. The single displayed run is only a behavior example, not timing evidence.",
   "snippets":[
     {"id":"main","code":"def halving_work(n):\n    width = n\n    count = 0\n    while width > 0:\n        for _ in range(width):\n            count += 1\n        width //= 2\n    return count\n\nprint(halving_work(8))\n","highlight_lines":[4,5,6,7]}
   ],
@@ -39,7 +39,7 @@
       "score":0.5,
       "feedback":"The shown count and linear bound are right, but the exact formula is not universal. For n = 3, widths 3 and 1 total 4, not 5. The formula 2n - 1 holds for powers of two; the bound between n and 2n is enough in general.",
       "misconception":"py.halving-always-two-n-minus-one",
-      "partial_reason":"Correct: the displayed input prints 15 and the general tight running-time bound is Theta(n). Incorrect: the exact inner-iteration count is 2n - 1 for every positive integer; integer rounding makes that exact formula false outside powers of two."
+      "partial_reason":"The displayed input prints 15, and the general tight running-time bound is Theta(n). The exact inner-iteration count is not 2n - 1 for every positive integer; integer rounding makes that identity false outside powers of two."
     },
     {
       "id":"maximum-times-passes-is-tight",

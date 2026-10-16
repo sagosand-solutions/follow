@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.27,
   "concepts": ["py.lists"],
-  "prompt": "Run this program separately with each of the one-line integer inputs -1, 0, 2 and 3. Which of these inputs raises IndexError, and which indexing rule is correct? Assume each input line is supplied as written; parsing errors are not at issue.",
+  "prompt": "Which of the inputs -1, 0, 2 and 3 raises IndexError, and which indexing rule is right? Run the program fresh for each one-line integer input. Assume every input line is supplied as written; parsing errors are not at issue.",
   "snippets": [
     {"id": "main", "code": "colors = [\"red\", \"blue\", \"green\"]\nindex = int(input())\nprint(colors[index])\n"}
   ],
@@ -18,7 +18,7 @@
       "score": 0.5,
       "feedback": "Only 3 does fail among these inputs, but the rule is incomplete. For this list, valid indices run from -3 to 2. An index such as -4 is smaller than the length but is not safe.",
       "misconception": "py.upper-bound-guard-covers-negative",
-      "partial_reason": "Correct: identifies exactly the failing input 3 in the stated set. Incorrect: claims there is no negative lower bound; a list of length 3 permits negative indices only down to -3."
+      "partial_reason": "Only input 3 fails in the stated set, so that prediction is right. The missing negative lower bound is the mistake: a list of length 3 allows negative indices only down to -3."
     },
     {
       "id": "negative-and-high-invalid",
