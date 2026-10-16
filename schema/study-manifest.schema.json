@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Study availability manifest v0.1",
+  "description": "Generated list of published study notes. JSON Schema enforces the envelope, the scope domain, the hashing form and the relative POSIX path form. The exporter is the sole path authority: path canonicality, in-root resolution, symlinks, duplicate approvals, collisions, reviewed status, hash matching and hidden-character rejection are enforced by the validator, not here. Order is (scope, target_id).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data_version",
+    "notes"
+  ],
+  "properties": {
+    "data_version": {
+      "const": 1
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/note"
+      }
+    }
+  },
+  "$defs": {
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "target_id",
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "concept",
+            "lesson",
+            "question"
+          ]
+        },
+        "target_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/conceptId"
+            },
+            {
+              "$ref": "#/$defs/lessonId"
+            },
+            {
+              "$ref": "#/$defs/questionId"
+            }
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^data/study/[A-Za-z0-9._/-]+\\.json$",
+          "not": {
+            "pattern": "\\s"
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "not": {
+            "pattern": "\\s"
+          }
+        }
+      }
+    },
+    "conceptId": {
+      "type": "string",
+      "pattern": "^py\\.[a-z][a-z0-9-]*$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "lessonId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,79}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "questionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    }
+  }
+}

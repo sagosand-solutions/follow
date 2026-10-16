@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Study note contract v0.1",
+  "description": "Static interchange contract for one reviewed-or-draft study note, as plain-text JSON. JSON Schema enforces field presence, types, value domains, the exclusive concept/lesson/question scope and the static-only execution policy. Identifier uniqueness, target existence, real URL/date semantics and publication approval are enforced by the validator, not here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "language",
+    "locale",
+    "title",
+    "summary",
+    "sections",
+    "sources",
+    "status",
+    "author",
+    "license"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "language": {
+      "const": "python"
+    },
+    "locale": {
+      "const": "en"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280
+    },
+    "concept": {
+      "$ref": "#/$defs/conceptId"
+    },
+    "lesson": {
+      "$ref": "#/$defs/lessonId"
+    },
+    "question": {
+      "$ref": "#/$defs/questionId"
+    },
+    "related": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/conceptId"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "$ref": "#/$defs/section"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "reviewed"
+      ]
+    },
+    "author": {
+      "$ref": "#/$defs/author"
+    },
+    "license": {
+      "const": "CC-BY-SA-4.0"
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "concept"
+      ]
+    },
+    {
+      "required": [
+        "lesson"
+      ]
+    },
+    {
+      "required": [
+        "question"
+      ]
+    }
+  ],
+  "$defs": {
+    "conceptId": {
+      "type": "string",
+      "pattern": "^py\\.[a-z][a-z0-9-]*$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "lessonId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,79}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "questionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "localId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "heading",
+        "body",
+        "deeper"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localId"
+        },
+        "heading": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 6000
+        },
+        "deeper": {
+          "type": "boolean"
+        },
+        "formula": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "example": {
+          "$ref": "#/$defs/example"
+        }
+      }
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language",
+        "caption",
+        "code",
+        "execution_policy"
+      ],
+      "properties": {
+        "language": {
+          "const": "python"
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 280
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "execution_policy": {
+          "$ref": "#/$defs/executionPolicy"
+        }
+      }
+    },
+    "executionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "const": "static-only"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "url",
+        "locator",
+        "accessed_on"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localId"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "accessed_on": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        }
+      }
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    }
+  }
+}
