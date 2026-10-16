@@ -1,0 +1,242 @@
+{
+  "question_id": "py-prefix-duplicate-complexity",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "a8e409df4de04ff68ce4549e4d27cb8f9e2dad2086d18d73be692ae9a8b3da1a",
+      "stdin_case": 0,
+      "stdout": "False\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 7,
+          "locals": {
+            "has_duplicate": "<function has_duplicate>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "has_duplicate",
+          "line": 1,
+          "locals": {
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 3,
+          "locals": {
+            "index": "0",
+            "value": "0",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "index": "0",
+            "value": "0",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 3,
+          "locals": {
+            "index": "1",
+            "value": "1",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "index": "1",
+            "value": "1",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 3,
+          "locals": {
+            "index": "2",
+            "value": "2",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "index": "2",
+            "value": "2",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 3,
+          "locals": {
+            "index": "3",
+            "value": "3",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "index": "3",
+            "value": "3",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 3,
+          "locals": {
+            "index": "4",
+            "value": "4",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "index": "4",
+            "value": "4",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 3,
+          "locals": {
+            "index": "5",
+            "value": "5",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 2,
+          "locals": {
+            "index": "5",
+            "value": "5",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "has_duplicate",
+          "line": 5,
+          "locals": {
+            "index": "5",
+            "value": "5",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "has_duplicate",
+          "line": 5,
+          "locals": {
+            "index": "5",
+            "value": "5",
+            "values": "[0, 1, 2, 3, 4, 5]"
+          },
+          "stdout_len": 0,
+          "value": "False"
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 7,
+          "locals": {
+            "has_duplicate": "<function has_duplicate>"
+          },
+          "stdout_len": 6,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

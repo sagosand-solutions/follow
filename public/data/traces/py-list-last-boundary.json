@@ -1,0 +1,65 @@
+{
+  "question_id": "py-list-last-boundary",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "ecadb87358d0bd3f4148b8626f9de1914660ac37f3a24498d37a1c75212ef709",
+      "stdin_case": 0,
+      "stdout": "green\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "colors": "['red', 'blue', 'green']"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "colors": "['red', 'blue', 'green']",
+            "index": "-1"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "colors": "['red', 'blue', 'green']",
+            "index": "-1"
+          },
+          "stdout_len": 6,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

@@ -21,10 +21,13 @@ class Limits:
     memory_bytes: int = 134217728
     output_bytes: int = 65536
     processes: int = 16
+    python_hash_seed: str | None = None
 
     def __post_init__(self):
         if not math.isfinite(self.wall_seconds) or self.wall_seconds <= 0:
             raise ValueError("wall_seconds must be finite and positive")
+        if self.python_hash_seed is not None and not self.python_hash_seed.isdecimal():
+            raise ValueError("python_hash_seed must be a decimal string or None")
         for name in ("memory_bytes", "output_bytes", "processes"):
             value = getattr(self, name)
             if type(value) is not int or value <= 0:
@@ -101,10 +104,13 @@ class TrustedLocalRunner:
                 input_path.write_bytes(stdin.encode("utf-8"))
                 with input_path.open("rb") as input_file, selectors.DefaultSelector() as selector:
                     try:
+                        interpreter_flags = ("-s", "-P") if limits.python_hash_seed is not None else ("-I",)
                         process = subprocess.Popen(
-                            [sys.executable, "-I", str(script)], stdin=input_file,
+                            [sys.executable, *interpreter_flags, str(script)], stdin=input_file,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=directory,
-                            env={"LANG": "C.UTF-8"}, shell=False, close_fds=True,
+                            env={"LANG": "C.UTF-8", **({"PYTHONHASHSEED": limits.python_hash_seed}
+                                                           if limits.python_hash_seed is not None else {})},
+                            shell=False, close_fds=True,
                             start_new_session=True, preexec_fn=restrict)
                         for name in buffers:
                             stream = getattr(process, name)

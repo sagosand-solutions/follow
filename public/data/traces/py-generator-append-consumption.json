@@ -1,0 +1,228 @@
+{
+  "question_id": "py-generator-append-consumption",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "474376977f118d7e5c351a07cc01aa2de708681cd7797ed1f7f57675a2afad2b",
+      "stdin_case": 0,
+      "stdout": "1\n[9, 25]\n[]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "numbers": "[1, 2, 3]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "numbers": "[1, 2, 3]",
+            "squares": "<generator object <genexpr> at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "numbers": "[1, 2, 3, 5]",
+            "squares": "<generator object <genexpr> at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "1"
+          },
+          "stdout_len": 0,
+          "value": "1"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "numbers": "[1, 2, 3, 5]",
+            "squares": "<generator object <genexpr> at 0x\u2026>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "1"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "1"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "2"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "3"
+          },
+          "stdout_len": 2,
+          "value": "9"
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "3"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "3"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "5"
+          },
+          "stdout_len": 2,
+          "value": "25"
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "5"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "5"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 2,
+          "locals": {
+            "number": "5"
+          },
+          "stdout_len": 2,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "numbers": "[1, 2, 3, 5]",
+            "squares": "<generator object <genexpr> at 0x\u2026>"
+          },
+          "stdout_len": 10
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "numbers": "[1, 2, 3, 5]",
+            "squares": "<generator object <genexpr> at 0x\u2026>"
+          },
+          "stdout_len": 13,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
