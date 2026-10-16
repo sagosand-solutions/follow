@@ -26,6 +26,7 @@ REPO_ROOT = SCHEMA_DIR.parent
 QUESTION_SCHEMA_PATH = SCHEMA_DIR / "question.schema.json"
 MAP_SCHEMA_PATH = SCHEMA_DIR / "concept-map.schema.json"
 TRACE_SCHEMA_PATH = SCHEMA_DIR / "trace.schema.json"
+COURSE_SCHEMA_PATH = SCHEMA_DIR / "course.schema.json"
 CONCEPTS_PATH = SCHEMA_DIR / "concepts" / "python-v0.json"
 EXAMPLE_PATH = REPO_ROOT / "content" / "examples" / "independent-if.json"
 
@@ -111,7 +112,7 @@ class TestSchemaSelfValidation(unittest.TestCase):
                 for item in node:
                     collect_refs(item, found)
 
-        for path in (QUESTION_SCHEMA_PATH, MAP_SCHEMA_PATH):
+        for path in (QUESTION_SCHEMA_PATH, MAP_SCHEMA_PATH, COURSE_SCHEMA_PATH):
             schema = load(path)
             self.assertNotIn("$id", schema)
             refs = []
@@ -119,6 +120,62 @@ class TestSchemaSelfValidation(unittest.TestCase):
             self.assertTrue(refs, f"{path.name} defines no $ref entries")
             for ref in refs:
                 self.assertTrue(ref.startswith("#/$defs/"), f"non-local ref: {ref}")
+
+
+class TestCourseSummarySchema(unittest.TestCase):
+    def setUp(self):
+        self.validator = build_validator(COURSE_SCHEMA_PATH)
+        self.course = {
+            "id": "python", "title": "Course", "language": "python", "levels": [
+                {"level": "beginner", "title": "Beginner", "lessons": [
+                    {"id": "lesson", "title": "Lesson", "builds_on": [], "questions": ["abc"]}
+                ]}
+            ]
+        }
+
+    def test_summary_is_optional_and_counts_unicode_codepoints(self):
+        self.assertEqual(list(self.validator.iter_errors(self.course)), [])
+        for summary in ("Intro text.", "x" * 200, "😀" * 200):
+            with self.subTest(length=len(summary)):
+                lesson = copy.deepcopy(self.course)
+                lesson["levels"][0]["lessons"][0]["summary"] = summary
+                self.assertEqual(list(self.validator.iter_errors(lesson)), [])
+        for summary in ("x" * 201, "😀" * 201):
+            with self.subTest(length=len(summary)):
+                lesson = copy.deepcopy(self.course)
+                lesson["levels"][0]["lessons"][0]["summary"] = summary
+                self.assertTrue(list(self.validator.iter_errors(lesson)))
+
+    def test_summary_requires_plain_single_line_text(self):
+        for summary in ("", None, 1, [], {}, "x" * 201, "a\nb", "a\rb", "a\tb",
+                        "a\x00b", "a\x1fb", "a\x7fb", "a\x9fb", "a\u2028b", "a\u2029b"):
+            with self.subTest(summary=repr(summary)):
+                course = copy.deepcopy(self.course)
+                course["levels"][0]["lessons"][0]["summary"] = summary
+                self.assertTrue(list(self.validator.iter_errors(course)))
+
+    def test_forbidden_summary_characters_are_rejected_at_both_edges(self):
+        forbidden = (chr(10), chr(13), chr(13) + chr(10), chr(0), chr(31),
+                     chr(127), chr(159), chr(0x2028), chr(0x2029))
+        for character in forbidden:
+            for summary in (character + "Intro", "Intro" + character):
+                with self.subTest(summary=repr(summary)):
+                    course = copy.deepcopy(self.course)
+                    course["levels"][0]["lessons"][0]["summary"] = summary
+                    self.assertTrue(list(self.validator.iter_errors(course)))
+
+    def test_summary_is_lesson_only(self):
+        for path in ((), ("levels", 0), ("levels", 0, "lessons", 0)):
+            course = copy.deepcopy(self.course)
+            target = course
+            for part in path:
+                target = target[part]
+            target["summary"] = "Lesson introduction."
+            errors = list(self.validator.iter_errors(course))
+            if path == ("levels", 0, "lessons", 0):
+                self.assertEqual(errors, [])
+            else:
+                self.assertTrue(errors)
 
 
 class TestSeedConceptMap(unittest.TestCase):
