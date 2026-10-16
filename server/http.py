@@ -44,7 +44,7 @@ def new_request_id() -> str:
 def error_response(code: str, request_id: str, *, message: str = "Request could not be completed.") -> JSONResponse:
     status = ERROR_STATUS.get(code, 400)
     return JSONResponse({"error": {"code": code, "message": message}, "request_id": request_id},
-                        status_code=status, headers={"Cache-Control": NO_STORE})
+                        status_code=status, headers={"Cache-Control": NO_STORE, "X-Request-Id": request_id})
 
 
 def json_response(payload, *, status_code: int = 200, request_id: str | None = None) -> JSONResponse:
@@ -115,6 +115,11 @@ def set_session_cookie(response, raw_value: str, settings, *, max_age: int) -> N
 
 def clear_session_cookie(response, settings) -> None:
     response.delete_cookie(cookie_name(COOKIE_SESSION, settings), path="/",
+                           secure=settings.app_env.value == "production", httponly=True, samesite="lax")
+
+
+def clear_preauth_cookie(response, settings) -> None:
+    response.delete_cookie(cookie_name(COOKIE_PREAUTH, settings), path="/",
                            secure=settings.app_env.value == "production", httponly=True, samesite="lax")
 
 

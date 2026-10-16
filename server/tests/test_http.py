@@ -99,6 +99,87 @@ class ProviderTests(HttpTestCase):
         self.assertEqual(json_body((status, {}, body))["authorize_url"], "https://accounts.example/authorize")
 
 
+class CallbackBindingTests(HttpTestCase):
+    """B1: the callback binds to the browser that started the flow, once."""
+
+    def _setup(self, **kw):
+        from server.auth import AuthSecurity
+        from server.models import AuthIntent
+        from types import SimpleNamespace
+
+        state = {"hash": "tx-hash-1"}
+
+        class Provider:
+            def callback(self, request):
+                return SimpleNamespace(user_id="u1", return_to="/me", transaction_token_hash=state["hash"])
+
+        fx = self.make(providers={"google": Provider()}, **kw)
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        cookie_a = headers["set-cookie"].split(";", 1)[0]
+        raw_a = cookie_a.split("=", 1)[1]
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        cookie_b = headers["set-cookie"].split(";", 1)[0]
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        db.connect()
+        Repositories(db).auth_transactions.create(
+            "tx-hash-1", preauth_binding_hash=AuthSecurity(fx.settings).binding_hash(raw_a),
+            intent=AuthIntent.LOGIN, provider="google", expires_at=fx.clock[0] + 600)
+        db.close()
+        return fx, cookie_a, cookie_b
+
+    def test_matching_browser_completes_once_and_clears_preauth(self):
+        fx, cookie_a, _ = self._setup()
+        status, headers, _ = call(fx.app, "GET", "/auth/google/callback", headers={"cookie": cookie_a})
+        self.assertEqual(status, 302)
+        self.assertIn("session=", headers["set-cookie"])
+        # Replay of the same transaction is refused.
+        self.assertEqual(call(fx.app, "GET", "/auth/google/callback", headers={"cookie": cookie_a})[0], 400)
+
+    def test_browser_b_cannot_complete_browser_a_transaction(self):
+        fx, cookie_a, cookie_b = self._setup()
+        for headers in ({"cookie": cookie_b}, {}):
+            status, response_headers, _ = call(fx.app, "GET", "/auth/google/callback", headers=headers)
+            self.assertEqual(status, 400)
+            self.assertNotIn("session=", response_headers.get("set-cookie", ""))
+        # A failed binding does not consume the transaction for the rightful browser.
+        self.assertEqual(call(fx.app, "GET", "/auth/google/callback", headers={"cookie": cookie_a})[0], 302)
+
+    def test_relogin_with_existing_session_uses_callback_auth_time(self):
+        fx, cookie_a, _ = self._setup()
+        fx.clock[0] += 500
+        headers = {"cookie": f"{cookie_a}; {fx.session_cookie_name}={fx.cookie}"}
+        status, response_headers, _ = call(fx.app, "GET", "/auth/google/callback", headers=headers)
+        self.assertEqual(status, 302)
+        # The old session was rotated away.
+        self.assertEqual(call(fx.app, "GET", "/me", headers=fx.headers())[0], 401)
+
+    def test_unknown_or_wrong_provider_transaction_is_refused(self):
+        fx, cookie_a, _ = self._setup()
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        with db.transaction(immediate=True) as conn:
+            conn.execute("UPDATE auth_transactions SET provider = 'apple'")
+        db.close()
+        self.assertEqual(call(fx.app, "GET", "/auth/google/callback", headers={"cookie": cookie_a})[0], 400)
+        # Unknown transaction hash.
+        fx2, cookie, _ = self._setup()
+        db = Database(fx2.path, clock=lambda: fx2.clock[0])
+        with db.transaction(immediate=True) as conn:
+            conn.execute("DELETE FROM auth_transactions")
+        db.close()
+        self.assertEqual(call(fx2.app, "GET", "/auth/google/callback", headers={"cookie": cookie})[0], 400)
+
+
+class ErrorContractTests(HttpTestCase):
+    def test_404_and_405_are_json_with_request_id(self):
+        fx = self.make()
+        for method, path, status in (("GET", "/nope", 404), ("GET", "/logout", 405)):
+            code, headers, body = call(fx.app, method, path)
+            self.assertEqual(code, status)
+            self.assertEqual(headers["cache-control"], "no-store")
+            self.assertIn("x-request-id", headers)
+            self.assertIn("error", json_body((code, headers, body)))
+
+
 class CheckoutTests(HttpTestCase):
     def payload(self, **over):
         body = {"product_id": "python-lifetime", "policy_version": "2026-10-16", "acknowledgements": list(CORE_ACK)}
@@ -167,6 +248,40 @@ class WebhookTests(HttpTestCase):
         self.assertEqual(status, 200)
         payload = json_body(call(fx.app, "GET", "/entitlements", headers=fx.headers()))
         self.assertEqual(len(payload["entitlements"]), 2)  # seeded + webhook grant
+
+    def _event(self, **over):
+        attrs = dict(state="paid", provider_purchase_id="prov-r", revision=1, event_id="evt-r", payload_digest="f" * 64)
+        attrs.update(over)
+        return type("Event", (), attrs)()
+
+    def test_unknown_state_is_400_not_500(self):
+        fx = self.make(payments=FakePayments(webhooks={"good": self._event(state="weird")}))
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        Repositories(db).purchases.create("u1", "python-lifetime", "mock", "prov-r")
+        db.close()
+        code, _, body = call(fx.app, "POST", "/payments/mock/webhook", headers={"x-signature": "good"}, body=b"raw")
+        self.assertEqual(code, 400)
+
+    def test_wrong_provider_path_is_refused(self):
+        fx = self.make(payments=FakePayments(webhooks={"good": self._event()}))
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        Repositories(db).purchases.create("u1", "python-lifetime", "mock", "prov-r")
+        db.close()
+        self.assertEqual(call(fx.app, "POST", "/payments/other/webhook", headers={"x-signature": "good"}, body=b"raw")[0], 404)
+
+    def test_late_webhook_for_known_purchase_after_delete_grants_nothing(self):
+        fx = self.make(payments=FakePayments(webhooks={"good": self._event()}))
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        Repositories(db).purchases.create("u1", "python-lifetime", "mock", "prov-r")
+        db.close()
+        self.assertEqual(call(fx.app, "POST", "/account/delete", headers=fx.headers(csrf=True))[0], 200)
+        self.assertEqual(call(fx.app, "POST", "/payments/mock/webhook", headers={"x-signature": "good"}, body=b"raw")[0], 200)
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        repos = Repositories(db)
+        self.assertEqual(repos.users.get("u1").status.value, "deleted")
+        # Only the seeded grant remains; the late webhook added none.
+        self.assertEqual(len(repos.entitlements.list_active_for_user("u1")), 1)
+        db.close()
 
 
 if __name__ == "__main__":

@@ -103,6 +103,10 @@ def _request_id(request: Request) -> str:
     return request.state.request_id
 
 
+def _safe_request_id(request: Request) -> str:
+    return getattr(request.state, "request_id", None) or http.new_request_id()
+
+
 @contextmanager
 def _uow(settings, services: Services):
     database = services.open_database()
@@ -207,7 +211,11 @@ def create_app(settings, services: Services) -> Starlette:
                                                    request.path_params["kind"], request.path_params["id"])
             except ContentAccessError as exc:
                 return http.error_response(exc.code, _request_id(request))
-            return http.text_response(data.decode("utf-8"), media_type=media_type)
+            try:
+                text = data.decode("utf-8")
+            except UnicodeDecodeError:
+                return http.error_response("server-error", _request_id(request))
+            return http.text_response(text, media_type=media_type)
 
     async def export(request: Request):
         with _uow(settings, services) as (repositories, sessions):
@@ -264,13 +272,29 @@ def create_app(settings, services: Services) -> Starlette:
             return http.error_response("invalid", _request_id(request))
         user_id = getattr(result, "user_id", None)
         return_to = http.local_return_to(getattr(result, "return_to", None))
-        auth_time = getattr(result, "auth_time", None)
-        if not isinstance(user_id, str) or return_to is None:
+        transaction_hash = getattr(result, "transaction_token_hash", None)
+        if not isinstance(user_id, str) or not isinstance(transaction_hash, str) or return_to is None:
             return http.error_response("invalid", _request_id(request))
-        with _uow(settings, services) as (repositories, sessions):
-            credentials = sessions.issue(user_id, old_cookie=_session_cookie(request), auth_time=auth_time)
+        preauth_cookie = request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, settings))
+        try:
+            with _uow(settings, services) as (repositories, sessions):
+                transaction = repositories.auth_transactions.get(transaction_hash)
+                # Bind to the browser that started the flow before any claim or side effect.
+                if (transaction is None or transaction.provider != request.path_params["provider"]
+                        or preauth_cookie is None
+                        or not sessions.security.verify_binding(preauth_cookie, transaction.preauth_binding_hash)):
+                    return http.error_response("invalid", _request_id(request))
+                with repositories.database.transaction(immediate=True):
+                    if not repositories.auth_transactions.consume_once(transaction_hash, now=services.clock()):
+                        return http.error_response("invalid", _request_id(request))
+                    # The authentication event is this verified callback, not a client value.
+                    credentials = sessions.issue(user_id, old_cookie=_session_cookie(request),
+                                                 auth_time=services.clock())
+        except ServerError:
+            return http.error_response("invalid", _request_id(request))
         response = RedirectResponse(return_to, status_code=302, headers={"Cache-Control": http.NO_STORE})
         http.set_session_cookie(response, credentials.cookie_value, settings, max_age=settings.session_idle_seconds)
+        http.clear_preauth_cookie(response, settings)
         return response
 
     async def checkout(request: Request):
@@ -321,6 +345,8 @@ def create_app(settings, services: Services) -> Starlette:
     async def webhook(request: Request):
         if services.payments is None:
             return http.error_response("unavailable", _request_id(request))
+        if request.path_params["provider"] != services.payment_provider:
+            return http.error_response("not-found", _request_id(request))
         try:
             event = services.payments.verify_webhook(request.scope["app_body"], dict(request.headers), services.clock())
         except ServerError:
@@ -329,7 +355,9 @@ def create_app(settings, services: Services) -> Starlette:
             return http.error_response("invalid", _request_id(request))
         with _uow(settings, services) as (repositories, sessions):
             try:
-                _apply_verified_event(repositories, request.path_params["provider"], event)
+                _apply_verified_event(repositories, services.payment_provider, event)
+            except ValueError:
+                return http.error_response("invalid", _request_id(request))
             except ServerError:
                 return http.error_response("server-error", _request_id(request))
         return http.json_response({"ok": True}, request_id=_request_id(request))
@@ -349,7 +377,19 @@ def create_app(settings, services: Services) -> Starlette:
         ("/account/export", export, ["GET"]),
         ("/account/delete", account_delete, ["POST"]),
     )]
-    app = Starlette(routes=routes)
+    async def not_found(request: Request, exc):
+        return http.error_response("not-found", _safe_request_id(request))
+
+    async def method_not_allowed(request: Request, exc):
+        response = http.error_response("invalid", _safe_request_id(request))
+        response.status_code = 405
+        response.headers["Allow"] = exc.headers.get("allow", "") if getattr(exc, "headers", None) else ""
+        return response
+
+    async def unexpected(request: Request, exc: Exception):
+        return http.error_response("server-error", _safe_request_id(request))
+
+    app = Starlette(routes=routes, exception_handlers={404: not_found, 405: method_not_allowed, Exception: unexpected})
     app.state.settings = settings
     app.state.services = services
     return _BodyLimitMiddleware(app, settings)
@@ -376,14 +416,18 @@ def _apply_verified_event(repositories, provider_path: str, event) -> None:
     revision = getattr(event, "revision", 0)
     if not isinstance(revision, int) or revision <= purchase.revision:
         return
-    from .models import PaymentEventStatus, PurchaseState
+    from .models import PaymentEventStatus, PurchaseState, UserStatus
+    new_state = PurchaseState(state)  # unknown state -> ValueError before any write
     with repositories.database.transaction(immediate=True):
         repositories.payment_events.record(provider_path, getattr(event, "event_id", ""),
                                            getattr(event, "payload_digest", ""), purchase_id=purchase.id,
                                            normalized_state=str(state), revision=revision)
         repositories.purchases.compare_and_swap(purchase.id, purchase.revision,
-                                                state=PurchaseState(state), revision=revision)
+                                                state=new_state, revision=revision)
+        owner = repositories.users.get(purchase.user_id)
         if state == "paid":
-            repositories.entitlements.grant(purchase.user_id, purchase.product_id, purchase.id)
+            # A late webhook for a known purchase must not grant to a deleted account.
+            if owner is not None and owner.status is UserStatus.ACTIVE:
+                repositories.entitlements.grant(purchase.user_id, purchase.product_id, purchase.id)
         elif state in ("refunded", "chargeback", "cancelled"):
             repositories.entitlements.revoke(purchase.id, purchase.product_id)

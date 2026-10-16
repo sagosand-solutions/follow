@@ -45,7 +45,10 @@ def call(app, method, path, *, headers=None, body=b"", query=b""):
 
         await app(scope, receive, send)
         status = sent[0]["status"]
-        response_headers = {k.decode(): v.decode() for k, v in sent[0]["headers"]}
+        response_headers = {}
+        for k, v in sent[0]["headers"]:
+            key = k.decode()
+            response_headers[key] = f"{response_headers[key]}\n{v.decode()}" if key == "set-cookie" and key in response_headers else v.decode()
         payload = b"".join(part.get("body", b"") for part in sent[1:])
         return status, response_headers, payload
 
