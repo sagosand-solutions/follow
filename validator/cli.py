@@ -127,3 +127,9 @@ def main(argv=None, *, runner=None):
             print(f"{issue['file']}{issue['path']}: {issue['code']}: {issue['message']}")
         print("Validation does not imply human review or publication approval.")
     return exit_code
+
+
+if __name__ == "__main__":
+    # Support `python -m validator.cli ...` by delegating to the same main as
+    # `python -m validator ...`; without this the module is a silent no-op.
+    raise SystemExit(main())

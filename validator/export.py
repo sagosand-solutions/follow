@@ -231,3 +231,9 @@ def main(argv=None):
         print(f"{file}{issue.path}: {issue.code}: {issue.message}")
     print(f"Static-only export {'passed' if exit_code == 0 else 'failed'}; execution skipped; not human/publication approval.")
     return exit_code
+
+
+if __name__ == "__main__":
+    # Support `python -m validator.export ...` by delegating to the same main as
+    # `python -m validator export ...`; without this the module is a silent no-op.
+    raise SystemExit(main())
