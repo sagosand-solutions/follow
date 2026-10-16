@@ -315,3 +315,39 @@
 /* Reserved: step player (run the code line by line) sits under the code in .q-stage as .stage-tools */
 .stage-tools { display: grid; gap: var(--s-3); padding: var(--s-4); border: 1px solid var(--stage-line); border-radius: var(--radius); background: var(--stage-bg-raised); color: var(--stage-ink); }
 .stage-tools:empty { display: none; }
+
+/* === step player === */
+.code .line.is-active { background: var(--stage-bg-raised); box-shadow: inset 4px 0 0 var(--stage-link); }
+.code .line.is-active::before { background: var(--stage-bg-raised); color: var(--stage-ink); }
+.code .line.is-active.is-marked { box-shadow: inset 4px 0 0 var(--stage-link), inset 8px 0 0 var(--stage-mark-edge); }
+.code .line.is-active::after { content: "  \25C0  next"; color: var(--stage-link); font-family: var(--font-ui); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
+.stage-tools__title { font-size: var(--text-lg); color: var(--stage-ink); }
+.sp-hint { color: var(--stage-muted); }
+.sp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.sp-controls .button--secondary { color: var(--stage-ink); border-color: var(--stage-muted); }
+.sp-controls .button--secondary:hover { background: var(--stage-line); }
+.sp-controls .button:disabled { opacity: 0.45; cursor: not-allowed; }
+.sp-counter { margin-inline-start: auto; color: var(--stage-muted); font-size: var(--text-sm); }
+.sp-now { font-weight: 700; font-size: var(--text-lg); line-height: 1.3; }
+.sp-frame { color: var(--stage-muted); }
+.sp-picker { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.sp-picker .chip { background: transparent; color: var(--stage-ink); border: 1px solid var(--stage-muted); }
+.sp-picker .chip[aria-pressed="true"] { background: var(--stage-ink); color: var(--stage-bg); }
+.sp-vars { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.sp-vars caption { text-align: start; color: var(--stage-muted); padding-block-end: var(--s-1); }
+.sp-vars th, .sp-vars td { text-align: start; padding: var(--s-1) var(--s-2); border-block-end: 1px solid var(--stage-line); vertical-align: top; }
+.sp-vars thead th { color: var(--stage-muted); font-weight: 700; }
+.sp-vars tbody th { font-family: var(--font-code); font-weight: 600; }
+.sp-vars td code { background: transparent; padding: 0; color: var(--stage-ink); font-size: 0.9375rem; overflow-wrap: anywhere; }
+.sp-new, .sp-changed { background: var(--stage-mark); }
+.sp-tag { margin-inline-start: var(--s-2); padding: 0 var(--s-2); border-radius: 999px; border: 1px solid var(--stage-mark-edge); color: var(--stage-ink); font-size: 0.75rem; font-weight: 700; }
+.sp-h { font-size: var(--text-sm); color: var(--stage-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.sp-out { margin: 0; padding: var(--s-3); border-radius: var(--radius-sm); background: var(--stage-bg); border: 1px solid var(--stage-line); color: var(--stage-ink); font-family: var(--font-code); font-size: 0.9375rem; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 10rem; overflow: auto; }
+.stage-tools :focus-visible { outline-color: var(--stage-focus); }
+.stage-tools .muted { color: var(--stage-muted); }
+@media (forced-colors: active) { .code .line.is-active { border-inline-start: 4px solid Highlight; box-shadow: none; } }
+/* === /step player === */
+.code .line.is-active.is-event::after { content: "  \25C0  event"; }
+.sp-end { padding: var(--s-2) var(--s-3); border-inline-start: 4px solid var(--stage-mark-edge); background: var(--stage-mark); color: var(--stage-ink); font-weight: 600; }
+.sp-end[hidden] { display: none; }
+.sp-input { color: var(--stage-muted); }

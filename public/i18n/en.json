@@ -1,4 +1,29 @@
 {
+  "step.title": "Step through the code",
+  "step.hint": "Use the left and right arrow keys to step. Nothing is run here: this replays a recorded run.",
+  "step.first": "Start",
+  "step.back": "Back",
+  "step.next": "Next step",
+  "step.counter": "Step {n} of {total}",
+  "step.start": "The program starts.",
+  "step.end": "The main program stops at line {line}.",
+  "step.call": "A call to {fn} is recorded (line {line}).",
+  "step.return": "{fn} gives control back at line {line}. Recorded value field: {value}.",
+  "step.exception": "An exception is raised at line {line}: {type}: {message}. It may be caught later.",
+  "step.line": "Line {line} runs next.",
+  "step.module": "main program",
+  "step.frame": "Now in {fn}, call depth {depth}",
+  "step.varsCaption": "Variables, before this line runs",
+  "step.name": "Name",
+  "step.value": "Value",
+  "step.new": "new",
+  "step.changed": "changed",
+  "step.noVars": "No variables yet.",
+  "step.output": "Output so far",
+  "step.noOutput": "(nothing printed yet)",
+  "step.changedList": "Changed: {list}",
+  "step.which": "Which code to step through",
+  "step.snippetN": "Code {n}",
   "site.brand": "Learn to read code",
   "home.titleMark": "read code",
   "home.map.title": "Your reading map",
@@ -46,7 +71,6 @@
   "notfound.question": "We could not find that question.",
   "notfound.home": "Go to the start page",
   "notfound.course": "Go to the course",
-
   "home.title": "Learn to read code, not just write it.",
   "home.lead": "AI writes code faster than anyone can read it. Reading and judging code is now the skill that matters.",
   "home.draft": "This is an early draft. The questions you see are real, but there are few of them, and some parts of the site are still missing.",
@@ -64,7 +88,6 @@
   "home.step3.title": "See why each answer fits",
   "home.step3.text": "Each wrong answer is a specific misunderstanding, explained.",
   "home.limits": "No account needed. Progress stays in this browser. Early draft: few questions, still growing.",
-
   "course.title": "Python: reading code",
   "course.lead": "Start where you like. The order is a suggestion, nothing is locked.",
   "course.lesson.progress": "{answered} of {total} answered",
@@ -84,18 +107,15 @@
   "course.reset.confirmText": "This removes all your answers from this browser. This cannot be undone. Export your progress first if you want to keep a copy.",
   "course.reset.confirm": "Remove my answers",
   "course.reset.cancel": "Cancel",
-
   "level.beginner": "Beginner",
   "level.intermediate": "Intermediate",
   "level.advanced": "Advanced",
-
   "type.output": "Predict the output",
   "type.crashing-input": "Find the crashing input",
   "type.remove-line": "Remove a line",
   "type.equivalence": "Equivalent rewrite",
   "type.complexity": "Complexity",
   "type.ai-review": "AI wrote this: what is wrong?",
-
   "q.position": "Question {n} of {total}",
   "q.options": "Answers",
   "q.check": "Check answer",
@@ -118,7 +138,6 @@
   "q.attribution": "Written by {author} ·",
   "q.license": "CC BY-SA 4.0",
   "q.noticeUnsure": "Saying you are not sure is fine. Here is the answer, and why.",
-
   "verdict.correct": "Correct",
   "verdict.partial": "Partly right",
   "verdict.wrong": "Not quite",
@@ -127,7 +146,6 @@
   "points.0.5": "½ point",
   "points.0": "0 points",
   "points.none": "no points counted",
-
   "code.copy": "Copy",
   "code.copied": "Copied",
   "code.copyFailed": "Press Ctrl+C to copy",
@@ -140,7 +158,6 @@
   "code.cursor": "Line {n}",
   "code.cursorMarked": "Line {n}, marked",
   "q.stale": "Your earlier answer was for an older version of this question, so it is not shown here. It is still kept in your saved progress.",
-
   "lesson.summary": "Summary",
   "lesson.counts": "You answered {answered} of {total} questions: {full} fully right, {partial} partly right, {wrong} not quite, {unsure} not sure.",
   "lesson.lookAgain": "Where to look again",
@@ -154,7 +171,6 @@
   "lesson.open": "Open",
   "lesson.tryAgain": "Try again",
   "lesson.back": "All lessons",
-
   "about.title": "About",
   "about.p1": "This is an open source project for learning to read and understand code, from beginner to advanced. AI writes code faster than people do, so the bottleneck is now understanding and reviewing it.",
   "about.p2": "Courses are short code blocks followed by multiple-choice questions. Every wrong answer maps to a named misconception and comes with its own explanation.",
@@ -166,5 +182,13 @@
   "about.privacy.text": "This site uses no cookies, analytics, tracking or external fonts. Your answers stay in your browser's local storage and are not sent anywhere. The site is delivered through a hosting provider and a content delivery network, which process ordinary web requests (such as your IP address) to serve the pages.",
   "about.license.title": "Licenses",
   "about.license.text": "The platform is AGPL-3.0, the question schema and validator are MIT, and questions are CC BY-SA 4.0.",
-  "about.source": "Source code"
+  "about.source": "Source code",
+  "step.varsCaptionEvent": "Variables at this event",
+  "step.input": "One recorded run is replayed. Input, taken from the question's first case: “{stdin}” (1 of {n} cases).",
+  "step.noInput": "One recorded run is replayed. This code has no input case.",
+  "step.emptyInput": "(empty)",
+  "step.truncated": "The recording was cut short here. The rest of the run is missing.",
+  "step.endedWith": "The run ended with an uncaught {type}: {message} (line {line}).",
+  "step.endOfRecording": "End of the recording.",
+  "step.limits": "A generator's yield is recorded as a return, and resuming it as a call. Only the first input case is replayed."
 }

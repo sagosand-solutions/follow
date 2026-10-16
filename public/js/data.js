@@ -23,6 +23,17 @@ export function clearDataCache() {
 
 export const loadIndex = () => getJson('index.json');
 export const loadCourse = () => getJson('courses/python.json');
+// Step trace for a question (data/traces/<id>.json). Returns null when there is none (404).
+export async function loadTrace(id) {
+  if (typeof id !== 'string' || !QUESTION_ID.test(id)) return null;
+  try {
+    return await getJson(`traces/${id}.json`);
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+}
+
 export const loadConcepts = () => getJson('concepts.json');
 
 // Study notes: data/study/<concept id with dots as hyphens>.json. A missing file (404) means no notes yet.
