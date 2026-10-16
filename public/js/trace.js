@@ -65,11 +65,17 @@ export function diffLocals(before, after) {
 export function buildMoments(trace) {
   const steps = trace.steps;
   const moments = [];
-  const pending = new Map(); // depth -> { index, interrupted }
+  const pending = new Map(); // depth -> { index, interrupted }: lines of ACTIVE frames only
+  const suspended = []; // lines of generator frames paused at a yield: { index, depth, interrupted }
   const complete = (d, j) => {
     const p = pending.get(d);
     if (!p) return;
     const step = steps[p.index];
+    if (step.function !== steps[j].function) {
+      // Not provably the same frame: show nothing rather than attribute another frame's state to this line.
+      pending.delete(d);
+      return;
+    }
     if (p.interrupted) moments.push({ kind: 'interrupted', step, after: steps[j] });
     else {
       let safe = true;
@@ -95,6 +101,16 @@ export function buildMoments(trace) {
       case 'resume': {
         const caller = pending.get(d - 1);
         moments.push({ kind: 'event', step, callerLine: caller ? steps[caller.index].line : null });
+        // A new frame at this depth: whatever was recorded for the depth before is stale and never completes.
+        pending.delete(d);
+        if (step.event === 'resume') {
+          // Format 0.2 has no frame identity: restore a paused frame only when exactly one paused frame matches.
+          const same = suspended.filter((x) => x.depth === d && steps[x.index].function === step.function);
+          if (same.length === 1) {
+            pending.set(d, { index: same[0].index, interrupted: same[0].interrupted });
+            suspended.splice(suspended.indexOf(same[0]), 1);
+          }
+        }
         break;
       }
       case 'exception': {
@@ -110,8 +126,14 @@ export function buildMoments(trace) {
         moments.push({ kind: 'event', step, callerLine: null });
         break;
       }
-      default: // yield: a pause, the line is not complete
+      default: { // yield: a pause; the line is not complete, and the frame is no longer the active one at this depth
+        const p = pending.get(d);
+        if (p) {
+          suspended.push({ ...p, depth: d });
+          pending.delete(d);
+        }
         moments.push({ kind: 'event', step, callerLine: null });
+      }
     }
   });
   // When the recording was cut short, the innermost pending line has no after-state; say so. (In a complete recording

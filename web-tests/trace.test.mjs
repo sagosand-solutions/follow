@@ -56,6 +56,36 @@ test('buildMoments: yield is a pause, the assignment around it completes after t
   assert.ok(momentState(trace, resumed).rows.every((r) => r.change === 'same'));
 });
 
+test('buildMoments: a new frame at a depth never completes a paused generator line (yield g, then call h)', () => {
+  const G = D(1, 'g');
+  const Hh = D(1, 'h');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 10, {}), G('call', 1, {}), G('line', 2, { gl: 'g-local' }), G('yield', 2, { gl: 'g-local' }, { value: '1' }), M('line', 11, {}), Hh('call', 20, { arg: 'h-arg' }), Hh('line', 21, { arg: 'h-arg' }), Hh('return', 21, { arg: 'h-arg' }, { value: 'None' }), M('return', 11, {})] };
+  const m = buildMoments(trace);
+  assert.ok(!m.some((x) => x.kind === 'ran' && x.step.function === 'g'), 'g line 2 is never shown as ran: g is still paused');
+  const hl = m.find((x) => x.kind === 'ran' && x.step.function === 'h');
+  assert.deepEqual(momentState(trace, hl).rows.map((r) => r.name), ['arg'], 'h shows only its own locals');
+});
+
+test('buildMoments: two paused generator instances with the same name and depth are not guessed apart on resume', () => {
+  const G = D(1, 'gen');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, { id: 'first' }), G('yield', 2, { id: 'first' }, { value: '1' }), M('line', 6, {}), G('call', 1, {}), G('line', 2, { id: 'second' }), G('yield', 2, { id: 'second' }, { value: '2' }), M('line', 7, {}), G('resume', 2, { id: '?' }), G('line', 3, { id: '?' }), G('return', 3, { id: '?' }, { value: 'None' }), M('return', 7, {})] };
+  const m = buildMoments(trace);
+  const gen2 = m.filter((x) => x.kind === 'ran' && x.step.function === 'gen' && x.step.line === 2);
+  assert.equal(gen2.length, 0, 'no completion is attributed to either paused instance');
+  assert.ok(m.some((x) => x.kind === 'event' && x.step.event === 'resume'), 'the resume itself is still shown');
+});
+
+test('buildMoments: truncation picks the active caller line, not a generator that is paused deeper', () => {
+  const G = D(1, 'g');
+  const trace = { stdout: '', truncated: true, steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, {}), G('yield', 2, {}, { value: '1' }), M('line', 6, {})] };
+  const m = buildMoments(trace);
+  const last = m[m.length - 1];
+  assert.equal(last.kind, 'ran');
+  assert.equal(last.after, null);
+  assert.equal(last.step.function, '<module>');
+  assert.equal(last.step.line, 6);
+});
+
 test('buildMoments: an exception interrupts the line; unwind is not a normal return; the handler line carries on', () => {
   const F = D(1, 'f');
   const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 3, {}), F('call', 1, {}), F('line', 2, {}), F('exception', 2, {}, { exception: { type: 'KeyError', message: "'k'", line: 2 } }), F('unwind', 2, {}, { exception: { type: 'KeyError', message: "'k'", line: 2 } }), M('line', 5, { e: 'KeyError' }), M('return', 5, { e: 'KeyError' }, { value: 'None' })] };
