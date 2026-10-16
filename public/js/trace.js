@@ -169,8 +169,11 @@ export function momentState(trace, moment) {
   if (!isV3Step(step)) return state;
   const shown = (moment.kind === 'ran' && after) || moment.kind === 'interrupted' ? after : step;
   const rows = state.mode === 'after' ? diffLocals(step.globals, after.globals) : diffLocals(null, shown.globals);
-  const unchanged = state.mode === 'after' && rows.every((r) => r.change === 'same') && Object.keys(step.globals).length === Object.keys(after.globals).length;
-  return { ...state, scope: shown.scope, frameId: shown.frame_id, globals: rows, globalsUnchanged: unchanged, omitted: shown.locals_omitted + shown.globals_omitted };
+  // "Unchanged" is a claim about ALL globals: it needs a complete recording of them at both observations. A name the
+  // recording left out (globals_omitted > 0) may have changed unseen, so nothing is claimed then.
+  const complete = step.globals_omitted === 0 && (state.mode !== 'after' || after.globals_omitted === 0);
+  const unchanged = complete && state.mode === 'after' && rows.every((r) => r.change === 'same') && Object.keys(step.globals).length === Object.keys(after.globals).length;
+  return { ...state, scope: shown.scope, frameId: shown.frame_id, globals: rows, globalsUnchanged: unchanged, globalsOmitted: shown.globals_omitted, omitted: shown.locals_omitted + shown.globals_omitted };
 }
 
 function baseState(trace, moment) {

@@ -99,7 +99,7 @@ export function createStepPlayer(traces) {
     varBodyG.replaceChildren(...(showGlobals ? rowNodes(globalRows) : []));
     varsG.hidden = !showGlobals || globalRows.length === 0;
     // "No global changed" is said only when the recorded globals really did not change, never because the locals did not.
-    globalsNote.textContent = showGlobals ? (globalRows.length === 0 ? t('step.noGlobals') : state.globalsUnchanged ? t('step.globalsUnchanged') : '') : '';
+    globalsNote.textContent = showGlobals ? (globalRows.length === 0 ? (state.globalsOmitted === 0 ? t('step.noGlobals') : '') : state.globalsUnchanged ? t('step.globalsUnchanged') : '') : '';
     globalsNote.hidden = !globalsNote.textContent;
     omittedNote.textContent = v3 && state.omitted > 0 ? t('step.omitted', { n: state.omitted }) : '';
     omittedNote.hidden = !omittedNote.textContent;

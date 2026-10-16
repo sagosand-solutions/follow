@@ -335,3 +335,34 @@ test('0.3 moments: omitted counts add up and are reported', () => {
   const m = buildMoments(trace);
   assert.equal(momentState(trace, m[0]).omitted, 5);
 });
+
+test('0.3 momentState: "globals unchanged" is never claimed when the recording left globals out', () => {
+  // Reproduces the review finding: 45 globals, the 41st-45th are not recorded, one of them changes inside f().
+  const kept = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`v${i}`, String(i)]));
+  const F = (event, line, extra = {}) => V3(event, line, 'function', {}, kept, { globals_omitted: 5, ...extra });
+  const trace = { schema_version: '0.3', stdout: '', steps: [V3('call', 1, 'module', {}, kept, { globals_omitted: 5 }), F('call', 2), F('line', 3), F('line', 4), F('return', 4, { value: 'None' })] };
+  const m = buildMoments(trace);
+  const ran = m.find((x) => x.kind === 'ran' && x.step.line === 3);
+  const state = momentState(trace, ran);
+  assert.equal(state.mode, 'after');
+  assert.deepEqual(state.globals.filter((r) => r.change !== 'same'), [], 'the recorded globals really are equal');
+  assert.equal(state.globalsUnchanged, false, 'but an omitted global may have changed: no claim');
+  assert.equal(state.globalsOmitted, 5);
+  assert.equal(state.omitted, 5);
+  // The same steps with a complete recording do get the claim.
+  const complete = { schema_version: '0.3', stdout: '', steps: trace.steps.map((s) => ({ ...s, globals_omitted: 0 })) };
+  const again = momentState(complete, buildMoments(complete).find((x) => x.kind === 'ran' && x.step.line === 3));
+  assert.equal(again.globalsUnchanged, true);
+  assert.equal(again.globalsOmitted, 0);
+  // Omitted at either observation is enough to withhold the claim.
+  const late = { schema_version: '0.3', stdout: '', steps: trace.steps.map((s, i) => ({ ...s, globals_omitted: i === 3 ? 1 : 0 })) };
+  assert.equal(momentState(late, buildMoments(late).find((x) => x.kind === 'ran' && x.step.line === 3)).globalsUnchanged, false);
+});
+
+test('0.3 momentState: empty recorded globals with omitted names expose globalsOmitted so no "no globals" text is said', () => {
+  const trace = { schema_version: '0.3', stdout: '', steps: [V3('call', 1, 'module', {}, {}, { globals_omitted: 2 }), V3('line', 2, 'function', { a: '1' }, {}, { globals_omitted: 2 }), V3('line', 3, 'function', { a: '2' }, {}, { globals_omitted: 2 })] };
+  const state = momentState(trace, buildMoments(trace).find((x) => x.kind === 'ran'));
+  assert.deepEqual(state.globals, []);
+  assert.equal(state.globalsOmitted, 2);
+  assert.equal(state.globalsUnchanged, false);
+});
