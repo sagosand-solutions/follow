@@ -3,6 +3,8 @@ import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { refresh } from '../router.js';
 import { createFakeClient, SCENARIOS } from './client.js';
+import { createHttpClient } from './http-client.js';
+import { CONFIG } from '../config.js';
 
 let client = null;
 
@@ -14,7 +16,9 @@ export function query() {
 export function getClient() {
   if (!client) {
     const initial = query().get('scenario');
-    client = createFakeClient({ scenario: SCENARIOS.includes(initial) ? initial : 'signed-out' });
+    client = CONFIG.accountsApi === null
+      ? createFakeClient({ scenario: SCENARIOS.includes(initial) ? initial : 'signed-out' })
+      : createHttpClient({ baseUrl: CONFIG.accountsApi });
   }
   return client;
 }

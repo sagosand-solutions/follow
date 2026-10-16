@@ -49,7 +49,8 @@ export async function signinView() {
     }
     b.addEventListener('click', async () => {
       const r = await c.startSignIn(id);
-      if (r.ok) navigate(`/${next}`);
+      if (r.ok && r.authorize_url) globalThis.location.assign(r.authorize_url);
+      else if (r.ok) navigate(`/${next}`);
       else status.textContent = t('signin.error');
     });
     return h('div', { class: 'provider-row' }, b);

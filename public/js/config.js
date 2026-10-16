@@ -9,6 +9,7 @@ export const CONFIG = {
   studyLayer: false,
   // Account screens (sign-in, premium, checkout) run on a fake client in test mode until the server exists.
   accountsUi: false,
+  accountsApi: null,
   storagePrefix: 'follow.v0',
   dataPath: 'data/',
   i18nPath: 'i18n/',
