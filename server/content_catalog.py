@@ -15,11 +15,12 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from .models import ContentError
+from .models import ContentError, Product
 
 ALLOWED_KINDS = frozenset({"question", "exam", "study"})
 _ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,63}\Z")
 _PRODUCT_RE = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
+_CHAPTER_RE = re.compile(r"C[0-9]{2}\Z")
 _HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 _REQUIRED_FIELDS = frozenset({"kind", "id", "product_id", "path", "sha256"})
 
@@ -31,6 +32,56 @@ class ContentEntry:
     product_id: str
     path: str
     sha256: str
+
+
+@dataclass(frozen=True)
+class PublishedChapter:
+    """Server-approved statement that a chapter is published for a product."""
+
+    product_id: str
+    chapter_id: str
+
+
+@dataclass(frozen=True)
+class ProductRelease:
+    id: str
+    title: str
+    currency: str
+    amount_minor: int
+    access_scope: str
+    published_chapter_count: int
+
+
+@dataclass(frozen=True)
+class ReleaseSummary:
+    products: tuple[ProductRelease, ...]
+    published_product_count: int
+
+
+def build_release_summary(products, published_chapters) -> ReleaseSummary:
+    """Typed product/chapter counts for the public catalog.
+
+    Only active products count. Each product counts its distinct published
+    ``chapter_id`` values. A published chapter that names an unknown or inactive
+    product is a consistency error (fail closed), never a guessed count. Drafts
+    and planned chapters are simply absent from ``published_chapters``.
+    """
+    active = {product.id: product for product in products if product.active}
+    counts: dict[str, set[str]] = {product_id: set() for product_id in active}
+    for chapter in published_chapters:
+        if not isinstance(chapter.product_id, str) or not _PRODUCT_RE.fullmatch(chapter.product_id):
+            raise ContentError(f"published chapter product id rejected: {chapter.product_id!r}")
+        if not isinstance(chapter.chapter_id, str) or not _CHAPTER_RE.fullmatch(chapter.chapter_id):
+            raise ContentError(f"published chapter id rejected: {chapter.chapter_id!r}")
+        if chapter.product_id not in active:
+            raise ContentError(f"published chapter for unknown or inactive product: {chapter.product_id!r}")
+        counts[chapter.product_id].add(chapter.chapter_id)
+    releases = tuple(
+        ProductRelease(product.id, product.title, product.currency, product.amount_minor, product.access_scope,
+                       len(counts[product.id]))
+        for product in sorted(active.values(), key=lambda item: item.id)
+    )
+    return ReleaseSummary(products=releases, published_product_count=len(releases))
 
 
 def _is_symlink_chain(root: Path, relative: str) -> bool:

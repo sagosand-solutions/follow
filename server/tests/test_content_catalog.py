@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from server.content_catalog import ContentCatalog
-from server.models import ContentError
+from server.content_catalog import ContentCatalog, PublishedChapter, build_release_summary
+from server.models import ContentError, Product
 
 
 def sha256(data: bytes) -> str:
@@ -140,6 +140,44 @@ class CatalogReadTests(CatalogTestCase):
         catalog = ContentCatalog.load(self.root, self.manifest)
         catalog.read(catalog.lookup("question", "q-1"))
         self.assertEqual(sha256((self.root / "q-1.txt").read_bytes()), sha256(data))
+
+
+def product(product_id, active=True):
+    return Product(product_id, product_id.replace("-", " ").title(), "USD", 500, "python", active)
+
+
+class ReleaseSummaryTests(unittest.TestCase):
+    def test_empty_catalog(self):
+        summary = build_release_summary([], [])
+        self.assertEqual(summary.products, ())
+        self.assertEqual(summary.published_product_count, 0)
+
+    def test_counts_are_distinct_chapters_per_active_product(self):
+        summary = build_release_summary(
+            [product("python-lifetime"), product("python-team")],
+            [PublishedChapter("python-lifetime", "C01"), PublishedChapter("python-lifetime", "C01"),
+             PublishedChapter("python-lifetime", "C02"), PublishedChapter("python-team", "C03")],
+        )
+        self.assertEqual(summary.published_product_count, 2)
+        counts = {p.id: p.published_chapter_count for p in summary.products}
+        self.assertEqual(counts, {"python-lifetime": 2, "python-team": 1})
+
+    def test_inactive_products_are_excluded(self):
+        summary = build_release_summary([product("python-lifetime", active=False), product("python-team")],
+                                        [PublishedChapter("python-team", "C01")])
+        self.assertEqual([p.id for p in summary.products], ["python-team"])
+
+    def test_chapter_for_inactive_or_unknown_product_fails_closed(self):
+        for chapters in ([PublishedChapter("python-lifetime", "C01")], [PublishedChapter("nope", "C01")]):
+            with self.subTest(chapters=chapters):
+                with self.assertRaises(ContentError):
+                    build_release_summary([product("python-lifetime", active=False), product("python-team")], chapters)
+
+    def test_bad_chapter_and_product_ids_fail_closed(self):
+        with self.assertRaises(ContentError):
+            build_release_summary([product("python-lifetime")], [PublishedChapter("python-lifetime", "chapter-1")])
+        with self.assertRaises(ContentError):
+            build_release_summary([product("python-lifetime")], [PublishedChapter("Bad", "C01")])
 
 
 if __name__ == "__main__":
