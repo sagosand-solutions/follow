@@ -97,6 +97,30 @@ class DbTests(unittest.TestCase):
         thread.join()
         self.assertEqual(len(errors), 1)
 
+    def test_foreign_thread_cannot_first_use_or_close(self):
+        db = Database(self.path)  # owned by this thread; not opened yet
+        results = {}
+
+        def worker():
+            try:
+                db.connect()
+                results["connect"] = "ok"
+            except StorageError:
+                results["connect"] = "error"
+            try:
+                db.close()
+                results["close"] = "ok"
+            except StorageError:
+                results["close"] = "error"
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        self.assertEqual(results, {"connect": "error", "close": "error"})
+        # The owning thread can still open and close it.
+        db.connect()
+        db.close()
+
     def test_clock_is_injected(self):
         clock = [100.0]
         db = Database(self.path, clock=lambda: clock[0])

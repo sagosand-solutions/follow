@@ -70,21 +70,27 @@ class Database:
         self.busy_timeout_ms = busy_timeout_ms
         self.connection: sqlite3.Connection | None = None
         self._savepoint = 0
-        self._owner: int | None = None
+        # Ownership is fixed to the creating thread before any connection is
+        # opened, so two threads sharing one Database can never both open it.
+        self._owner = threading.get_ident()
+
+    def _assert_owner(self) -> None:
+        if threading.get_ident() != self._owner:
+            raise StorageError("database is owned by its creating request/thread; use one Database per unit of work")
 
     def connect(self) -> sqlite3.Connection:
-        """Return this Database's connection, owned by one thread at a time.
+        """Return this Database's connection.
 
-        One Database (and its connection) belongs to one request/unit of work.
-        A different thread touching it is disallowed sharing, not isolation, so it
-        is stopped explicitly rather than silently interleaving transactions.
+        One Database (and its connection) belongs to one synchronous
+        request/unit of work: only its creating thread may open or use it. This
+        is thread-based, so it does not separate two async tasks that share a
+        thread; a request must run its unit of work without awaits and use its
+        own Database. Disallowed sharing is refused explicitly, not treated as
+        isolation.
         """
-        current = threading.get_ident()
+        self._assert_owner()
         if self.connection is None:
             self.connection = connect(self.db_path, busy_timeout_ms=self.busy_timeout_ms)
-            self._owner = current
-        elif self._owner != current:
-            raise StorageError("database connection is owned by another thread; use one Database per request")
         return self.connection
 
     @contextmanager
@@ -130,6 +136,8 @@ class Database:
         return apply_migrations(self.connect(), clock=self.clock)
 
     def close(self) -> None:
-        if self.connection is not None:
-            self.connection.close()
-            self.connection = None
+        self._assert_owner()
+        if self.connection is None:
+            return
+        self.connection.close()
+        self.connection = None
