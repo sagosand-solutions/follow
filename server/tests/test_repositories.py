@@ -83,6 +83,59 @@ class SessionTests(RepoTestCase):
         self.assertEqual(self.repos.sessions.revoke_all_for_user("u1"), 2)
         self.assertIsNone(self.repos.sessions.get("h1"))
 
+    def test_touch_clamps_to_absolute_and_never_revives(self):
+        self.repos.users.create(user_id="u1")
+        # Idle expiry ends the session: created at 1000, idle at 1100.
+        self.repos.sessions.create("u1", id_hash="idle", csrf_hash="c", ttl_seconds=100, absolute_ttl_seconds=200)
+        self.now[0] = 1_100.0
+        self.assertIsNone(self.repos.sessions.touch("idle", ttl_seconds=100))
+        # A wide idle window must still never outlive the absolute deadline.
+        self.now[0] = 1_000.0
+        self.repos.sessions.create("u1", id_hash="abs", csrf_hash="c", ttl_seconds=300, absolute_ttl_seconds=200)
+        self.now[0] = 1_199.0
+        touched = self.repos.sessions.touch("abs", ttl_seconds=300)
+        self.assertEqual(touched.expires_at, 1_200.0)  # clamped to absolute_expires_at
+        self.assertEqual(touched.last_seen, 1_199.0)
+        self.now[0] = 1_200.0
+        self.assertIsNone(self.repos.sessions.touch("abs", ttl_seconds=300))  # at boundary
+        self.now[0] = 1_201.0
+        self.assertIsNone(self.repos.sessions.touch("abs", ttl_seconds=300))  # past boundary
+
+
+class CompositionTests(RepoTestCase):
+    class Boom(Exception):
+        pass
+
+    def test_claim_and_login_rolls_back_then_reclaims_once(self):
+        self.repos.auth_transactions.create("t1", preauth_binding_hash="b", intent=AuthIntent.LOGIN,
+                                            provider="google", expires_at=2_000.0)
+        with self.assertRaises(CompositionTests.Boom):
+            with self.db.transaction(immediate=True):
+                self.assertTrue(self.repos.auth_transactions.consume_once("t1", now=1_500.0))
+                user = self.repos.users.create()
+                self.repos.identities.add(user.id, "google", "iss", "sub")
+                self.repos.sessions.create(user.id, id_hash="h1", csrf_hash="c", ttl_seconds=100, absolute_ttl_seconds=200)
+                raise CompositionTests.Boom()
+        self.assertIsNone(self.repos.auth_transactions.get("t1").consumed_at)
+        self.assertIsNone(self.repos.identities.get("google", "iss", "sub"))
+        self.assertIsNone(self.repos.sessions.get("h1"))
+        self.assertEqual(self.db.connect().execute("SELECT COUNT(*) FROM users").fetchone()[0], 0)
+        self.assertTrue(self.repos.auth_transactions.consume_once("t1", now=1_501.0))
+        self.assertFalse(self.repos.auth_transactions.consume_once("t1", now=1_502.0))
+
+    def test_claim_and_login_commits_once(self):
+        self.repos.auth_transactions.create("t2", preauth_binding_hash="b", intent=AuthIntent.LOGIN,
+                                            provider="google", expires_at=2_000.0)
+        with self.db.transaction(immediate=True):
+            self.assertTrue(self.repos.auth_transactions.consume_once("t2", now=1_500.0))
+            user = self.repos.users.create(user_id="u2")
+            self.repos.identities.add("u2", "google", "iss2", "sub2")
+            self.repos.sessions.create("u2", id_hash="h2", csrf_hash="c2", ttl_seconds=100, absolute_ttl_seconds=200)
+        self.assertIsNotNone(self.repos.auth_transactions.get("t2").consumed_at)
+        self.assertIsNotNone(self.repos.identities.get("google", "iss2", "sub2"))
+        self.assertIsNotNone(self.repos.sessions.get("h2"))
+        self.assertFalse(self.repos.auth_transactions.consume_once("t2", now=1_501.0))
+
 
 class AuthTransactionTests(RepoTestCase):
     def make(self, token_hash="t1"):

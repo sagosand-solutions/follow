@@ -176,14 +176,22 @@ class ContentCatalog:
         return tuple(self._entries.values())
 
     def read(self, entry: ContentEntry) -> bytes:
-        """Return the file bytes after re-checking the path and the SHA-256."""
-        _check_path(self._root, entry.path)
-        target = self._root / entry.path
+        """Return the file bytes for an exact manifest entry, fail closed.
+
+        The entry must equal the loaded manifest's own entry for ``(kind, id)``
+        before any file is opened: an in-root path with a valid hash is not
+        manifest authorisation.
+        """
+        stored = self._entries.get((entry.kind, entry.id))
+        if stored is None or stored != entry:
+            raise ContentError(f"content reference is not in the manifest: {entry.kind}/{entry.id}")
+        _check_path(self._root, stored.path)
+        target = self._root / stored.path
         try:
             data = target.read_bytes()
         except OSError as exc:
-            raise ContentError(f"content file unavailable: {entry.kind}/{entry.id}") from exc
+            raise ContentError(f"content file unavailable: {stored.kind}/{stored.id}") from exc
         digest = hashlib.sha256(data).hexdigest()
-        if digest != entry.sha256:
-            raise ContentError(f"content hash mismatch: {entry.kind}/{entry.id}")
+        if digest != stored.sha256:
+            raise ContentError(f"content hash mismatch: {stored.kind}/{stored.id}")
         return data

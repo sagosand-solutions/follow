@@ -134,11 +134,14 @@ class SessionRepository(_Repo):
     def touch(self, id_hash: str, *, ttl_seconds: int, when: float | None = None) -> Session | None:
         now = self._now(when)
         with self.db.transaction(immediate=True) as conn:
-            cur = conn.execute(
-                "UPDATE sessions SET last_seen = ?, expires_at = ? WHERE id_hash = ? AND expires_at > ? AND absolute_expires_at > ?",
-                (now, now + ttl_seconds, id_hash, now, now))
-            if cur.rowcount != 1:
+            row = conn.execute("SELECT expires_at, absolute_expires_at FROM sessions WHERE id_hash = ?",
+                               (id_hash,)).fetchone()
+            # No revival: an idle-expired or absolutely-expired session is not touched.
+            if row is None or now >= row["expires_at"] or now >= row["absolute_expires_at"]:
                 return None
+            # The idle window may never outlive the absolute deadline.
+            expires_at = min(now + ttl_seconds, row["absolute_expires_at"])
+            conn.execute("UPDATE sessions SET last_seen = ?, expires_at = ? WHERE id_hash = ?", (now, expires_at, id_hash))
             row = conn.execute("SELECT * FROM sessions WHERE id_hash = ?", (id_hash,)).fetchone()
         return _session(row)
 

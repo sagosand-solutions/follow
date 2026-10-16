@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from server.content_catalog import ContentCatalog, PublishedChapter, build_release_summary
+from server.content_catalog import ContentCatalog, ContentEntry, PublishedChapter, build_release_summary
 from server.models import ContentError, Product
 
 
@@ -133,6 +133,32 @@ class CatalogReadTests(CatalogTestCase):
         (self.root / "q-1.txt").unlink()
         with self.assertRaises(ContentError):
             catalog.read(catalog.lookup("question", "q-1"))
+
+    def test_read_requires_the_exact_manifest_entry(self):
+        data = self.write_file("q-1.txt")
+        self.write_manifest([self.entry(digest=sha256(data))])
+        catalog = ContentCatalog.load(self.root, self.manifest)
+        # Forged in-root entry with a valid hash but absent from the manifest.
+        forged = ContentEntry("question", "q-2", "python-lifetime", "q-1.txt", sha256(data))
+        with self.assertRaises(ContentError):
+            catalog.read(forged)
+        # Known id but altered product, path or hash.
+        entry = catalog.lookup("question", "q-1")
+        altered = [
+            ContentEntry(entry.kind, entry.id, "other-product", entry.path, entry.sha256),
+            ContentEntry(entry.kind, entry.id, entry.product_id, "other.txt", entry.sha256),
+            ContentEntry(entry.kind, entry.id, entry.product_id, entry.path, "0" * 64),
+        ]
+        for candidate in altered:
+            with self.subTest(candidate=candidate):
+                with self.assertRaises(ContentError):
+                    catalog.read(candidate)
+        # The legitimate manifest entry still reads.
+        self.assertEqual(catalog.read(entry), data)
+        # A forged reference to a missing file is rejected before any file open.
+        missing = ContentEntry("question", "q-3", "python-lifetime", "nope.txt", "0" * 64)
+        with self.assertRaises(ContentError):
+            catalog.read(missing)
 
     def test_read_does_not_modify_the_file(self):
         data = self.write_file("q-1.txt")
