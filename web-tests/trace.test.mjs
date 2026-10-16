@@ -248,3 +248,66 @@ test('usableTraces: the real path rejects bad envelopes and malformed traces wit
   const cut = { ...good.traces[0], truncated: true, truncated_at_step: good.traces[0].steps.length + 1 };
   assert.equal((await usableTraces(q, { ...good, traces: [cut] })).length, 0, 'truncated_at_step must equal the step count');
 });
+
+// ---- format 0.3: frame_id, scope, globals ----
+const V = (fid, depth, fn, scope = 'function') => (event, line, locals, globals = {}, extra = {}) => ({
+  event, line, depth, function: fn, locals, stdout_len: 0, frame_id: fid, scope, globals, locals_omitted: 0, globals_omitted: 0, ...extra,
+});
+const MV = V(1, 0, '<module>', 'module');
+
+test('0.3 buildMoments: a global changed inside a callee shows on the calling line, and unchanged globals are reported', () => {
+  const F = V(2, 1, 'log');
+  const trace = { stdout: '', steps: [MV('call', 1, {}), MV('line', 1, {}), MV('line', 4, {}, { events: '[]' }), F('call', 2, { x: '1' }, { events: '[]' }), F('line', 3, { x: '1' }, { events: '[]' }), F('return', 3, { x: '1' }, { events: '[1]' }, { value: 'None' }), MV('line', 5, {}, { events: '[1]' }), MV('return', 5, {}, { events: '[1]' }, { value: 'None' })] };
+  const m = buildMoments(trace);
+  assert.deepEqual(kinds(m), ['ran:1', 'event:2/call', 'ran:3', 'event:3/return', 'ran:4', 'ran:5', 'event:5/return']);
+  assert.equal(m[1].callerLine, 4);
+  const calling = momentState(trace, m[4]);
+  assert.deepEqual(calling.globals, [{ name: 'events', value: '[1]', change: 'changed' }], 'the append inside log() is visible');
+  assert.equal(calling.globalsUnchanged, false);
+  assert.equal(calling.scope, 'module');
+  const quiet = momentState(trace, m[5]);
+  assert.equal(quiet.globalsUnchanged, true, '"Globals unchanged" is stated explicitly, not implied by a still locals table');
+});
+
+test('0.3 buildMoments: two generators of the same function and depth stay apart; a yielding line completes after its resume', () => {
+  const A = V(2, 1, 'g');
+  const B = V(3, 1, 'g');
+  const trace = { stdout: '', steps: [
+    MV('call', 1, {}), MV('line', 6, {}),
+    A('call', 1, {}), A('line', 2, {}), A('yield', 2, {}, {}, { value: '1' }),
+    B('call', 1, {}), B('line', 2, {}), B('yield', 2, {}, {}, { value: '1' }),
+    A('resume', 2, {}), A('line', 3, { r: '9' }), A('return', 3, { r: '9' }, {}, { value: 'None' }),
+    MV('return', 7, {}, {}, { value: 'None' }),
+  ] };
+  const m = buildMoments(trace);
+  const ranA = m.filter((x) => x.kind === 'ran' && x.step.frame_id === 2);
+  assert.deepEqual(ranA.map((x) => [x.step.line, x.after.line]), [[2, 3], [3, 3]], 'line 2 (the yield line) completes at A\'s next line, not at B\'s steps');
+  assert.ok(ranA.every((x) => x.safe === true), 'same frame_id: provably the same frame');
+  assert.equal(m.filter((x) => x.kind === 'ran' && x.step.frame_id === 3).length, 0, 'B never completes a line, nothing is attributed to it');
+});
+
+test('0.3 momentState reports omitted names and the scope of the shown step', () => {
+  const s = MV('line', 2, {}, { a: '1' }, { globals_omitted: 3 });
+  const trace = { stdout: '', steps: [MV('call', 1, {}), s, MV('return', 2, {}, { a: '1' }, { value: 'None', globals_omitted: 3 })] };
+  const m = buildMoments(trace);
+  assert.equal(momentState(trace, m[0]).omitted, 3);
+  assert.equal(momentState(trace, m[0]).frameId, 1);
+});
+
+test('0.3 usableTraces: bad or mixed shapes are refused (fail closed); 0.2 still works', async () => {
+  const code = 'x = 1\n';
+  const q = { id: 'syn-question', snippets: [{ id: 'main', code }], verification: { cases: [{ id: 'c1', snippet_id: 'main', stdin: '' }] } };
+  const base = { snippet_id: 'main', source_sha256: await sha256Hex(code), case_id: 'c1', stdin: '', stdin_sha256: await sha256Hex(''), stdout: '', exception: null, truncated: false };
+  const good = [MV('call', 1, {}), MV('line', 1, {}), MV('return', 1, {}, { x: '1' }, { value: 'None' })];
+  const file = (version, steps) => ({ schema_version: version, question_id: q.id, traces: [{ ...base, steps }] });
+  assert.equal((await usableTraces(q, file('0.3', good))).length, 1);
+  assert.equal((await usableTraces(q, file('0.3', [good[0], { ...good[1], frame_id: undefined }, good[2]]))).length, 0, 'missing frame_id');
+  assert.equal((await usableTraces(q, file('0.3', [good[0], { ...good[1], globals: undefined }, good[2]]))).length, 0, 'missing globals');
+  assert.equal((await usableTraces(q, file('0.3', [good[0], { ...good[1], scope: 'heap' }, good[2]]))).length, 0, 'unknown scope');
+  assert.equal((await usableTraces(q, file('0.3', [good[0], { ...good[1], globals: { x: 1 } }, good[2]]))).length, 0, 'non-string global');
+  assert.equal((await usableTraces(q, file('0.2', good))).length, 0, '0.3 steps under a 0.2 envelope');
+  assert.equal((await usableTraces(q, file('0.4', good))).length, 0, 'unknown version');
+  const plain = good.map(({ frame_id, scope, globals, locals_omitted, globals_omitted, ...rest }) => rest);
+  assert.equal((await usableTraces(q, file('0.2', plain))).length, 1, '0.2 unchanged');
+  assert.equal((await usableTraces(q, file('0.3', plain))).length, 0, '0.2 steps under a 0.3 envelope');
+});

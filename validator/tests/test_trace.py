@@ -253,5 +253,128 @@ class TraceTests(unittest.TestCase):
             self.assertFalse((self.root / "public/data/traces/loop-question.json").exists())
 
 
+    # ---- format 0.3 (explicit opt-in; synthetic snippets only) ----
+    def trace_v3(self, source, stdin=""):
+        q = json.loads(json.dumps(self.q))
+        q["snippets"][0]["code"] = source
+        q["verification"]["cases"][0]["stdin"] = stdin
+        q["verification"]["cases"][0].pop("expected", None)
+        return trace._trace_question(q, self.qpath, LocalTestRunner(), "0.3")["traces"][0]
+
+    def test_default_generation_is_unchanged_0_2(self):
+        record = self.trace_one("x = 1\nprint(x)")
+        self.assertTrue(all(set(step) <= {"line", "event", "depth", "function", "locals", "stdout_len", "value", "exception"}
+                            for step in record["steps"]))
+
+    def test_v3_global_mutation_inside_a_function_is_visible(self):
+        record = self.trace_v3("events = []\ndef log(x):\n    events.append(x)\nlog(1)\nlog(2)")
+        in_log = [s for s in record["steps"] if s["function"] == "log" and s["event"] == "return"]
+        self.assertEqual([s["globals"]["events"] for s in in_log], ["[1]", "[1, 2]"])
+        self.assertTrue(all(s["scope"] == "function" for s in in_log))
+        self.assertNotIn("events", in_log[0]["locals"], "a global is not a local")
+
+    def test_v3_global_shadowed_by_local_is_kept_apart(self):
+        record = self.trace_v3("x = 'global'\ndef f():\n    x = 'local'\n    return x\nf()")
+        ret = next(s for s in record["steps"] if s["function"] == "f" and s["event"] == "return")
+        self.assertEqual(ret["locals"]["x"], "'local'")
+        self.assertEqual(ret["globals"]["x"], "'global'")
+
+    def test_v3_module_scope_has_empty_locals_and_only_user_data_globals(self):
+        record = self.trace_v3("import math\nvalue = 3\ndef f(): pass\nclass K: pass\nname = 'a'\nprint(len(name))")
+        last = record["steps"][-1]
+        self.assertEqual(last["scope"], "module")
+        self.assertEqual(last["locals"], {})
+        self.assertEqual(last["globals"], {"name": "'a'", "value": "3"})
+        self.assertEqual((last["locals_omitted"], last["globals_omitted"]), (0, 0), "functions/classes/modules are never counted")
+        names = {n for s in record["steps"] for n in s["globals"]}
+        self.assertFalse(names & {"__builtins__", "__name__", "data", "steps", "tracer", "snippet_stdin", "V3", "user_globals"})
+
+    def test_v3_shared_alias_is_two_plain_values_with_no_identity_claim(self):
+        record = self.trace_v3("a = [1]\nb = a\nb.append(2)")
+        last = record["steps"][-1]
+        self.assertEqual((last["globals"]["a"], last["globals"]["b"]), ("[1, 2]", "[1, 2]"))
+        self.assertFalse(any(key in last for key in ("refs", "id", "alias")))
+
+    def test_v3_two_generators_same_function_keep_distinct_frames(self):
+        record = self.trace_v3("def g():\n    yield 1\n    yield 2\na = g()\nb = g()\nnext(a)\nnext(b)\nnext(a)")
+        gen = [s for s in record["steps"] if s["function"] == "g"]
+        by_frame = {}
+        for step in gen:
+            by_frame.setdefault(step["frame_id"], []).append(step["event"])
+        self.assertEqual(len(by_frame), 2)
+        first, second = sorted(by_frame)
+        self.assertEqual(by_frame[first], ["call", "line", "yield", "resume", "line", "yield"])
+        self.assertEqual(by_frame[second], ["call", "line", "yield"])
+
+    def test_v3_recursion_ids_are_unique_and_never_reused_after_return(self):
+        record = self.trace_v3("def f(n):\n    if n:\n        return f(n - 1)\n    return n\nf(2)\nf(1)")
+        calls = [s["frame_id"] for s in record["steps"] if s["event"] == "call"]
+        self.assertEqual(len(calls), len(set(calls)), "a returned frame's id is not handed out again")
+        self.assertEqual(calls, sorted(calls))
+        returns = [s["frame_id"] for s in record["steps"] if s["event"] == "return"]
+        self.assertEqual(sorted(returns), sorted(calls))
+
+    def test_v3_unwind_closes_the_frame_and_exception_keeps_identity(self):
+        record = self.trace_v3("def f():\n    raise ValueError('x')\ntry:\n    f()\nexcept ValueError:\n    pass")
+        inner = [s for s in record["steps"] if s["function"] == "f"]
+        self.assertEqual({s["frame_id"] for s in inner}, {inner[0]["frame_id"]})
+        self.assertEqual(inner[-1]["event"], "unwind")
+
+    def test_v3_truncated_serialization_reports_omitted_without_counting_noise(self):
+        names = "\n".join(f"v{i} = {i}" for i in range(45))
+        record = self.trace_v3(names + "\ndef f(): pass\n")
+        last = record["steps"][-1]
+        self.assertEqual(len(last["globals"]), 40)
+        self.assertEqual(last["globals_omitted"], 5, "5 data values over the 40-name limit; the function is not counted")
+        big = self.trace_v3("a = 'x' * 70\nb = 'y' * 70\nc = 'z' * 70\nd = 'w' * 70\n" + "".join(f"e{i} = 'v' * 70\n" for i in range(25)) + "z = 1")
+        end = big["steps"][-1]
+        size = sum(len(k.encode()) + len(v.encode()) for k, v in {**end["locals"], **end["globals"]}.items())
+        self.assertLessEqual(size, 2048)
+        self.assertGreater(end["globals_omitted"], 0)
+
+    def test_v3_locals_and_globals_share_one_budget(self):
+        record = self.trace_v3("g1 = 'a' * 75\ng2 = 'b' * 75\ndef f(p, q, r, s, t, u):\n    return 1\n"
+                               + "f(*(['c' * 75] * 6))")
+        inner = next(s for s in record["steps"] if s["function"] == "f" and s["event"] == "return")
+        total = sum(len(k) + len(v) for k, v in {**inner["locals"], **inner["globals"]}.items())
+        self.assertLessEqual(total, 2048)
+
+    def test_v3_generation_is_deterministic_and_matches_its_schema(self):
+        source = "total = 0\ndef add(n):\n    global total\n    total += n\nfor i in range(3):\n    add(i)"
+        first, second = self.trace_v3(source), self.trace_v3(source)
+        self.assertEqual(first, second)
+        shutil.copyfile(core.ROOT / "schema/trace-0.3.schema.json", self.root / "schema/trace-0.3.schema.json")
+        data = {"schema_version": "0.3", "question_id": "test-question", "traces": [{
+            "snippet_id": "main", "source_sha256": hashlib.sha256(source.encode()).hexdigest(), "case_id": "case",
+            "stdin": "", "stdin_sha256": hashlib.sha256(b"").hexdigest(), **first}]}
+        trace._validate_trace(data, self.root / "schema/trace-0.3.schema.json")
+
+    def test_check_accepts_0_2_and_0_3_files_and_rejects_unknown_versions(self):
+        shutil.copyfile(core.ROOT / "schema/trace-0.3.schema.json", self.root / "schema/trace-0.3.schema.json")
+        out = self.root / "public/data/traces/test-question.json"
+        for version in ("0.2", "0.3", "0.2"):
+            data = trace._trace_question(self.q, self.qpath, LocalTestRunner(), version)
+            self.write(out, data)
+            self.assertEqual(trace._check(self.root, [self.qpath]), 0, version)
+        data["schema_version"] = "0.4"
+        self.write(out, data)
+        self.assertEqual(trace._check(self.root, [self.qpath]), 1)
+        data = trace._trace_question(self.q, self.qpath, LocalTestRunner(), "0.3")
+        data["schema_version"] = "0.2"          # 0.3 steps under a 0.2 envelope: 0.2 schema forbids extra fields
+        self.write(out, data)
+        self.assertEqual(trace._check(self.root, [self.qpath]), 1)
+
+    def test_trace_format_flag_selects_the_schema_and_defaults_to_0_2(self):
+        shutil.copyfile(core.ROOT / "schema/trace-0.3.schema.json", self.root / "schema/trace-0.3.schema.json")
+        args = ["--root", str(self.root), "--runner", "trusted-local", "--allow-trusted-code"]
+        out = self.root / "public/data/traces/test-question.json"
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(trace.main(args + [str(self.qpath)], runner=LocalTestRunner()), 0)
+            self.assertEqual(json.loads(out.read_text())["schema_version"], "0.2")
+            self.assertEqual(trace.main(args + ["--trace-format", "0.3", str(self.qpath)], runner=LocalTestRunner()), 0)
+            self.assertEqual(json.loads(out.read_text())["schema_version"], "0.3")
+            self.assertEqual(trace.main(["--root", str(self.root), "--check"], runner=LocalTestRunner()), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schema/trace-0.3.schema.json",
+  "title": "Precomputed source trace 0.3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "question_id",
+    "traces"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "question_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$"
+    },
+    "traces": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/trace"
+      }
+    }
+  },
+  "$defs": {
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snippet_id",
+        "source_sha256",
+        "case_id",
+        "stdin",
+        "stdin_sha256",
+        "steps",
+        "stdout",
+        "exception",
+        "truncated"
+      ],
+      "properties": {
+        "snippet_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,79}$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "case_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,79}$",
+          "description": "ID of the verification case for this exact snippet."
+        },
+        "stdin": {
+          "type": "string",
+          "description": "Exact UTF-8 text supplied to this snippet run; may be empty."
+        },
+        "stdin_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of stdin encoded as UTF-8."
+        },
+        "steps": {
+          "type": "array",
+          "maxItems": 300,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "stdout": {
+          "type": "string"
+        },
+        "exception": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/exception"
+            }
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "truncated_at_step": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Number of recorded steps when the 300-step trace limit stopped recording. The player must say that the trace stops here because of the step limit."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "truncated": {
+                "const": true
+              }
+            },
+            "required": [
+              "truncated"
+            ]
+          },
+          "then": {
+            "required": [
+              "truncated_at_step"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "truncated_at_step"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "line",
+        "event",
+        "depth",
+        "function",
+        "locals",
+        "stdout_len",
+        "frame_id",
+        "scope",
+        "globals",
+        "locals_omitted",
+        "globals_omitted"
+      ],
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "For line events, the source line to run next; for call/resume/yield/return/unwind/exception, the line where that event occurs."
+        },
+        "event": {
+          "enum": [
+            "line",
+            "call",
+            "resume",
+            "yield",
+            "return",
+            "unwind",
+            "exception"
+          ],
+          "description": "line is the next source line to run; call is a frame's first entry; resume follows a recorded yield pause; yield pauses a generator/coroutine; return is normal completion; unwind is exit while an exception propagates; exception is an observed raise and may later be caught."
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "function": {
+          "type": "string"
+        },
+        "locals": {
+          "type": "object",
+          "maxProperties": 40,
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "description": "Variables of this frame's own scope. Always empty for scope 'module' (see globals)."
+        },
+        "stdout_len": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of Unicode code points in stdout observed so far (not UTF-8 bytes or UTF-16 code units)."
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "exception": {
+          "$ref": "#/$defs/exception"
+        },
+        "globals": {
+          "type": "object",
+          "maxProperties": 40,
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "description": "The program's user-defined global data values only (no builtins, modules, functions, classes or instrumentation names). A separate namespace, not a copy of locals. Locals and globals share one 2 KiB byte budget per step."
+        },
+        "frame_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Deterministic frame identity within this trace (a counter, never a memory address): a call gets a new number, a resume keeps it, return/unwind closes it."
+        },
+        "scope": {
+          "enum": [
+            "module",
+            "function",
+            "class"
+          ],
+          "description": "Kind of scope the locals belong to."
+        },
+        "locals_omitted": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Eligible names left out because of the 40-name or byte budget. Omitted functions/classes/modules are never counted."
+        },
+        "globals_omitted": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Eligible names left out because of the 40-name or byte budget. Omitted functions/classes/modules are never counted."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "event": {
+                "enum": [
+                  "yield",
+                  "return"
+                ]
+              }
+            },
+            "required": [
+              "event"
+            ]
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event": {
+                "enum": [
+                  "exception",
+                  "unwind"
+                ]
+              }
+            },
+            "required": [
+              "event"
+            ]
+          },
+          "then": {
+            "required": [
+              "exception"
+            ]
+          }
+        }
+      ]
+    },
+    "exception": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "message",
+        "line"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

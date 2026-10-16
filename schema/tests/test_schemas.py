@@ -26,6 +26,7 @@ REPO_ROOT = SCHEMA_DIR.parent
 QUESTION_SCHEMA_PATH = SCHEMA_DIR / "question.schema.json"
 MAP_SCHEMA_PATH = SCHEMA_DIR / "concept-map.schema.json"
 TRACE_SCHEMA_PATH = SCHEMA_DIR / "trace.schema.json"
+TRACE_03_SCHEMA_PATH = SCHEMA_DIR / "trace-0.3.schema.json"
 COURSE_SCHEMA_PATH = SCHEMA_DIR / "course.schema.json"
 CONCEPTS_PATH = SCHEMA_DIR / "concepts" / "python-v0.json"
 EXAMPLE_PATH = REPO_ROOT / "content" / "examples" / "independent-if.json"
@@ -100,6 +101,36 @@ class TestSchemaSelfValidation(unittest.TestCase):
 
     def test_trace_schema_is_valid(self):
         build_validator(TRACE_SCHEMA_PATH)
+
+    def test_trace_03_schema_is_valid_and_0_2_is_untouched(self):
+        build_validator(TRACE_03_SCHEMA_PATH)
+        self.assertEqual(load(TRACE_SCHEMA_PATH)["properties"]["schema_version"], {"const": "0.2"})
+        self.assertNotIn("frame_id", load(TRACE_SCHEMA_PATH)["$defs"]["step"]["properties"])
+
+    def test_trace_03_contract(self):
+        validator = build_validator(TRACE_03_SCHEMA_PATH)
+        step = {"line": 1, "event": "line", "depth": 0, "function": "<module>", "locals": {}, "stdout_len": 0,
+                "frame_id": 1, "scope": "module", "globals": {"x": "1"}, "locals_omitted": 0, "globals_omitted": 0}
+        sha = "0" * 64
+
+        def doc(version="0.3", **over):
+            record = {"snippet_id": "main", "source_sha256": sha, "case_id": "case", "stdin": "", "stdin_sha256": sha,
+                      "steps": [{**step, **over}], "stdout": "", "exception": None, "truncated": False}
+            return {"schema_version": version, "question_id": "some-question", "traces": [record]}
+
+        self.assertEqual(list(validator.iter_errors(doc())), [])
+        self.assertTrue(list(validator.iter_errors(doc("0.2"))), "0.3 schema rejects a 0.2 envelope")
+        for missing in ("frame_id", "scope", "globals", "locals_omitted", "globals_omitted"):
+            bad = doc()
+            del bad["traces"][0]["steps"][0][missing]
+            self.assertTrue(list(validator.iter_errors(bad)), missing)
+        self.assertTrue(list(validator.iter_errors(doc(frame_id=0))))
+        self.assertTrue(list(validator.iter_errors(doc(scope="heap"))))
+        self.assertTrue(list(validator.iter_errors(doc(globals={f"v{i}": "1" for i in range(41)}))))
+        self.assertTrue(list(validator.iter_errors(doc(globals={"x": "y" * 81}))))
+        self.assertTrue(list(validator.iter_errors(doc(refs={"x": "o1"}))), "no alias identity in 0.3")
+        zero_two = build_validator(TRACE_SCHEMA_PATH)
+        self.assertTrue(list(zero_two.iter_errors(doc("0.2"))), "0.2 schema rejects 0.3 step fields")
 
     def test_schemas_are_self_contained(self):
         def collect_refs(node, found):

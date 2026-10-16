@@ -40,6 +40,12 @@ export function createStepPlayer(traces) {
   const varBody = h('tbody');
   const vars = h('table', { class: 'sp-vars' }, caption, h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, t('step.name')), h('th', { scope: 'col' }, t('step.value')))), varBody);
   const empty = h('p', { class: 'muted small' }, t('step.noVars'));
+  // Format 0.3 only: global data values live in their own namespace, shown apart from the frame's locals.
+  const globalsTitle = h('h3', { class: 'sp-h' }, t('step.globals'));
+  const globalBody = h('tbody');
+  const globalsTable = h('table', { class: 'sp-vars' }, h('caption', {}, t('step.globalsCaption')), h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, t('step.name')), h('th', { scope: 'col' }, t('step.value')))), globalBody);
+  const globalsNote = h('p', { class: 'muted small' });
+  const omittedNote = h('p', { class: 'muted small' }, t('step.omitted'));
   const out = h('pre', { class: 'sp-out', tabindex: '0', 'aria-label': t('step.output') });
   const outTitle = h('h3', { class: 'sp-h' }, t('step.output'));
   const inputNote = h('p', { class: 'sp-input muted small' });
@@ -69,22 +75,36 @@ export function createStepPlayer(traces) {
     back.disabled = index === 0;
     next.disabled = index === moments.length - 1;
     now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : moment.kind === 'interrupted' ? t('step.interrupted', { line: step.line, next: moment.after.line }) : describe(step, moment);
-    frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth });
+    frame.textContent = state.globals ? t('step.frame3', { fn: frameName(step), scope: t(`step.scope.${state.scope}`), id: state.frameId, depth: step.depth }) : t('step.frame', { fn: frameName(step), depth: step.depth });
     const rows = state.rows;
     varBody.replaceChildren(
       ...rows.map((r) =>
         h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))),
       ),
     );
-    vars.hidden = rows.length === 0;
-    empty.hidden = rows.length !== 0;
+    const moduleScope = !!state.globals && state.scope === 'module';
+    vars.hidden = rows.length === 0 || moduleScope;
+    empty.hidden = rows.length !== 0 || moduleScope;
+    const withGlobals = !!state.globals;
+    globalsTitle.hidden = !withGlobals;
+    globalsTable.hidden = !withGlobals || state.globals.length === 0;
+    globalsNote.hidden = !withGlobals || (state.globals.length > 0 && !state.globalsUnchanged);
+    omittedNote.hidden = !withGlobals || !(state.omitted > 0);
+    if (withGlobals) {
+      globalsNote.textContent = state.globals.length === 0 ? t('step.noGlobals') : t('step.globalsUnchanged');
+      globalBody.replaceChildren(
+        ...state.globals.map((r) =>
+          h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))),
+        ),
+      );
+    }
     const outNodes = [];
     if (!state.shown && !state.added) outNodes.push(t('step.noOutput'));
     if (state.shown) outNodes.push(state.shown);
     if (state.added) outNodes.push(h('span', { class: 'sp-newout' }, state.added));
     out.replaceChildren(...outNodes);
     if (announce) {
-      const changed = rows.filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value} (${t(`step.${r.change}`)})`);
+      const changed = rows.concat(state.globals || []).filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value} (${t(`step.${r.change}`)})`);
       live.textContent = [`${t('step.counter', { n: index + 1, total: moments.length })}.`, `${now.textContent}`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', state.added ? `${t('step.printed', { text: state.added.replace(/\n/g, '↵') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
     }
   }
@@ -125,7 +145,7 @@ export function createStepPlayer(traces) {
     });
     root.append(picker);
   }
-  root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, outTitle, out, live);
+  root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, globalsTitle, globalsTable, globalsNote, omittedNote, outTitle, out, live);
   render(false);
   return root;
 }
