@@ -149,6 +149,24 @@
         "py.functions"
       ],
       "title": "Algorithmic complexity"
+    },
+    {
+      "id": "py.modules",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.scope"
+      ],
+      "title": "Modules, imports and namespaces"
+    },
+    {
+      "id": "py.classes",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.mutation-aliasing"
+      ],
+      "title": "Instances, class attributes and method dispatch"
     }
   ],
   "language": "python",
@@ -1044,6 +1062,136 @@
       "description": "Finding the minimum of a stream requires comparing every pair of produced values rather than maintaining one running minimum in a linear pass.",
       "id": "py.minimum-needs-all-pair-comparisons",
       "title": "Minimum selection compares every pair"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "Expressions supplied as ordinary keyword arguments are evaluated in the order of parameters in the function definition, rather than their order in the call.",
+      "id": "py.argument-evaluation-follows-parameters",
+      "title": "Arguments are evaluated in parameter order"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "Keyword argument expressions are evaluated in the call's written order, but their resulting values fill successive positional parameter slots while their keyword names are ignored.",
+      "id": "py.keyword-binding-is-positional",
+      "title": "Keyword values bind by written position"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "At a call, expressions explicitly supplied for parameters with defaults are evaluated before those supplied for required parameters, regardless of their written order. This is a false call-time priority rule, distinct from actual definition-time evaluation of default expressions.",
+      "id": "py.defaulted-parameter-arguments-evaluate-first",
+      "title": "Supplied arguments for defaulted parameters run first"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "An explicitly supplied keyword argument expression runs, but a parameter that has a default keeps that default instead of receiving the supplied value.",
+      "id": "py.explicit-keyword-cannot-replace-default",
+      "title": "An explicit keyword cannot replace a default"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope"
+      ],
+      "description": "Separate calls to a closure factory share one enclosing local binding, so functions returned by different calls update the same nonlocal state.",
+      "id": "py.factory-calls-share-nonlocals",
+      "title": "Factory calls share one enclosing binding"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "nonlocal always targets the immediately enclosing function scope, whether or not that scope binds the name, instead of searching for the nearest enclosing function scope that does bind it.",
+      "id": "py.nonlocal-nearest-scope-without-binding",
+      "title": "Nonlocal always chooses the immediate function scope"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope"
+      ],
+      "description": "Every call to a returned inner function reruns its enclosing factory's local initialization before reading or updating its nonlocal variable.",
+      "id": "py.nonlocal-resets-on-call",
+      "title": "Calling an inner function resets nonlocal state"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "A nonlocal declaration directs reads and writes to a same-named module-global binding even when an enclosing function has its own binding.",
+      "id": "py.nonlocal-targets-module",
+      "title": "Nonlocal is another spelling of global"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "A from import automatically deep-copies its imported value, including mutable nested contents, rather than binding the importing name to the current object. Editorial hypothesis, not a measured prevalence claim.",
+      "id": "py.from-import-deepcopies",
+      "title": "From imports deep-copy values"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "Without reloads, cache manipulation or custom hooks, every import of a module name still loads an independent fresh module object instead of reusing the ordinary module cache. Editorial hypothesis.",
+      "id": "py.repeated-import-fresh-module",
+      "title": "Every import creates a fresh module"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "An imported local name is a live link to its source module attribute and automatically follows later rebinding of that attribute. Editorial hypothesis.",
+      "id": "py.from-import-live-link",
+      "title": "From imports track later module rebinding"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "An ordinary module attribute documented as a constant is automatically read-only and raises AttributeError on assignment merely because it is a constant. Editorial hypothesis; does not claim all object attributes are writable.",
+      "id": "py.module-constants-readonly",
+      "title": "Documented module constants cannot be rebound"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "An ordinary new instance automatically stores references to all current class data attributes, without cloning their objects, and these saved bindings do not follow later class-attribute rebinding. Editorial hypothesis; distinct from copying mutable objects per instance.",
+      "id": "py.class-bindings-snapshotted-at-construction",
+      "title": "Construction snapshots class data references"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "Creating an ordinary instance automatically gives it independent copies of mutable class data attributes. Editorial hypothesis; distinct from saving shared references.",
+      "id": "py.class-mutable-data-copied-per-instance",
+      "title": "Class mutable data are copied into each instance"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "For ordinary attributes without custom machinery, assigning an instance attribute that previously resolved on its class writes the class binding instead of creating or replacing an instance binding. Editorial hypothesis.",
+      "id": "py.instance-assignment-writes-class",
+      "title": "Instance assignment updates the original class attribute"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "In an ordinary bound instance-method call, the first parameter receives the defining class rather than the receiving instance. Editorial hypothesis; not about classmethod.",
+      "id": "py.instance-method-self-is-class",
+      "title": "Self denotes the defining class"
     }
   ],
   "schema_version": "0.1"
