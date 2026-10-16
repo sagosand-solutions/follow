@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import secrets
+import unicodedata
 from urllib.parse import urlsplit
 
 from starlette.responses import JSONResponse
@@ -93,11 +94,17 @@ def origin_allowed(origin: str | None, expected: str) -> bool:
     return f"{parts.scheme}://{parts.netloc}" == expected
 
 
+def has_disallowed_text_characters(value: str) -> bool:
+    """Reject controls, Unicode formatting controls and separator characters in inputs."""
+    return any((category := unicodedata.category(ch)) in ("Cc", "Cf") or category.startswith("Z")
+               for ch in value)
+
+
 def local_return_to(value) -> str | None:
     """Allow only a local absolute path; never a scheme-relative or external URL."""
     if not isinstance(value, str) or not value.startswith("/") or value.startswith("//") or "\\" in value:
         return None
-    if "://" in value or any(ch in value for ch in "\r\n\t"):
+    if "://" in value or has_disallowed_text_characters(value):
         return None
     return value
 

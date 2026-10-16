@@ -187,6 +187,12 @@ class AuthTransactionRepository(_Repo):
         row = self.db.connect().execute("SELECT * FROM auth_transactions WHERE token_hash = ?", (token_hash,)).fetchone()
         return _auth_transaction(row) if row else None
 
+    def count_active(self, *, now: float | None = None) -> int:
+        row = self.db.connect().execute(
+            "SELECT COUNT(*) FROM auth_transactions WHERE consumed_at IS NULL AND expires_at > ?",
+            (self._now(now),)).fetchone()
+        return int(row[0])
+
     def consume_once(self, token_hash: str, *, now: float | None = None) -> bool:
         when = self._now(now)
         with self.db.transaction(immediate=True) as conn:
@@ -228,9 +234,9 @@ class PurchaseRepository(_Repo):
         try:
             with self.db.transaction(immediate=True) as conn:
                 conn.execute(
-                    "INSERT INTO purchases (id, user_id, product_id, provider, provider_purchase_id, state, revision)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (pid, user_id, product_id, provider, provider_purchase_id, state.value, revision))
+                    "INSERT INTO purchases (id, user_id, product_id, provider, provider_purchase_id, state, revision, created_at)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (pid, user_id, product_id, provider, provider_purchase_id, state.value, revision, self._now()))
         except sqlite3.IntegrityError as exc:
             if "UNIQUE" in str(exc).upper():
                 raise ConflictError("purchase already bound") from exc
@@ -240,6 +246,25 @@ class PurchaseRepository(_Repo):
     def get(self, purchase_id: str) -> Purchase | None:
         row = self.db.connect().execute("SELECT * FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
         return _purchase(row) if row else None
+
+    def list_for_user(self, user_id: str, *, limit: int = 20) -> list[Purchase]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 20:
+            raise ValueError("purchase list limit must be between 1 and 20")
+        rows = self.db.connect().execute(
+            "SELECT * FROM purchases WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+            (user_id, limit)).fetchall()
+        return [_purchase(row) for row in rows]
+
+    def get_for_user(self, purchase_id: str, user_id: str) -> Purchase | None:
+        row = self.db.connect().execute(
+            "SELECT * FROM purchases WHERE id = ? AND user_id = ?", (purchase_id, user_id)).fetchone()
+        return _purchase(row) if row else None
+
+    def is_entitled(self, purchase: Purchase) -> bool:
+        row = self.db.connect().execute(
+            "SELECT 1 FROM entitlements WHERE source_purchase_id = ? AND product_id = ? AND user_id = ? AND state = 'active' LIMIT 1",
+            (purchase.id, purchase.product_id, purchase.user_id)).fetchone()
+        return row is not None
 
     def get_by_provider_id(self, provider: str, provider_purchase_id: str) -> Purchase | None:
         row = self.db.connect().execute(
