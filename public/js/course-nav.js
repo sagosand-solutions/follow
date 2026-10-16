@@ -114,3 +114,12 @@ export function readState(answered, total) {
   if (!answered) return 'none';
   return answered >= total ? 'all' : 'some';
 }
+
+// Home page shortcuts for visitors without progress: only lessons that exist in the course, in the given order.
+export const HOME_SHORTCUT_IDS = ['lists-and-mutation', 'functions-and-scope', 'generators'];
+
+export function homeShortcuts(course, ids = HOME_SHORTCUT_IDS) {
+  const titles = new Map();
+  for (const level of (course && course.levels) || []) for (const l of level.lessons) titles.set(l.id, l.title);
+  return ids.filter((id) => titles.has(id)).map((id) => ({ id, title: titles.get(id) }));
+}

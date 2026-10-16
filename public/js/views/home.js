@@ -4,7 +4,7 @@ import { loadIndex, loadCourse, loadQuestion, allQuestionIds } from '../data.js'
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
-import { nextUp } from '../course-nav.js';
+import { nextUp, homeShortcuts } from '../course-nav.js';
 
 // The headline carries one highlighted phrase; both strings are translated whole.
 function headline() {
@@ -49,6 +49,7 @@ export async function homeView() {
 
   const actions = h('div', { class: 'actions actions--row' });
   const intro = [];
+  const after = [];
   if (answeredCount > 0) {
     intro.push(h('p', { class: 'welcome' }, nextId ? t('home.welcomeText', { count: answeredCount, total: ids.length }) : t('home.allDone')));
     if (nextId) actions.append(h('a', { class: 'button button--primary', href: `#/q/${nextId}` }, t('home.continue')));
@@ -57,9 +58,22 @@ export async function homeView() {
     intro.push(h('p', { class: 'lead' }, t('home.lead')));
     if (index && index.onboarding_question) actions.append(h('a', { class: 'button button--primary', href: `#/q/${index.onboarding_question}` }, t('home.start')));
     actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary' : 'button button--primary', href: '#/course' }, t('home.browse')));
+    // Honest facts and shortcuts to existing lessons; never a promise the current storage mode cannot keep.
+    after.push(h('p', { class: 'hero__facts' }, store.persistent ? t('home.facts.saved') : t('home.facts.memory')));
+    const shortcuts = course ? homeShortcuts(course) : [];
+    if (shortcuts.length) {
+      after.push(
+        h(
+          'p',
+          { class: 'hero__shortcuts' },
+          h('span', {}, t('home.shortcuts.lead')),
+          ...shortcuts.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title }))),
+        ),
+      );
+    }
   }
 
-  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, h('h1', {}, ...headline()), ...intro, actions, h('p', { class: 'hero__hint' }, t('home.limits'))), stage);
+  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, h('h1', {}, ...headline()), ...intro, actions, ...after, h('p', { class: 'hero__hint' }, t('home.limits'))), stage);
 
   const pillars = h(
     'ol',

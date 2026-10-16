@@ -125,3 +125,11 @@ test('read state: none, some, all', async () => {
   assert.equal(readState(3, 5), 'some');
   assert.equal(readState(5, 5), 'all');
 });
+
+test('home shortcuts: only existing lessons, in order; none when absent', async () => {
+  const { homeShortcuts } = await import('../public/js/course-nav.js');
+  const c = { levels: [{ lessons: [{ id: 'generators', title: 'G' }, { id: 'lists-and-mutation', title: 'L' }] }] };
+  assert.deepEqual(homeShortcuts(c), [{ id: 'lists-and-mutation', title: 'L' }, { id: 'generators', title: 'G' }]);
+  assert.deepEqual(homeShortcuts({ levels: [{ lessons: [{ id: 'x', title: 'X' }] }] }), []);
+  assert.deepEqual(homeShortcuts(null), []);
+});
