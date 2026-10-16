@@ -410,3 +410,9 @@ def main(argv=None, *, runner=None):
     except (SetupError, ContentError, InputLimitError, OSError, RuntimeError, KeyError, ValueError) as exc:
         print(f"trace failed: {exc}")
         return 2
+
+
+if __name__ == "__main__":
+    # Support `python -m validator.trace ...` by delegating to the same main as
+    # `python -m validator trace ...`; without this the module is a silent no-op.
+    raise SystemExit(main())
