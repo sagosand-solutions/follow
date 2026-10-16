@@ -10,6 +10,7 @@ import { homeView } from './views/home.js';
 import { courseView } from './views/course.js';
 import { lessonView } from './views/lesson.js';
 import { questionView } from './views/question.js';
+import { reviewView } from './views/review.js';
 import { aboutView } from './views/about.js';
 import { notFoundView } from './views/notfound.js';
 
@@ -70,6 +71,7 @@ async function boot() {
   registerRoute('/course', courseView);
   registerRoute('/lesson/:id', lessonView);
   registerRoute('/q/:id', questionView);
+  registerRoute('/review', reviewView);
   registerRoute('/about', aboutView);
   if (CONFIG.accountsUi) await enableAccounts(accountSlot);
   setNotFound(notFoundView);

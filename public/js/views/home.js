@@ -5,6 +5,7 @@ import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
 import { nextUp, homeShortcuts, homeHintKey } from '../course-nav.js';
+import { reviewQueue } from '../review.js';
 import { eyebrow, facts, courseCounts } from '../components/ui.js';
 import { CONFIG } from '../config.js';
 
@@ -33,7 +34,9 @@ export async function homeView() {
   const ids = course ? allQuestionIds(course) : [];
   const answeredCount = ids.filter((id) => store.latest(id)).length;
   // The same Continue rule everywhere: the home link must match the header and the course page.
-  const target = course ? nextUp(course, store.answers()) : null;
+  const records = store.answers();
+  const target = course ? nextUp(course, records) : null;
+  const reviewCount = course ? reviewQueue(course, records).length : 0;
   const nextId = target ? target.questionId : null;
 
   // The real onboarding code is the hero: the visitor sees what they will be reading.
@@ -56,6 +59,7 @@ export async function homeView() {
     intro.push(h('p', { class: 'welcome' }, nextId ? t('home.welcomeText', { count: answeredCount, total: ids.length }) : t('home.allDone')));
     if (nextId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${nextId}` }, t('home.continue')));
     actions.append(h('a', { class: nextId ? 'button button--secondary button--block' : 'button button--primary button--block', href: '#/course' }, t('home.browse')));
+    if (reviewCount > 0) actions.append(h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })));
   } else {
     intro.push(h('p', { class: 'lead' }, t('home.lead')));
     if (index && index.onboarding_question) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${index.onboarding_question}` }, t('home.start')));
