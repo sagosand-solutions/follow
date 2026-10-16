@@ -178,9 +178,15 @@ def canonical_acknowledgements(items) -> tuple[str, ...]:
     """
     if isinstance(items, str) or not isinstance(items, (list, tuple)):
         raise ConflictError("acknowledgements must be a list of strings")
-    unknown = [item for item in items if item not in ACKNOWLEDGEMENT_KINDS]
+    # Reject every non-string element before membership, set, sort or any
+    # diagnostics, so malformed input is a ConflictError, never a TypeError, and
+    # no raw offending value is echoed back.
+    for item in items:
+        if not isinstance(item, str):
+            raise ConflictError("acknowledgement kind must be a string")
+    unknown = {item for item in items if item not in ACKNOWLEDGEMENT_KINDS}
     if unknown:
-        raise ConflictError("unknown acknowledgement kind(s): " + ", ".join(sorted(set(unknown))))
+        raise ConflictError("unknown acknowledgement kind(s)")
     if len(set(items)) != len(items):
         raise ConflictError("duplicate acknowledgement kind")
     return tuple(sorted(items))

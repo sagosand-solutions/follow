@@ -272,6 +272,27 @@ class PolicyBundleTests(ConsentTestCase):
                 with self.assertRaises(ConflictError):
                     self.repos.policies.insert(self.bundle(bundle_id="x-" + str(len(required)), required=required))
 
+    def test_acknowledgement_elements_must_be_strings(self):
+        for bad in (["terms", ["x"], "withdrawal_acknowledgement"],
+                    ["terms", {"x": 1}, "withdrawal_acknowledgement"],
+                    ["terms", None, "withdrawal_acknowledgement"],
+                    ["terms", 1, "withdrawal_acknowledgement"],
+                    ["terms", True, "withdrawal_acknowledgement"]):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ConflictError):
+                    self.repos.policies.insert(self.bundle(bundle_id="bad", required=bad, digest="f" * 64))
+        self.assertIsNone(self.repos.policies.get("bad"))
+
+    def test_version_must_be_a_non_blank_string(self):
+        for bad in ("", "   ", None, 123, True):
+            with self.subTest(version=bad):
+                with self.assertRaises(ConflictError):
+                    self.repos.policies.insert(self.bundle(bundle_id="v", version=bad, digest="f" * 64))
+        self.assertIsNone(self.repos.policies.get("v"))
+        activation = PolicyActivation("python-lifetime", "python", "en", "v", approved=True)
+        self.assertIsNone(resolve_active_bundle([activation], [], product_id="python-lifetime", access_scope="python",
+                                                locale="en", now=2_000.0, app_env="development"))
+
     def test_ack_order_does_not_change_digest(self):
         a = compute_bundle_digest(product_id="p", access_scope="s", locale="en", version="v", terms_sha256="a" * 64,
                                   refunds_sha256="b" * 64, privacy_sha256="c" * 64,
@@ -322,6 +343,19 @@ class ConsentTests(ConsentTestCase):
         _, purchase2 = self.purchase()
         with self.assertRaises(ConflictError):
             self.repos.consents.record(purchase2.id, "pb-other", CORE_ACK)
+
+    def test_consent_rejects_non_string_acknowledgements_without_partial_write(self):
+        _, purchase = self.purchase()
+        self.repos.policies.insert(self.bundle())
+        for bad in (["terms", ["x"], "withdrawal_acknowledgement"],
+                    ["terms", {"x": 1}, "withdrawal_acknowledgement"],
+                    ["terms", None, "withdrawal_acknowledgement"],
+                    ["terms", 1, "withdrawal_acknowledgement"],
+                    ["terms", True, "withdrawal_acknowledgement"]):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ConflictError):
+                    self.repos.consents.record(purchase.id, "pb-1", bad)
+        self.assertIsNone(self.repos.consents.get_for_purchase(purchase.id))
 
     def test_consent_row_is_immutable(self):
         _, purchase = self.purchase()

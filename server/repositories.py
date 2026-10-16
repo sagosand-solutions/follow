@@ -318,7 +318,11 @@ class PolicyBundleRepository(_Repo):
     def _normalize(self, bundle: PolicyBundle) -> tuple[PolicyBundle, str]:
         acknowledgements = canonical_acknowledgements(bundle.required_acknowledgements)
         if not CORE_ACKNOWLEDGEMENTS.issubset(acknowledgements):
-            raise ConflictError("bundle is missing a required acknowledgement: " + ", ".join(sorted(CORE_ACKNOWLEDGEMENTS)))
+            raise ConflictError("bundle is missing a required acknowledgement")
+        # The version is part of the digest identity: reject blank or non-string
+        # versions instead of trimming or otherwise normalising them.
+        if not isinstance(bundle.version, str) or not bundle.version.strip():
+            raise ConflictError("version must be a non-empty string")
         for name, value in (("terms_sha256", bundle.terms_sha256), ("refunds_sha256", bundle.refunds_sha256),
                             ("privacy_sha256", bundle.privacy_sha256)):
             if not isinstance(value, str) or not _HEX64.fullmatch(value):

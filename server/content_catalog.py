@@ -20,7 +20,7 @@ from .models import ContentError, Product
 ALLOWED_KINDS = frozenset({"question", "exam", "study"})
 _ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,63}\Z")
 _PRODUCT_RE = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
-_CHAPTER_RE = re.compile(r"C[0-9]{2}\Z")
+_CHAPTER_RE = re.compile(r"C(?:0[1-9]|[1-9][0-9])\Z")
 _HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 _REQUIRED_FIELDS = frozenset({"kind", "id", "product_id", "path", "sha256"})
 

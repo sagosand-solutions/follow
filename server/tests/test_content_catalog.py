@@ -199,6 +199,18 @@ class ReleaseSummaryTests(unittest.TestCase):
                 with self.assertRaises(ContentError):
                     build_release_summary([product("python-lifetime", active=False), product("python-team")], chapters)
 
+    def test_chapter_id_range_is_c01_to_c99(self):
+        for good in ("C01", "C99"):
+            with self.subTest(chapter=good):
+                summary = build_release_summary([product("python-lifetime")],
+                                                [PublishedChapter("python-lifetime", good)])
+                self.assertEqual(summary.products[0].published_chapter_count, 1)
+        for bad in ("C00", "C100", "c01", "C1", 1, None):
+            with self.subTest(chapter=bad):
+                with self.assertRaises(ContentError):
+                    build_release_summary([product("python-lifetime")],
+                                          [PublishedChapter("python-lifetime", bad)])
+
     def test_bad_chapter_and_product_ids_fail_closed(self):
         with self.assertRaises(ContentError):
             build_release_summary([product("python-lifetime")], [PublishedChapter("python-lifetime", "chapter-1")])
