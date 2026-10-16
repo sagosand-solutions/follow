@@ -8,6 +8,7 @@ No network call happens inside a transaction.
 from __future__ import annotations
 
 import sqlite3
+import threading
 import time
 from contextlib import contextmanager
 
@@ -69,10 +70,21 @@ class Database:
         self.busy_timeout_ms = busy_timeout_ms
         self.connection: sqlite3.Connection | None = None
         self._savepoint = 0
+        self._owner: int | None = None
 
     def connect(self) -> sqlite3.Connection:
+        """Return this Database's connection, owned by one thread at a time.
+
+        One Database (and its connection) belongs to one request/unit of work.
+        A different thread touching it is disallowed sharing, not isolation, so it
+        is stopped explicitly rather than silently interleaving transactions.
+        """
+        current = threading.get_ident()
         if self.connection is None:
             self.connection = connect(self.db_path, busy_timeout_ms=self.busy_timeout_ms)
+            self._owner = current
+        elif self._owner != current:
+            raise StorageError("database connection is owned by another thread; use one Database per request")
         return self.connection
 
     @contextmanager

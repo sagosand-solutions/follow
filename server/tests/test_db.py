@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import tempfile
+import threading
 import unittest
 
 from server.db import Database, apply_migrations, connect
@@ -77,6 +78,24 @@ class DbTests(unittest.TestCase):
         add_identity("i1")
         with self.assertRaises(sqlite3.IntegrityError):
             add_identity("i2")
+
+    def test_connection_cannot_be_shared_across_threads(self):
+        db = Database(self.path)
+        self.addCleanup(db.close)
+        db.migrate()  # connects, so the main thread owns the connection
+        errors = []
+
+        def worker():
+            try:
+                with db.transaction(immediate=True):
+                    pass
+            except StorageError as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        self.assertEqual(len(errors), 1)
 
     def test_clock_is_injected(self):
         clock = [100.0]
