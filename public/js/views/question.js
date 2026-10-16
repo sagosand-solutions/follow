@@ -7,6 +7,7 @@ import { store } from '../progress.js';
 import { loadQuestion, loadCourse, loadConcepts, loadTrace, findLessonOf } from '../data.js';
 import { CONFIG } from '../config.js';
 import { navigate } from '../router.js';
+import { reviewQueue, nextReview } from '../review.js';
 import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 import { createStudySheet } from '../components/study.js';
@@ -23,7 +24,7 @@ function verdictOf(score) {
   return { kind: 'wrong', icon: 'wrong', word: t('verdict.wrong'), points: t('points.0') };
 }
 
-export async function questionView({ id }) {
+export async function questionView({ id, course: suppliedCourse = null, reviewMode = false }) {
   let q;
   try {
     q = await loadQuestion(id);
@@ -32,12 +33,14 @@ export async function questionView({ id }) {
     console.error(err);
     return { title: t('error.title'), node: errorNode(t('error.question')) };
   }
-  let course = null;
+  let course = suppliedCourse;
   let concepts = null;
-  try {
-    course = await loadCourse();
-  } catch {
-    /* the question works without course context */
+  if (!course) {
+    try {
+      course = await loadCourse();
+    } catch {
+      /* the question works without course context */
+    }
   }
   try {
     concepts = await loadConcepts();
@@ -46,7 +49,7 @@ export async function questionView({ id }) {
   }
   const where = course ? findLessonOf(course, id) : null;
   const root = h('div', { class: 'question' });
-  const ctx = { q, where, concepts, root };
+  const ctx = { q, where, concepts, root, course, reviewMode };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
@@ -94,6 +97,11 @@ function draw(ctx, prev, stale = false) {
 
   const header = h('div', { class: 'question__head' });
   const meta = h('div', { class: 'question__meta' });
+  if (ctx.reviewMode) {
+    const queue = reviewQueue(ctx.course, store.answers());
+    const index = queue.findIndex((entry) => entry.questionId === q.id);
+    meta.append(h('p', { class: 'review__position muted' }, index >= 0 ? t('review.position', { n: index + 1, total: queue.length }) : t('review.title')));
+  }
   if (where) {
     meta.append(eyebrow(`${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}`));
     meta.append(progressBar(where.lesson.questions, q.id));
@@ -183,7 +191,7 @@ function draw(ctx, prev, stale = false) {
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, sourceFor(q));
   const noteNode = showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
-  root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
   if (answered) {
@@ -242,7 +250,15 @@ function navActions(ctx) {
   const { where, q } = ctx;
   const buttons = h('div', { class: 'actions actions--row q-next' });
   let next;
-  if (where && where.position + 1 < where.lesson.questions.length) {
+  if (ctx.reviewMode) {
+    next = h('button', {
+      type: 'button', class: 'button button--primary button--block', 'data-action': 'next',
+      onclick: () => {
+        const target = nextReview(reviewQueue(ctx.course, store.answers()), q.id, ctx.course);
+        navigate(target ? `/review?question=${encodeURIComponent(target.questionId)}` : '/review');
+      },
+    }, t('q.next'));
+  } else if (where && where.position + 1 < where.lesson.questions.length) {
     const nextId = where.lesson.questions[where.position + 1];
     next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate(`/q/${nextId}`) }, t('q.next'));
   } else if (where) {

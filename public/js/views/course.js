@@ -8,6 +8,7 @@ import { cells, readingMap, summaryText } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
 import { eyebrow, facts, courseCounts } from '../components/ui.js';
 import { nextUp, hasProgress, readState } from '../course-nav.js';
+import { reviewQueue } from '../review.js';
 
 export async function courseView() {
   let course;
@@ -22,6 +23,10 @@ export async function courseView() {
 
   const records = store.answers();
   const target = hasProgress(course, records) ? nextUp(course, records) : null;
+  const reviewCount = reviewQueue(course, records).length;
+  const reviewAction = reviewCount > 0
+    ? h('div', { class: 'actions actions--row' }, h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })))
+    : null;
   const nextId = target ? target.questionId : null;
 
   const levels = course.levels.map((level) =>
@@ -127,6 +132,6 @@ export async function courseView() {
 
   return {
     title: t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(t('course.eyebrow')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: t('facts.questions'), bold: c.questions || null }, { template: t('facts.lessons'), bold: c.lessons || null }, { template: t('facts.levels'), bold: c.levels || null }], t('facts.label')); })()), continueCard, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(t('course.eyebrow')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: t('facts.questions'), bold: c.questions || null }, { template: t('facts.lessons'), bold: c.lessons || null }, { template: t('facts.levels'), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }

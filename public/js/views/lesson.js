@@ -8,6 +8,7 @@ import { cells } from '../components/map.js';
 import { eyebrow, facts } from '../components/ui.js';
 import { summaryNode } from '../components/summary.js';
 import { lessonEnding } from './lesson-end.js';
+import { reviewQueue } from '../review.js';
 
 function statusOf(answer) {
   if (!answer) return t('lesson.status.none');
@@ -85,11 +86,13 @@ export async function lessonView({ id }) {
     );
     // End of a finished lesson: where to go next and what builds on this lesson.
     const { next, buildsOn } = lessonEnding(course, lesson.id);
+    const reviewCount = reviewQueue(course, store.answers()).length;
     parts.push(
       h(
         'section',
         { class: 'lesson-next' },
         next ? h('a', { class: 'button button--primary button--block', href: `#/lesson/${next.id}` }, t('lesson.next', { title: next.title })) : h('p', {}, t('lesson.endOfCourse')),
+        reviewCount > 0 ? h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })) : null,
         buildsOn.length ? h('h3', {}, t('lesson.buildsOnTitle')) : null,
         buildsOn.length ? h('ul', {}, buildsOn.map((l) => h('li', {}, h('a', { href: `#/lesson/${l.id}` }, l.title)))) : null,
       ),
