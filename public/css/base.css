@@ -4,7 +4,6 @@ html { -webkit-text-size-adjust: 100%; scroll-padding-block-start: 5rem; }
 
 body {
   margin: 0;
-  min-width: 320px;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-ui);
