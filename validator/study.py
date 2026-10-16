@@ -19,6 +19,7 @@ from . import core
 from .core import Issue
 
 DATA_VERSION = 1
+PUBLIC_LICENSE = "CC-BY-SA-4.0"
 MANIFEST_PREFIX = "data/study/"
 MAX_MANIFEST_ENTRIES = 512
 
@@ -208,6 +209,8 @@ def build_manifest(notes_root, approvals, *, concept_ids, lesson_ids, question_i
             raise core.ContentError(f"{path}: invalid study note: {first.path}: {first.code}: {first.message}")
         if note["status"] != "reviewed":
             raise core.ContentError(f"{path}: note status is {note['status']!r}; only reviewed notes may be published")
+        if note["license"] != PUBLIC_LICENSE:
+            raise core.ContentError(f"{path}: license {note['license']!r} is not {PUBLIC_LICENSE}; the public study manifest only accepts free content")
         scope = next(name for name in _SCOPES if name in note)
         target = note[scope]
         key = f"{scope}:{target}"

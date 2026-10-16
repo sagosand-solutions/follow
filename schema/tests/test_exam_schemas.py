@@ -261,6 +261,16 @@ class TestExamSchemas(unittest.TestCase):
         exam["title"] = "😀" * 121
         self.assertTrue(self.exam_errors(exam))
 
+    def test_proprietary_license_is_accepted(self):
+        exam = valid_exam()
+        exam["license"] = "LicenseRef-Proprietary"
+        self.assertEqual(self.exam_errors(exam), [])
+        for bad in ("MIT", "CC-BY-SA-4.0 ", " cc-by-sa-4.0", "licenseref-proprietary", "", None):
+            with self.subTest(bad=bad):
+                exam = valid_exam()
+                exam["license"] = bad
+                self.assertTrue(self.exam_errors(exam), f"exam license accepted: {bad!r}")
+
     def test_attempt_mutations_rejected(self):
         mutations = [
             ("missing-parts", pop_key("parts")),

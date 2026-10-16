@@ -13,6 +13,7 @@ from .core import (ContentError, InputLimitError, Issue, QuestionBudget, SetupEr
 
 ROOT = core.ROOT
 LEVELS = {"beginner": 0, "intermediate": 1, "advanced": 2}
+PUBLIC_LICENSE = "CC-BY-SA-4.0"
 
 
 def safe_path(root, relative):
@@ -176,6 +177,10 @@ def main(argv=None):
                 for issue in found:
                     add(path, issue)
                 if found:
+                    continue
+                if question["license"] != PUBLIC_LICENSE:
+                    add(path, Issue("non-public-license", "/license",
+                                    f"Only {PUBLIC_LICENSE} content may be exported to the public site"))
                     continue
                 qid = question["id"]
                 if path.name != qid + ".json":
