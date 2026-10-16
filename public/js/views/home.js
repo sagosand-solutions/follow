@@ -5,6 +5,7 @@ import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
 import { nextUp, homeShortcuts, homeHintKey } from '../course-nav.js';
+import { lastRead } from '../moments.js';
 import { reviewQueue } from '../review.js';
 import { eyebrow, facts, courseCounts, pluralTemplate } from '../components/ui.js';
 import { CONFIG } from '../config.js';
@@ -57,6 +58,8 @@ export async function homeView() {
   const after = [];
   if (answeredCount > 0) {
     intro.push(h('p', { class: 'welcome' }, nextId ? t('home.welcomeText', { count: answeredCount, total: ids.length }) : t('home.allDone')));
+    const where = course ? lastRead(course, records) : null;
+    if (where) intro.push(h('p', { class: 'lead' }, t('moment.readingAt', { lesson: where.lessonTitle, n: where.position })));
     if (nextId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${nextId}` }, t('home.continue')));
     actions.append(h('a', { class: nextId ? 'button button--secondary button--block' : 'button button--primary button--block', href: '#/course' }, t('home.browse')));
     if (reviewCount > 0) actions.append(h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })));

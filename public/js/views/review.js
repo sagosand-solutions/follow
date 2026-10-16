@@ -3,6 +3,8 @@ import { t } from '../i18n.js';
 import { loadCourse } from '../data.js';
 import { store } from '../progress.js';
 import { reviewQueue } from '../review.js';
+import { revisitedSummary } from '../moments.js';
+import { findLessonOf } from '../data.js';
 import { questionView } from './question.js';
 import { errorNode } from './errors.js';
 
@@ -24,6 +26,7 @@ export async function reviewView() {
         { class: 'stack stack--loose review-empty' },
         h('h1', {}, t('review.title')),
         h('p', { class: 'muted' }, t('review.done')),
+        ...revisitedLines(course),
         h('a', { class: 'button button--secondary button--block', href: '#/course' }, t('review.back')),
       ),
     };
@@ -33,4 +36,14 @@ export async function reviewView() {
   const requestedId = new URLSearchParams(rawQuery).get('question');
   const current = queue.find((entry) => entry.questionId === requestedId) || queue[0];
   return questionView({ id: current.questionId, course, reviewMode: true });
+}
+
+// "You went back to N questions" and where the latest one lives; nothing when there were no second attempts.
+function revisitedLines(course) {
+  const { count, lastId } = revisitedSummary(store.answers());
+  if (count === 0) return [];
+  const lines = [h('p', {}, count === 1 ? t('moment.revisited.one') : t('moment.revisited.many', { n: count }))];
+  const where = lastId ? findLessonOf(course, lastId) : null;
+  if (where) lines.push(h('p', { class: 'muted' }, t('moment.revisited.last'), ' ', h('a', { href: `#/lesson/${where.lesson.id}` }, where.lesson.title)));
+  return lines;
 }

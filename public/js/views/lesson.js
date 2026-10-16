@@ -84,6 +84,12 @@ export async function lessonView({ id }) {
     parts.push(
       h('section', { class: 'summary' }, h('h2', {}, t('lesson.summary')), h('p', {}, t('lesson.answeredOf', { answered: answered.length, total: lesson.questions.length })), facts([{ template: t('lesson.count.full'), bold: full }, { template: t('lesson.count.partial'), bold: partial }, { template: t('lesson.count.wrong'), bold: wrong }, { template: t('lesson.count.unsure'), bold: unsure }].filter((x) => x.bold > 0), t('lesson.count.label')), h('h3', {}, t('lesson.lookAgain')), again),
     );
+    // The lesson is finished: its cell strip closes into one bar and the heading says so.
+    if (parts[0] && parts[0].classList) {
+      parts[0].classList.add('lesson-done');
+      const heading = parts[0].querySelector('h1');
+      if (heading) heading.insertAdjacentElement('afterend', h('p', { class: 'lesson-done__line' }, t('moment.lessonDone')));
+    }
     // End of a finished lesson: where to go next and what builds on this lesson.
     const { next, buildsOn } = lessonEnding(course, lesson.id);
     const reviewCount = reviewQueue(course, store.answers()).length;

@@ -5,6 +5,7 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { buildMoments, momentState, clampStep } from '../trace.js';
+import { FIRST_RUN_STEPS, FIRST_RUN_INTERVAL_MS } from '../moments.js';
 import { setActiveLine } from './code-block.js';
 
 function describe(step, moment = null) {
@@ -23,7 +24,9 @@ function describe(step, moment = null) {
 const frameName = (step) => (step.function === '<module>' ? t('step.module') : step.function);
 
 // traces: [{ id, label, trace, figure }] one per traced snippet; figure is its code block.
-export function createStepPlayer(traces) {
+// options.firstRun: the first time in this browser, the first few steps play by themselves (never with reduced motion),
+// then the player waits. options.onFirstRunDone() is called once the moment is over (skipped, interrupted or finished).
+export function createStepPlayer(traces, { firstRun = false, onFirstRunDone = () => {} } = {}) {
   // each entry also carries `input`: { stdin, total } from bindCase
   const all = traces.map((x) => ({ ...x, moments: buildMoments(x.trace) }));
   let which = 0;
@@ -155,5 +158,35 @@ export function createStepPlayer(traces) {
   }
   root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, varsG, globalsNote, omittedNote, outTitle, out, live);
   render(false);
+
+  // First run: a quiet guided start. Any interaction, Skip, or the end of the three steps hands control to the reader.
+  const calm = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (firstRun && calm) onFirstRunDone();
+  else if (firstRun) {
+    let timer = null;
+    const skip = h('button', { type: 'button', class: 'button button--secondary button--small' }, t('moment.firstRun.skip'));
+    const note = h('p', { class: 'sp-firstrun', role: 'note' }, h('span', {}, t('moment.firstRun')), ' ', skip);
+    const finish = () => {
+      if (timer === null) return;
+      clearInterval(timer);
+      timer = null;
+      note.remove();
+      onFirstRunDone();
+    };
+    root.insertBefore(note, root.querySelector('.sp-controls'));
+    live.textContent = t('moment.firstRun');
+    let played = 0;
+    timer = setInterval(() => {
+      if (!root.isConnected) return finish();
+      played += 1;
+      if (played > FIRST_RUN_STEPS || index >= all[which].moments.length - 1) return finish();
+      index += 1;
+      render(false);
+      if (played >= FIRST_RUN_STEPS) finish();
+    }, FIRST_RUN_INTERVAL_MS);
+    skip.addEventListener('click', finish);
+    root.addEventListener('pointerdown', finish, { once: true });
+    root.addEventListener('keydown', finish, { once: true });
+  }
   return root;
 }
