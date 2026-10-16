@@ -128,7 +128,7 @@ class TestSeedConceptMap(unittest.TestCase):
 
     def test_seed_map_counts(self):
         self.assertEqual(len(self.map["concepts"]), 18)
-        self.assertEqual(len(self.map["misconceptions"]), 77)
+        self.assertEqual(len(self.map["misconceptions"]), 106)
         expected = {
             "py.slice-stop-is-count", "py.slice-mutates-source", "py.index-upper-bound-inclusive",
             "py.all-strings-truthy", "py.string-content-is-truth-value", "py.if-else-both-run",
@@ -146,6 +146,36 @@ class TestSeedConceptMap(unittest.TestCase):
             "py.outer-loop-alone-determines-cost", "py.max-inner-bound-gives-tight-product",
         }
         self.assertEqual({m["id"] for m in self.map["misconceptions"][56:77]}, expected_next)
+        material1_batch4 = {
+            "py.multiplication-repeats-all-types", "py.numeric-strings-auto-coerce",
+            "py.star-concatenates-operands", "py.string-repeat-forbidden",
+            "py.strip-argument-is-substring", "py.strip-removes-interior", "py.strip-trims-right-only",
+            "py.strip-ignores-characters-argument", "py.comprehension-filters-all-before-mapping",
+            "py.comprehension-expression-before-filter", "py.comprehension-filter-becomes-result",
+            "py.comprehension-ignores-element-expression", "py.and-returns-bool", "py.and-always-right",
+            "py.and-false-has-no-value",
+        }
+        material2_batch4 = {
+            "py.none-check-detects-omission", "py.all-lists-truthy", "py.iter-iterator-creates-cursor",
+            "py.list-iterators-share-position", "py.next-skips-first-item", "py.iterable-iteration-copies-source",
+            "py.sort-worst-case-is-every-case", "py.adjacent-scan-compares-all-pairs",
+            "py.pipeline-costs-multiply", "py.send-auto-primes-generator", "py.send-returns-argument",
+            "py.send-ignores-argument", "py.assigned-yield-hides-output",
+        }
+        self.assertEqual({m["id"] for m in self.map["misconceptions"][77:92]}, material1_batch4)
+        self.assertEqual({m["id"] for m in self.map["misconceptions"][92:105]}, material2_batch4)
+        self.assertEqual(self.map["misconceptions"][105]["id"], "py.minimum-needs-all-pair-comparisons")
+        preserved_77 = {**self.map, "misconceptions": self.map["misconceptions"][:77]}
+        preserved_77_digest = hashlib.sha256(json.dumps(preserved_77, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(preserved_77_digest, "7d30d46f56fb9a48f2e765a7b651a458e289337d82563f0699c7b32c6878d6db")
+        for start, end, digest in (
+            (77, 92, "17ae0cd60ca7ef114a53ccadcbadee83386bb1747b5d028b707292589fe60075"),
+            (92, 105, "ecfc320ff6027214cbf9c26ca378ec9587b6536eb8482e9f53fe8ad1a4954a12"),
+            (105, 106, "41fa376f9342e60e1c8fd91211e32accf4ae383895da5657d5f19c59c3dbc0c7"),
+        ):
+            actual = hashlib.sha256(json.dumps(self.map["misconceptions"][start:end], sort_keys=True,
+                                               separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+            self.assertEqual(actual, digest)
         previous = {**self.map, "misconceptions": self.map["misconceptions"][:56]}
         previous_digest = hashlib.sha256(json.dumps(previous, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
         self.assertEqual(previous_digest, "ec02b128b352ccb0ed4319bdef9bce1534f221103b1e1bf72a53ce1c8a37f565")

@@ -515,205 +515,536 @@
       "id": "py.slice-stop-is-count",
       "title": "Slice stop is a length",
       "description": "The stop bound of a two-bound slice is the number of elements to take, independently of its start bound.",
-      "concepts": ["py.strings", "py.lists"]
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
     },
     {
       "id": "py.slice-mutates-source",
       "title": "Slicing replaces its source",
       "description": "Evaluating a slice changes the source sequence to contain only the selected elements.",
-      "concepts": ["py.strings", "py.lists"]
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
     },
     {
       "id": "py.index-upper-bound-inclusive",
       "title": "Index equal to length is valid",
       "description": "An index equal to the sequence length is valid, as though the upper indexing bound were inclusive.",
-      "concepts": ["py.strings", "py.lists"]
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ]
     },
     {
       "id": "py.all-strings-truthy",
       "title": "Every string is truthy",
       "description": "Every string is true in a condition, including the empty string.",
-      "concepts": ["py.strings", "py.booleans", "py.conditionals"]
+      "concepts": [
+        "py.strings",
+        "py.booleans",
+        "py.conditionals"
+      ]
     },
     {
       "id": "py.string-content-is-truth-value",
       "title": "String spelling determines truth",
       "description": "The text False inside a nonempty string makes that string false in a condition.",
-      "concepts": ["py.strings", "py.booleans", "py.conditionals"]
+      "concepts": [
+        "py.strings",
+        "py.booleans",
+        "py.conditionals"
+      ]
     },
     {
       "id": "py.if-else-both-run",
       "title": "Both if and else bodies execute",
       "description": "An if/else statement executes both bodies rather than selecting one according to its condition.",
-      "concepts": ["py.conditionals"]
+      "concepts": [
+        "py.conditionals"
+      ]
     },
     {
       "id": "py.global-required-for-read",
       "title": "Reading globals requires a declaration",
       "description": "A function can never read a module-global name without a global declaration.",
-      "concepts": ["py.scope"]
+      "concepts": [
+        "py.scope"
+      ]
     },
     {
       "id": "py.local-read-falls-back-global",
       "title": "Unbound locals fall back to globals",
       "description": "A local read before its first local assignment falls back to a same-named global.",
-      "concepts": ["py.scope"]
+      "concepts": [
+        "py.scope"
+      ]
     },
     {
       "id": "py.unbound-local-is-syntax-error",
       "title": "Unbound locals are syntax errors",
       "description": "Reading a local before assignment is rejected when defining the function with SyntaxError rather than failing when the read executes.",
-      "concepts": ["py.scope", "py.exceptions"]
+      "concepts": [
+        "py.scope",
+        "py.exceptions"
+      ]
     },
     {
       "id": "py.get-default-for-falsy",
       "title": "Dictionary defaults replace falsy values",
       "description": "dict.get uses its default for a stored falsy value, not just a missing key.",
-      "concepts": ["py.dictionaries"]
+      "concepts": [
+        "py.dictionaries"
+      ]
     },
     {
       "id": "py.or-only-none-or-empty-string",
       "title": "or replaces only None and empty strings",
       "description": "or replaces only None or the empty string with its right operand and passes all other values through unchanged, including numeric zero and empty containers.",
-      "concepts": ["py.booleans"]
+      "concepts": [
+        "py.booleans"
+      ]
     },
     {
       "id": "py.or-returns-bool",
       "title": "or returns a Boolean result",
       "description": "or returns a bool describing combined truth rather than one of its operand values.",
-      "concepts": ["py.booleans"]
+      "concepts": [
+        "py.booleans"
+      ]
     },
     {
       "id": "py.or-always-fallback",
       "title": "or always takes its fallback",
       "description": "or always returns its right-hand operand even when the left operand is truthy.",
-      "concepts": ["py.booleans"]
+      "concepts": [
+        "py.booleans"
+      ]
     },
     {
       "id": "py.floor-rounds-nearest",
       "title": "Floor division rounds to nearest",
       "description": "Integer floor division rounds its quotient to the nearest integer rather than toward negative infinity.",
-      "concepts": ["py.numeric-operators"]
+      "concepts": [
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.floor-is-true-division",
       "title": "Floor and true division are identical",
       "description": "The // operator returns the same fractional quotient as / for integer operands.",
-      "concepts": ["py.numeric-operators"]
+      "concepts": [
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.floor-ignores-negative-sign",
       "title": "Division ignores a negative numerator",
       "description": "Floor division replaces a negative numerator with its positive magnitude before dividing.",
-      "concepts": ["py.numeric-operators"]
+      "concepts": [
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.multiplication-before-power",
       "title": "Multiplication binds before exponentiation",
       "description": "Multiplication groups before exponentiation in an expression containing both operators.",
-      "concepts": ["py.numeric-operators"]
+      "concepts": [
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.addition-before-multiplication",
       "title": "Addition binds before multiplication",
       "description": "Addition groups before multiplication, even without parentheses requesting that grouping.",
-      "concepts": ["py.numeric-operators"]
+      "concepts": [
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.parentheses-do-not-override-precedence",
       "title": "Parentheses cannot change grouping",
       "description": "Normal operator precedence is applied across parentheses rather than using parentheses to override grouping.",
-      "concepts": ["py.numeric-operators"]
+      "concepts": [
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.slice-shares-outer-container",
       "title": "A full slice aliases its outer list",
       "description": "A full list slice returns the same outer list instead of making a new outer container with shared element references.",
-      "concepts": ["py.lists", "py.mutation-aliasing"]
+      "concepts": [
+        "py.lists",
+        "py.mutation-aliasing"
+      ]
     },
     {
       "id": "py.list-items-must-be-immutable",
       "title": "List items must be immutable",
       "description": "Lists reject mutable list elements with TypeError, confusing list elements with hashable-only contexts such as dictionary keys.",
-      "concepts": ["py.lists"]
+      "concepts": [
+        "py.lists"
+      ]
     },
     {
       "id": "py.comprehension-restores-outer",
       "title": "Comprehension restores an overwritten outer name",
       "description": "A Python 3 list comprehension overwrites the outer loop-variable binding during iteration and then restores its former value afterward.",
-      "concepts": ["py.comprehensions", "py.scope"]
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ]
     },
     {
       "id": "py.comprehension-expression-uses-outer",
       "title": "Comprehension expression ignores its loop binding",
       "description": "The expression in a list comprehension reads a same-named outer binding instead of the comprehension's iteration binding.",
-      "concepts": ["py.comprehensions", "py.scope"]
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ]
     },
     {
       "id": "py.dict-iteration-sorts-keys",
       "title": "Dictionary iteration sorts keys",
       "description": "A dictionary always yields its string keys in alphabetical order rather than insertion order.",
-      "concepts": ["py.dictionaries", "py.iteration"]
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ]
     },
     {
       "id": "py.dict-iteration-pairs",
       "title": "Dictionary iteration yields pairs",
       "description": "Iterating a dictionary directly yields key-value pairs as though iterating its items view.",
-      "concepts": ["py.dictionaries", "py.iteration"]
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ]
     },
     {
       "id": "py.dict-needs-keys-method",
       "title": "A dictionary needs keys() to be iterable",
       "description": "Direct dictionary iteration raises TypeError unless keys() is explicitly called.",
-      "concepts": ["py.dictionaries", "py.iteration"]
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ]
     },
     {
       "id": "py.keyerror-uncatchable",
       "title": "KeyError cannot be caught",
       "description": "No except clause can catch KeyError, regardless of the exception type named by that clause.",
-      "concepts": ["py.exceptions"]
+      "concepts": [
+        "py.exceptions"
+      ]
     },
     {
       "id": "py.finally-suppresses-error",
       "title": "Cleanup suppresses an escaping exception",
       "description": "Completing a finally block normally discards an escaping exception and permits execution after the try statement.",
-      "concepts": ["py.exceptions"]
+      "concepts": [
+        "py.exceptions"
+      ]
     },
     {
       "id": "py.uncaught-skips-finally",
       "title": "Uncaught exceptions skip cleanup",
       "description": "An exception not matched by an except clause bypasses the associated finally block.",
-      "concepts": ["py.exceptions"]
+      "concepts": [
+        "py.exceptions"
+      ]
     },
     {
       "id": "py.next-peeks-without-consuming",
       "title": "Explicit next previews without advancing",
       "description": "An explicit call to built-in next previews an iterator element without consuming it, unlike iteration by a collection constructor.",
-      "concepts": ["py.iterators"]
+      "concepts": [
+        "py.iterators"
+      ]
     },
     {
       "id": "py.all-iterators-allow-size-change",
       "title": "Every container iterator tolerates growth",
       "description": "All Python container iterators safely continue after their underlying container grows during iteration.",
-      "concepts": ["py.iterators"]
+      "concepts": [
+        "py.iterators"
+      ]
     },
     {
       "id": "py.halving-always-two-n-minus-one",
       "title": "Integer halving always totals 2n minus 1",
       "description": "The sum n + floor(n/2) + floor(n/4) + ... is exactly 2n-1 for every positive integer n, not just powers of two.",
-      "concepts": ["py.complexity", "py.numeric-operators"]
+      "concepts": [
+        "py.complexity",
+        "py.numeric-operators"
+      ]
     },
     {
       "id": "py.outer-loop-alone-determines-cost",
       "title": "Outer iterations alone determine loop cost",
       "description": "A halving outer loop makes the total running time logarithmic regardless of the work performed by its inner loop.",
-      "concepts": ["py.complexity"]
+      "concepts": [
+        "py.complexity"
+      ]
     },
     {
       "id": "py.max-inner-bound-gives-tight-product",
       "title": "Maximum inner bound always gives a tight product",
       "description": "Multiplying outer iteration count by the maximum inner-loop length always gives a tight total bound even when inner lengths shrink geometrically.",
-      "concepts": ["py.complexity"]
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.multiplication-repeats-all-types",
+      "title": "Multiplication repeats every operand's digits",
+      "description": "Multiplication repeats the written digits of numeric operands as well as repeating strings, so integer 3 * 2 would produce 33.",
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.numeric-strings-auto-coerce",
+      "title": "Numeric strings automatically become numbers",
+      "description": "An arithmetic operation automatically parses a numeric-looking string as a number rather than using its string-specific behavior.",
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.star-concatenates-operands",
+      "title": "Multiplication concatenates operand spellings",
+      "description": "Multiplying a string by an integer concatenates the string and that integer's spelling once rather than repeating the string.",
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ]
+    },
+    {
+      "id": "py.string-repeat-forbidden",
+      "title": "Strings cannot be repeated by multiplication",
+      "description": "Multiplying an ordinary string by a positive integer is forbidden and raises TypeError.",
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ]
+    },
+    {
+      "id": "py.strip-argument-is-substring",
+      "title": "strip removes an exact boundary substring",
+      "description": "The argument to str.strip is an exact substring removed at the boundaries rather than a set of individual characters to trim.",
+      "concepts": [
+        "py.strings"
+      ]
+    },
+    {
+      "id": "py.strip-removes-interior",
+      "title": "strip deletes matching characters everywhere",
+      "description": "str.strip removes every occurrence of its character arguments throughout the string, including interior positions.",
+      "concepts": [
+        "py.strings"
+      ]
+    },
+    {
+      "id": "py.strip-trims-right-only",
+      "title": "strip trims only the right boundary",
+      "description": "str.strip with a character argument trims matching characters only from the right end, not from both boundaries.",
+      "concepts": [
+        "py.strings"
+      ]
+    },
+    {
+      "id": "py.strip-ignores-characters-argument",
+      "title": "strip always removes only whitespace",
+      "description": "str.strip ignores an explicit character argument and always performs only its default whitespace trimming.",
+      "concepts": [
+        "py.strings"
+      ]
+    },
+    {
+      "id": "py.comprehension-filters-all-before-mapping",
+      "title": "Comprehension filtering is a separate complete pass",
+      "description": "A list comprehension evaluates every filter for the entire input before evaluating any result expression, instead of filtering and mapping each candidate before advancing.",
+      "concepts": [
+        "py.comprehensions",
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.comprehension-expression-before-filter",
+      "title": "Comprehension evaluates results before filtering",
+      "description": "A list comprehension evaluates a candidate's result expression before testing the trailing if condition that could reject that candidate.",
+      "concepts": [
+        "py.comprehensions"
+      ]
+    },
+    {
+      "id": "py.comprehension-filter-becomes-result",
+      "title": "Comprehension filter values become list results",
+      "description": "A trailing comprehension if condition supplies Boolean output entries for all candidates instead of filtering candidates before the element expression.",
+      "concepts": [
+        "py.comprehensions",
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.comprehension-ignores-element-expression",
+      "title": "Filtered comprehensions keep original items",
+      "description": "A filtered list comprehension keeps accepted input items unchanged and ignores the stated element expression.",
+      "concepts": [
+        "py.comprehensions"
+      ]
+    },
+    {
+      "id": "py.and-returns-bool",
+      "title": "and always returns a Boolean",
+      "description": "Boolean and always converts its result to True or False instead of returning one of its operand values.",
+      "concepts": [
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.and-always-right",
+      "title": "and always evaluates and returns the right operand",
+      "description": "The and operator evaluates and returns its right operand even when its left operand is falsy.",
+      "concepts": [
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.and-false-has-no-value",
+      "title": "A skipped and expression has no result",
+      "description": "When and skips its right operand, the expression produces None rather than returning its falsy left operand.",
+      "concepts": [
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.none-check-detects-omission",
+      "title": "A None check detects an omitted argument",
+      "description": "An argument is None only when the caller omitted it; explicitly passing None cannot satisfy an is None check.",
+      "concepts": [
+        "py.default-arguments",
+        "py.functions"
+      ]
+    },
+    {
+      "id": "py.all-lists-truthy",
+      "title": "Every list is truthy",
+      "description": "An empty list is truthy just like a nonempty list.",
+      "concepts": [
+        "py.lists",
+        "py.booleans"
+      ]
+    },
+    {
+      "id": "py.iter-iterator-creates-cursor",
+      "title": "iter of an iterator creates a fresh cursor",
+      "description": "Calling iter on an existing list iterator creates an independent iterator at the beginning rather than returning the same iterator.",
+      "concepts": [
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.list-iterators-share-position",
+      "title": "A list owns one shared iteration position",
+      "description": "Independent iter calls on the same list all share a single traversal position owned by that list.",
+      "concepts": [
+        "py.iterators",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.next-skips-first-item",
+      "title": "next skips the first item",
+      "description": "A new list iterator already points at its first item and next advances before reading, so the first call returns the second item.",
+      "concepts": [
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.iterable-iteration-copies-source",
+      "title": "Iteration copies the source list",
+      "description": "Creating a list iterator implicitly copies the entire source list into a private snapshot rather than keeping a cursor over the original list.",
+      "concepts": [
+        "py.iterators",
+        "py.lists"
+      ]
+    },
+    {
+      "id": "py.sort-worst-case-is-every-case",
+      "title": "Sorting worst case applies to every input",
+      "description": "Because comparison sorting has Theta(n log n) worst-case time, Python sorted must also take Theta(n log n) on every input, including an already sorted list.",
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.adjacent-scan-compares-all-pairs",
+      "title": "An adjacent-gap scan examines every pair",
+      "description": "A loop evaluating differences only at consecutive positions nevertheless examines all pairs of positions and performs quadratic work.",
+      "concepts": [
+        "py.complexity",
+        "py.iteration"
+      ]
+    },
+    {
+      "id": "py.pipeline-costs-multiply",
+      "title": "Sequential pipeline costs multiply",
+      "description": "The total time of sequential sorting and scanning stages is the product of their costs rather than their sum.",
+      "concepts": [
+        "py.complexity"
+      ]
+    },
+    {
+      "id": "py.send-auto-primes-generator",
+      "title": "send automatically primes a generator",
+      "description": "A non-None send can start a just-created generator by automatically advancing it to its first yield before delivering the value.",
+      "concepts": [
+        "py.generators",
+        "py.iterators"
+      ]
+    },
+    {
+      "id": "py.send-returns-argument",
+      "title": "send returns its input argument",
+      "description": "A generator send call returns the argument supplied by its caller instead of the next value yielded by the generator.",
+      "concepts": [
+        "py.generators"
+      ]
+    },
+    {
+      "id": "py.send-ignores-argument",
+      "title": "send ignores its input argument",
+      "description": "Calling send with a non-None value behaves like next and resumes the paused yield expression with None.",
+      "concepts": [
+        "py.generators"
+      ]
+    },
+    {
+      "id": "py.assigned-yield-hides-output",
+      "title": "An assigned yield hides its outgoing value",
+      "description": "When yield appears on the right-hand side of assignment it pauses but emits None instead of its outgoing operand; only standalone yield emits its operand.",
+      "concepts": [
+        "py.generators"
+      ]
+    },
+    {
+      "id": "py.minimum-needs-all-pair-comparisons",
+      "title": "Minimum selection compares every pair",
+      "description": "Finding the minimum of a stream requires comparing every pair of produced values rather than maintaining one running minimum in a linear pass.",
+      "concepts": [
+        "py.complexity",
+        "py.iteration"
+      ]
     }
   ]
 }
