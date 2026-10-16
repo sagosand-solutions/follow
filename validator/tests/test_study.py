@@ -367,6 +367,26 @@ class TestBuildManifest(StudyTestCase):
                     study.build_manifest(evil, approvals, concept_ids=CONCEPT_IDS,
                                          lesson_ids=LESSON_IDS, question_ids=QUESTION_IDS)
 
+    def test_proprietary_note_is_static_valid_but_not_publishable(self):
+        note = make_note()
+        note["license"] = "LicenseRef-Proprietary"
+        self.assertEqual(self.validate(note), [], "proprietary note must be statically valid")
+        raw = write_note(self.root, "proprietary.json", note)
+        with self.assertRaises(core.ContentError):
+            self.build([{"path": "data/study/proprietary.json", "sha256": hashlib.sha256(raw).hexdigest()}])
+
+    def test_mixed_free_and_proprietary_manifest_is_rejected_whole(self):
+        free = write_note(self.root, "free.json", make_note("concept", "py.complexity"))
+        proprietary = make_note("concept", "py.iteration")
+        proprietary["license"] = "LicenseRef-Proprietary"
+        prop = write_note(self.root, "prop.json", proprietary)
+        approvals = [
+            {"path": "data/study/free.json", "sha256": hashlib.sha256(free).hexdigest()},
+            {"path": "data/study/prop.json", "sha256": hashlib.sha256(prop).hexdigest()},
+        ]
+        with self.assertRaises(core.ContentError):
+            self.build(approvals)
+
     def test_count_cap(self):
         approvals = [{"path": f"data/study/x{i}.json", "sha256": "a" * 64}
                      for i in range(study.MAX_MANIFEST_ENTRIES + 1)]

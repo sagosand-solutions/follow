@@ -11,6 +11,14 @@ The JSON Schemas and the concept vocabulary in this directory are licensed under
 course content is licensed separately under **CC BY-SA 4.0** (see
 [`../content/README.md`](../content/README.md)).
 
+The content `license` field is an enum, not a free string: `"CC-BY-SA-4.0"` for
+the free public content, or `"LicenseRef-Proprietary"` for private premium
+content. `LicenseRef-Proprietary` is an explicit, self-defined license
+reference; it points to the rights-holder's separately distributed terms and
+grants no rights by itself. The public site export accepts only
+`"CC-BY-SA-4.0"` and rejects anything else (fail closed); see
+[`../validator/EXPORT.md`](../validator/EXPORT.md).
+
 ## Files
 
 | File | Purpose |
@@ -61,7 +69,7 @@ marked optional.
 | `explanation` | string | Nonempty plain text giving the correct conclusion. |
 | `verification` | object | A Verification object (below). |
 | `author` | object | `{ "name": <nonempty string> }` only. |
-| `license` | string | Constant `"CC-BY-SA-4.0"`. |
+| `license` | string | Enum `"CC-BY-SA-4.0"` or `"LicenseRef-Proprietary"`. |
 
 Local identifiers for snippets, options and cases match
 `^[a-z][a-z0-9-]{0,79}$`. They are stable opaque identifiers, so a reader can key

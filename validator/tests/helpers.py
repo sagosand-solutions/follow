@@ -38,7 +38,7 @@ def schemas(directory):
                     "explanation": TEXT, "verification": obj({"status": {"const": "specified"},
                     "cases": array(obj({"id": LOCAL, "snippet_id": LOCAL, "stdin": {"type": "string"}, "expected": expected})),
                     "rationale": TEXT, "limitations": TEXT}, ("limitations",)),
-                    "author": obj({"name": TEXT}), "license": {"const": "CC-BY-SA-4.0"}})
+                    "author": obj({"name": TEXT}), "license": {"enum": ["CC-BY-SA-4.0", "LicenseRef-Proprietary"]}})
     concept_map = obj({**BASE, "concepts": array(obj({"id": REF, "title": TEXT, "level": LEVEL,
                       "prerequisites": array(REF, 0, uniqueItems=True)})),
                       "misconceptions": array(obj({"id": REF, "title": TEXT, "description": TEXT, "concepts": REFS}))})

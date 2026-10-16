@@ -92,6 +92,21 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(first, [p.read_bytes() for p in self.outputs])
         self.assertTrue(all(p.stat().st_mode & 0o044 for p in self.outputs))
 
+    def test_proprietary_license_blocks_public_export(self):
+        for path in self.outputs:
+            path.write_bytes(b"existing-output\n")
+        before = self.snapshot()
+        self.beginner["license"] = "LicenseRef-Proprietary"
+        self.write(self.qdir / "zulu-question.json", self.beginner)
+        for args in ((), ("--check",)):
+            with self.subTest(args=args):
+                code, output = self.invoke(*args)
+                self.assertEqual(code, 1, output)
+                self.assertIn("non-public-license", output)
+                self.assertIn("/license", output)
+                self.assertEqual(before, self.snapshot())
+                self.assertEqual(list(self.data.glob(".export-*")), [])
+
     def test_check_success_is_read_only(self):
         self.assertEqual(self.invoke()[0], 0)
         before = self.snapshot()

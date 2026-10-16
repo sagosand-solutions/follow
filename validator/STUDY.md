@@ -78,6 +78,14 @@ be valid before anything is returned**; a failure raises `ContentError` or
 `approvals` list yields `{"data_version": 1, "notes": []}`. A reviewed note
 without an approval is never published or auto-included.
 
+This manifest is the **public** static study manifest (`data/study/...`): it
+accepts only free content. An otherwise valid, correctly approved, `reviewed`
+note whose `license` is not `"CC-BY-SA-4.0"` (for example
+`LicenseRef-Proprietary`) raises `ContentError` before any manifest is
+returned, so a mix of free and non-free notes is rejected as a whole. Static
+`validate_study` and the `python -m validator.study` CLI accept **both** license
+values. A future private manifest needs its own contract, not an override here.
+
 ## Byte-to-value seam
 
 `core.parse_json_bytes(raw, path)` was extracted from `load_json`; `load_json`
