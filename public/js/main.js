@@ -49,8 +49,9 @@ async function boot() {
   // The Continue link lives in the header and must follow every route change and
   // every answer change without re-rendering the whole header.
   const continueSlot = h('span', { class: 'nav__continue' });
+  const accountSlot = h('span', { class: 'nav__account' });
   header.replaceChildren(
-    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: '#/course' }, t('nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, themeButton)),
+    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: '#/course' }, t('nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
   );
   const refreshContinue = async () => {
     const course = await loadCourse().catch(() => null);
@@ -70,8 +71,26 @@ async function boot() {
   registerRoute('/lesson/:id', lessonView);
   registerRoute('/q/:id', questionView);
   registerRoute('/about', aboutView);
+  if (CONFIG.accountsUi) await enableAccounts(accountSlot);
   setNotFound(notFoundView);
   await startRouter(main, document.getElementById('live'));
 }
 
 boot();
+
+// Account screens: loaded only when the flag is on, so the free site never fetches this code.
+async function enableAccounts(slot) {
+  const [views, account] = await Promise.all([import('./views/account.js'), import('./account/index.js')]);
+  registerRoute('/premium', views.premiumView);
+  registerRoute('/signin', views.signinView);
+  registerRoute('/checkout', views.checkoutView);
+  registerRoute('/purchase', views.purchaseView);
+  registerRoute('/receipt', views.receiptView);
+  registerRoute('/account', views.accountView);
+  const update = async () => {
+    const me = await account.getClient().me();
+    slot.replaceChildren(h('a', { href: me.signed_in ? '#/account' : '#/signin' }, t(me.signed_in ? 'nav.account' : 'nav.signin')));
+  };
+  window.addEventListener('hashchange', update);
+  await update();
+}

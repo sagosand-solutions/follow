@@ -7,6 +7,8 @@ export const CONFIG = {
   productName: null,
   // The study layer ships once its notes are reviewed and listed in a manifest (no probing for missing files).
   studyLayer: false,
+  // Account screens (sign-in, premium, checkout) run on a fake client in test mode until the server exists.
+  accountsUi: false,
   storagePrefix: 'follow.v0',
   dataPath: 'data/',
   i18nPath: 'i18n/',
