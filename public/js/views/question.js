@@ -154,7 +154,7 @@ function draw(ctx, prev, stale = false) {
   const feedback = h('div', { class: 'feedback', id: 'feedback', role: 'region', 'aria-label': t('q.feedback') });
   const hint = h('p', { class: 'hint', id: 'hint' }, t('q.hint'));
   const check = h('button', { type: 'button', class: 'button button--primary button--block', 'aria-disabled': 'true', 'aria-describedby': 'hint' }, t('q.check'));
-  const actions = h('div', { class: 'actions' }, check, hint);
+  const actions = h('div', { class: 'actions' }, check, hint, h('span', { class: 'hint hint--keys', 'aria-hidden': 'true' }, t('q.checkHint')));
 
   const selected = () => inputs.find((i) => i.checked);
   const sync = () => {
@@ -177,7 +177,12 @@ function draw(ctx, prev, stale = false) {
     document.dispatchEvent(new Event('progresschange'));
     draw(ctx, record);
     const heading = root.querySelector('.verdict__title');
-    if (heading) heading.focus();
+    if (heading) {
+      heading.focus({ preventScroll: true });
+      // Bring the verdict into view (instant when the reader prefers reduced motion).
+      const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      heading.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+    }
   };
   check.addEventListener('click', () => {
     if (check.getAttribute('aria-disabled') === 'true') {
@@ -224,7 +229,27 @@ async function mountStepper(q, box, figures) {
   if (!file) return;
   const list = (await usableTraces(q, file)).map(({ index, trace, input }) => ({ id: q.snippets[index].id, input, label: q.snippets[index].label || t('step.snippetN', { n: index + 1 }), trace, figure: figures[index] }));
   if (!list.length || !box.isConnected) return;
-  box.append(createStepPlayer(list));
+  const player = createStepPlayer(list);
+  box.append(player);
+  // A pointer under the verdict, so the first-time reader finds the player (it lives next to the code).
+  const after = box.ownerDocument.querySelector('#feedback .q-next');
+  if (after) {
+    const go = h('button', { type: 'button', class: 'button button--secondary button--block step-pointer' }, t('step.pointer'));
+    go.addEventListener('click', () => {
+      const title = player.querySelector('h2');
+      if (title) {
+        title.setAttribute('tabindex', '-1');
+        title.focus({ preventScroll: true });
+        const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        player.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+      }
+    });
+    after.insertAdjacentElement('afterend', go);
+  }
+  // The player sits above the verdict on a phone, so it pushes the verdict down: if the verdict still has focus,
+  // put it back in view (instantly, the reader has not moved).
+  const verdict = box.ownerDocument.activeElement;
+  if (verdict && verdict.classList && verdict.classList.contains('verdict__title')) verdict.scrollIntoView({ block: 'start', behavior: 'auto' });
 }
 
 function progressBar(ids, currentId) {

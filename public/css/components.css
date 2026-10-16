@@ -410,11 +410,6 @@
 
 /* === home: facts and shortcuts for new visitors === */
 .hero__facts { color: var(--ink); font-size: var(--text-sm); font-weight: 600; max-width: 34rem; }
-.hero__shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); color: var(--muted); font-size: var(--text-sm); }
-.hero__shortcuts > span { font-weight: 700; margin-inline-end: var(--s-1); }
-.hero__shortcuts a { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--s-4); border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--ink); font-weight: 600; text-decoration: none; }
-.hero__shortcuts a:hover { background: var(--surface-2); }
-@media (forced-colors: active) { .hero__shortcuts a { border: 1px solid ButtonText; } }
 
 .sp-vars--globals { margin-block-start: var(--s-2); }
 .sp-omitted { padding: var(--s-2) var(--s-3); border-inline-start: 4px solid var(--stage-muted); background: var(--stage-bg); color: var(--stage-ink); }
@@ -451,3 +446,14 @@
 .review__description { margin: 0; font-size: var(--text-sm); }
 .review-empty { max-width: var(--measure); }
 .continue-card + .actions, .course-head + .actions { max-width: 24rem; }
+
+/* === quick wins: shortcuts disclosure, step pointer, key hints === */
+.hero__shortcuts { display: block; color: var(--muted); font-size: var(--text-sm); }
+.hero__shortcuts > summary { cursor: pointer; font-weight: 700; padding-block: var(--s-2); min-height: 2.75rem; display: flex; align-items: center; }
+.hero__shortcuts > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.hero__shortcut-links { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-block-end: var(--s-2); }
+.hero__shortcut-links a { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--s-4); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink); font-weight: 600; text-decoration: none; }
+.hero__shortcut-links a:hover { background: var(--surface-2); }
+.step-pointer { margin-block-start: var(--s-2); }
+.hint--keys { align-self: center; }
+@media (forced-colors: active) { .hero__shortcut-links a { border: 1px solid ButtonText; } }

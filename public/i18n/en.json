@@ -73,11 +73,11 @@
   "home.continue": "Continue",
   "home.welcomeText": "You have answered {count} of {total} questions in this browser.",
   "home.allDone": "You have answered every question there is so far. You can look at any of them again.",
-  "review.button": "Review unsure ({count})",
+  "review.button": "Review not sure ({count})",
   "review.title": "Review",
   "review.description": "Questions you were not sure about or missed.",
   "review.position": "Review · {n} of {total}",
-  "review.done": "Nothing left to review. Everything you marked unsure or missed has a better answer now.",
+  "review.done": "Nothing left to review. Everything you marked not sure or missed has a better answer now.",
   "review.back": "Back to the course",
   "home.facts.saved": "About 2 minutes for the first question. Progress is saved only in this browser.",
   "home.facts.memory": "About 2 minutes for the first question. Progress is not saved when you close this page.",
@@ -321,5 +321,7 @@
   "lesson.answeredOf": "You answered {answered} of {total} questions.",
   "licence.proprietary": "© Sagosand. All rights reserved.",
   "licence.other": "Licence: {license}",
-  "q.source.byline": "Written by {author}."
+  "q.source.byline": "Written by {author}.",
+  "q.checkHint": "or press Ctrl+Enter",
+  "step.pointer": "See it run, line by line"
 }

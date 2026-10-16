@@ -70,10 +70,10 @@ export async function homeView() {
     if (shortcuts.length) {
       after.push(
         h(
-          'p',
+          'details',
           { class: 'hero__shortcuts' },
-          h('span', {}, t('home.shortcuts.lead')),
-          ...shortcuts.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title }))),
+          h('summary', {}, t('home.shortcuts.lead')),
+          h('div', { class: 'hero__shortcut-links' }, ...shortcuts.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title })))),
         ),
       );
     }
