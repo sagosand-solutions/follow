@@ -1,0 +1,230 @@
+{
+  "question_id": "py-sorted-adjacent-gap-cost",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "fb80be1c1a89d5d89a81abb72e86c213580f232286b70b96c2beaca67e4517d1",
+      "stdin_case": 0,
+      "stdout": "1\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "smallest_gap": "<function smallest_gap>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "smallest_gap",
+          "line": 1,
+          "locals": {
+            "values": "[8, 1, 5, 2]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "smallest_gap",
+          "line": 2,
+          "locals": {
+            "values": "[8, 1, 5, 2]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "smallest_gap",
+          "line": 3,
+          "locals": {
+            "ordered": "[1, 2, 5, 8]",
+            "values": "[8, 1, 5, 2]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "0",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0,
+          "value": "1"
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "0",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "0",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "1",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0,
+          "value": "3"
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "1",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "1",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "2",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0,
+          "value": "3"
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "2",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "2",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "function": "<genexpr>",
+          "line": 3,
+          "locals": {
+            "i": "2",
+            "ordered": "[1, 2, 5, 8]"
+          },
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "smallest_gap",
+          "line": 3,
+          "locals": {
+            "ordered": "[1, 2, 5, 8]",
+            "values": "[8, 1, 5, 2]"
+          },
+          "stdout_len": 0,
+          "value": "1"
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "smallest_gap": "<function smallest_gap>"
+          },
+          "stdout_len": 2,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
