@@ -311,3 +311,27 @@ test('0.3 usableTraces: bad or mixed shapes are refused (fail closed); 0.2 still
   assert.equal((await usableTraces(q, file('0.2', plain))).length, 1, '0.2 unchanged');
   assert.equal((await usableTraces(q, file('0.3', plain))).length, 0, '0.2 steps under a 0.3 envelope');
 });
+
+// 0.3 steps (the player shows globals as their own table; the claims come only from the recorded globals).
+const V3 = (event, line, scope, locals, globals, extra = {}) => ({ event, line, depth: scope === 'module' ? 0 : 1, function: scope === 'module' ? '<module>' : 'f', frame_id: scope === 'module' ? 1 : 2, scope, locals, globals, locals_omitted: 0, globals_omitted: 0, stdout_len: 0, ...extra });
+
+test('0.3 moments: globals are their own namespace; "unchanged" comes only from the recorded globals', () => {
+  const trace = { schema_version: '0.3', stdout: '', steps: [V3('call', 1, 'module', {}, {}), V3('line', 1, 'module', {}, {}), V3('line', 2, 'module', {}, { g: '1' }), V3('call', 5, 'function', {}, { g: '1' }), V3('line', 6, 'function', {}, { g: '1' }), V3('line', 7, 'function', { x: '2' }, { g: '1' }), V3('line', 8, 'function', { x: '3' }, { g: '9' })] };
+  const m = buildMoments(trace);
+  const byLine = (n) => m.find((x) => x.kind === 'ran' && x.step.line === n);
+  const first = momentState(trace, byLine(1));
+  assert.equal(first.scope, 'module');
+  assert.deepEqual(first.globals, [{ name: 'g', value: '1', change: 'new' }]);
+  const local = momentState(trace, byLine(6));
+  assert.deepEqual(local.rows, [{ name: 'x', value: '2', change: 'new' }]);
+  assert.equal(local.globalsUnchanged, true, 'a local changed, the recorded globals did not');
+  const glob = momentState(trace, byLine(7));
+  assert.equal(glob.globalsUnchanged, false, 'the global changed even though the local table did not');
+  assert.deepEqual(glob.globals, [{ name: 'g', value: '9', change: 'changed' }]);
+});
+
+test('0.3 moments: omitted counts add up and are reported', () => {
+  const trace = { schema_version: '0.3', stdout: '', steps: [V3('call', 1, 'module', {}, {}), V3('line', 1, 'module', {}, {}, { locals_omitted: 2, globals_omitted: 3 }), V3('return', 1, 'module', {}, { g: '1' }, { value: 'None', locals_omitted: 2, globals_omitted: 3 })] };
+  const m = buildMoments(trace);
+  assert.equal(momentState(trace, m[0]).omitted, 5);
+});

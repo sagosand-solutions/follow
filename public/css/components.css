@@ -421,3 +421,7 @@
 .hero__shortcuts a { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--s-4); border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--ink); font-weight: 600; text-decoration: none; }
 .hero__shortcuts a:hover { background: var(--surface-2); }
 @media (forced-colors: active) { .hero__shortcuts a { border: 1px solid ButtonText; } }
+
+.sp-vars--globals { margin-block-start: var(--s-2); }
+.sp-omitted { padding: var(--s-2) var(--s-3); border-inline-start: 4px solid var(--stage-muted); background: var(--stage-bg); color: var(--stage-ink); }
+.sp-omitted[hidden], .sp-globals-note[hidden] { display: none; }

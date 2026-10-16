@@ -300,5 +300,18 @@
   "nav.account": "Account",
   "home.hint.draft": "Early draft: few questions, still growing.",
   "home.hint.saved": "No account needed. Progress stays in this browser. Early draft: few questions, still growing.",
-  "home.hint.memory": "No account needed. Progress is not saved when you close this page. Early draft: few questions, still growing."
+  "home.hint.memory": "No account needed. Progress is not saved when you close this page. Early draft: few questions, still growing.",
+  "step.scope.module": "module level",
+  "step.scope.function": "inside a function",
+  "step.scope.class": "inside a class body",
+  "step.localsAfter": "Variables in {fn}, after this line ran",
+  "step.localsBeforeEnd": "Variables in {fn}, before this line (the recording ends here)",
+  "step.localsEvent": "Variables in {fn} at this event",
+  "step.globalsAfter": "Global variables, after this line ran",
+  "step.globalsBeforeEnd": "Global variables, before this line (the recording ends here)",
+  "step.globalsEvent": "Global variables at this event",
+  "step.globalsUnchanged": "No global variable changed in this step.",
+  "step.noGlobals": "There are no global variables to show yet.",
+  "step.omitted": "{n} variables are not shown: the recording keeps only the first names, within a size limit.",
+  "step.changedGlobals": "Global variables changed: {list}"
 }
