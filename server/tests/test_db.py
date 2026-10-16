@@ -6,6 +6,7 @@ import unittest
 
 from server.db import Database, apply_migrations, connect
 from server.models import StorageError
+from server.migrations import MIGRATIONS
 
 
 class DbTests(unittest.TestCase):
@@ -17,12 +18,25 @@ class DbTests(unittest.TestCase):
     def test_migrate_creates_schema_and_repeat_is_noop(self):
         conn = connect(self.path)
         self.addCleanup(conn.close)
-        self.assertEqual(apply_migrations(conn), 2)
+        self.assertEqual(apply_migrations(conn), 3)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         for table in ("users", "identities", "sessions", "auth_transactions", "products", "purchases",
                       "entitlements", "payment_events", "policy_bundles", "purchase_consents", "schema_migrations"):
             self.assertIn(table, names)
         self.assertEqual(apply_migrations(conn), 0)
+
+    def test_purchase_ordering_migration_preserves_existing_rows(self):
+        conn = connect(self.path)
+        self.addCleanup(conn.close)
+        self.assertEqual(apply_migrations(conn, migrations=MIGRATIONS[:2]), 2)
+        conn.execute("INSERT INTO users (id, created_at, status, deletion_at) VALUES ('u', 1, 'active', NULL)")
+        conn.execute("INSERT INTO products (id, title, currency, amount_minor, access_scope, active)"
+                     " VALUES ('p', 'P', 'USD', 500, 'p', 1)")
+        conn.execute("INSERT INTO purchases (id, user_id, product_id, provider, provider_purchase_id, state, revision)"
+                     " VALUES ('purchase', 'u', 'p', 'mock', 'provider-id', 'pending', 0)")
+        self.assertEqual(apply_migrations(conn), 1)
+        row = conn.execute("SELECT created_at FROM purchases WHERE id = 'purchase'").fetchone()
+        self.assertEqual(row[0], 0)
 
     def test_wal_and_foreign_keys(self):
         conn = connect(self.path)

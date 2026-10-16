@@ -69,5 +69,5 @@ test('every t() key used in the app exists in the English strings', () => {
 
 test('the account UI is off by default and never rendered with innerHTML', () => {
   assert.match(readFileSync(join(root, 'js/config.js'), 'utf8'), /accountsUi: false/);
-  for (const f of ['js/views/account.js', 'js/account/index.js', 'js/account/client.js']) assert.doesNotMatch(readFileSync(join(root, f), 'utf8'), /innerHTML|insertAdjacentHTML/, f);
+  for (const f of ['js/views/account.js', 'js/account/index.js', 'js/account/client.js', 'js/account/http-client.js']) assert.doesNotMatch(readFileSync(join(root, f), 'utf8'), /innerHTML|insertAdjacentHTML/, f);
 });
