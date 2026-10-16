@@ -347,3 +347,7 @@
 .stage-tools .muted { color: var(--stage-muted); }
 @media (forced-colors: active) { .code .line.is-active { border-inline-start: 4px solid Highlight; box-shadow: none; } }
 /* === /step player === */
+.code .line.is-active.is-event::after { content: "  \25C0  event"; }
+.sp-end { padding: var(--s-2) var(--s-3); border-inline-start: 4px solid var(--stage-mark-edge); background: var(--stage-mark); color: var(--stage-ink); font-weight: 600; }
+.sp-end[hidden] { display: none; }
+.sp-input { color: var(--stage-muted); }

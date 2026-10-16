@@ -174,9 +174,13 @@ export function setMarks(figure, lines) {
 }
 
 // The line the step player will run next. Distinct from author marks and personal marks.
-export function setActiveLine(figure, n, scroll = true) {
+// kind: 'next' (a line event: this line runs next) or 'event' (a call/return/exception already recorded here).
+export function setActiveLine(figure, n, scroll = true, kind = 'next') {
   const state = STATE.get(figure);
   if (!state) return;
-  state.lineEls.forEach((l, i) => l.classList.toggle('is-active', i + 1 === n));
+  state.lineEls.forEach((l, i) => {
+    l.classList.toggle('is-active', i + 1 === n);
+    l.classList.toggle('is-event', i + 1 === n && kind === 'event');
+  });
   if (scroll && n && state.lineEls[n - 1]) state.lineEls[n - 1].scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
