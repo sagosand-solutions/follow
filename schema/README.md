@@ -7,9 +7,18 @@ does not judge question quality.
 ## License
 
 The JSON Schemas and the concept vocabulary in this directory are licensed under
-**MIT** (see [`../LICENSES/MIT.txt`](../LICENSES/MIT.txt)). Authored question and
-course content is licensed separately under **CC BY-SA 4.0** (see
-[`../content/README.md`](../content/README.md)).
+**MIT** (see [`../LICENSES/MIT.txt`](../LICENSES/MIT.txt)). The existing free
+public question and course corpus is licensed under **CC BY-SA 4.0** (see
+[`../content/README.md`](../content/README.md)); new private premium content is
+marked `"LicenseRef-Proprietary"` and is not part of that free corpus.
+
+The content `license` field is an enum, not a free string: `"CC-BY-SA-4.0"` for
+the free public content, or `"LicenseRef-Proprietary"` for private premium
+content. `LicenseRef-Proprietary` is an explicit, self-defined license
+reference; it points to the rights-holder's separately distributed terms and
+grants no rights by itself. The public site export accepts only
+`"CC-BY-SA-4.0"` and rejects anything else (fail closed); see
+[`../validator/EXPORT.md`](../validator/EXPORT.md).
 
 ## Files
 
@@ -61,7 +70,7 @@ marked optional.
 | `explanation` | string | Nonempty plain text giving the correct conclusion. |
 | `verification` | object | A Verification object (below). |
 | `author` | object | `{ "name": <nonempty string> }` only. |
-| `license` | string | Constant `"CC-BY-SA-4.0"`. |
+| `license` | string | Enum `"CC-BY-SA-4.0"` or `"LicenseRef-Proprietary"`. |
 
 Local identifiers for snippets, options and cases match
 `^[a-z][a-z0-9-]{0,79}$`. They are stable opaque identifiers, so a reader can key

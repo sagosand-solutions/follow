@@ -459,6 +459,16 @@ class TestQuestionMutations(unittest.TestCase):
                 errors = list(self.validator.iter_errors(question))
                 self.assertTrue(errors, f"mutation accepted: {label}")
 
+    def test_proprietary_license_is_accepted(self):
+        question = copy.deepcopy(self.example)
+        question["license"] = "LicenseRef-Proprietary"
+        self.assertEqual(list(self.validator.iter_errors(question)), [])
+        for bad in ("MIT", "CC-BY-SA-4.0 ", "LicenseRef-proprietary", "licenseref-proprietary", "", None):
+            with self.subTest(bad=bad):
+                question = copy.deepcopy(self.example)
+                question["license"] = bad
+                self.assertTrue(list(self.validator.iter_errors(question)), f"license accepted: {bad!r}")
+
     def test_too_many_options_rejected(self):
         question = copy.deepcopy(self.example)
         for index in range(4):

@@ -212,6 +212,16 @@ class TestStudyNoteSchema(unittest.TestCase):
                 set_key("", *path)(note)
                 self.assertTrue(self.errors(note), f"empty text accepted at {path}")
 
+    def test_proprietary_license_is_accepted(self):
+        note = valid_note()
+        note["license"] = "LicenseRef-Proprietary"
+        self.assertEqual(self.errors(note), [])
+        for bad in ("MIT", "CC-BY-SA-4.0 ", "LicenseRef-proprietary", "", None):
+            with self.subTest(bad=bad):
+                note = valid_note()
+                note["license"] = bad
+                self.assertTrue(self.errors(note), f"study license accepted: {bad!r}")
+
     def test_body_accepts_newlines_angle_and_backticks(self):
         note = valid_note()
         note["sections"][0]["body"] = "line one\nline two <br> `span` and an unbalanced ` tick"

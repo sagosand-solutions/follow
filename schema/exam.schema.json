@@ -89,7 +89,11 @@
       "$ref": "#/$defs/author"
     },
     "license": {
-      "const": "CC-BY-SA-4.0"
+      "description": "Content license identifier. \"CC-BY-SA-4.0\" is the free public content license; \"LicenseRef-Proprietary\" marks private premium content whose rights come only from the rights-holder's separately distributed terms and grants no rights by itself. Exams have no public export.",
+      "enum": [
+        "CC-BY-SA-4.0",
+        "LicenseRef-Proprietary"
+      ]
     }
   },
   "$defs": {

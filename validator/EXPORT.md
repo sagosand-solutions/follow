@@ -1,8 +1,17 @@
 # Static data export
 
 The exporter and course schema are MIT licensed; see
-[`../LICENSES/MIT.txt`](../LICENSES/MIT.txt). Authored questions and course
-prose remain separately CC BY-SA 4.0 licensed.
+[`../LICENSES/MIT.txt`](../LICENSES/MIT.txt). The exported free public questions
+and course prose remain CC BY-SA 4.0 licensed; premium content marked
+`"LicenseRef-Proprietary"` is never exported.
+
+**Public export license gate (fail closed).** `public/data/questions` may contain
+only content whose `license` is `"CC-BY-SA-4.0"`. A question that is otherwise
+valid but carries any other value (for example `"LicenseRef-Proprietary"`) is
+reported as the blocking issue `non-public-license` at `/license`. Export exits
+`1` and writes no output; the same applies to `--check`. Mixed free and
+non-free input is rejected as a whole, and there is no flag to allow private
+content. Static question validation still accepts both license values.
 
 After installing `validator/requirements.txt` in a virtual environment:
 
