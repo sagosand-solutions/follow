@@ -200,7 +200,7 @@ function draw(ctx, prev, stale = false) {
 }
 
 // The trace shows the answer, so it exists only after the learner has answered. A trace is used only when it
-// was made from exactly the code on screen (SHA-256 of the snippet); otherwise the player is simply not shown.
+// was recorded from code with the same SHA-256 as the snippet on screen; otherwise the player is simply not shown.
 async function mountStepper(q, box, figures) {
   let file = null;
   try {

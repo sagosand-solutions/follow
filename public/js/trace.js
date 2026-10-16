@@ -8,8 +8,10 @@ export function stdoutAt(trace, step) {
   return points.length === step.stdout_len ? trace.stdout : points.slice(0, step.stdout_len).join('');
 }
 
-// Does a trace belong to exactly this question, snippet and input case? Returns null (fail closed) or
-// { stdin, total, input } where `stdin` is the recorded input text ('' when the snippet reads none) and
+// Consistency check, not an input fingerprint: the trace must name this snippet and the question's first case for
+// it, and its stdout must equal that case's expected stdout. A case whose input later changes but keeps the same
+// output would still pass. Returns null (fail closed) or { stdin, total } where `stdin` is the question's CURRENT
+// input for that case ('' when the snippet has none) and
 // `total` the number of verification cases of that snippet (only the first one is replayed).
 export function bindCase(question, snippetId, trace) {
   if (!question || !trace || trace.snippet_id !== snippetId) return null;
@@ -41,7 +43,7 @@ export function variableRows(prev, step) {
   });
 }
 
-// Which question snippet a trace belongs to, and whether the trace was made from exactly this source.
+// Which question snippet a trace belongs to, and whether the trace's recorded source hash equals the source on screen.
 export function pickTrace(file, snippetId) {
   if (!file || !Array.isArray(file.traces)) return null;
   return file.traces.find((t) => t.snippet_id === snippetId) || null;
