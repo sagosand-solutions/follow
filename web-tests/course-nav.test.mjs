@@ -111,3 +111,17 @@ test('buildsOnThis returns every dependent lesson in course order', () => {
   assert.deepEqual(buildsOnThis(course, 'l2'), [{ id: 'l3', title: 'Lesson 3' }]);
   assert.deepEqual(buildsOnThis(course, 'l3'), []);
 });
+
+test('compact level rule switches above 40 questions', async () => {
+  const { isCompactLevel } = await import('../public/js/course-nav.js');
+  assert.equal(isCompactLevel(0), false);
+  assert.equal(isCompactLevel(40), false);
+  assert.equal(isCompactLevel(41), true);
+});
+
+test('read state: none, some, all', async () => {
+  const { readState } = await import('../public/js/course-nav.js');
+  assert.equal(readState(0, 5), 'none');
+  assert.equal(readState(3, 5), 'some');
+  assert.equal(readState(5, 5), 'all');
+});

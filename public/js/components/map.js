@@ -4,6 +4,7 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { store } from '../progress.js';
+import { isCompactLevel } from '../course-nav.js';
 
 export const OUTCOMES = ['full', 'partial', 'wrong', 'unsure', 'none'];
 
@@ -47,12 +48,17 @@ export function legend() {
 export function readingMap(course, nextId) {
   const rows = course.levels.map((level) => {
     const ids = level.lessons.flatMap((l) => l.questions);
-    return h(
-      'div',
-      { class: 'map__row' },
-      h('p', { class: 'map__label' }, `${t(`level.${level.level}`)} · ${level.title}`),
-      h('div', {}, cells(ids, nextId), h('p', { class: 'visually-hidden' }, summaryText(ids))),
-    );
+    const label = h('p', { class: 'map__label' }, `${t(`level.${level.level}`)} · ${level.title}`);
+    if (isCompactLevel(ids.length)) {
+      const read = ids.filter((id) => store.latest(id)).length;
+      return h(
+        'div',
+        { class: 'map__row map--compact' },
+        label,
+        h('div', {}, h('p', { class: 'map__count' }, t('course.lesson.progress', { answered: read, total: ids.length })), h('p', { class: 'visually-hidden' }, summaryText(ids))),
+      );
+    }
+    return h('div', { class: 'map__row' }, label, h('div', {}, cells(ids, nextId), h('p', { class: 'visually-hidden' }, summaryText(ids))));
   });
   return h('div', { class: 'map' }, ...rows, legend());
 }

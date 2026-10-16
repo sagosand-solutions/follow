@@ -6,7 +6,7 @@ import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
-import { nextUp, hasProgress } from '../course-nav.js';
+import { nextUp, hasProgress, readState } from '../course-nav.js';
 
 export async function courseView() {
   let course;
@@ -33,21 +33,22 @@ export async function courseView() {
         { class: 'lessons' },
         level.lessons.map((lesson) => {
           const answered = lesson.questions.filter((id) => store.latest(id)).length;
-          const status = answered ? t('course.lesson.progress', { answered, total: lesson.questions.length }) : t('course.lesson.notStarted');
+          const state = readState(answered, lesson.questions.length);
+          const status = state === 'none' ? t('course.lesson.notStarted') : t('course.lesson.progress', { answered, total: lesson.questions.length });
           const builds = (lesson.builds_on || []).map((id) => lessonTitles.get(id)).filter(Boolean);
           return h(
             'li',
-            {},
+            { class: 'lesson-card' },
             h(
               'a',
-              { class: 'lesson-link', href: `#/lesson/${lesson.id}` },
-              h('span', { class: 'lesson-link__title' }, lesson.title),
-              h('span', { class: 'lesson-link__status' }, status),
-              summaryNode(lesson.summary, 'lesson-link__summary', 'span'),
+              { class: 'lesson-card__link', href: `#/lesson/${lesson.id}`, 'aria-labelledby': `card-title-${lesson.id} card-status-${lesson.id}` },
+              h('span', { class: 'lesson-card__title', id: `card-title-${lesson.id}` }, lesson.title),
+              h('span', { class: 'lesson-card__status', id: `card-status-${lesson.id}` }, status),
+              summaryNode(lesson.summary, 'lesson-card__summary', 'span'),
               cells(lesson.questions, nextId),
               h('span', { class: 'visually-hidden' }, summaryText(lesson.questions)),
             ),
-            builds.length ? h('p', { class: 'muted small' }, t('course.lesson.buildsOn', { names: builds.join(', ') })) : null,
+            builds.length ? h('p', { class: 'lesson-card__builds muted small' }, t('course.lesson.buildsOn', { names: builds.join(', ') })) : null,
           );
         }),
       ),
