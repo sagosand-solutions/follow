@@ -21,9 +21,10 @@
   --accent-attention-hover: #ffd566;
   --on-accent-attention: #111634;
   --accent-attention-text: #7a4f00;          /* highlighter colour as text on the page (>= 4.5:1) */
+  --accent-line: #b88400;                    /* the highlighter as a line or bar on the page (>= 3:1); gold on paper is too pale */
 
   /* effects */
-  --shadow-attention: 0 6px 18px -8px rgba(255, 200, 61, 0.9);
+  --shadow-attention: none;
   --shadow-sheet: 0 -24px 60px -20px rgba(0, 0, 0, 0.5);
   --attention-wash: rgba(255, 200, 61, 0.22);   /* the highlighter sweeping a line */
   --scrim: rgba(7, 11, 24, 0.6);
@@ -69,7 +70,7 @@
   --text-lg: 1.25rem;
   --text-xl: 1.625rem;
   --text-2xl: clamp(1.625rem, 1.3rem + 1.4vw, 2.25rem);
-  --text-3xl: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --text-3xl: clamp(2.5rem, 1.6rem + 3.4vw, 3.75rem);
   --text-code: 1.0625rem;
   --lh-body: 1.6;
   --lh-tight: 1.1;
@@ -79,10 +80,11 @@
   --s-1: 0.25rem; --s-2: 0.5rem; --s-3: 0.75rem; --s-4: 1rem; --s-5: 1.5rem;
   --s-6: 2rem; --s-7: 3rem; --s-8: 4.5rem;
 
-  --radius: 14px;
-  --radius-sm: 8px;
-  --radius-stage: 18px;
-  --shadow-stage: 0 24px 60px -24px rgba(14, 20, 40, 0.55), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
+  --radius: 18px;
+  --radius-sm: 10px;
+  --radius-md: 14px;       /* buttons */
+  --radius-stage: 20px;
+  --shadow-stage: none;
   --measure: 40rem;
   --wide: 76rem;
   --tap: 3rem;
@@ -99,12 +101,13 @@
     --ink: #e9ecfb; --muted: #a3abd0; --line: #232d54; --line-strong: #7983b3;
     --link: #aeb6ff; --focus: #ffc83d;
     --accent-attention-text: #ffc83d;
+    --accent-line: #ffc83d;
     --outcome-right: #8fd6a9; --outcome-right-bg: #12301f;
     --outcome-partial: #f0c765; --outcome-partial-bg: #33280d;
     --outcome-wrong: #f4a3bd; --outcome-wrong-bg: #3a1424;
     --stage-bg: #070b18; --stage-bg-raised: #111833; --stage-line: #232d54;
     --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
-    --shadow-stage: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   }
 }
 :root[data-theme="dark"] {
@@ -113,10 +116,11 @@
   --ink: #e9ecfb; --muted: #a3abd0; --line: #232d54; --line-strong: #7983b3;
   --link: #aeb6ff; --focus: #ffc83d;
   --accent-attention-text: #ffc83d;
+  --accent-line: #ffc83d;
   --outcome-right: #8fd6a9; --outcome-right-bg: #12301f;
   --outcome-partial: #f0c765; --outcome-partial-bg: #33280d;
   --outcome-wrong: #f4a3bd; --outcome-wrong-bg: #3a1424;
   --stage-bg: #070b18; --stage-bg-raised: #111833; --stage-line: #232d54;
   --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
-  --shadow-stage: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }

@@ -313,5 +313,13 @@
   "step.globalsUnchanged": "No global variable changed in this step.",
   "step.noGlobals": "There are no global variables to show yet.",
   "step.omitted": "{n} variables are not shown: the recording keeps only the first names, within a size limit.",
-  "step.changedGlobals": "Global variables changed: {list}"
+  "step.changedGlobals": "Global variables changed: {list}",
+  "facts.questions": "{b} questions",
+  "facts.question": "{b} question",
+  "facts.lessons": "{b} lessons",
+  "facts.lesson": "{b} lesson",
+  "facts.levels": "{b} levels",
+  "facts.noAccount": "{b} account",
+  "facts.noAccount.bold": "No",
+  "facts.label": "About this course"
 }
