@@ -1,6 +1,6 @@
-// Pure helpers for the step player. A trace step is the state BEFORE its line runs:
+// Pure helpers for the step player. A trace `line` step is the state BEFORE its line runs:
 // `line` is the next line to execute, `locals` are the values that line will see,
-// and `stdout_len` is how much output exists so far.
+// and `stdout_len` is how much output exists so far. The player shows the state AFTER the line (see buildMoments).
 
 // stdout_len counts Unicode code points (Python len), not UTF-16 units: slice by code points.
 export function stdoutAt(trace, step) {
@@ -35,21 +35,56 @@ export async function stdinMatches(trace, hash = sha256Hex) {
   return digest !== null && digest === trace.stdin_sha256;
 }
 
-// Does the step name the line that runs NEXT? Only `line` events do; every other event happened at its line.
-export const isNextLine = (step) => step.event === 'line';
 
-// Rows for the variable table. Values are compared only between two consecutive `line` steps with the same
-// function name and depth (the trace has no frame identity, so nothing is claimed beyond that).
-export function variableRows(prev, step) {
-  const sameFrame = prev && prev.event === 'line' && step.event === 'line' && prev.depth === step.depth && prev.function === step.function;
-  return Object.entries(step.locals).map(([name, value]) => {
+// Rows for the variable table: every variable in `after`, flagged `new` or `changed` relative to `before`
+// (plain values as strings, exactly as recorded). `before` null means nothing is flagged.
+export function diffLocals(before, after) {
+  return Object.entries(after).map(([name, value]) => {
     let change = 'same';
-    if (sameFrame) {
-      if (!(name in prev.locals)) change = 'new';
-      else if (prev.locals[name] !== value) change = 'changed';
+    if (before) {
+      if (!(name in before)) change = 'new';
+      else if (before[name] !== value) change = 'changed';
     }
     return { name, value, change };
   });
+}
+
+// What the player steps through. A trace `line` step is the state BEFORE that line runs. The learner sees what
+// each line DID, so a `ran` moment pairs the line step with the next step in the SAME frame (same function and
+// depth), whose locals and stdout_len are the state after the line. The empty module start (first `call`) is
+// skipped. Every other event (call, resume, yield, return, unwind, exception) is an `event` moment that keeps
+// its own recorded state. A `ran` moment without a later step in its frame (truncated recording) has after: null.
+export function buildMoments(trace) {
+  const steps = trace.steps;
+  const moments = [];
+  steps.forEach((step, i) => {
+    if (i === 0 && step.event === 'call' && step.function === '<module>') return;
+    if (step.event !== 'line') {
+      moments.push({ kind: 'event', step, after: null });
+      return;
+    }
+    let after = null;
+    for (let j = i + 1; j < steps.length; j += 1) {
+      if (steps[j].depth === step.depth && steps[j].function === step.function) {
+        after = steps[j];
+        break;
+      }
+    }
+    moments.push({ kind: 'ran', step, after });
+  });
+  return moments;
+}
+
+// The state the table and output show for a moment, and what changed in it.
+export function momentState(trace, moment) {
+  const { step, after } = moment;
+  if (moment.kind === 'ran' && after) {
+    const shown = stdoutAt(trace, step);
+    const total = stdoutAt(trace, after);
+    const added = Array.from(total).slice(Array.from(shown).length).join('');
+    return { mode: 'after', rows: diffLocals(step.locals, after.locals), shown, added };
+  }
+  return { mode: moment.kind === 'ran' ? 'before' : 'event', rows: diffLocals(null, step.locals), shown: stdoutAt(trace, step), added: '' };
 }
 
 // Which question snippet a trace belongs to, and whether the trace's recorded source hash equals the source on screen.

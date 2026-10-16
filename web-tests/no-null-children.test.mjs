@@ -15,3 +15,13 @@ test('no replaceChildren/append call gets a conditional null argument', () => {
     }
   }
 });
+
+// Arrays spread into replaceChildren/append can hold null too, which also becomes the text "null".
+test('no replaceChildren/append spread array contains a literal null element', () => {
+  for (const f of walk(root).filter((p) => p.endsWith('.js'))) {
+    const src = readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/\.(replaceChildren|append|prepend)\(\.\.\.\(([^;]*)\)\);/g)) {
+      assert.doesNotMatch(m[2], /\bnull\b/, `${f}: ${m[0].slice(0, 100)}`);
+    }
+  }
+});

@@ -174,8 +174,8 @@ export function setMarks(figure, lines) {
 }
 
 // The line the step player will run next. Distinct from author marks and personal marks.
-// kind: 'next' (a line event: this line runs next) or 'event' (a call/return/exception already recorded here).
-export function setActiveLine(figure, n, scroll = true, kind = 'next') {
+// kind: 'ran' (this line just ran), or 'event' (a call/return/exception recorded at this line).
+export function setActiveLine(figure, n, scroll = true, kind = 'ran') {
   const state = STATE.get(figure);
   if (!state) return;
   state.lineEls.forEach((l, i) => {

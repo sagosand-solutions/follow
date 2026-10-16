@@ -1,9 +1,10 @@
 // Step player: after answering, step through the code one line at a time (precomputed trace, nothing is executed here).
-// The active line is the NEXT line to run; the variable table shows values before that line runs.
+// Each step shows a line that has JUST run, with the variables and output AFTER it (see buildMoments in trace.js).
+// Call/return/yield/resume/unwind/exception steps keep their own recorded state and wording.
 
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { stdoutAt, variableRows, clampStep, isNextLine } from '../trace.js';
+import { buildMoments, momentState, clampStep } from '../trace.js';
 import { setActiveLine } from './code-block.js';
 
 function describe(step) {
@@ -15,7 +16,7 @@ function describe(step) {
     case 'return': return main ? t('step.end', { line: step.line }) : t('step.return', { fn: step.function, value: step.value, line: step.line });
     case 'unwind': return t(main ? 'step.unwindMain' : 'step.unwind', { fn: step.function, type: step.exception.type, line: step.line });
     case 'exception': return t('step.exception', { type: step.exception.type, message: step.exception.message, line: step.line });
-    default: return t('step.line', { line: step.line });
+    default: return t('step.ran', { line: step.line });
   }
 }
 
@@ -24,6 +25,7 @@ const frameName = (step) => (step.function === '<module>' ? t('step.module') : s
 // traces: [{ id, label, trace, figure }] one per traced snippet; figure is its code block.
 export function createStepPlayer(traces) {
   // each entry also carries `input`: { stdin, total } from bindCase
+  const all = traces.map((x) => ({ ...x, moments: buildMoments(x.trace) }));
   let which = 0;
   let index = 0;
 
@@ -46,28 +48,29 @@ export function createStepPlayer(traces) {
   const picker = traces.length > 1 ? h('div', { class: 'sp-picker', role: 'group', 'aria-label': t('step.which') }) : null;
 
   function render(announce) {
-    const cur = traces[which];
-    const steps = cur.trace.steps;
-    index = clampStep(index, steps.length);
-    const step = steps[index];
-    const prev = index > 0 ? steps[index - 1] : null;
-    setActiveLine(cur.figure, step.line, announce, isNextLine(step) ? 'next' : 'event');
-    caption.textContent = isNextLine(step) ? t('step.varsCaption') : t('step.varsCaptionEvent');
+    const cur = all[which];
+    const moments = cur.moments;
+    index = clampStep(index, moments.length);
+    const moment = moments[index];
+    const step = moment.step;
+    const state = momentState(cur.trace, moment);
+    setActiveLine(cur.figure, step.line, announce, moment.kind === 'ran' && state.mode === 'after' ? 'ran' : 'event');
+    caption.textContent = t(state.mode === 'after' ? 'step.varsAfter' : state.mode === 'before' ? 'step.varsBeforeEnd' : 'step.varsCaptionEvent');
     const { stdin, total } = cur.input;
     inputNote.textContent = (stdin === '' ? t('step.noInput') : t('step.input', { stdin: stdin.replace(/\n/g, '↵') })) + (total > 1 ? ` ${t('step.ofCases', { n: total })}` : '');
-    const last = index === steps.length - 1;
+    const last = index === moments.length - 1;
     if (last && cur.trace.truncated) endNote.textContent = t('step.truncated');
     else if (last && cur.trace.exception) endNote.textContent = t('step.endedWith', { type: cur.trace.exception.type, message: cur.trace.exception.message, line: cur.trace.exception.line });
     else if (last) endNote.textContent = t('step.endOfRecording');
     else endNote.textContent = '';
     endNote.hidden = !last;
-    counter.textContent = t('step.counter', { n: index + 1, total: steps.length });
+    counter.textContent = t('step.counter', { n: index + 1, total: moments.length });
     first.disabled = index === 0;
     back.disabled = index === 0;
-    next.disabled = index === steps.length - 1;
-    now.textContent = describe(step);
+    next.disabled = index === moments.length - 1;
+    now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : describe(step);
     frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth });
-    const rows = variableRows(prev, step);
+    const rows = state.rows;
     varBody.replaceChildren(
       ...rows.map((r) =>
         h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))),
@@ -75,10 +78,14 @@ export function createStepPlayer(traces) {
     );
     vars.hidden = rows.length === 0;
     empty.hidden = rows.length !== 0;
-    out.textContent = stdoutAt(cur.trace, step) || t('step.noOutput');
+    const outNodes = [];
+    if (!state.shown && !state.added) outNodes.push(t('step.noOutput'));
+    if (state.shown) outNodes.push(state.shown);
+    if (state.added) outNodes.push(h('span', { class: 'sp-newout' }, state.added));
+    out.replaceChildren(...outNodes);
     if (announce) {
-      const changed = rows.filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value}`);
-      live.textContent = [`${t('step.counter', { n: index + 1, total: steps.length })}.`, describe(step), `${t('step.frame', { fn: frameName(step), depth: step.depth })}.`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
+      const changed = rows.filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value} (${t(`step.${r.change}`)})`);
+      live.textContent = [`${t('step.counter', { n: index + 1, total: moments.length })}.`, `${now.textContent}`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', state.added ? `${t('step.printed', { text: state.added.replace(/\n/g, '↵') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
     }
   }
 
@@ -93,7 +100,7 @@ export function createStepPlayer(traces) {
   const root = h('section', { class: 'stage-tools sp', 'aria-labelledby': 'sp-title' }, title);
   root.addEventListener('keydown', (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey || e.target.closest('pre')) return;
-    const last = traces[which].trace.steps.length - 1;
+    const last = all[which].moments.length - 1;
     let to = null;
     if (e.key === 'ArrowRight') to = index + 1;
     else if (e.key === 'ArrowLeft') to = index - 1;
@@ -108,7 +115,7 @@ export function createStepPlayer(traces) {
     traces.forEach((x, i) => {
       const b = h('button', { type: 'button', class: 'chip', 'aria-pressed': i === 0 ? 'true' : 'false' }, x.label);
       b.addEventListener('click', () => {
-        setActiveLine(traces[which].figure, null);
+        setActiveLine(all[which].figure, null);
         which = i;
         index = 0;
         picker.querySelectorAll('button').forEach((el, j) => el.setAttribute('aria-pressed', j === i ? 'true' : 'false'));

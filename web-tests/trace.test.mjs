@@ -2,21 +2,64 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { stdoutAt, variableRows, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, isNextLine, usableTraces, validEnvelope } from '../public/js/trace.js';
+import { stdoutAt, diffLocals, buildMoments, momentState, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, usableTraces, validEnvelope } from '../public/js/trace.js';
 
 const dir = new URL('../public/data/traces/', import.meta.url).pathname;
 const qdir = new URL('../public/data/questions/', import.meta.url).pathname;
 
-test('variableRows marks new and changed values only inside the same frame', () => {
-  const a = { event: 'line', depth: 1, function: 'f', locals: { x: '1' } };
-  const b = { event: 'line', depth: 1, function: 'f', locals: { x: '2', y: '5' } };
-  assert.deepEqual(variableRows(a, b), [{ name: 'x', value: '2', change: 'changed' }, { name: 'y', value: '5', change: 'new' }]);
-  const c = { depth: 2, function: 'g', locals: { x: '9' } };
-  assert.equal(variableRows(b, c)[0].change, 'same');
-  const call = { event: 'call', depth: 1, function: 'f', locals: { x: '1' } };
-  const line = { event: 'line', depth: 1, function: 'f', locals: { x: '2' } };
-  assert.equal(variableRows(call, line)[0].change, 'same', 'no comparison across a call event');
-  assert.equal(variableRows(null, b)[0].change, 'same');
+test('diffLocals flags new and changed values and nothing without a before state', () => {
+  assert.deepEqual(diffLocals({ x: '1' }, { x: '2', y: '5' }), [{ name: 'x', value: '2', change: 'changed' }, { name: 'y', value: '5', change: 'new' }]);
+  assert.equal(diffLocals(null, { x: '1' })[0].change, 'same');
+  assert.equal(diffLocals({ x: '1' }, { x: '1' })[0].change, 'same');
+});
+
+const S = (event, line, locals, extra = {}) => ({ event, line, depth: 0, function: '<module>', locals, stdout_len: 0, ...extra });
+
+test('buildMoments: a line is paired with the state after it, in the same frame, and the empty start is skipped', () => {
+  const trace = { stdout: 'ab\n', steps: [
+    S('call', 1, {}), S('line', 1, {}), S('line', 2, { x: '3' }), S('line', 3, { x: '3', y: '1' }, { stdout_len: 0 }), S('return', 3, { x: '3', y: '1' }, { stdout_len: 3, value: 'None' }) ] };
+  const m = buildMoments(trace);
+  assert.deepEqual(m.map((x) => [x.kind, x.step.line]), [['ran', 1], ['ran', 2], ['ran', 3], ['event', 3]]);
+  const first = momentState(trace, m[0]);
+  assert.equal(first.mode, 'after');
+  assert.deepEqual(first.rows, [{ name: 'x', value: '3', change: 'new' }], 'x = 3 after line 1, flagged new');
+  const last = momentState(trace, m[2]);
+  assert.equal(last.added, 'ab\n', 'output produced by the last line');
+  assert.equal(momentState(trace, m[3]).mode, 'event');
+});
+
+test('buildMoments: the after state of a line that calls a function is the next step of the SAME frame', () => {
+  const callee = (event, line, locals) => ({ event, line, depth: 1, function: 'f', locals, stdout_len: 0 });
+  const trace = { stdout: '', steps: [
+    S('call', 1, {}), S('line', 1, {}), S('line', 4, { f: '<function f>' }), callee('call', 1, { a: '2' }), callee('line', 2, { a: '2' }), callee('return', 2, { a: '2' }, ), S('line', 5, { f: '<function f>', r: '2' }), S('return', 5, { f: '<function f>', r: '2' }) ] };
+  const m = buildMoments(trace);
+  const callLine = m.find((x) => x.kind === 'ran' && x.step.line === 4);
+  assert.equal(callLine.after.line, 5, 'not the callee call event');
+  assert.deepEqual(momentState(trace, callLine).rows.find((r) => r.name === 'r'), { name: 'r', value: '2', change: 'new' });
+});
+
+test('buildMoments: a truncated recording leaves the last line without an after state', () => {
+  const trace = { stdout: '', truncated: true, steps: [S('call', 1, {}), S('line', 1, {})] };
+  const m = buildMoments(trace);
+  assert.equal(m.length, 1);
+  assert.equal(m[0].after, null);
+  assert.equal(momentState(trace, m[0]).mode, 'before');
+});
+
+test('buildMoments on the real corpus: every line moment of the first example shows x = 3 after line 1', () => {
+  const file = JSON.parse(readFileSync(dir + 'm1-assignment-snapshot.json', 'utf8'));
+  const trace = file.traces[0];
+  const m = buildMoments(trace);
+  assert.equal(m[0].step.line, 1);
+  assert.deepEqual(momentState(trace, m[0]).rows, [{ name: 'x', value: '3', change: 'new' }]);
+  assert.equal(m[m.length - 1].kind, 'event');
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
+    for (const t of JSON.parse(readFileSync(dir + f, 'utf8')).traces) {
+      const moments = buildMoments(t);
+      assert.ok(moments.length > 0, f);
+      for (const mm of moments) if (mm.kind === 'ran' && !t.truncated) assert.ok(mm.after, `${f}: line ${mm.step.line} has an after state`);
+    }
+  }
 });
 
 test('stdoutAt, clampStep and pickTrace', () => {
@@ -58,11 +101,6 @@ test('stdoutAt counts Unicode code points like Python len, not UTF-16 units', ()
   assert.equal(stdoutAt(trace, { stdout_len: 2 }), '😀x');
   assert.equal(stdoutAt(trace, { stdout_len: 3 }), '😀x\n');
   assert.equal(stdoutAt(trace, { stdout_len: 0 }), '');
-});
-
-test('only line events name the next line', () => {
-  assert.equal(isNextLine({ event: 'line' }), true);
-  for (const event of ['call', 'resume', 'yield', 'return', 'unwind', 'exception']) assert.equal(isNextLine({ event }), false);
 });
 
 test('bindCase (0.2) fails closed unless version, snippet, case id, stdin and stdout agree', () => {
