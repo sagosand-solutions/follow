@@ -35,6 +35,8 @@
             "values-and-loops"
           ],
           "questions": [
+            "py-string-number-repetition",
+            "py-strip-characters-not-substring",
             "py-string-prefix-source",
             "py-list-last-boundary",
             "py-nonempty-false-string"
@@ -67,7 +69,9 @@
           "questions": [
             "py-remove-global-counter",
             "py-shared-default-ai-review",
-            "py-closure-loop-readers"
+            "py-closure-loop-readers",
+            "py-and-skips-record-call",
+            "py-default-none-guard-ownership"
           ]
         },
         {
@@ -89,7 +93,18 @@
             "functions-and-scope"
           ],
           "questions": [
-            "py-comprehension-keeps-outer"
+            "py-comprehension-keeps-outer",
+            "py-comprehension-filter-before-division"
+          ]
+        },
+        {
+          "id": "iterators",
+          "title": "Iterators and cursors",
+          "builds_on": [
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-iterator-cursor-ownership"
           ]
         },
         {
@@ -112,11 +127,13 @@
           "id": "generators",
           "title": "Generators and errors",
           "builds_on": [
-            "functions-and-scope"
+            "functions-and-scope",
+            "iterators"
           ],
           "questions": [
             "py-generator-append-consumption",
-            "py-generator-error-lifecycle"
+            "py-generator-error-lifecycle",
+            "py-generator-send-roundtrip"
           ]
         },
         {
@@ -128,7 +145,8 @@
           ],
           "questions": [
             "py-prefix-duplicate-complexity",
-            "py-geometric-halving-work"
+            "py-geometric-halving-work",
+            "py-sorted-adjacent-gap-cost"
           ]
         }
       ]

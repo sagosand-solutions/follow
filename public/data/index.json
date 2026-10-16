@@ -49,6 +49,17 @@
     },
     {
       "concepts": [
+        "py.booleans",
+        "py.functions",
+        "py.lists"
+      ],
+      "difficulty": 0.45,
+      "id": "py-and-skips-record-call",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.numeric-operators"
       ],
       "difficulty": 0.35,
@@ -69,6 +80,18 @@
     },
     {
       "concepts": [
+        "py.comprehensions",
+        "py.iteration",
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.47,
+      "id": "py-comprehension-filter-before-division",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.assignment",
         "py.iteration",
         "py.scope",
@@ -78,6 +101,20 @@
       "id": "py-comprehension-keeps-outer",
       "level": "intermediate",
       "type": "output"
+    },
+    {
+      "concepts": [
+        "py.default-arguments",
+        "py.functions",
+        "py.booleans",
+        "py.lists",
+        "py.assignment",
+        "py.mutation-aliasing"
+      ],
+      "difficulty": 0.57,
+      "id": "py-default-none-guard-ownership",
+      "level": "intermediate",
+      "type": "equivalence"
     },
     {
       "concepts": [
@@ -128,6 +165,17 @@
     },
     {
       "concepts": [
+        "py.generators",
+        "py.iterators",
+        "py.functions"
+      ],
+      "difficulty": 0.77,
+      "id": "py-generator-send-roundtrip",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.complexity",
         "py.iteration",
         "py.numeric-operators",
@@ -137,6 +185,17 @@
       "id": "py-geometric-halving-work",
       "level": "advanced",
       "type": "complexity"
+    },
+    {
+      "concepts": [
+        "py.iterators",
+        "py.iteration",
+        "py.lists"
+      ],
+      "difficulty": 0.61,
+      "id": "py-iterator-cursor-ownership",
+      "level": "intermediate",
+      "type": "output"
     },
     {
       "concepts": [
@@ -227,10 +286,43 @@
     },
     {
       "concepts": [
+        "py.complexity",
+        "py.functions",
+        "py.lists",
+        "py.iteration",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.73,
+      "id": "py-sorted-adjacent-gap-cost",
+      "level": "advanced",
+      "type": "complexity"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.18,
+      "id": "py-string-number-repetition",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.strings"
       ],
       "difficulty": 0.2,
       "id": "py-string-prefix-source",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "difficulty": 0.3,
+      "id": "py-strip-characters-not-substring",
       "level": "beginner",
       "type": "output"
     },

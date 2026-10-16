@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-and-skips-record-call",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.45,
+  "concepts": ["py.booleans", "py.functions", "py.lists"],
+  "prompt": "Run this as a fresh Python script. Which option gives both output lines and a correct general rule for and? A call to record would append called to events and return 7; simply defining the function does not call it.",
+  "snippets": [
+    {"id": "main", "code": "events = []\n\ndef record():\n    events.append(\"called\")\n    return 7\n\nresult = False and record()\nprint(result)\nprint(events)\n", "highlight_lines": [7]}
+  ],
+  "options": [
+    {
+      "id": "evaluate-both-select-left",
+      "text": "The lines are False and ['called']. and evaluates both operands first, then returns its falsy left operand.",
+      "score": 0,
+      "feedback": "and does not evaluate its right operand when the left is falsy. The call is skipped, so events remains empty and the actual lines are False and [].",
+      "misconception": "py.and-evaluates-both"
+    },
+    {
+      "id": "skip-call-return-left-operand",
+      "text": "The lines are False and []. The falsy left operand is returned unchanged and record is not called; and generally returns an operand, not necessarily a Boolean.",
+      "score": 1,
+      "feedback": "Correct. The left operand is already False, so the right-hand call is skipped. The result is that False operand and no event is recorded.",
+      "misconception": null
+    },
+    {
+      "id": "always-evaluate-and-return-right",
+      "text": "The lines are 7 and ['called']. and always evaluates and returns its right operand, even when the left operand is false.",
+      "score": 0,
+      "feedback": "The right operand is not unconditional. A falsy left operand stops and before the call, so no 7 is returned and no called event is appended. The lines are False and [].",
+      "misconception": "py.and-always-right"
+    },
+    {
+      "id": "boolean-only-result-rule",
+      "text": "The lines are False and []. A false left operand skips the call, and and always converts its final result to the Boolean True or False.",
+      "score": 0.5,
+      "feedback": "Both lines and the skipped call are right, but and does not always convert its result to bool. It returns an operand value. That value happens to be the Boolean False here.",
+      "misconception": "py.and-returns-bool",
+      "partial_reason": "Correct: predicts both complete output lines and correctly skips record. Incorrect: claims and always normalizes the result to bool rather than returning an operand that may have another type."
+    },
+    {
+      "id": "skipped-expression-is-none",
+      "text": "The lines are None and []. When and skips its right operand, the expression has no result and therefore produces None.",
+      "score": 0,
+      "feedback": "Skipping the right operand does not leave the expression without a value. and returns its falsy left operand, which is False here. The actual lines are False and [].",
+      "misconception": "py.and-false-has-no-value"
+    }
+  ],
+  "explanation": "The first operand is False, so and short-circuits without calling record. Its result is that left operand, leaving events empty. The program prints False and then []. In general and returns one of its operands, not necessarily a bool; this example's returned operand happens already to be Boolean. No function body runs merely because its name appears in a skipped expression.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "short-circuit-skips-side-effect", "snippet_id": "main", "stdin": "", "expected": {"stdout": "False\n[]\n", "exit_code": 0}}
+    ],
+    "rationale": "Execute the exact displayed script and compare both complete stdout lines. The empty event list makes skipped evaluation observable. Operand-return semantics require independent review because bool-normalization also predicts this particular False result.",
+    "limitations": "Only the displayed Boolean-left case is executed. No hidden non-Boolean operand or alternate call is used as a contract proof. This is not a sandbox, general semantic proof, calibrated scoring or publication approval."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
