@@ -55,13 +55,14 @@ main { padding-block: var(--s-5) var(--s-8); }
 .brand__mark span:nth-child(2) { background: var(--accent-attention); box-shadow: 0 0 0 2px var(--accent-attention); }
 .brand__mark span:nth-child(3) { width: 85%; }
 .nav { display: flex; align-items: center; gap: var(--s-1); }
-.nav a, .theme-toggle {
+.nav a, .theme-select {
   display: inline-flex; align-items: center; min-height: var(--tap); padding-inline: var(--s-3);
   border-radius: 999px; color: var(--ink); text-decoration: none; font: inherit; font-weight: 600; font-size: 0.9375rem;
 }
-.nav a:hover, .theme-toggle:hover { background: var(--surface-2); }
+.nav a:hover { background: var(--surface-2); }
 .nav a[aria-current="page"] { background: var(--surface-2); }
-.theme-toggle { border: 1px solid var(--line-strong); background: transparent; cursor: pointer; margin-inline-start: var(--s-2); }
+.theme-select { border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); cursor: pointer; margin-inline-start: var(--s-2); padding-inline: var(--s-3); }
+.theme-select:hover { background: var(--surface-2); }
 
 .site-footer { color: var(--muted); font-size: var(--text-sm); }
 .site-footer .shell { padding-block: var(--s-6); display: grid; gap: var(--s-1); border-top: 1px solid var(--line); }
@@ -111,7 +112,7 @@ button.chip:hover { background: var(--surface-2); }
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
 @media (forced-colors: active) {
-  .button, .theme-toggle, .chip { border: 1px solid ButtonText; }
+  .button, .theme-select, .chip { border: 1px solid ButtonText; }
   .brand__mark span { background: CanvasText; }
 }
 
@@ -120,6 +121,6 @@ button.chip:hover { background: var(--surface-2); }
   .nav { flex-wrap: wrap; justify-content: flex-end; }
   .brand { padding-block: var(--s-1); }
   .brand__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .nav a, .theme-toggle { padding-inline: var(--s-2); font-size: 0.875rem; }
-  .theme-toggle { margin-inline-start: 0; }
+  .nav a, .theme-select { padding-inline: var(--s-2); font-size: 0.875rem; }
+  .theme-select { margin-inline-start: 0; }
 }

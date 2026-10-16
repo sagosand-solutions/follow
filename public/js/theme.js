@@ -1,5 +1,5 @@
 const KEY = 'ui.theme';
-const ORDER = ['auto', 'light', 'dark'];
+export const THEMES = ['auto', 'light', 'dark', 'paper', 'slate', 'contrast'];
 let sessionMode = 'auto';
 // Set when a choice could not be saved: the page-view choice then outranks any older stored value.
 let sessionOverrides = false;
@@ -22,7 +22,7 @@ export function readTheme(storage = defaultStorage()) {
   if (sessionOverrides) return sessionMode;
   try {
     const v = storage && storage.getItem(KEY);
-    if (ORDER.includes(v)) return v;
+    if (THEMES.includes(v)) return v;
   } catch {
     /* fall through to the choice made in this page view */
   }
@@ -33,6 +33,16 @@ export function applyTheme(mode, root = globalThis.document && globalThis.docume
   if (!root) return;
   if (mode === 'auto') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', mode);
+  syncThemeColor(root);
+}
+
+// The browser chrome follows the page background (meta theme-color), read from the theme's own --bg token.
+function syncThemeColor(root) {
+  const doc = root && root.ownerDocument;
+  if (!doc || !globalThis.getComputedStyle) return;
+  const meta = doc.querySelector('meta[name="theme-color"]');
+  const bg = globalThis.getComputedStyle(root).getPropertyValue('--bg').trim();
+  if (meta && bg) meta.setAttribute('content', bg);
 }
 
 export function initTheme(storage = defaultStorage()) {
@@ -42,17 +52,14 @@ export function initTheme(storage = defaultStorage()) {
   return mode;
 }
 
-export function nextTheme(mode) {
-  return ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
-}
-
-export function cycleTheme(storage = defaultStorage()) {
-  const mode = nextTheme(readTheme(storage));
+// Choose a theme (one of THEMES). Saved under the existing key; when it cannot be saved, the choice lasts for this page view.
+export function setTheme(mode, storage = defaultStorage()) {
+  if (!THEMES.includes(mode)) return readTheme(storage);
   sessionMode = mode;
   try {
     if (storage) storage.setItem(KEY, mode);
   } catch {
-    sessionOverrides = true; /* the choice lasts for this page view only */
+    sessionOverrides = true;
   }
   applyTheme(mode);
   return mode;
