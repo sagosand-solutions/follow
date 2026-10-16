@@ -8,25 +8,34 @@ export function stdoutAt(trace, step) {
   return points.length === step.stdout_len ? trace.stdout : points.slice(0, step.stdout_len).join('');
 }
 
-// Consistency check, not an input fingerprint: the trace must name this snippet and the question's first case for
-// it, and its stdout must equal that case's expected stdout. A case whose input later changes but keeps the same
-// output would still pass. Returns null (fail closed) or { stdin, total } where `stdin` is the question's CURRENT
-// input for that case ('' when the snippet has none) and
-// `total` the number of verification cases of that snippet (only the first one is replayed).
-export function bindCase(question, snippetId, trace) {
+export const TRACE_VERSION = '0.2';
+
+// Binds a trace to the question's current verification case by identity (schema 0.2): the trace must name this
+// snippet and the FIRST case of that snippet by `case_id`, carry that case's current stdin text, and its stdout
+// must equal the case's expected stdout. Fails closed (null) on any mismatch, on a version other than 0.2, and
+// when the snippet has no case. The hash of stdin is checked separately (async) by `stdinMatches`.
+// Returns { stdin, total } where `total` is the number of verification cases of that snippet.
+export function bindCase(question, snippetId, trace, file = null) {
   if (!question || !trace || trace.snippet_id !== snippetId) return null;
-  const all = (question.verification && Array.isArray(question.verification.cases) ? question.verification.cases : []);
-  const mine = all.map((c, i) => ({ c, i })).filter((x) => x.c.snippet_id === snippetId);
-  if (mine.length === 0) return trace.stdin_case === 0 ? { stdin: '', total: 0 } : null;
+  if (file && (file.schema_version !== TRACE_VERSION || file.question_id !== question.id)) return null;
+  const all = question.verification && Array.isArray(question.verification.cases) ? question.verification.cases : [];
+  const mine = all.filter((c) => c.snippet_id === snippetId);
+  if (mine.length === 0) return null;
   const first = mine[0];
-  if (trace.stdin_case !== first.i) return null;
-  const expected = first.c.expected;
+  if (trace.case_id !== first.id) return null;
+  const stdin = typeof first.stdin === 'string' ? first.stdin : '';
+  if (trace.stdin !== stdin) return null;
+  const expected = first.expected;
   if (expected && typeof expected.stdout === 'string' && expected.stdout !== trace.stdout) return null;
-  return { stdin: typeof first.c.stdin === 'string' ? first.c.stdin : '', total: mine.length };
+  return { stdin, total: mine.length };
 }
 
-// Does the step name the line that runs NEXT? Only `line` events do; call/return/exception are events that
-// already happened (or, for generators, a yield recorded as a return and a resume recorded as a call).
+export async function stdinMatches(trace, hash = sha256Hex) {
+  const digest = await hash(trace.stdin);
+  return digest !== null && digest === trace.stdin_sha256;
+}
+
+// Does the step name the line that runs NEXT? Only `line` events do; every other event happened at its line.
 export const isNextLine = (step) => step.event === 'line';
 
 // Rows for the variable table. Values are compared only between two consecutive `line` steps with the same
@@ -58,4 +67,28 @@ export async function sha256Hex(text, subtle = globalThis.crypto && globalThis.c
 export function clampStep(index, count) {
   if (count <= 0) return 0;
   return Math.min(Math.max(index, 0), count - 1);
+}
+
+// The envelope is checked before any field of any trace is read.
+export function validEnvelope(file, questionId) {
+  return !!file && typeof file === 'object' && file.schema_version === TRACE_VERSION && file.question_id === questionId && Array.isArray(file.traces);
+}
+
+// Decides which traces may be shown for a question: for each snippet, a trace that passes every check
+// (envelope, steps array, source hash, case identity, stdin text and hash, truncation consistency).
+// Returns [{ index, trace, input }]; anything doubtful is simply left out (fail closed). No DOM, no network.
+export async function usableTraces(question, file, hash = sha256Hex) {
+  if (!validEnvelope(file, question && question.id)) return [];
+  const out = [];
+  for (let i = 0; i < question.snippets.length; i += 1) {
+    const snippet = question.snippets[i];
+    const trace = pickTrace(file, snippet.id);
+    if (!trace || !Array.isArray(trace.steps) || trace.steps.length === 0 || typeof trace.stdout !== 'string') continue;
+    if ((await hash(snippet.code)) !== trace.source_sha256) continue;
+    const input = bindCase(question, snippet.id, trace, file);
+    if (!input || !(await stdinMatches(trace, hash))) continue;
+    if (trace.truncated && trace.truncated_at_step !== trace.steps.length) continue;
+    out.push({ index: i, trace, input });
+  }
+  return out;
 }

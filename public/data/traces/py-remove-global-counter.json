@@ -1,12 +1,14 @@
 {
   "question_id": "py-remove-global-counter",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "original-two-lines",
       "exception": null,
       "snippet_id": "original",
       "source_sha256": "e061faaa7242a7300af4a4324205e0491b04c1dfaafb2e22fc72790e383cabba",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "11\n11\n",
       "steps": [
         {
@@ -106,6 +108,7 @@
       "truncated": false
     },
     {
+      "case_id": "changed-call-error",
       "exception": {
         "line": 4,
         "message": "cannot access local variable 'count' where it is not associated with a value",
@@ -113,7 +116,8 @@
       },
       "snippet_id": "changed",
       "source_sha256": "7b0c7c336477a38b3faabb317368b9fbfac225bd03a2144751a3feb1dd91cfbf",
-      "stdin_case": 1,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "",
       "steps": [
         {
@@ -184,12 +188,16 @@
         },
         {
           "depth": 1,
-          "event": "return",
+          "event": "unwind",
+          "exception": {
+            "line": 4,
+            "message": "cannot access local variable 'count' where it is not associated with a value",
+            "type": "UnboundLocalError"
+          },
           "function": "increment",
           "line": 4,
           "locals": {},
-          "stdout_len": 0,
-          "value": "None"
+          "stdout_len": 0
         },
         {
           "depth": 0,
@@ -209,15 +217,19 @@
         },
         {
           "depth": 0,
-          "event": "return",
+          "event": "unwind",
+          "exception": {
+            "line": 7,
+            "message": "cannot access local variable 'count' where it is not associated with a value",
+            "type": "UnboundLocalError"
+          },
           "function": "<module>",
           "line": 7,
           "locals": {
             "count": "10",
             "increment": "<function increment>"
           },
-          "stdout_len": 0,
-          "value": "None"
+          "stdout_len": 0
         }
       ],
       "truncated": false

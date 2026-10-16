@@ -1,12 +1,14 @@
 {
   "question_id": "py-prefix-duplicate-complexity",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "distinct-example",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "a8e409df4de04ff68ce4549e4d27cb8f9e2dad2086d18d73be692ae9a8b3da1a",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "False\n",
       "steps": [
         {

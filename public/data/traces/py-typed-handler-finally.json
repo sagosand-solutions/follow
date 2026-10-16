@@ -1,8 +1,9 @@
 {
   "question_id": "py-typed-handler-finally",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "cleanup-and-unmatched-error",
       "exception": {
         "line": 2,
         "message": "'missing'",
@@ -10,7 +11,8 @@
       },
       "snippet_id": "main",
       "source_sha256": "95848b83d1577a5f09b4a8dfb06e8252d712ecb61297eb14c012c06bce4e1661",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "cleanup\n",
       "steps": [
         {
@@ -68,12 +70,16 @@
         },
         {
           "depth": 0,
-          "event": "return",
+          "event": "unwind",
+          "exception": {
+            "line": 2,
+            "message": "'missing'",
+            "type": "KeyError"
+          },
           "function": "<module>",
           "line": 6,
           "locals": {},
-          "stdout_len": 8,
-          "value": "None"
+          "stdout_len": 8
         }
       ],
       "truncated": false

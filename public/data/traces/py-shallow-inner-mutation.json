@@ -1,12 +1,14 @@
 {
   "question_id": "py-shallow-inner-mutation",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "assignment-inner-mutation",
       "exception": null,
       "snippet_id": "assignment",
       "source_sha256": "4f94eba3e74de86a810c29e3cd8ff846c35d5a8eb58200cee944c70f472d24ca",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[[1, 9], [2]]\n",
       "steps": [
         {
@@ -73,10 +75,12 @@
       "truncated": false
     },
     {
+      "case_id": "slice-inner-mutation",
       "exception": null,
       "snippet_id": "slice",
       "source_sha256": "46225f6922277319bfc9ea96e400f45cbbae878a202bad05e03e86412bf03dd2",
-      "stdin_case": 1,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[[1, 9], [2]]\n",
       "steps": [
         {

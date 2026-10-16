@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { stdoutAt, variableRows, pickTrace, sha256Hex, clampStep, bindCase, isNextLine } from '../public/js/trace.js';
+import { stdoutAt, variableRows, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, isNextLine, usableTraces, validEnvelope } from '../public/js/trace.js';
 
 const dir = new URL('../public/data/traces/', import.meta.url).pathname;
 const qdir = new URL('../public/data/questions/', import.meta.url).pathname;
@@ -62,30 +62,45 @@ test('stdoutAt counts Unicode code points like Python len, not UTF-16 units', ()
 
 test('only line events name the next line', () => {
   assert.equal(isNextLine({ event: 'line' }), true);
-  for (const event of ['call', 'return', 'exception']) assert.equal(isNextLine({ event }), false);
+  for (const event of ['call', 'resume', 'yield', 'return', 'unwind', 'exception']) assert.equal(isNextLine({ event }), false);
 });
 
-test('bindCase fails closed unless snippet, case index and recorded stdout agree', () => {
-  const q = { verification: { cases: [
-    { id: 'a', snippet_id: 'other', stdin: 'zz\n', expected: { stdout: 'o\n' } },
-    { id: 'b', snippet_id: 'main', stdin: '-1\n', expected: { stdout: 'green\n' } },
-    { id: 'c', snippet_id: 'main', stdin: '3\n', expected: { stdout: '' } } ] } };
-  const ok = { snippet_id: 'main', stdin_case: 1, stdout: 'green\n' };
-  assert.deepEqual(bindCase(q, 'main', ok), { stdin: '-1\n', total: 2 });
-  assert.equal(bindCase(q, 'main', { ...ok, stdin_case: 2 }), null, 'not the first case of the snippet');
-  assert.equal(bindCase(q, 'main', { ...ok, stdin_case: 0 }), null, 'case belongs to another snippet');
-  assert.equal(bindCase(q, 'main', { ...ok, stdout: 'red\n' }), null, 'recorded stdout differs from the case');
-  assert.equal(bindCase(q, 'other', ok), null, 'trace is for another snippet');
-  assert.equal(bindCase({ verification: { cases: [] } }, 'main', { snippet_id: 'main', stdin_case: 0, stdout: '' })?.total, 0);
-  assert.equal(bindCase({}, 'main', { snippet_id: 'main', stdin_case: 1, stdout: '' }), null);
+test('bindCase (0.2) fails closed unless version, snippet, case id, stdin and stdout agree', () => {
+  const q = { id: 'q-one', verification: { cases: [
+    { id: 'other-case', snippet_id: 'other', stdin: 'zz\n', expected: { stdout: 'o\n' } },
+    { id: 'minus-one', snippet_id: 'main', stdin: '-1\n', expected: { stdout: 'green\n' } },
+    { id: 'three', snippet_id: 'main', stdin: '3\n', expected: { stdout: '' } } ] } };
+  const trace = { snippet_id: 'main', case_id: 'minus-one', stdin: '-1\n', stdout: 'green\n' };
+  const file = { schema_version: '0.2', question_id: 'q-one' };
+  assert.deepEqual(bindCase(q, 'main', trace, file), { stdin: '-1\n', total: 2 });
+  assert.equal(bindCase(q, 'main', trace, { ...file, schema_version: '0.1' }), null, 'old format is rejected');
+  assert.equal(bindCase(q, 'main', trace, { ...file, question_id: 'q-two' }), null);
+  assert.equal(bindCase(q, 'main', { ...trace, case_id: 'three' }, file), null, 'not the first case of the snippet');
+  assert.equal(bindCase(q, 'main', { ...trace, case_id: 'other-case' }, file), null, 'case belongs to another snippet');
+  assert.equal(bindCase(q, 'main', { ...trace, stdin: '-2\n' }, file), null, 'stdin text differs from the case');
+  assert.equal(bindCase(q, 'main', { ...trace, stdout: 'red\n' }, file), null, 'recorded stdout differs from the case');
+  assert.equal(bindCase(q, 'other', trace, file), null, 'trace is for another snippet');
+  assert.equal(bindCase({ id: 'q-one' }, 'main', trace, file), null, 'no case: fail closed');
 });
 
-test('every shipped trace binds to its question case', () => {
+test('stdinMatches compares the SHA-256 of stdin', async () => {
+  const stdin = 'héllo\n';
+  const good = createHash('sha256').update(stdin).digest('hex');
+  assert.equal(await stdinMatches({ stdin, stdin_sha256: good }), true);
+  assert.equal(await stdinMatches({ stdin, stdin_sha256: good.replace(/^./, 'f') }), false);
+  assert.equal(await stdinMatches({ stdin, stdin_sha256: good }, async () => null), false, 'no WebCrypto: fail closed');
+});
+
+test('every shipped 0.2 trace binds to its question case and its stdin hash', async () => {
   for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
     const file = JSON.parse(readFileSync(dir + f, 'utf8'));
     const q = JSON.parse(readFileSync(qdir + f, 'utf8'));
-    assert.equal(file.question_id, q.id);
-    for (const t of file.traces) assert.ok(bindCase(q, t.snippet_id, t), `${f}: ${t.snippet_id}`);
+    assert.equal(file.schema_version, '0.2', f);
+    for (const t of file.traces) {
+      assert.ok(bindCase(q, t.snippet_id, t, file), `${f}: ${t.snippet_id}`);
+      assert.equal(await stdinMatches(t), true, `${f}: stdin hash`);
+      if (t.truncated) assert.equal(t.truncated_at_step, t.steps.length, f);
+    }
   }
 });
 
@@ -99,4 +114,21 @@ test('the corpus has the three ending kinds the player must show honestly', () =
     }
   }
   assert.ok(kinds.has('escaping') && kinds.has('event'), [...kinds].join());
+});
+
+test('usableTraces: the real path rejects bad envelopes and malformed traces without throwing', async () => {
+  const q = JSON.parse(readFileSync(qdir + 'm1-negative-index-guard.json', 'utf8'));
+  const good = JSON.parse(readFileSync(dir + 'm1-negative-index-guard.json', 'utf8'));
+  assert.equal((await usableTraces(q, good)).length, 1);
+  assert.equal((await usableTraces(q, { ...good, schema_version: '0.1' })).length, 0);
+  assert.equal((await usableTraces(q, { ...good, schema_version: '9.9', traces: [{ snippet_id: 'main' }] })).length, 0, 'unknown version without steps');
+  assert.equal((await usableTraces(q, { ...good, question_id: 'other-question' })).length, 0);
+  assert.equal((await usableTraces(q, { ...good, traces: [{ ...good.traces[0], steps: undefined }] })).length, 0, 'missing steps');
+  assert.equal((await usableTraces(q, { ...good, traces: [{ ...good.traces[0], steps: [] }] })).length, 0, 'empty steps');
+  assert.equal((await usableTraces(q, { ...good, traces: 'nope' })).length, 0);
+  assert.equal((await usableTraces(q, null)).length, 0);
+  assert.equal((await usableTraces(q, good, async () => null)).length, 0, 'no WebCrypto: fail closed');
+  assert.equal(validEnvelope(good, q.id), true);
+  const cut = { ...good.traces[0], truncated: true, truncated_at_step: good.traces[0].steps.length + 1 };
+  assert.equal((await usableTraces(q, { ...good, traces: [cut] })).length, 0, 'truncated_at_step must equal the step count');
 });

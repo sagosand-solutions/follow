@@ -1,12 +1,14 @@
 {
   "question_id": "py-generator-error-lifecycle",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "explicit-resumption",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "35a914b0dd2ff286ab347792820ec739d0cc8eba6355c7dfb867e3e125bf9285",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "1\n['closed', 'caught']\ndone\n",
       "steps": [
         {
@@ -84,7 +86,7 @@
         },
         {
           "depth": 1,
-          "event": "return",
+          "event": "yield",
           "function": "steps",
           "line": 5,
           "locals": {},
@@ -117,7 +119,7 @@
         },
         {
           "depth": 1,
-          "event": "call",
+          "event": "resume",
           "function": "steps",
           "line": 5,
           "locals": {},
@@ -154,12 +156,16 @@
         },
         {
           "depth": 1,
-          "event": "return",
+          "event": "unwind",
+          "exception": {
+            "line": 6,
+            "message": "bad",
+            "type": "ValueError"
+          },
           "function": "steps",
           "line": 9,
           "locals": {},
-          "stdout_len": 2,
-          "value": "None"
+          "stdout_len": 2
         },
         {
           "depth": 0,
