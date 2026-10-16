@@ -64,7 +64,7 @@ marked optional.
 | `type` | string | One of `output`, `crashing-input`, `remove-line`, `equivalence`, `complexity`, `ai-review`. |
 | `level` | string | One of `beginner`, `intermediate`, `advanced`. |
 | `difficulty` | number | Author's relative estimate in `0..1` (0 easiest). Not a calibrated probability. |
-| `concepts` | array | Nonempty, unique concept IDs, each matching `^py\.[a-z][a-z0-9-]*$`. |
+| `concepts` | array | Nonempty, unique concept IDs, each matching `^(py\|prod)\.[a-z][a-z0-9-]*$`. |
 | `prompt` | string | Nonempty plain text. States all assumptions and the actual question. |
 | `snippets` | array | Nonempty array of Snippet objects. The first snippet is the primary displayed code. |
 | `options` | array | 5 to 8 Option objects. |
@@ -203,8 +203,11 @@ are.
 
 ### Adding a concept or misconception
 
-1. Choose an ID matching `^py\.[a-z][a-z0-9-]*$` (lowercase, dot-namespaced,
-   hyphen-separated).
+1. Choose an ID matching `^(py|prod)\.[a-z][a-z0-9-]*$` (lowercase, dot-namespaced,
+   hyphen-separated). `py.` is the Python course; `prod.` is the production-code
+   course. The pattern is the same in all five schemas that carry concept IDs
+   (question, concept-map, study, study-manifest, exam). No other prefix is
+   accepted; a new course adds its own prefix by a schema change of its own.
 2. Add the entry to `concepts/python-v0.json` with a title, a level and its
    prerequisites (or `concepts` and `description` for a misconception).
 3. Make sure the change is acyclic and that no concept depends on a higher
