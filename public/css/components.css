@@ -351,3 +351,6 @@
 .sp-end { padding: var(--s-2) var(--s-3); border-inline-start: 4px solid var(--stage-mark-edge); background: var(--stage-mark); color: var(--stage-ink); font-weight: 600; }
 .sp-end[hidden] { display: none; }
 .sp-input { color: var(--stage-muted); }
+
+.lesson-link__summary { grid-column: 1 / -1; color: var(--muted); font-size: var(--text-sm); }
+.lesson-summary { max-width: 40rem; }

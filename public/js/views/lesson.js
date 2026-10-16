@@ -49,7 +49,7 @@ export async function lessonView({ id }) {
     ),
   );
 
-  const parts = [h('div', { class: 'course-head' }, h('p', { class: 'kicker' }, `${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
+  const parts = [h('div', { class: 'course-head' }, h('p', { class: 'kicker' }, `${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), lesson.summary ? h('p', { class: 'lead lesson-summary' }, lesson.summary) : null, cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
 
   if (questions && answered.length === lesson.questions.length) {
     const full = answered.filter((a) => a.outcome === 'answered' && a.score === 1).length;

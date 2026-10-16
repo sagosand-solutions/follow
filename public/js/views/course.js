@@ -40,6 +40,7 @@ export async function courseView() {
               { class: 'lesson-link', href: `#/lesson/${lesson.id}` },
               h('span', { class: 'lesson-link__title' }, lesson.title),
               h('span', { class: 'lesson-link__status' }, status),
+              lesson.summary ? h('span', { class: 'lesson-link__summary' }, lesson.summary) : null,
               cells(lesson.questions, nextId),
               h('span', { class: 'visually-hidden' }, summaryText(lesson.questions)),
             ),
