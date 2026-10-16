@@ -1,12 +1,14 @@
 {
   "question_id": "py-remove-loop-reset",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "original-output",
       "exception": null,
       "snippet_id": "original",
       "source_sha256": "67d75f0e8487b82550394c7983bfac74498a9a1d99bb1d98d750d341fa2c03ae",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "3\n",
       "steps": [
         {
@@ -183,10 +185,12 @@
       "truncated": false
     },
     {
+      "case_id": "removed-output",
       "exception": null,
       "snippet_id": "reset-removed",
       "source_sha256": "1c55613371630a27d0880ebb62fe7786a6d28c1aa2ac5f9b9e89ec2cbd6f862a",
-      "stdin_case": 1,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "4\n",
       "steps": [
         {

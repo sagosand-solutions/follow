@@ -1,12 +1,14 @@
 {
   "question_id": "py-list-last-boundary",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "last-from-end",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "ecadb87358d0bd3f4148b8626f9de1914660ac37f3a24498d37a1c75212ef709",
-      "stdin_case": 0,
+      "stdin": "-1\n",
+      "stdin_sha256": "ee3aa64bb94a50845d5024cd4bd20202a4567aed5cd5328c0d97e9920775fc28",
       "stdout": "green\n",
       "steps": [
         {

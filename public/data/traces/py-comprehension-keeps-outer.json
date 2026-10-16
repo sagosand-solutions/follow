@@ -1,12 +1,14 @@
 {
   "question_id": "py-comprehension-keeps-outer",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "outer-and-squares",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "eaeda7cce3ea1948a4397bf641e876c3a1934c274cc06ad57d8cbe0ea6e395b0",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "7 [0, 1, 4]\n",
       "steps": [
         {

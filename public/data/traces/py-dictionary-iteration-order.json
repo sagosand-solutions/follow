@@ -1,12 +1,14 @@
 {
   "question_id": "py-dictionary-iteration-order",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "keys-and-order",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "baa5717f8c49536ad5511d8bd7f133f74f1791c559bc20effa500a6c7b8cbc1c",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "['blue', 'red']\n",
       "steps": [
         {

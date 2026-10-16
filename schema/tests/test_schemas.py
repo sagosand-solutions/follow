@@ -1,11 +1,11 @@
-"""Contract tests for the question and concept-map schemas.
+"""Contract tests for question, concept-map and trace schemas.
 
 Run from the repository root::
 
     pip install 'jsonschema>=4.18,<5'
     python3 -m unittest discover -s schema/tests -v
 
-The suite validates both schemas, checks the seed concept map and the example
+The suite validates the schemas, checks the seed concept map and the example
 question, checks referential integrity of the seed map, executes the example
 snippet and confirms that a broad set of mutated inputs is rejected. A few tests
 deliberately show cases that JSON Schema does not decide; those belong to the
@@ -25,6 +25,7 @@ SCHEMA_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = SCHEMA_DIR.parent
 QUESTION_SCHEMA_PATH = SCHEMA_DIR / "question.schema.json"
 MAP_SCHEMA_PATH = SCHEMA_DIR / "concept-map.schema.json"
+TRACE_SCHEMA_PATH = SCHEMA_DIR / "trace.schema.json"
 CONCEPTS_PATH = SCHEMA_DIR / "concepts" / "python-v0.json"
 EXAMPLE_PATH = REPO_ROOT / "content" / "examples" / "independent-if.json"
 
@@ -95,6 +96,9 @@ class TestSchemaSelfValidation(unittest.TestCase):
 
     def test_map_schema_is_valid(self):
         build_validator(MAP_SCHEMA_PATH)
+
+    def test_trace_schema_is_valid(self):
+        build_validator(TRACE_SCHEMA_PATH)
 
     def test_schemas_are_self_contained(self):
         def collect_refs(node, found):

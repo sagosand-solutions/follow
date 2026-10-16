@@ -1,12 +1,14 @@
 {
   "question_id": "m1-list-iadd-equivalence",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "original-output",
       "exception": null,
       "snippet_id": "original",
       "source_sha256": "0ef86d50d8c510fda816bdf6073dd1df7c6047683dcb80edd513dbe3636b2419",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[2, 4, 6] [2, 4]\n",
       "steps": [
         {
@@ -73,10 +75,12 @@
       "truncated": false
     },
     {
+      "case_id": "rewrite-output",
       "exception": null,
       "snippet_id": "rewrite",
       "source_sha256": "6712e3a2a06e6e4bb3113c6b9a8791cf19b1cf48b9bffcd071d1b0bf4bc65a37",
-      "stdin_case": 1,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[2, 4, 6] [2, 4, 6]\n",
       "steps": [
         {

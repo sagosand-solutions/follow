@@ -1,12 +1,14 @@
 {
   "question_id": "py-shared-default-ai-review",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "fresh-script",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "2ad59197d34166a3f175e6f8ebfd5b69a3877dc8d9d668ef89150537a470a17d",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "['red']\n['red', 'blue']\n",
       "steps": [
         {

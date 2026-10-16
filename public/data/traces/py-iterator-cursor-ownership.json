@@ -1,12 +1,14 @@
 {
   "question_id": "py-iterator-cursor-ownership",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "shared-versus-fresh-cursor",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "4d40d5b5da30f4c7b875386cd9da9059f562467e93df63d21e4a027cfd81acc5",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "10 20 10\n",
       "steps": [
         {

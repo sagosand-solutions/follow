@@ -43,7 +43,7 @@ class TraceTests(unittest.TestCase):
         (self.root / "public/data/questions").mkdir(parents=True)
         self.qpath = self.root / "public/data/questions/test-question.json"
         self.q = {"id": "test-question", "snippets": [{"id": "main", "code": "print(3)"}],
-                  "verification": {"cases": [{"snippet_id": "main", "stdin": "",
+                  "verification": {"cases": [{"id": "case", "snippet_id": "main", "stdin": "",
                                                 "expected": {"stdout": "3\n"}}]}}
         self.write(self.qpath, self.q)
 
@@ -77,13 +77,93 @@ class TraceTests(unittest.TestCase):
         recursive = self.trace_one("def f(n):\n    if n: return f(n - 1)\n    return n\nf(3)")
         self.assertGreater(max(step["depth"] for step in recursive["steps"]), 0)
 
+    def test_generator_first_entry_resume_and_two_yields(self):
+        record = self.trace_one("def g():\n    yield 'one'\n    yield 'two'\n\nit = g()\nnext(it)\nnext(it)")
+        events = [step["event"] for step in record["steps"] if step["function"] == "g"]
+        self.assertEqual(events, ["call", "line", "yield", "resume", "line", "yield"])
+
+    def test_yield_from_and_send_resume_frames(self):
+        source = (
+            "def source():\n    value = yield 'ready'\n    yield value\n"
+            "def delegate():\n    yield from source()\n"
+            "worker = delegate()\nnext(worker)\nworker.send(7)"
+        )
+        record = self.trace_one(source)
+        events = [(step["function"], step["event"]) for step in record["steps"]]
+        self.assertIn(("delegate", "call"), events)
+        self.assertIn(("delegate", "yield"), events)
+        self.assertIn(("delegate", "resume"), events)
+        self.assertIn(("source", "call"), events)
+        self.assertIn(("source", "yield"), events)
+        self.assertIn(("source", "resume"), events)
+        self.assertEqual(record["exception"], None)
+
+    def test_trace_generation_requires_a_case_for_each_snippet(self):
+        question = json.loads(json.dumps(self.q))
+        question["verification"]["cases"][0]["snippet_id"] = "other"
+
+        class PoisonRunner:
+            def run(self, *args):
+                raise AssertionError("trace ran without a matching verification case")
+
+        with self.assertRaisesRegex(RuntimeError, "no verification case"):
+            trace._trace_question(question, self.qpath, PoisonRunner())
+
+    def test_generator_send_question_has_one_resume(self):
+        path = core.ROOT / "public/data/questions/py-generator-send-roundtrip.json"
+        question = json.loads(path.read_text(encoding="utf-8"))
+        record = trace._trace_question(question, path, LocalTestRunner())["traces"][0]
+        events = [step["event"] for step in record["steps"] if step["function"] == "scale"]
+        self.assertEqual(events.count("call"), 1)
+        self.assertEqual(events.count("yield"), 2)
+        self.assertEqual(events.count("resume"), 1)
+        self.assertEqual(events.count("return"), 0)
+        self.assertEqual(record["case_id"], "prime-send-and-receive")
+        self.assertEqual(record["stdin"], "")
+        self.assertEqual(record["stdin_sha256"], hashlib.sha256(b"").hexdigest())
+
+    def test_finally_unwind_and_caught_or_suppressed_exceptions(self):
+        escaping = self.trace_one(
+            "def f():\n    try:\n        raise ValueError('x')\n    finally:\n        marker = 1\nf()"
+        )
+        f_events = [step for step in escaping["steps"] if step["function"] == "f"]
+        exception_index = next(i for i, step in enumerate(f_events) if step["event"] == "exception")
+        self.assertEqual(f_events[exception_index + 1]["event"], "line")
+        self.assertEqual(f_events[-1]["event"], "unwind")
+        self.assertEqual(f_events[-1]["exception"]["type"], "ValueError")
+        self.assertEqual(escaping["exception"]["type"], "ValueError")
+
+        nested = self.trace_one(
+            "def inner():\n    raise ValueError('x')\ndef outer():\n    inner()\nouter()"
+        )
+        unwrapped = [step for step in nested["steps"] if step["event"] == "unwind"]
+        self.assertEqual(sum(step["function"] == "inner" for step in unwrapped), 1)
+        self.assertEqual(sum(step["function"] == "outer" for step in unwrapped), 1)
+
+        caught = self.trace_one(
+            "def f():\n    try:\n        raise ValueError('x')\n    except ValueError:\n        pass\n    return None\nf()"
+        )
+        caught_f = [step for step in caught["steps"] if step["function"] == "f"]
+        self.assertEqual(caught_f[-1]["event"], "return")
+        self.assertEqual(caught_f[-1]["value"], "None")
+        self.assertNotIn("unwind", [step["event"] for step in caught_f])
+
+        suppressed = self.trace_one(
+            "def f():\n    try:\n        raise ValueError('x')\n    finally:\n        return None\nf()"
+        )
+        suppressed_f = [step for step in suppressed["steps"] if step["function"] == "f"]
+        self.assertEqual(suppressed_f[-1]["event"], "return")
+        self.assertEqual(suppressed_f[-1]["value"], "None")
+        self.assertEqual(suppressed["exception"], None)
+
     def test_step_cap_and_determinism(self):
         source = "while True:\n    pass"
         one = self.trace_one(source)
         two = self.trace_one(source)
         self.assertTrue(one["truncated"])
         self.assertEqual(len(one["steps"]), 300)
-        payload = {"schema_version": "0.1", "question_id": "test-question", "traces": [one]}
+        self.assertEqual(one["truncated_at_step"], 300)
+        payload = {"schema_version": "0.2", "question_id": "test-question", "traces": [one]}
         self.assertEqual(trace._serialize(payload), trace._serialize({**payload, "traces": [two]}))
         try:
             import jsonschema  # noqa: F401
@@ -105,6 +185,13 @@ class TraceTests(unittest.TestCase):
         lines = [step for step in record["steps"] if step["event"] == "line"]
         self.assertEqual([step["stdout_len"] for step in lines], [0, 2])
 
+    def test_stdout_len_counts_unicode_code_points(self):
+        record = self.trace_one("print('😀x')\nprint('z')")
+        self.assertEqual(record["stdout"], "😀x\nz\n")
+        lines = [step for step in record["steps"] if step["event"] == "line"]
+        self.assertEqual([step["stdout_len"] for step in lines], [0, 3])
+        self.assertEqual(record["steps"][-1]["stdout_len"], 5)
+
     def test_generation_requires_explicit_trust_and_check_never_runs(self):
         with redirect_stdout(io.StringIO()) as output:
             self.assertEqual(trace.main(["--root", str(self.root)], runner=LocalTestRunner()), 2)
@@ -121,16 +208,26 @@ class TraceTests(unittest.TestCase):
         value = json.loads((self.root / "public/data/traces/test-question.json").read_text())
         self.assertEqual(value["traces"][0]["source_sha256"], hashlib.sha256(b"print(3)").hexdigest())
 
-    def test_check_detects_changed_missing_and_orphan(self):
+    def test_check_detects_changed_source_case_stdin_missing_and_orphan(self):
         output = self.root / "public/data/traces/test-question.json"
         output.parent.mkdir(parents=True)
-        self.write(output, {"question_id": "test-question", "traces": [{"snippet_id": "main",
-                    "source_sha256": hashlib.sha256(b"print(3)").hexdigest()}]})
+        generated = trace._trace_question(self.q, self.qpath, LocalTestRunner())
+        self.write(output, generated)
         self.assertEqual(trace._check(self.root, [self.qpath]), 0)
+
         self.q["snippets"][0]["code"] = "print(4)"
         self.write(self.qpath, self.q)
         self.assertEqual(trace._check(self.root, [self.qpath]), 1)
         self.q["snippets"][0]["code"] = "print(3)"
+        self.q["verification"]["cases"][0]["id"] = "renamed-case"
+        self.write(self.qpath, self.q)
+        self.assertEqual(trace._check(self.root, [self.qpath]), 1)
+        self.q["verification"]["cases"][0]["id"] = "case"
+        self.q["verification"]["cases"][0]["stdin"] = "changed input"
+        self.write(self.qpath, self.q)
+        self.assertEqual(trace._check(self.root, [self.qpath]), 1)
+
+        self.q["verification"]["cases"][0]["stdin"] = ""
         self.write(self.qpath, self.q)
         output.unlink()
         self.assertEqual(trace._check(self.root, [self.qpath]), 1)

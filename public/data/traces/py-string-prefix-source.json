@@ -1,12 +1,14 @@
 {
   "question_id": "py-string-prefix-source",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "prefix-and-source",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "d941a4cab676e8b928394c16f6f262637302c0e681202afe020b8b95a31c35b9",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "sun sunflower\n",
       "steps": [
         {

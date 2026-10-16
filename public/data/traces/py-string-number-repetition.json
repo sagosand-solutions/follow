@@ -1,12 +1,14 @@
 {
   "question_id": "py-string-number-repetition",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "string-repetition",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "4f59edaf6f1b77f65c7cf52119bad86f41ed98b866b4364876ce44ac9873df37",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "33\n",
       "steps": [
         {

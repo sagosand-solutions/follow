@@ -1,12 +1,14 @@
 {
   "question_id": "py-geometric-halving-work",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "power-of-two-example",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "dd72a32d384fcf59dd7164be06b6dda9fcddccef894eac1699ad2b0c584e46f4",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "15\n",
       "steps": [
         {
