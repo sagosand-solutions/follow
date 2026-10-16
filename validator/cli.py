@@ -3,7 +3,8 @@ import argparse
 import json
 import sys
 
-from .core import ContentError, ROOT, SetupError, load_json, validate_map, validate_question
+from .core import (ContentError, InputLimitError, QuestionBudget, ROOT, SetupError,
+                   check_question_count, load_json, validate_map, validate_question)
 from .runner import TrustedLocalRunner, verify_question
 
 
@@ -36,6 +37,9 @@ def main(argv=None, *, runner=None):
         json_output = args.format == "json"
         if args.verify:
             report["execution"] = "unavailable"
+        check_question_count(len(args.files), args.files[0])
+        budget = QuestionBudget()
+        if args.verify:
             if args.runner != "trusted-local" or not args.allow_trusted_code:
                 add("runner-unavailable", "", "Verification requires --runner trusted-local --allow-trusted-code; never use for untrusted contributions")
                 exit_code = 2
@@ -59,7 +63,7 @@ def main(argv=None, *, runner=None):
         loaded, ids = [], set()
         for filename in args.files:
             try:
-                question = load_json(filename)
+                question = load_json(filename, budget=budget)
                 report["questions"] += 1
                 issues = [] if map_issues else validate_question(question, map_data)
                 for issue in issues:
@@ -72,6 +76,11 @@ def main(argv=None, *, runner=None):
                         exit_code = max(exit_code, 1)
                     ids.add(question["id"])
                     loaded.append((filename, question))
+            except InputLimitError as exc:
+                add("input-limit", "", str(exc), exc.file)
+                exit_code = max(exit_code, 1)
+                if budget.exhausted:
+                    break
             except ContentError as exc:
                 add("json", "", str(exc), filename)
                 exit_code = max(exit_code, 1)
@@ -95,6 +104,9 @@ def main(argv=None, *, runner=None):
                     if report["execution"] != "unavailable":
                         report["execution"] = "unavailable" if infrastructure else "failed"
                     exit_code = max(exit_code, 2 if infrastructure else 1)
+    except InputLimitError as exc:
+        add("input-limit", "", str(exc), exc.file)
+        exit_code = max(exit_code, 1)
     except ContentError as exc:
         add("json", "", str(exc))
         exit_code = max(exit_code, 1)

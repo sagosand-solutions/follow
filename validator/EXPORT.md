@@ -31,6 +31,12 @@ All paths below are relative to that root:
 - `public/data/questions/*.json`
 - `public/data/courses/python.json`
 
+[Shared input bounds](INPUT_LIMITS.md) apply: 256 KiB per JSON file, 512 question
+entries, 16 MiB actual question bytes and 32 nested containers. Directory scanning
+stops at the first over-limit matching entry, without materializing an unbounded
+glob. Limit failures are `input-limit` / exit 1 and never replace outputs.
+Generated payloads/comparison reads also respect the per-file byte cap.
+
 Strict JSON loading rejects duplicate keys and nonfinite numbers. Schemas are
 local, with no network retrieval. Core structural and semantic validators check
 the map and every question. The optional `schema_dir` keyword on

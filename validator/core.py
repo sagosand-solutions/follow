@@ -8,6 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_DIR = ROOT / "schema"
 
+# Reviewed code policy, never question-controlled and without CLI overrides.
+MAX_JSON_BYTES = 262144
+MAX_QUESTION_FILES = 512
+MAX_QUESTION_BYTES = 16777216
+MAX_JSON_DEPTH = 32
+
 
 class SetupError(Exception):
     """Local dependency, schema or input could not be loaded."""
@@ -15,6 +21,78 @@ class SetupError(Exception):
 
 class ContentError(ValueError):
     """Input is not strict JSON."""
+
+
+class InputLimitError(ContentError):
+    """A file input exceeds the reviewed static processing policy."""
+
+    def __init__(self, path, message):
+        self.file = str(path)
+        super().__init__(f"{path}: {message}")
+
+
+def check_question_count(count, path):
+    if count > MAX_QUESTION_FILES:
+        raise InputLimitError(path, f"question-count: {count} inputs exceeds {MAX_QUESTION_FILES}; duplicates count")
+
+
+@dataclass
+class QuestionBudget:
+    """Actual question bytes read in one invocation, including repeated files."""
+    bytes_read: int = 0
+
+    @property
+    def exhausted(self):
+        return self.bytes_read > MAX_QUESTION_BYTES
+
+    def consume(self, size, path):
+        self.bytes_read += size
+        if self.exhausted:
+            raise InputLimitError(path, f"question-bytes: {self.bytes_read} actual bytes exceeds {MAX_QUESTION_BYTES} per invocation")
+
+
+def check_json_size(size, path, *, context="JSON input"):
+    if size > MAX_JSON_BYTES:
+        raise InputLimitError(path, f"file-bytes: {context} exceeds {MAX_JSON_BYTES} bytes per JSON file")
+
+
+def read_json_bytes(path, *, budget=None):
+    """Read no more than the file cap plus one byte, without buffered prefetch."""
+    raw = bytearray()
+    try:
+        with Path(path).open("rb", buffering=0) as stream:
+            while len(raw) <= MAX_JSON_BYTES:
+                chunk = stream.read(MAX_JSON_BYTES + 1 - len(raw))
+                if not chunk:
+                    break
+                if budget is not None:
+                    budget.consume(len(chunk), path)
+                raw.extend(chunk)
+    except OSError as exc:
+        raise SetupError(f"{path}: cannot read UTF-8 JSON: {exc}") from exc
+    check_json_size(len(raw), path)
+    return bytes(raw)
+
+
+def _check_depth(text, path):
+    # Lexical preflight only: stdlib still validates the complete JSON grammar.
+    depth, quoted, escaped = 0, False, False
+    for character in text:
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+        elif character == '"':
+            quoted = True
+        elif character in "[{":
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise InputLimitError(path, f"json-depth: more than {MAX_JSON_DEPTH} nested containers; root container is depth 1")
+        elif character in "]}":
+            depth = max(0, depth - 1)
 
 
 @dataclass(frozen=True)
@@ -27,7 +105,7 @@ class Issue:
         return asdict(self)
 
 
-def load_json(path):
+def load_json(path, *, budget=None):
     def pairs(items):
         result = {}
         for key, value in items:
@@ -45,13 +123,17 @@ def load_json(path):
             raise ValueError(f"nonfinite number {value}")
         return result
 
+    raw = read_json_bytes(path, budget=budget)
     try:
-        text = Path(path).read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
+        text = raw.decode("utf-8")
+    except UnicodeError as exc:
         raise SetupError(f"{path}: cannot read UTF-8 JSON: {exc}") from exc
+    _check_depth(text, path)
     try:
         return json.loads(text, object_pairs_hook=pairs, parse_constant=constant,
                           parse_float=number)
+    except (RecursionError, MemoryError) as exc:
+        raise InputLimitError(path, f"json-parser-resource: {type(exc).__name__}; reduce JSON input complexity") from exc
     except json.JSONDecodeError as exc:
         raise ContentError(f"{path}:{exc.lineno}:{exc.colno}: {exc.msg}") from exc
     except ValueError as exc:
@@ -80,7 +162,7 @@ def _schema(data, name, *, schema_dir=None):
         # No retrieval callback: even malicious remote references cannot fetch a URL.
         validator = Draft202012Validator(schema, registry=Registry())
         errors = list(validator.iter_errors(data))
-    except SetupError:
+    except (SetupError, InputLimitError):
         raise
     except Exception as exc:
         raise SetupError(f"{path}: invalid or unresolved local schema: {exc}") from exc
