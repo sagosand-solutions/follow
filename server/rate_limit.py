@@ -34,6 +34,8 @@ class EmailStartLimiter:
         normalized_email = unicodedata.normalize("NFC", email).casefold()
         try:
             address = ipaddress.ip_address(ip)
+            if address.version == 6 and address.ipv4_mapped is not None:
+                address = address.ipv4_mapped
             if address.version == 6:
                 network = ipaddress.ip_network(f"{address}/64", strict=False)
                 normalized_ip = f"{network.network_address.compressed}/64"

@@ -31,6 +31,24 @@ class EmailStartLimiterTests(unittest.TestCase):
         self.assertEqual(limiter.consume("b@two.test", "2001:db8:abcd:12::2")[0], True)
         self.assertEqual(limiter.consume("c@three.test", "2001:db8:abcd:12::ffff")[0], False)
 
+    def test_ipv4_mapped_ipv6_clients_receive_independent_ip_quotas(self):
+        now = [100.0]
+        limiter = EmailStartLimiter(b"secret" * 8, clock=lambda: now[0], per_email=100, per_ip=3)
+        for client in range(1, 7):
+            address = f"::ffff:198.51.100.{client}"
+            for attempt in range(3):
+                allowed, _ = limiter.consume(f"client{client}-{attempt}@example.test", address)
+                self.assertTrue(allowed, (client, attempt))
+            allowed, _ = limiter.consume(f"client{client}-blocked@example.test", address)
+            self.assertFalse(allowed, client)
+
+    def test_ipv4_mapped_address_shares_native_ipv4_quota(self):
+        now = [100.0]
+        limiter = EmailStartLimiter(b"secret" * 8, clock=lambda: now[0], per_email=100, per_ip=2)
+        self.assertEqual(limiter.consume("one@example.test", "::ffff:198.51.100.7"), (True, 0))
+        self.assertEqual(limiter.consume("two@example.test", "198.51.100.7"), (True, 0))
+        self.assertEqual(limiter.consume("three@example.test", "::ffff:198.51.100.7")[0], False)
+
     def test_ip_limit_and_lru_capacity_are_bounded(self):
         now = [10.0]
         limiter = EmailStartLimiter(b"secret" * 8, clock=lambda: now[0], per_email=9, per_ip=2, max_keys=2)
