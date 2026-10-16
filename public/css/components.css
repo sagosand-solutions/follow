@@ -413,3 +413,11 @@
 }
 .map--compact .map__count { font-weight: 700; }
 @media (forced-colors: active) { .lesson-card__link { border: 1px solid ButtonText; } }
+
+/* === home: facts and shortcuts for new visitors === */
+.hero__facts { color: var(--ink); font-size: var(--text-sm); font-weight: 600; max-width: 34rem; }
+.hero__shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); color: var(--muted); font-size: var(--text-sm); }
+.hero__shortcuts > span { font-weight: 700; margin-inline-end: var(--s-1); }
+.hero__shortcuts a { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--s-4); border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--ink); font-weight: 600; text-decoration: none; }
+.hero__shortcuts a:hover { background: var(--surface-2); }
+@media (forced-colors: active) { .hero__shortcuts a { border: 1px solid ButtonText; } }

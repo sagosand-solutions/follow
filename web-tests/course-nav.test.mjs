@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nextUp, nextLesson, buildsOnThis, hasProgress } from '../public/js/course-nav.js';
+import { nextUp, nextLesson, buildsOnThis, hasProgress, homeHintKey } from '../public/js/course-nav.js';
 
 const course = {
   id: 'c',
@@ -124,4 +124,19 @@ test('read state: none, some, all', async () => {
   assert.equal(readState(0, 5), 'none');
   assert.equal(readState(3, 5), 'some');
   assert.equal(readState(5, 5), 'all');
+});
+
+test('home shortcuts: only existing lessons, in order; none when absent', async () => {
+  const { homeShortcuts, homeHintKey } = await import('../public/js/course-nav.js');
+  const c = { levels: [{ lessons: [{ id: 'generators', title: 'G' }, { id: 'lists-and-mutation', title: 'L' }] }] };
+  assert.deepEqual(homeShortcuts(c), [{ id: 'lists-and-mutation', title: 'L' }, { id: 'generators', title: 'G' }]);
+  assert.deepEqual(homeShortcuts({ levels: [{ lessons: [{ id: 'x', title: 'X' }] }] }), []);
+  assert.deepEqual(homeShortcuts(null), []);
+});
+
+test('homeHintKey never promises saving in memory mode and keeps the draft notice', () => {
+  assert.equal(homeHintKey({ hasProgress: false, persistent: true }), 'home.hint.draft');
+  assert.equal(homeHintKey({ hasProgress: false, persistent: false }), 'home.hint.draft');
+  assert.equal(homeHintKey({ hasProgress: true, persistent: true }), 'home.hint.saved');
+  assert.equal(homeHintKey({ hasProgress: true, persistent: false }), 'home.hint.memory');
 });

@@ -114,3 +114,19 @@ export function readState(answered, total) {
   if (!answered) return 'none';
   return answered >= total ? 'all' : 'some';
 }
+
+// Home page shortcuts for visitors without progress: only lessons that exist in the course, in the given order.
+// The quiet line under the home buttons. It never promises saving when progress is only held in memory, and a first
+// visit gets only the draft notice because the facts row already says where progress lives.
+export function homeHintKey({ hasProgress, persistent }) {
+  if (!hasProgress) return 'home.hint.draft';
+  return persistent ? 'home.hint.saved' : 'home.hint.memory';
+}
+
+export const HOME_SHORTCUT_IDS = ['lists-and-mutation', 'functions-and-scope', 'generators'];
+
+export function homeShortcuts(course, ids = HOME_SHORTCUT_IDS) {
+  const titles = new Map();
+  for (const level of (course && course.levels) || []) for (const l of level.lessons) titles.set(l.id, l.title);
+  return ids.filter((id) => titles.has(id)).map((id) => ({ id, title: titles.get(id) }));
+}
