@@ -6,6 +6,7 @@ import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
+import { nextUp, hasProgress } from '../course-nav.js';
 
 export async function courseView() {
   let course;
@@ -18,8 +19,9 @@ export async function courseView() {
   const lessonTitles = new Map();
   for (const level of course.levels) for (const l of level.lessons) lessonTitles.set(l.id, l.title);
 
-  const allIds = course.levels.flatMap((level) => level.lessons.flatMap((l) => l.questions));
-  const nextId = allIds.find((id) => !store.latest(id));
+  const records = store.answers();
+  const target = hasProgress(course, records) ? nextUp(course, records) : null;
+  const nextId = target ? target.questionId : null;
 
   const levels = course.levels.map((level) =>
     h(
@@ -60,7 +62,10 @@ export async function courseView() {
     const result = store.importJson(await file.text());
     message.textContent = result.ok ? (result.imported ? t('course.import.ok', { count: result.imported }) : t('course.import.none')) : t(`course.import.error.${result.error}`);
     fileInput.value = '';
-    if (result.ok && result.imported) refresh();
+    if (result.ok && result.imported) {
+      refresh();
+      document.dispatchEvent(new Event('progresschange'));
+    }
   });
 
   const dialog = h(
@@ -72,7 +77,7 @@ export async function courseView() {
       'div',
       { class: 'actions actions--row' },
       h('button', { type: 'button', class: 'button button--secondary', autofocus: true, onclick: () => dialog.close() }, t('course.reset.cancel')),
-      h('button', { type: 'button', class: 'button button--primary', onclick: () => { store.reset(); dialog.close(); refresh(); } }, t('course.reset.confirm')),
+      h('button', { type: 'button', class: 'button button--primary', onclick: () => { store.reset(); dialog.close(); refresh(); document.dispatchEvent(new Event('progresschange')); } }, t('course.reset.confirm')),
     ),
   );
 
@@ -107,8 +112,19 @@ export async function courseView() {
     dialog,
   );
 
+  const continueText = target ? t('course.continue.text', { lesson: target.lessonTitle, n: target.position, total: target.total }) : null;
+  const continueCard = target
+    ? h(
+        'section',
+        { class: 'continue-card' },
+        h('h2', {}, t('continue.title')),
+        h('p', {}, continueText),
+        h('a', { class: 'button button--primary', href: `#/q/${target.questionId}`, 'aria-label': continueText }, t('continue.title')),
+      )
+    : null;
+
   return {
     title: t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead'))), h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead'))), continueCard, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }

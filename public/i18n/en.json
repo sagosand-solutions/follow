@@ -107,6 +107,8 @@
   "course.reset.confirmText": "This removes all your answers from this browser. This cannot be undone. Export your progress first if you want to keep a copy.",
   "course.reset.confirm": "Remove my answers",
   "course.reset.cancel": "Cancel",
+  "continue.title": "Continue",
+  "course.continue.text": "Continue: {lesson}, question {n} of {total}",
   "level.beginner": "Beginner",
   "level.intermediate": "Intermediate",
   "level.advanced": "Advanced",
