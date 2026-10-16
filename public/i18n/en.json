@@ -197,5 +197,8 @@
   "step.varsAfter": "Variables and output, after this line ran",
   "step.varsBeforeEnd": "Variables, before this line (the recording ends here)",
   "step.printed": "Printed: {text}",
-  "q.nextHint": "or press Ctrl+Enter"
+  "q.nextHint": "or press Ctrl+Enter",
+  "step.callFrom": "Line {caller} calls {fn}. Now in {fn}, which starts at line {line}.",
+  "step.resumeFrom": "Line {caller} resumes {fn}. Now in {fn} at line {line}.",
+  "step.interrupted": "Line {line} did not finish: an exception left it. Execution continues at line {next}."
 }

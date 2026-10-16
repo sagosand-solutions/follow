@@ -7,11 +7,11 @@ import { t } from '../i18n.js';
 import { buildMoments, momentState, clampStep } from '../trace.js';
 import { setActiveLine } from './code-block.js';
 
-function describe(step) {
+function describe(step, moment = null) {
   const main = step.function === '<module>';
   switch (step.event) {
-    case 'call': return main ? t('step.start') : t('step.call', { fn: step.function, line: step.line });
-    case 'resume': return t('step.resume', { fn: step.function, line: step.line });
+    case 'call': return main ? t('step.start') : moment && moment.callerLine ? t('step.callFrom', { caller: moment.callerLine, fn: step.function, line: step.line }) : t('step.call', { fn: step.function, line: step.line });
+    case 'resume': return moment && moment.callerLine ? t('step.resumeFrom', { caller: moment.callerLine, fn: step.function, line: step.line }) : t('step.resume', { fn: step.function, line: step.line });
     case 'yield': return t('step.yield', { fn: step.function, value: step.value, line: step.line });
     case 'return': return main ? t('step.end', { line: step.line }) : t('step.return', { fn: step.function, value: step.value, line: step.line });
     case 'unwind': return t(main ? 'step.unwindMain' : 'step.unwind', { fn: step.function, type: step.exception.type, line: step.line });
@@ -68,7 +68,7 @@ export function createStepPlayer(traces) {
     first.disabled = index === 0;
     back.disabled = index === 0;
     next.disabled = index === moments.length - 1;
-    now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : describe(step);
+    now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : moment.kind === 'interrupted' ? t('step.interrupted', { line: step.line, next: moment.after.line }) : describe(step, moment);
     frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth });
     const rows = state.rows;
     varBody.replaceChildren(
