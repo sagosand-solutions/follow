@@ -28,6 +28,7 @@ grants no rights by itself. The public site export accepts only
 | `concept-map.schema.json` | JSON Schema (draft 2020-12) for the shared concept map. |
 | `concepts/python-v0.json` | Python concept map: 20 concepts and 122 misconceptions; the original 18 concepts and 106 misconceptions remain unchanged. |
 | `trace.schema.json` | JSON Schema (draft 2020-12) for precomputed trace schema 0.2. |
+| `trace-0.3.schema.json` | Trace schema 0.3 (opt-in): adds `frame_id`, `scope`, `globals` and omitted counts per step; 0.2 is unchanged. |
 | `tests/` | Standard-library `unittest` suite that validates the schemas, the vocabulary and an example question. |
 | `../content/examples/independent-if.json` | One illustrative question in this contract (CC BY-SA 4.0). |
 

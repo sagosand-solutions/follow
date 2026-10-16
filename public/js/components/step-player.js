@@ -70,7 +70,9 @@ export function createStepPlayer(traces) {
     next.disabled = index === moments.length - 1;
     now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : moment.kind === 'interrupted' ? t('step.interrupted', { line: step.line, next: moment.after.line }) : describe(step, moment);
     frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth });
-    const rows = state.rows;
+    // Format 0.3 module scope keeps its variables in `globals` (locals are empty there): show them in this table,
+    // so 0.3 plays without a false "No variables yet." The dedicated Globals view is the Designer's separate delivery.
+    const rows = state.scope === 'module' && state.globals ? state.globals : state.rows;
     varBody.replaceChildren(
       ...rows.map((r) =>
         h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))),

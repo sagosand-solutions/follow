@@ -24,6 +24,12 @@ TRACER_TEMPLATE = r'''import dis, inspect, io, json, re, reprlib, sys, types
 data = json.loads(sys.stdin.read())
 source = data["source"]
 snippet_stdin = data["stdin"]
+# Format 0.3 (explicit opt-in) adds frame_id/scope/globals; anything else is the unchanged 0.2 recording.
+V3 = data.get("format") == "0.3"
+MAX_NAMES = 40
+MAX_BYTES = 2048
+user_globals = {"__name__": "__main__"}
+frame_counter = [0]
 steps = []
 stdout_buffer = io.StringIO()
 # Hold frame objects, not id(frame): a paused frame stays distinguishable even if
@@ -55,6 +61,42 @@ def short(value):
     if text.endswith("..."):
         text = text[:-3] + "…"
     return text if len(text) <= 80 else text[:79] + "…"
+
+def data_value(value):
+    # Globals show data values only: user functions, classes and modules are noise.
+    if isinstance(value, (types.FunctionType, types.MethodType, type)):
+        return None
+    return short(value)
+
+def collect(items, render, budget):
+    """Deterministic prefix of (name, rendered) pairs within the name/byte budget; returns (dict, omitted)."""
+    chosen = {}
+    omitted = 0
+    full = False
+    for name, value in items:
+        if not isinstance(name, str) or not name.isidentifier():
+            continue
+        if name.startswith("__") and name.endswith("__"):
+            continue
+        try:
+            rendered = render(value)
+        except BaseException:
+            rendered = "<unavailable>"
+        if rendered is None:
+            continue
+        cost = len(name.encode("utf-8")) + len(rendered.encode("utf-8"))
+        if full or len(chosen) >= MAX_NAMES or cost > budget[0]:
+            full = True
+            omitted += 1
+            continue
+        chosen[name] = rendered
+        budget[0] -= cost
+    return chosen, omitted
+
+def scope_of(frame):
+    if frame.f_locals is user_globals:
+        return "module"
+    return "function" if frame.f_code.co_flags & inspect.CO_OPTIMIZED else "class"
 
 def instructions_for(code):
     cached = instruction_cache.get(code)
@@ -133,23 +175,41 @@ def tracer(frame, event, arg):
                 semantic_event = "unwind"
             else:
                 semantic_event = "return"
+    if V3:
+        # A deterministic counter, never a memory address: a call gets the next number, a resume keeps its own,
+        # and the state (with the frame object) is released on return/unwind below.
+        if state is None:
+            state = {}
+            frame_states[frame] = state
+        if "frame_id" not in state:
+            frame_counter[0] += 1
+            state["frame_id"] = frame_counter[0]
     if event in ("line", "call", "return", "exception"):
         record = {"line": max(1, frame.f_lineno), "event": semantic_event,
                   "depth": max(0, sum(1 for active in iter_frames(frame)
                                       if active.f_code.co_filename == "<snippet>") - 1),
                   "function": frame.f_code.co_name,
                   "locals": {}, "stdout_len": len(stdout_buffer.getvalue())}
-        for name, value in frame.f_locals.items():
-            if not name.isidentifier():
-                continue
-            if name.startswith("__") and name.endswith("__"):
-                continue
-            try:
-                rendered = short(value)
-            except BaseException:
-                rendered = "<unavailable>"
-            if rendered is not None:
-                record["locals"][name] = rendered
+        if V3:
+            scope = scope_of(frame)
+            budget = [MAX_BYTES]
+            own = [] if scope == "module" else list(frame.f_locals.items())
+            record["locals"], record["locals_omitted"] = collect(own, short, budget)
+            record["globals"], record["globals_omitted"] = collect(list(user_globals.items()), data_value, budget)
+            record["frame_id"] = state["frame_id"]
+            record["scope"] = scope
+        else:
+            for name, value in frame.f_locals.items():
+                if not name.isidentifier():
+                    continue
+                if name.startswith("__") and name.endswith("__"):
+                    continue
+                try:
+                    rendered = short(value)
+                except BaseException:
+                    rendered = "<unavailable>"
+                if rendered is not None:
+                    record["locals"][name] = rendered
         if semantic_event in ("return", "yield"):
             try:
                 record["value"] = short(arg) or "None"
@@ -179,7 +239,7 @@ try:
     sys.stdout = Tee()
     sys.settrace(tracer)
     try:
-        exec(code, {"__name__": "__main__"})
+        exec(code, user_globals)
     except TraceLimitReached:
         truncated = True
     except BaseException as exc:
@@ -215,7 +275,7 @@ def _question_paths(root, files):
     return paths
 
 
-def _trace_question(question, filename, runner):
+def _trace_question(question, filename, runner, version="0.2"):
     cases = question.get("verification", {}).get("cases", [])
     snippets = []
     for snippet in question.get("snippets", []):
@@ -230,7 +290,10 @@ def _trace_question(question, filename, runner):
         if not isinstance(snippet_stdin, str):
             raise RuntimeError(f"{filename} snippet {snippet['id']} case {case_id}: stdin is not a string")
         source = snippet["code"]
-        payload = json.dumps({"source": source, "stdin": snippet_stdin}, ensure_ascii=True)
+        request = {"source": source, "stdin": snippet_stdin}
+        if version == "0.3":
+            request["format"] = "0.3"
+        payload = json.dumps(request, ensure_ascii=True)
         result = runner.run(TRACER_TEMPLATE, payload, TRACE_LIMITS)
         if result.status != "completed" or result.exit_code != 0:
             raise RuntimeError(f"{filename} snippet {snippet['id']}: trace runner {result.status}: {result.stderr[:300]}")
@@ -251,7 +314,11 @@ def _trace_question(question, filename, runner):
                          "case_id": case_id, "stdin": snippet_stdin,
                          "stdin_sha256": hashlib.sha256(snippet_stdin.encode("utf-8")).hexdigest(),
                          **observed})
-    return {"schema_version": "0.2", "question_id": question["id"], "traces": snippets}
+    return {"schema_version": version, "question_id": question["id"], "traces": snippets}
+
+
+VERSIONS = ("0.2", "0.3")
+SCHEMA_FILES = {"0.2": "schema/trace.schema.json", "0.3": "schema/trace-0.3.schema.json"}
 
 
 def _validate_trace(data, schema_path):
@@ -289,7 +356,6 @@ def _safe_child(root, relative):
 def _check(root, paths):
     expected = {}
     try:
-        schema_path = _safe_child(root, "schema/trace.schema.json")
         for path in paths:
             question = load_json(path)
             output = _safe_child(root, Path("public/data/traces") / f"{question['id']}.json")
@@ -299,8 +365,13 @@ def _check(root, paths):
                 expected[output] = None
                 continue
             trace = load_json(output)
+            version = trace.get("schema_version") if isinstance(trace, dict) else None
+            if version not in VERSIONS:
+                print(f"{output}: invalid trace: unsupported schema_version {version!r}")
+                expected[output] = None
+                continue
             try:
-                _validate_trace(trace, schema_path)
+                _validate_trace(trace, _safe_child(root, SCHEMA_FILES[version]))
             except (RuntimeError, SetupError) as exc:
                 print(f"{output}: invalid trace: {exc}")
                 expected[output] = None
@@ -309,7 +380,7 @@ def _check(root, paths):
                             for snippet in question["snippets"]}
             trace_entries = trace.get("traces", [])
             trace_by_id = {entry.get("snippet_id"): entry for entry in trace_entries}
-            if (trace.get("schema_version") != "0.2" or trace.get("question_id") != question["id"] or
+            if (trace.get("question_id") != question["id"] or
                     len(trace_by_id) != len(trace_entries) or set(trace_by_id) != set(source_by_id)):
                 print(f"{output}: trace question/snippet set is stale")
                 expected[output] = None
@@ -359,6 +430,8 @@ def main(argv=None, *, runner=None):
     parser.add_argument("--runner", choices=("trusted-local",))
     parser.add_argument("--allow-trusted-code", action="store_true",
                         help="Acknowledge trusted code only: NOT a sandbox")
+    parser.add_argument("--trace-format", choices=VERSIONS, default="0.2",
+                        help="Trace schema to generate (default 0.2; 0.3 adds frame_id/scope/globals). --check accepts both")
     parser.add_argument("files", nargs="*")
     try:
         args = parser.parse_args(argv)
@@ -379,13 +452,13 @@ def main(argv=None, *, runner=None):
         if reason:
             raise SetupError(reason)
         print("WARNING: trusted code only. No network or host filesystem isolation; NEVER run untrusted contributions.", file=sys.stderr)
-        schema_path = _safe_child(root, "schema/trace.schema.json")
+        schema_path = _safe_child(root, SCHEMA_FILES[args.trace_format])
         output_dir = _safe_child(root, "public/data/traces")
         output_dir.mkdir(parents=True, exist_ok=True)
         outputs = []
         for path in paths:
             question = load_json(path)
-            trace = _trace_question(question, path, runner)
+            trace = _trace_question(question, path, runner, args.trace_format)
             _validate_trace(trace, schema_path)
             target = _safe_child(root, Path("public/data/traces") / f"{question['id']}.json")
             outputs.append((target, _serialize(trace)))

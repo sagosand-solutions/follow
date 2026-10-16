@@ -9,6 +9,17 @@ export function stdoutAt(trace, step) {
 }
 
 export const TRACE_VERSION = '0.2';
+// 0.3 adds frame_id/scope/globals per step (see validator/TRACE.md). Both are read; anything else fails closed.
+export const TRACE_VERSIONS = ['0.2', '0.3'];
+
+const isObjectOfStrings = (o) => !!o && typeof o === 'object' && !Array.isArray(o) && Object.values(o).every((v) => typeof v === 'string');
+// A 0.3 step must carry the full frame identity; otherwise the trace is not shown.
+export function isV3Step(step) {
+  return !!step && Number.isInteger(step.frame_id) && step.frame_id >= 1 && ['module', 'function', 'class'].includes(step.scope)
+    && isObjectOfStrings(step.globals) && isObjectOfStrings(step.locals)
+    && Number.isInteger(step.locals_omitted) && step.locals_omitted >= 0 && Number.isInteger(step.globals_omitted) && step.globals_omitted >= 0;
+}
+const isV3Trace = (steps) => steps.length > 0 && steps.every(isV3Step);
 
 // Binds a trace to the question's current verification case by identity (schema 0.2): the trace must name this
 // snippet and the FIRST case of that snippet by `case_id`, carry that case's current stdin text, and its stdout
@@ -17,7 +28,7 @@ export const TRACE_VERSION = '0.2';
 // Returns { stdin, total } where `total` is the number of verification cases of that snippet.
 export function bindCase(question, snippetId, trace, file = null) {
   if (!question || !trace || trace.snippet_id !== snippetId) return null;
-  if (file && (file.schema_version !== TRACE_VERSION || file.question_id !== question.id)) return null;
+  if (file && (!TRACE_VERSIONS.includes(file.schema_version) || file.question_id !== question.id)) return null;
   const all = question.verification && Array.isArray(question.verification.cases) ? question.verification.cases : [];
   const mine = all.filter((c) => c.snippet_id === snippetId);
   if (mine.length === 0) return null;
@@ -65,12 +76,18 @@ export function diffLocals(before, after) {
 export function buildMoments(trace) {
   const steps = trace.steps;
   const moments = [];
-  const pending = new Map(); // depth -> { index, interrupted }: lines of ACTIVE frames only
+  // 0.3 steps carry frame_id: frames are matched by identity, so a generator's line that spans a yield completes after
+  // its resume and `safe` always holds. 0.2 has no identity and keeps matching by depth (unchanged behaviour).
+  const v3 = isV3Trace(steps);
+  const keyOf = (s) => (v3 ? s.frame_id : s.depth);
+  const activeAt = new Map(); // depth -> frame_id of the frame last seen at that depth (0.3 only)
+  const callerKey = (d) => (v3 ? activeAt.get(d - 1) : d - 1);
+  const pending = new Map(); // frame key (depth in 0.2, frame_id in 0.3) -> { index, interrupted }
   const complete = (d, j) => {
     const p = pending.get(d);
     if (!p) return;
     const step = steps[p.index];
-    if (step.function !== steps[j].function) {
+    if (!v3 && step.function !== steps[j].function) {
       // Not provably the same frame: show nothing rather than attribute another frame's state to this line.
       pending.delete(d);
       return;
@@ -78,14 +95,15 @@ export function buildMoments(trace) {
     if (p.interrupted) moments.push({ kind: 'interrupted', step, after: steps[j] });
     else {
       let safe = true;
-      for (let k = p.index + 1; k < j; k += 1) if (steps[k].depth <= d) safe = false;
+      if (!v3) for (let k = p.index + 1; k < j; k += 1) if (steps[k].depth <= d) safe = false;
       moments.push({ kind: 'ran', step, after: steps[j], safe });
     }
     pending.delete(d);
   };
   steps.forEach((step, j) => {
     if (j === 0 && step.event === 'call' && step.function === '<module>') return;
-    const d = step.depth;
+    const d = keyOf(step);
+    activeAt.set(step.depth, step.frame_id);
     switch (step.event) {
       case 'line':
         complete(d, j);
@@ -93,17 +111,18 @@ export function buildMoments(trace) {
         break;
       case 'return': {
         complete(d, j);
+        pending.delete(d);
         moments.push({ kind: 'event', step, callerLine: null });
         break;
       }
       case 'call':
       case 'resume': {
-        const caller = pending.get(d - 1);
+        const caller = pending.get(callerKey(step.depth));
         moments.push({ kind: 'event', step, callerLine: caller ? steps[caller.index].line : null });
         // A frame is entered or re-entered at this depth: format 0.2 has no frame identity, so whatever was pending
         // for this depth (including a line paused at a yield) is dropped and never completed. A resumed generator
         // starts a fresh pending line at its next `line` event.
-        pending.delete(d);
+        if (!v3) pending.delete(d);
         break;
       }
       case 'exception': {
@@ -114,19 +133,23 @@ export function buildMoments(trace) {
       }
       case 'unwind': {
         pending.delete(d);
-        const outer = pending.get(d - 1);
+        const outer = pending.get(callerKey(step.depth));
         if (outer) outer.interrupted = true;
         moments.push({ kind: 'event', step, callerLine: null });
         break;
       }
-      default: // yield: a pause. The line is not complete and is never completed later (no frame identity in 0.2).
-        pending.delete(d);
+      default: // yield: a pause. 0.2: never completed later (no frame identity). 0.3: completes after its resume.
+        if (!v3) pending.delete(d);
         moments.push({ kind: 'event', step, callerLine: null });
     }
   });
   // When the recording was cut short, the innermost pending line has no after-state; say so. (In a complete recording
   // a pending line belongs to a generator suspended at a yield, which is not an ending.)
-  const open = [...pending.keys()].sort((x, y) => y - x)[0];
+  let open;
+  if (v3) {
+    let best = -1;
+    for (const [k, p] of pending) if (p.index > best) { best = p.index; open = k; }
+  } else open = [...pending.keys()].sort((x, y) => y - x)[0];
   if (trace.truncated && open !== undefined) moments.push({ kind: 'ran', step: steps[pending.get(open).index], after: null, safe: false });
   // Output shown so far never shrinks: a line that completes late (after its callee printed) only adds what is new
   // since the previous moment.
@@ -141,6 +164,16 @@ export function buildMoments(trace) {
 
 // The state the table and output show for a moment, and what changed in it.
 export function momentState(trace, moment) {
+  const state = baseState(trace, moment);
+  const { step, after } = moment;
+  if (!isV3Step(step)) return state;
+  const shown = (moment.kind === 'ran' && after) || moment.kind === 'interrupted' ? after : step;
+  const rows = state.mode === 'after' ? diffLocals(step.globals, after.globals) : diffLocals(null, shown.globals);
+  const unchanged = state.mode === 'after' && rows.every((r) => r.change === 'same') && Object.keys(step.globals).length === Object.keys(after.globals).length;
+  return { ...state, scope: shown.scope, frameId: shown.frame_id, globals: rows, globalsUnchanged: unchanged, omitted: shown.locals_omitted + shown.globals_omitted };
+}
+
+function baseState(trace, moment) {
   const { step, after } = moment;
   if (moment.kind === 'ran' && after) {
     const points = Array.from(trace.stdout);
@@ -174,7 +207,7 @@ export function clampStep(index, count) {
 
 // The envelope is checked before any field of any trace is read.
 export function validEnvelope(file, questionId) {
-  return !!file && typeof file === 'object' && file.schema_version === TRACE_VERSION && file.question_id === questionId && Array.isArray(file.traces);
+  return !!file && typeof file === 'object' && TRACE_VERSIONS.includes(file.schema_version) && file.question_id === questionId && Array.isArray(file.traces);
 }
 
 // Decides which traces may be shown for a question: for each snippet, a trace that passes every check
@@ -191,6 +224,8 @@ export async function usableTraces(question, file, hash = sha256Hex) {
     const input = bindCase(question, snippet.id, trace, file);
     if (!input || !(await stdinMatches(trace, hash))) continue;
     if (trace.truncated && trace.truncated_at_step !== trace.steps.length) continue;
+    if (file.schema_version === '0.3' && !isV3Trace(trace.steps)) continue;
+    if (file.schema_version === '0.2' && trace.steps.some((x) => 'frame_id' in x)) continue;
     out.push({ index: i, trace, input });
   }
   return out;
