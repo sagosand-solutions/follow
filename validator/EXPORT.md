@@ -1,8 +1,9 @@
 # Static data export
 
 The exporter and course schema are MIT licensed; see
-[`../LICENSES/MIT.txt`](../LICENSES/MIT.txt). Authored questions and course
-prose remain separately CC BY-SA 4.0 licensed.
+[`../LICENSES/MIT.txt`](../LICENSES/MIT.txt). The exported free public questions
+and course prose remain CC BY-SA 4.0 licensed; premium content marked
+`"LicenseRef-Proprietary"` is never exported.
 
 **Public export license gate (fail closed).** `public/data/questions` may contain
 only content whose `license` is `"CC-BY-SA-4.0"`. A question that is otherwise

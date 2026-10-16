@@ -7,9 +7,10 @@ does not judge question quality.
 ## License
 
 The JSON Schemas and the concept vocabulary in this directory are licensed under
-**MIT** (see [`../LICENSES/MIT.txt`](../LICENSES/MIT.txt)). Authored question and
-course content is licensed separately under **CC BY-SA 4.0** (see
-[`../content/README.md`](../content/README.md)).
+**MIT** (see [`../LICENSES/MIT.txt`](../LICENSES/MIT.txt)). The existing free
+public question and course corpus is licensed under **CC BY-SA 4.0** (see
+[`../content/README.md`](../content/README.md)); new private premium content is
+marked `"LicenseRef-Proprietary"` and is not part of that free corpus.
 
 The content `license` field is an enum, not a free string: `"CC-BY-SA-4.0"` for
 the free public content, or `"LicenseRef-Proprietary"` for private premium

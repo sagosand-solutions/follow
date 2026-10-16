@@ -107,6 +107,17 @@ class ExportTests(unittest.TestCase):
                 self.assertEqual(before, self.snapshot())
                 self.assertEqual(list(self.data.glob(".export-*")), [])
 
+    def test_proprietary_license_keeps_absent_outputs_absent(self):
+        self.beginner["license"] = "LicenseRef-Proprietary"
+        self.write(self.qdir / "zulu-question.json", self.beginner)
+        for args in ((), ("--check",)):
+            with self.subTest(args=args):
+                code, output = self.invoke(*args)
+                self.assertEqual(code, 1, output)
+                self.assertIn("non-public-license", output)
+                self.assertFalse(any(path.exists() for path in self.outputs))
+                self.assertEqual(list(self.data.glob(".export-*")), [])
+
     def test_check_success_is_read_only(self):
         self.assertEqual(self.invoke()[0], 0)
         before = self.snapshot()
