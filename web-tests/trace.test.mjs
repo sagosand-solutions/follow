@@ -50,10 +50,8 @@ test('buildMoments: yield is a pause, the assignment around it completes after t
   const G = D(1, 'gen');
   const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, {}), G('yield', 2, {}, { value: "'ready'" }), M('line', 6, {}), G('resume', 2, {}), G('line', 3, { got: '3' }), G('return', 3, { got: '3' }, { value: 'None' }), M('return', 6, {})] };
   const m = buildMoments(trace);
-  assert.deepEqual(kinds(m), ['event:1/call', 'event:2/yield', 'ran:5', 'event:2/resume', 'ran:2', 'ran:3', 'event:3/return', 'ran:6', 'event:6/return']);
-  const resumed = m.find((x) => x.kind === 'ran' && x.step.line === 2);
-  assert.equal(resumed.safe, false, 'the frame was left (yield) in between: no change flags');
-  assert.ok(momentState(trace, resumed).rows.every((r) => r.change === 'same'));
+  assert.deepEqual(kinds(m), ['event:1/call', 'event:2/yield', 'ran:5', 'event:2/resume', 'ran:3', 'event:3/return', 'ran:6', 'event:6/return']);
+  assert.ok(!m.some((x) => x.kind === 'ran' && x.step.line === 2 && x.step.function === 'gen'), 'the line paused at the yield is never shown as ran');
 });
 
 test('buildMoments: a new frame at a depth never completes a paused generator line (yield g, then call h)', () => {
@@ -66,13 +64,23 @@ test('buildMoments: a new frame at a depth never completes a paused generator li
   assert.deepEqual(momentState(trace, hl).rows.map((r) => r.name), ['arg'], 'h shows only its own locals');
 });
 
-test('buildMoments: two paused generator instances with the same name and depth are not guessed apart on resume', () => {
+test('buildMoments: two paused generator instances with the same name and depth are never guessed apart', () => {
   const G = D(1, 'gen');
   const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, { id: 'first' }), G('yield', 2, { id: 'first' }, { value: '1' }), M('line', 6, {}), G('call', 1, {}), G('line', 2, { id: 'second' }), G('yield', 2, { id: 'second' }, { value: '2' }), M('line', 7, {}), G('resume', 2, { id: '?' }), G('line', 3, { id: '?' }), G('return', 3, { id: '?' }, { value: 'None' }), M('return', 7, {})] };
   const m = buildMoments(trace);
   const gen2 = m.filter((x) => x.kind === 'ran' && x.step.function === 'gen' && x.step.line === 2);
   assert.equal(gen2.length, 0, 'no completion is attributed to either paused instance');
   assert.ok(m.some((x) => x.kind === 'event' && x.step.event === 'resume'), 'the resume itself is still shown');
+});
+
+test('buildMoments: one generator yielding at depth 1, then 2 through a wrapper, then 1 again, never revives the old yield line', () => {
+  const G1 = D(1, 'gen');
+  const G2 = D(2, 'gen');
+  const W = D(1, 'wrap');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 9, {}), G1('call', 1, {}), G1('line', 2, { a: 'd1' }), G1('yield', 2, { a: 'd1' }, { value: '1' }), M('line', 10, {}), W('call', 5, {}), W('line', 6, {}), G2('resume', 2, { a: 'd2' }), G2('line', 3, { a: 'd2' }), G2('yield', 3, { a: 'd2' }, { value: '2' }), W('line', 7, {}), W('return', 7, {}, { value: 'None' }), G1('resume', 3, { a: 'd1b' }), G1('line', 4, { a: 'd1b' }), G1('return', 4, { a: 'd1b' }, { value: 'None' }), M('return', 10, {})] };
+  const m = buildMoments(trace);
+  for (const x of m) if (x.kind === 'ran' && x.step.function === 'gen') assert.notEqual(x.step.line, 2, 'the d1 yield line 2 is never completed by a later d1 line');
+  assert.ok(m.filter((x) => x.step.event === 'yield').length === 2 && m.filter((x) => x.step.event === 'resume').length === 2, 'every yield and resume is still shown, in order');
 });
 
 test('buildMoments: truncation picks the active caller line, not a generator that is paused deeper', () => {
