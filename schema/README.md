@@ -17,7 +17,7 @@ course content is licensed separately under **CC BY-SA 4.0** (see
 |---|---|
 | `question.schema.json` | JSON Schema (draft 2020-12) for one question. |
 | `concept-map.schema.json` | JSON Schema (draft 2020-12) for the shared concept map. |
-| `concepts/python-v0.json` | Initial Python concept map: 18 concepts and 77 misconceptions. |
+| `concepts/python-v0.json` | Python concept map: 18 concepts and 106 misconceptions. |
 | `tests/` | Standard-library `unittest` suite that validates the schemas, the vocabulary and an example question. |
 | `../content/examples/independent-if.json` | One illustrative question in this contract (CC BY-SA 4.0). |
 
@@ -186,7 +186,7 @@ misconception concept reference exists. Level ordering is
 not a validated cognitive model. A question's `level` need not equal the level of
 every tagged concept; advanced questions often use basic building blocks.
 
-The initial misconceptions are editorial hypotheses. They are not, in this
+The misconceptions are editorial hypotheses. They are not, in this
 version, assertions backed by prevalence research, and files must not claim they
 are.
 

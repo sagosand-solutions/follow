@@ -1,0 +1,30 @@
+{
+  "schema_version":"0.1",
+  "id":"py-sorted-adjacent-gap-cost",
+  "language":"python",
+  "locale":"en",
+  "type":"complexity",
+  "level":"advanced",
+  "difficulty":0.73,
+  "concepts":["py.complexity","py.functions","py.lists","py.iteration","py.numeric-operators"],
+  "prompt":"values is a list of n plain integers, n >= 2. Analyze only smallest_gap(values), not the final print. Use this explicit adaptive comparison-sort cost model: sorted has worst-case Theta(n log n) time and linear time on an already sorted list; list indexing, subtraction, comparison and range advancement cost constant time, and min maintains a running minimum with constant work per yielded value. Ignore integer bit costs. Which option gives the shown printed gap, the tight WORST-case time bound as n grows, and a correct argument? Theta denotes a tight bound, not a timing measurement.",
+  "snippets":[
+    {"id":"main","code":"def smallest_gap(values):\n    ordered = sorted(values)\n    return min(ordered[i + 1] - ordered[i] for i in range(len(ordered) - 1))\n\nprint(smallest_gap([8, 1, 5, 2]))\n","highlight_lines":[2,3]}
+  ],
+  "options":[
+    {"id":"only-visible-loop-counts","text":"It prints 1 and has Theta(n) worst-case time. There is only one visible scan of n - 1 positions, so the preceding sorted call can be ignored.","score":0,"feedback":"The scan is linear, but the function also performs sorting first. In the stated model, sorting has a Theta(n log n) worst case and cannot be ignored merely because its loops are inside a library call.","misconception":"py.single-loop-always-linear"},
+    {"id":"sequential-sort-plus-adjacent-scan","text":"It prints 1 and has Theta(n log n) worst-case time. Sorting is followed by exactly n - 1 adjacent differences; their sequential costs add, so the worst-case sorting term dominates.","score":1,"feedback":"Correct. The example sorts to [1, 2, 5, 8], whose adjacent gaps are 1, 3 and 3. Generally the scan is Theta(n); adding it to worst-case Theta(n log n) sorting leaves the same tight worst-case bound.","misconception":null},
+    {"id":"minimum-compares-all-pairs","text":"It prints 1 and has Theta(n squared) worst-case time. The generator produces n - 1 adjacent gaps, but min must compare every pair of those gap values to select the smallest.","score":0,"feedback":"Selecting a minimum needs only one running minimum, not comparisons between every pair. Under the stated model, min does constant work per yielded gap, so the scan is linear and worst-case sorting still dominates.","misconception":"py.minimum-needs-all-pair-comparisons"},
+    {"id":"worst-means-every-input","text":"It prints 1 and has Theta(n log n) worst-case time. This also means every input, including an already sorted list, necessarily takes Theta(n log n); a worst-case lower bound applies to each input.","score":0.5,"feedback":"The gap and tight worst-case bound are right, but worst case is not every case. Under the stated adaptive model, an already sorted list sorts in linear time and the adjacent scan is also linear. That does not change the general worst-case bound.","misconception":"py.sort-worst-case-is-every-case","partial_reason":"Correct: the shown result is 1 and the general tight worst-case running time is Theta(n log n). Incorrect: claims this lower bound applies to every individual input, including already sorted lists, which take linear time in the stated model."},
+    {"id":"multiply-pipeline-stages","text":"It prints 1 and has Theta(n squared log n) worst-case time. Multiply the Theta(n log n) sorting stage by the Theta(n) scan because both stages must execute.","score":0,"feedback":"Sequential stages add costs; one scan is not performed inside every sorting operation. Theta(n log n) plus Theta(n) is Theta(n log n), not their product.","misconception":"py.pipeline-costs-multiply"}
+  ],
+  "explanation":"The example sorts to [1, 2, 5, 8], then min scans the three adjacent gaps 1, 3 and 3 and returns 1. For n >= 2, the generator and min process exactly n - 1 constant-cost differences, so the scan is Theta(n). The function always performs its sorting stage before that scan. Thus the assumed worst-case sorting lower bound remains a lower bound for the whole function, and the sum of worst-case sorting plus scan gives a matching O(n log n) upper bound. Total worst-case time is Theta(n log n). Already sorted inputs are linear in this adaptive model; worst-case complexity does not describe every input.",
+  "verification":{
+    "status":"specified",
+    "cases":[{"id":"unsorted-gap-example","snippet_id":"main","stdin":"","expected":{"stdout":"1\n","exit_code":0}}],
+    "rationale":"Execute the exact displayed program to check the gap 1. The explicit sort/scan cost model and separate reviewed upper/lower argument establish the claimed worst-case bound; the small output case and runtime timings do not.",
+    "limitations":"Only n >= 2 plain integers under the stated adaptive unit-cost model, not arbitrary comparison objects or interpreter-specific timing. The linear sorted-input claim is an explicit model assumption, not a hidden benchmark. No general optimality claim about all algorithms for the gap problem, scoring calibration or asymptotic machine proof."
+  },
+  "author":{"name":"Code reading contributors"},
+  "license":"CC-BY-SA-4.0"
+}

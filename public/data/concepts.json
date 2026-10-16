@@ -796,6 +796,254 @@
       "description": "Multiplying outer iteration count by the maximum inner-loop length always gives a tight total bound even when inner lengths shrink geometrically.",
       "id": "py.max-inner-bound-gives-tight-product",
       "title": "Maximum inner bound always gives a tight product"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "Multiplication repeats the written digits of numeric operands as well as repeating strings, so integer 3 * 2 would produce 33.",
+      "id": "py.multiplication-repeats-all-types",
+      "title": "Multiplication repeats every operand's digits"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "An arithmetic operation automatically parses a numeric-looking string as a number rather than using its string-specific behavior.",
+      "id": "py.numeric-strings-auto-coerce",
+      "title": "Numeric strings automatically become numbers"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "Multiplying a string by an integer concatenates the string and that integer's spelling once rather than repeating the string.",
+      "id": "py.star-concatenates-operands",
+      "title": "Multiplication concatenates operand spellings"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "description": "Multiplying an ordinary string by a positive integer is forbidden and raises TypeError.",
+      "id": "py.string-repeat-forbidden",
+      "title": "Strings cannot be repeated by multiplication"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "The argument to str.strip is an exact substring removed at the boundaries rather than a set of individual characters to trim.",
+      "id": "py.strip-argument-is-substring",
+      "title": "strip removes an exact boundary substring"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "str.strip removes every occurrence of its character arguments throughout the string, including interior positions.",
+      "id": "py.strip-removes-interior",
+      "title": "strip deletes matching characters everywhere"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "str.strip with a character argument trims matching characters only from the right end, not from both boundaries.",
+      "id": "py.strip-trims-right-only",
+      "title": "strip trims only the right boundary"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "str.strip ignores an explicit character argument and always performs only its default whitespace trimming.",
+      "id": "py.strip-ignores-characters-argument",
+      "title": "strip always removes only whitespace"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.iteration"
+      ],
+      "description": "A list comprehension evaluates every filter for the entire input before evaluating any result expression, instead of filtering and mapping each candidate before advancing.",
+      "id": "py.comprehension-filters-all-before-mapping",
+      "title": "Comprehension filtering is a separate complete pass"
+    },
+    {
+      "concepts": [
+        "py.comprehensions"
+      ],
+      "description": "A list comprehension evaluates a candidate's result expression before testing the trailing if condition that could reject that candidate.",
+      "id": "py.comprehension-expression-before-filter",
+      "title": "Comprehension evaluates results before filtering"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.booleans"
+      ],
+      "description": "A trailing comprehension if condition supplies Boolean output entries for all candidates instead of filtering candidates before the element expression.",
+      "id": "py.comprehension-filter-becomes-result",
+      "title": "Comprehension filter values become list results"
+    },
+    {
+      "concepts": [
+        "py.comprehensions"
+      ],
+      "description": "A filtered list comprehension keeps accepted input items unchanged and ignores the stated element expression.",
+      "id": "py.comprehension-ignores-element-expression",
+      "title": "Filtered comprehensions keep original items"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "Boolean and always converts its result to True or False instead of returning one of its operand values.",
+      "id": "py.and-returns-bool",
+      "title": "and always returns a Boolean"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "The and operator evaluates and returns its right operand even when its left operand is falsy.",
+      "id": "py.and-always-right",
+      "title": "and always evaluates and returns the right operand"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "When and skips its right operand, the expression produces None rather than returning its falsy left operand.",
+      "id": "py.and-false-has-no-value",
+      "title": "A skipped and expression has no result"
+    },
+    {
+      "concepts": [
+        "py.default-arguments",
+        "py.functions"
+      ],
+      "description": "An argument is None only when the caller omitted it; explicitly passing None cannot satisfy an is None check.",
+      "id": "py.none-check-detects-omission",
+      "title": "A None check detects an omitted argument"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.booleans"
+      ],
+      "description": "An empty list is truthy just like a nonempty list.",
+      "id": "py.all-lists-truthy",
+      "title": "Every list is truthy"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "Calling iter on an existing list iterator creates an independent iterator at the beginning rather than returning the same iterator.",
+      "id": "py.iter-iterator-creates-cursor",
+      "title": "iter of an iterator creates a fresh cursor"
+    },
+    {
+      "concepts": [
+        "py.iterators",
+        "py.lists"
+      ],
+      "description": "Independent iter calls on the same list all share a single traversal position owned by that list.",
+      "id": "py.list-iterators-share-position",
+      "title": "A list owns one shared iteration position"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "A new list iterator already points at its first item and next advances before reading, so the first call returns the second item.",
+      "id": "py.next-skips-first-item",
+      "title": "next skips the first item"
+    },
+    {
+      "concepts": [
+        "py.iterators",
+        "py.lists"
+      ],
+      "description": "Creating a list iterator implicitly copies the entire source list into a private snapshot rather than keeping a cursor over the original list.",
+      "id": "py.iterable-iteration-copies-source",
+      "title": "Iteration copies the source list"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Because comparison sorting has Theta(n log n) worst-case time, Python sorted must also take Theta(n log n) on every input, including an already sorted list.",
+      "id": "py.sort-worst-case-is-every-case",
+      "title": "Sorting worst case applies to every input"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.iteration"
+      ],
+      "description": "A loop evaluating differences only at consecutive positions nevertheless examines all pairs of positions and performs quadratic work.",
+      "id": "py.adjacent-scan-compares-all-pairs",
+      "title": "An adjacent-gap scan examines every pair"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "The total time of sequential sorting and scanning stages is the product of their costs rather than their sum.",
+      "id": "py.pipeline-costs-multiply",
+      "title": "Sequential pipeline costs multiply"
+    },
+    {
+      "concepts": [
+        "py.generators",
+        "py.iterators"
+      ],
+      "description": "A non-None send can start a just-created generator by automatically advancing it to its first yield before delivering the value.",
+      "id": "py.send-auto-primes-generator",
+      "title": "send automatically primes a generator"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "A generator send call returns the argument supplied by its caller instead of the next value yielded by the generator.",
+      "id": "py.send-returns-argument",
+      "title": "send returns its input argument"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "Calling send with a non-None value behaves like next and resumes the paused yield expression with None.",
+      "id": "py.send-ignores-argument",
+      "title": "send ignores its input argument"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "When yield appears on the right-hand side of assignment it pauses but emits None instead of its outgoing operand; only standalone yield emits its operand.",
+      "id": "py.assigned-yield-hides-output",
+      "title": "An assigned yield hides its outgoing value"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.iteration"
+      ],
+      "description": "Finding the minimum of a stream requires comparing every pair of produced values rather than maintaining one running minimum in a linear pass.",
+      "id": "py.minimum-needs-all-pair-comparisons",
+      "title": "Minimum selection compares every pair"
     }
   ],
   "schema_version": "0.1"

@@ -1,0 +1,30 @@
+{
+  "schema_version":"0.1",
+  "id":"py-iterator-cursor-ownership",
+  "language":"python",
+  "locale":"en",
+  "type":"output",
+  "level":"intermediate",
+  "difficulty":0.61,
+  "concepts":["py.iterators","py.iteration","py.lists"],
+  "prompt":"Run this as a fresh Python script. The three next calls in print are evaluated from left to right. Which option gives the complete stdout line and a correct account of cursor ownership? items is a built-in list; no mutation occurs.",
+  "snippets":[
+    {"id":"main","code":"items = [10, 20, 30]\ncursor = iter(items)\nalias = iter(cursor)\nfresh = iter(items)\nprint(next(cursor), next(alias), next(fresh))\n","highlight_lines":[2,3,4,5]}
+  ],
+  "options":[
+    {"id":"iter-iterator-new-cursor","text":"10 10 10. iter(cursor) creates an independent cursor starting at the beginning, just like iter(items).","score":0,"feedback":"An iterator's iter operation returns that same iterator, not a fresh traversal. cursor and alias therefore share progress: their successive next calls yield 10 and 20. Only fresh starts independently at 10.","misconception":"py.iter-iterator-creates-cursor"},
+    {"id":"shared-list-position","text":"10 20 30. Every iterator over items shares one position stored on the list, so all three next calls advance that position.","score":0,"feedback":"The list does not own a single shared traversal position. Separate iter(items) calls create independent cursors. cursor and alias are one iterator, but fresh is another and still yields 10 on its first next.","misconception":"py.list-iterators-share-position"},
+    {"id":"shared-cursor-independent-traversal","text":"10 20 10. iter(cursor) returns cursor itself, while the second iter(items) creates an independent iterator over the same original list.","score":1,"feedback":"Correct. The first next advances the cursor shared by cursor and alias; their two calls yield 10 then 20. fresh has independent progress and its first call yields 10. Independent cursors do not require copied source lists.","misconception":null},
+    {"id":"advance-before-reading-first","text":"20 30 20. A new iterator already points at the first item, so next moves ahead before reading and skips that item.","score":0,"feedback":"A new list iterator's first next returns the first item, not the second. Applying that to the shared cursor and the independent fresh iterator gives 10 20 10.","misconception":"py.next-skips-first-item"},
+    {"id":"correct-cursors-copied-source","text":"10 20 10. cursor and alias share one cursor and fresh has another because every iter(items) first copies the whole source list into a private snapshot.","score":0.5,"feedback":"The line and cursor sharing are right, but source copying is not. These built-in list iterators retain cursors over the original list. Separate iteration positions do not imply separate copies of that list.","misconception":"py.iterable-iteration-copies-source","partial_reason":"Correct: all three printed values, shared progress for cursor/alias, and independent progress for fresh. Incorrect: claims iter(items) implicitly copies the entire source list into a private snapshot rather than iterating the original list."}
+  ],
+  "explanation":"iter(items) creates a list iterator with its own position. Calling iter on that iterator returns the same iterator, so alias and cursor advance one shared position and yield 10, then 20. A second iter(items) creates another iterator whose position is independent, so fresh still yields 10. Both iterators refer to the original list; creating an iterator does not implicitly copy its source.",
+  "verification":{
+    "status":"specified",
+    "cases":[{"id":"shared-versus-fresh-cursor","snippet_id":"main","stdin":"","expected":{"stdout":"10 20 10\n","exit_code":0}}],
+    "rationale":"The exact displayed script checks progress shared through an iterator alias versus an independent traversal of the iterable. With an unmodified source, a false private-snapshot model predicts the same line, so no-source-copy semantics require separate review.",
+    "limitations":"Built-in lists and their ordinary iterators only, not arbitrary custom iterable implementations. This is a cursor-ownership bridge rather than generator growth, laziness or exception-lifecycle behavior. One output cannot prove all protocol or source-identity claims, half-credit quality or calibration."
+  },
+  "author":{"name":"Code reading contributors"},
+  "license":"CC-BY-SA-4.0"
+}
