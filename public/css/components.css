@@ -131,12 +131,6 @@
 .hero-stage { margin: 0; }
 .welcome { font-size: var(--text-xl); }
 
-.pillars { list-style: none; padding: 0; display: grid; gap: var(--s-4); }
-@media (min-width: 48rem) { .pillars { grid-template-columns: repeat(3, 1fr); } }
-.pillar { display: grid; gap: var(--s-2); padding: var(--s-5); background: var(--surface); border-radius: var(--radius); border: 1px solid var(--line); }
-.pillar__n { font-family: var(--font-code); font-weight: 700; color: var(--accent-attention-text); font-size: var(--text-sm); }
-.pillar__title { font-weight: 800; font-size: var(--text-lg); line-height: 1.2; }
-.pillar__text { color: var(--muted); }
 /* === /home === */
 
 /* === reading map === */
@@ -440,3 +434,14 @@
 .source__title { margin: 0; font-size: var(--text-base); }
 .source__text { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 @media (forced-colors: active) { .eyebrow::before { background: CanvasText; } .facts li, .note, .source { border-color: CanvasText; } }
+
+/* === clean views: hero column, block actions, question note === */
+.hero__text { justify-items: stretch; }
+.hero__text > .eyebrow { justify-self: start; }
+.hero__text .actions { display: grid; gap: var(--s-3); width: 100%; max-width: 30rem; }
+.hero__text .lead { max-width: 34rem; }
+.hero__facts { color: var(--muted); font-weight: 400; }
+.q-next { display: grid; gap: var(--s-2); }
+.q-next .hint { text-align: center; }
+.course-head > .eyebrow { justify-self: start; }
+.lesson-next .button--block { width: 100%; }

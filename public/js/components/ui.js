@@ -13,9 +13,9 @@ export function factPill(template, bold) {
   return h('li', {}, template.slice(0, at) || null, h('strong', {}, String(bold)), template.slice(at + 3) || null);
 }
 
-// items: [{ template, bold }]. Pills with a missing value are left out, never shown as "undefined" or "0".
+// items: [{ template, bold }]. A pill whose template has {b} but no value is left out, never shown as "undefined" or "0".
 export function facts(items, label = null) {
-  const ok = items.filter((i) => i && typeof i.template === 'string' && i.bold !== undefined && i.bold !== null && i.bold !== '');
+  const ok = items.filter((i) => i && typeof i.template === 'string' && (!i.template.includes('{b}') || (i.bold !== undefined && i.bold !== null && i.bold !== '')));
   return h('ul', { class: 'facts', 'aria-label': label }, ok.map((i) => factPill(i.template, i.bold)));
 }
 
@@ -23,8 +23,15 @@ export function noteBox({ title, text, icon = '”' }) {
   return h('div', { class: 'note' }, h('span', { class: 'note__icon', 'aria-hidden': 'true' }, icon), h('p', { class: 'note__title' }, title), text ? h('p', { class: 'note__text' }, text) : null);
 }
 
-export function sourceCard({ title, text }) {
-  return h('section', { class: 'source' }, h('h2', { class: 'source__title' }, title), h('p', { class: 'source__text' }, text));
+// link: { href, label } is optional (e.g. the licence text).
+export function sourceCard({ title, text, link = null }) {
+  return h('section', { class: 'source' }, h('h2', { class: 'source__title' }, title), h('p', { class: 'source__text' }, text, link ? ' ' : null, link ? h('a', { href: link.href }, link.label) : null));
+}
+
+// The instruction note helps the first questions and is noise afterwards: shown until this many questions are answered.
+export const NOTE_LIMIT = 3;
+export function showInstructionNote(answeredCount, limit = NOTE_LIMIT) {
+  return Number.isInteger(answeredCount) && answeredCount < limit;
 }
 
 // Numbers for the pills, computed from the data (never typed in).
