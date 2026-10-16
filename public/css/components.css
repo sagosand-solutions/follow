@@ -357,3 +357,16 @@
 .lesson-summary { max-width: 40rem; }
 .sp-newout { background: var(--stage-mark); box-shadow: 0 0 0 2px var(--stage-mark); border-radius: 2px; }
 .sp-vars td .sp-tag { white-space: nowrap; }
+
+/* === navigation: continue card, header link, end of lesson === */
+.continue-card { display: grid; gap: var(--s-3); justify-items: start; padding: var(--s-5); border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); border-inline-start: 6px solid var(--accent-attention); }
+.continue-card h2 { font-size: var(--text-lg); }
+.continue-card p { color: var(--muted); }
+.nav__continue:empty { display: none; }
+.nav .nav__link--continue { display: inline-flex; align-items: center; min-height: var(--tap); padding-inline: var(--s-4); border-radius: 999px; background: var(--accent-attention); color: var(--on-accent-attention); font-weight: 800; font-size: 0.9375rem; text-decoration: none; }
+.nav .nav__link--continue:hover { background: var(--accent-attention-hover); }
+.lesson-next { display: grid; gap: var(--s-3); justify-items: start; padding: var(--s-5); border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); max-width: var(--measure); }
+.lesson-next h3 { font-size: var(--text-base); }
+.lesson-next ul { margin: 0; padding-inline-start: 1.25rem; display: grid; gap: var(--s-1); }
+@media (max-width: 37.49rem) { .nav .nav__link--continue { padding-inline: var(--s-3); font-size: 0.875rem; } }
+@media (forced-colors: active) { .nav .nav__link--continue { border: 1px solid ButtonText; } .continue-card, .lesson-next { border: 1px solid CanvasText; } }

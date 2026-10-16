@@ -3,6 +3,9 @@ import { initTheme, cycleTheme, readTheme } from './theme.js';
 import { loadLocale, t } from './i18n.js';
 import { h } from './dom.js';
 import { registerRoute, startRouter, setNotFound } from './router.js';
+import { store } from './progress.js';
+import { loadCourse } from './data.js';
+import { nextUp, hasProgress } from './course-nav.js';
 import { homeView } from './views/home.js';
 import { courseView } from './views/course.js';
 import { lessonView } from './views/lesson.js';
@@ -43,9 +46,23 @@ async function boot() {
     label();
   });
   label();
+  // The Continue link lives in the header and must follow every route change and
+  // every answer change without re-rendering the whole header.
+  const continueSlot = h('span', { class: 'nav__continue' });
   header.replaceChildren(
-    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: '#/course' }, t('nav.course')), h('a', { href: '#/about' }, t('nav.about')), themeButton)),
+    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: '#/course' }, t('nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, themeButton)),
   );
+  const refreshContinue = async () => {
+    const course = await loadCourse().catch(() => null);
+    const target = course && hasProgress(course, store.answers()) ? nextUp(course, store.answers()) : null;
+    continueSlot.replaceChildren();
+    if (!target) return;
+    const label = t('course.continue.text', { lesson: target.lessonTitle, n: target.position, total: target.total });
+    continueSlot.append(h('a', { class: 'nav__link--continue', href: `#/q/${target.questionId}`, 'aria-label': label }, t('continue.title')));
+  };
+  window.addEventListener('hashchange', refreshContinue);
+  document.addEventListener('progresschange', refreshContinue);
+  refreshContinue();
   document.getElementById('site-footer').replaceChildren(h('div', { class: 'shell' }, h('p', {}, t('footer.draft')), h('p', {}, t('footer.license'))));
 
   registerRoute('/', homeView);
