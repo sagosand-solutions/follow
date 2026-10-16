@@ -194,9 +194,14 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(self.course_path.read_bytes(), course_bytes)
 
     def test_invalid_lesson_summary_blocks_writes_and_execution(self):
-        invalid = ("", None, 1, [], {}, " " * 200, "x" * 201,
-                   "a\nb", "a\rb", "a\tb", "a\x00b", "a\x1fb",
-                   "a\x7fb", "a\x9fb", "a\u2028b", "a\u2029b")
+        forbidden = tuple(map(chr, (10, 13, 0, 31, 127, 159, 0x2028, 0x2029))) + (
+            chr(13) + chr(10),
+        )
+        invalid = (("", None, 1, [], {}, " " * 200, "x" * 201,
+                    "a\nb", "a\rb", "a\tb", "a\x00b", "a\x1fb",
+                    "a\x7fb", "a\x9fb", "a\u2028b", "a\u2029b")
+                   + tuple(character + "Intro" for character in forbidden)
+                   + tuple("Intro" + character for character in forbidden))
         for summary in invalid:
             with self.subTest(summary=repr(summary)):
                 self.course["levels"][0]["lessons"][0]["summary"] = summary

@@ -150,6 +150,16 @@ class TestCourseSummarySchema(unittest.TestCase):
                 course["levels"][0]["lessons"][0]["summary"] = summary
                 self.assertTrue(list(self.validator.iter_errors(course)))
 
+    def test_forbidden_summary_characters_are_rejected_at_both_edges(self):
+        forbidden = (chr(10), chr(13), chr(13) + chr(10), chr(0), chr(31),
+                     chr(127), chr(159), chr(0x2028), chr(0x2029))
+        for character in forbidden:
+            for summary in (character + "Intro", "Intro" + character):
+                with self.subTest(summary=repr(summary)):
+                    course = copy.deepcopy(self.course)
+                    course["levels"][0]["lessons"][0]["summary"] = summary
+                    self.assertTrue(list(self.validator.iter_errors(course)))
+
     def test_summary_is_lesson_only(self):
         for path in ((), ("levels", 0), ("levels", 0, "lessons", 0)):
             course = copy.deepcopy(self.course)
