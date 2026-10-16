@@ -164,6 +164,8 @@ function draw(ctx, prev, stale = false) {
       const opt = q.options.find((o) => o.id === input.value);
       record = store.recordAnswer({ questionId: q.id, optionId: opt.id, score: opt.score });
     }
+    // Submitting does not change the hash, so tell the header to refresh now.
+    document.dispatchEvent(new Event('progresschange'));
     draw(ctx, record);
     const heading = root.querySelector('.verdict__title');
     if (heading) heading.focus();
