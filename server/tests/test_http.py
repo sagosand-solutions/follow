@@ -124,6 +124,37 @@ class ProviderTests(HttpTestCase):
         self.assertEqual(status, 200)
         self.assertEqual(json_body((status, {}, body))["authorize_url"], "https://accounts.example/authorize")
 
+    def test_oauth_start_and_callback_remain_unchanged(self):
+        from server.auth import AuthSecurity
+        from server.models import AuthIntent
+        from types import SimpleNamespace
+
+        token_hash = "a" * 64
+        class FakeProvider:
+            kind = "oauth"
+            def start(self, **kwargs):
+                return {"authorize_url": "https://accounts.example/authorize"}
+            def callback(self, request):
+                return SimpleNamespace(user_id="u1", return_to="/me", transaction_token_hash=token_hash)
+
+        fx = self.make(providers={"google": FakeProvider()})
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        csrf = json_body((status, headers, body))["csrf_token"]
+        cookie = headers["set-cookie"].split(";", 1)[0]
+        raw_cookie = cookie.split("=", 1)[1]
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        Repositories(db).auth_transactions.create(
+            token_hash, preauth_binding_hash=AuthSecurity(fx.settings).binding_hash(raw_cookie),
+            intent=AuthIntent.LOGIN, provider="google", expires_at=fx.clock[0] + 600)
+        db.close()
+        started = call(fx.app, "POST", "/auth/google/start",
+                       headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
+                       body=b'{"intent":"login","return_to":"/me"}')
+        self.assertEqual(started[0], 200)
+        callback = call(fx.app, "GET", "/auth/google/callback", headers={"cookie": cookie})
+        self.assertEqual(callback[0], 302)
+        self.assertEqual(callback[1]["location"], "/me")
+
 
 class CallbackBindingTests(HttpTestCase):
     """B1: the callback binds to the browser that started the flow, once."""
@@ -203,15 +234,15 @@ class EmailStartTests(HttpTestCase):
             self.outbox = []
             self.users = {"known@example.test": "u1"}
 
-        def start(self, *, email, transaction_token, callback_url, **kwargs):
-            self.outbox.append({"email": email, "url": f"{callback_url}?state={transaction_token}"})
+        def start(self, *, email, transaction_token_hash, callback_url, **kwargs):
+            self.outbox.append({"email": email, "url": callback_url, "transaction_token_hash": transaction_token_hash})
 
         def callback(self, request):
             token = request.query_params.get("state", "")
             entry = next((item for item in self.outbox if item["url"].endswith(f"state={token}")), None)
             user_id = self.users.get(entry["email"]) if entry else None
             return SimpleNamespace(user_id=user_id, return_to=None,
-                                   transaction_token_hash=hashlib.sha256(token.encode()).hexdigest())
+                                   transaction_token_hash=entry["transaction_token_hash"] if entry else "")
 
     def setUp(self):
         self.email_adapter = self.FakeEmail()
@@ -235,6 +266,13 @@ class EmailStartTests(HttpTestCase):
         self.assertEqual(len(self.email_adapter.outbox), 2)
         self.assertEqual([item["email"] for item in self.email_adapter.outbox],
                          ["known@example.test", "unknown@example.test"])
+        from urllib.parse import parse_qs, urlsplit
+        raw_token = parse_qs(urlsplit(self.email_adapter.outbox[0]["url"]).query)["state"][0]
+        transaction_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        transaction = self.fx.repos.auth_transactions.get(transaction_hash)
+        self.assertIsNotNone(transaction)
+        self.assertNotIn("@", transaction.state_data)
+        self.assertNotIn(raw_token, repr(transaction))
         self.assertNotIn("known@example.test", json.dumps(json_body(known)))
 
     def test_email_validation_csrf_and_pre_auth_bound_callback_one_time(self):
@@ -243,6 +281,7 @@ class EmailStartTests(HttpTestCase):
         self.assertEqual(no_csrf[0], 403)
         invalid = self.start("bad email@@example.test")
         self.assertEqual(invalid[0], 400)
+        self.assertEqual(self.fx.repos.auth_transactions.count_active(now=self.fx.clock[0]), 0)
         started = self.start("known@example.test")
         link = self.email_adapter.outbox[-1]["url"]
         from urllib.parse import urlsplit
@@ -263,6 +302,7 @@ class EmailStartTests(HttpTestCase):
         self.assertEqual(limited[0], 429)
         self.assertIn("retry-after", limited[1])
         self.assertEqual(json_body(limited)["error"]["code"], "throttled")
+        self.assertEqual(self.fx.repos.auth_transactions.count_active(now=self.fx.clock[0]), 5)
 
         fx2, tmp2 = build_fixture(providers={"email": self.email_adapter})
         self.addCleanup(tmp2.cleanup)
@@ -282,6 +322,7 @@ class EmailStartTests(HttpTestCase):
                      body=b'{"email":"over@example.test","return_to":"/","intent":"login"}')
         self.assertEqual(final[0], 429)
         self.assertIn("retry-after", final[1])
+        self.assertEqual(fx2.repos.auth_transactions.count_active(now=fx2.clock[0]), 20)
 
 
 class PurchaseHttpTests(HttpTestCase):

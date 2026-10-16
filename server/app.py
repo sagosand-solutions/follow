@@ -353,10 +353,11 @@ def create_app(settings, services: Services) -> Starlette:
                     transaction_hash, preauth_binding_hash=auth_security.binding_hash(preauth_cookie),
                     intent=AuthIntent.LOGIN, provider="email", expires_at=services.clock() + 900,
                     state_data=json.dumps({"return_to": return_to}, separators=(",", ":")))
+        callback_url = (f"{settings.public_origin}{settings.base_path.rstrip('/')}/auth/email/callback"
+                        f"?state={raw_transaction_token}")
         try:
             adapter.start(intent="login", return_to=return_to, email=normalized_email,
-                          transaction_token=raw_transaction_token,
-                          callback_url=f"{settings.public_origin}{settings.base_path.rstrip('/')}/auth/email/callback")
+                          transaction_token_hash=transaction_hash, callback_url=callback_url)
         except Exception:
             # Do not reveal account or delivery state; never serialize provider failures.
             pass
