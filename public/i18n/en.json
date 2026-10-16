@@ -160,7 +160,6 @@
   "code.cursorMarked": "Line {n}, marked",
   "q.stale": "Your earlier answer was for an older version of this question, so it is not shown here. It is still kept in your saved progress.",
   "lesson.summary": "Summary",
-  "lesson.counts": "You answered {answered} of {total} questions: {full} fully right, {partial} partly right, {wrong} not quite, {unsure} not sure.",
   "lesson.lookAgain": "Where to look again",
   "lesson.lookAgainNone": "No misconceptions came up in your answers.",
   "lesson.questions": "Questions",

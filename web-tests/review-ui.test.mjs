@@ -29,7 +29,7 @@ test('review navigation recomputes from progress and adds no storage dependency'
   const [question, pure, route] = await Promise.all([
     source('../public/js/views/question.js'), source('../public/js/review.js'), source('../public/js/views/review.js'),
   ]);
-  assert.match(question, /nextReview\(reviewQueue\(ctx\.course, store\.answers\(\)\), q\.id\)/);
+  assert.match(question, /nextReview\(reviewQueue\(ctx\.course, store\.answers\(\)\), q\.id, ctx\.course\)/);
   assert.match(question, /review\.position/);
   assert.match(route, /new URLSearchParams\(rawQuery\)/);
   assert.doesNotMatch(pure, /localStorage|createStore|store\./);

@@ -254,7 +254,7 @@ function navActions(ctx) {
     next = h('button', {
       type: 'button', class: 'button button--primary button--block', 'data-action': 'next',
       onclick: () => {
-        const target = nextReview(reviewQueue(ctx.course, store.answers()), q.id);
+        const target = nextReview(reviewQueue(ctx.course, store.answers()), q.id, ctx.course);
         navigate(target ? `/review?question=${encodeURIComponent(target.questionId)}` : '/review');
       },
     }, t('q.next'));

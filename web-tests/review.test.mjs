@@ -23,7 +23,7 @@ test('reviewQueue selects only latest unknown or zero-score records in course or
     record('not-in-course', 1, 'answered', 0),
   ];
   assert.deepEqual(reviewQueue(course, records), [
-    { questionId: 'q2', lessonId: 'l1', lessonTitle: 'First lesson', position: 2, total: 2 },
+    { order: 1, questionId: 'q2', lessonId: 'l1', lessonTitle: 'First lesson', position: 2, total: 2 },
   ]);
 });
 
@@ -59,4 +59,16 @@ test('malformed and empty courses yield an empty queue without mutating records'
   for (const invalid of [null, undefined, {}, { levels: null }]) assert.deepEqual(reviewQueue(invalid, records), []);
   assert.deepEqual(reviewQueue(course, null), []);
   assert.deepEqual(records, before);
+});
+
+test('nextReview with the course: a resolved current item continues AFTER it in course order, not at the start', () => {
+  const course = { levels: [{ lessons: [{ id: 'l', title: 'L', questions: ['q1', 'q2', 'q3', 'q4'] }] }] };
+  const rec = (id, outcome, score) => ({ question_id: id, attempt: 1, t: 1, outcome, score });
+  const before = reviewQueue(course, [rec('q1', 'answered', 0), rec('q2', 'unknown', null), rec('q3', 'answered', 0)]);
+  assert.deepEqual(before.map((e) => e.questionId), ['q1', 'q2', 'q3']);
+  // q2 was answered right, so it left the queue
+  const after = reviewQueue(course, [rec('q1', 'answered', 0), { question_id: 'q2', attempt: 2, t: 2, outcome: 'answered', score: 1 }, rec('q3', 'answered', 0)]);
+  assert.equal(nextReview(after, 'q2', course).questionId, 'q3', 'forward, not back to q1');
+  assert.equal(nextReview(after, 'q4', course).questionId, 'q1', 'nothing after q4: wrap to the first remaining');
+  assert.equal(nextReview(after, 'q2').questionId, 'q1', 'without a course it restarts at the first remaining item (old behaviour)');
 });

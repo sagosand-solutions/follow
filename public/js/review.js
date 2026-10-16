@@ -10,6 +10,7 @@ function questionsInOrder(course) {
       lesson.questions.forEach((questionId, index) => {
         if (typeof questionId !== 'string' || questionId === '') return;
         out.push({
+          order: out.length,
           questionId,
           lessonId: lesson.id,
           lessonTitle: typeof lesson.title === 'string' ? lesson.title : '',
@@ -46,10 +47,14 @@ export function reviewQueue(course, records) {
   });
 }
 
-// Advance through the current queue; if an answer removed the current item,
-// continue at the first remaining question. Wrap while unresolved items remain.
-export function nextReview(queue, currentId) {
+// Advance through the current queue in course order. If the answer removed the current item from the queue, continue
+// with the first remaining item AFTER it in course order (needs `course`), wrapping to the first remaining item; without
+// `course` it restarts at the first remaining item. Null when nothing is left.
+export function nextReview(queue, currentId, course = null) {
   if (!Array.isArray(queue) || queue.length === 0) return null;
   const index = queue.findIndex((entry) => entry && entry.questionId === currentId);
-  return queue[index < 0 ? 0 : (index + 1) % queue.length] || null;
+  if (index >= 0) return queue[(index + 1) % queue.length] || null;
+  const here = course ? questionsInOrder(course).find((e) => e.questionId === currentId) : null;
+  if (!here) return queue[0] || null;
+  return queue.find((entry) => entry.order > here.order) || queue[0] || null;
 }
