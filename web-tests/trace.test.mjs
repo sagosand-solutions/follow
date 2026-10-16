@@ -366,3 +366,30 @@ test('0.3 momentState: empty recorded globals with omitted names expose globalsO
   assert.equal(state.globalsOmitted, 2);
   assert.equal(state.globalsUnchanged, false);
 });
+
+test('0.3 diff: a name that was merely unrecorded in the earlier observation is never labelled "new"', () => {
+  const g40 = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`v${i}`, String(i)]));
+  const g41 = { ...g40, v40: '40' };
+  // 41 globals: the first observation recorded 40 (globals_omitted 1), the next one recorded all 41 (budget freed up).
+  const trace = { schema_version: '0.3', stdout: '', steps: [V3('call', 1, 'module', {}, g40, { globals_omitted: 1 }), V3('line', 2, 'module', {}, g40, { globals_omitted: 1 }), V3('line', 3, 'module', {}, g41, { globals_omitted: 0 })] };
+  const state = momentState(trace, buildMoments(trace).find((x) => x.kind === 'ran' && x.step.line === 2));
+  assert.equal(state.mode, 'after');
+  assert.equal(state.globals.find((r) => r.name === 'v40').change, 'same', 'v40 may have existed before: no "new" claim');
+  assert.equal(state.globals.some((r) => r.change === 'new'), false);
+  // A complete earlier observation still labels a really new name.
+  const full = { schema_version: '0.3', stdout: '', steps: trace.steps.map((s, i) => (i < 2 ? { ...s, globals_omitted: 0 } : s)) };
+  assert.equal(momentState(full, buildMoments(full).find((x) => x.kind === 'ran' && x.step.line === 2)).globals.find((r) => r.name === 'v40').change, 'new');
+  // A name present in both observations keeps its "changed" even when names were omitted.
+  const changed = { schema_version: '0.3', stdout: '', steps: [V3('call', 1, 'module', {}, g40, { globals_omitted: 1 }), V3('line', 2, 'module', {}, g40, { globals_omitted: 1 }), V3('line', 3, 'module', {}, { ...g41, v0: '99' }, { globals_omitted: 0 })] };
+  const rows = momentState(changed, buildMoments(changed).find((x) => x.kind === 'ran' && x.step.line === 2)).globals;
+  assert.equal(rows.find((r) => r.name === 'v0').change, 'changed');
+  assert.equal(rows.find((r) => r.name === 'v40').change, 'same');
+});
+
+test('0.3 diff: unrecorded locals are not "new" either; 0.2 behaviour is unchanged', () => {
+  const F = V(2, 1, 'f');
+  const trace = { stdout: '', steps: [MV('call', 1, {}), MV('line', 2, {}), F('call', 3, {}, {}, { locals_omitted: 1 }), F('line', 4, { a: '1' }, {}, { locals_omitted: 1 }), F('line', 5, { a: '1', b: '2' }, {}, { locals_omitted: 0 })] };
+  const m = buildMoments(trace);
+  assert.equal(momentState(trace, m.find((x) => x.kind === 'ran' && x.step.line === 4)).rows.find((r) => r.name === 'b').change, 'same');
+  assert.deepEqual(diffLocals({ x: '1' }, { x: '1', y: '2' }), [{ name: 'x', value: '1', change: 'same' }, { name: 'y', value: '2', change: 'new' }], '0.2: unchanged');
+});
