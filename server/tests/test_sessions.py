@@ -89,13 +89,42 @@ class SessionServiceTests(unittest.TestCase):
 
     def test_rotation_is_atomic_and_old_cookie_stops_authenticating(self):
         first = self.service.issue(self.user.id)
-        second = self.service.issue(self.user.id, old_cookie=first.cookie_value)
+        second = self.service.issue(
+            self.user.id, old_cookie=first.cookie_value, auth_time=first.session.auth_time)
         self.assertIsNone(self.service.authenticate(first.cookie_value))
         self.assertFalse(self.service.verify_csrf(first.cookie_value, first.csrf_token))
         self.assertFalse(self.service.verify_csrf(second.cookie_value, first.csrf_token))
         self.assertEqual(self.service.authenticate(second.cookie_value).user_id, self.user.id)
         self.assertIsNone(self.repos.sessions.get(first.session.id_hash))
         self.assertIsNotNone(self.repos.sessions.get(second.session.id_hash))
+
+    def test_account_switch_revokes_old_users_session(self):
+        first = self.service.issue(self.user.id)
+        other = self.repos.users.create(user_id="user-2")
+        second = self.service.issue(
+            other.id, old_cookie=first.cookie_value, auth_time=self.now[0])
+
+        self.assertIsNone(self.service.authenticate(first.cookie_value))
+        principal = self.service.authenticate(second.cookie_value)
+        self.assertIsNotNone(principal)
+        self.assertEqual(principal.user_id, other.id)
+        self.assertIsNone(self.repos.sessions.get(first.session.id_hash))
+        self.assertIsNotNone(self.repos.sessions.get(second.session.id_hash))
+
+    def test_rotation_requires_explicit_auth_time_and_does_not_refresh_it(self):
+        first = self.service.issue(self.user.id)
+        self.now[0] += self.settings.recent_auth_seconds + 1
+
+        with self.assertRaisesRegex(SessionDenied, "explicit authentication time"):
+            self.service.issue(self.user.id, old_cookie=first.cookie_value)
+        self.assertIsNotNone(self.repos.sessions.get(first.session.id_hash))
+
+        second = self.service.issue(
+            self.user.id, old_cookie=first.cookie_value, auth_time=first.session.auth_time)
+        principal = self.service.authenticate(second.cookie_value)
+        self.assertIsNotNone(principal)
+        self.assertEqual(principal.auth_time, first.session.auth_time)
+        self.assertFalse(self.service.require_recent_auth(principal))
 
     def test_rotation_failure_rolls_back_new_session_and_keeps_old(self):
         first = self.service.issue(self.user.id)
@@ -107,7 +136,9 @@ class SessionServiceTests(unittest.TestCase):
         self.repos.sessions.revoke = fail_revoke
         try:
             with self.assertRaises(RuntimeError):
-                self.service.issue(self.user.id, old_cookie=first.cookie_value)
+                self.service.issue(
+                    self.user.id, old_cookie=first.cookie_value,
+                    auth_time=first.session.auth_time)
         finally:
             self.repos.sessions.revoke = original_revoke
         self.assertIsNotNone(self.repos.sessions.get(first.session.id_hash))

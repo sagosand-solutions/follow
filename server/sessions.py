@@ -58,13 +58,19 @@ class SessionService:
               auth_time: float | None = None) -> SessionCredentials:
         """Create a session and atomically revoke a known prior session.
 
-        Call only after verified authentication. This does not create users or
-        resolve identities; login's claim→identity→session transaction remains
-        the responsibility of the later auth service.
+        Call only after verified authentication. When ``old_cookie`` is given,
+        callers must supply the authentication event's explicit ``auth_time``;
+        rotation never refreshes recent-auth age implicitly. A prior session is
+        revoked even when it belongs to a different account, allowing account
+        switching in the same browser. This does not create users or resolve
+        identities; login's claim→identity→session transaction remains the
+        responsibility of the later auth service.
         """
         now = self.clock()
         if not isinstance(now, (int, float)) or isinstance(now, bool) or not math.isfinite(now):
             raise SessionDenied("server clock unavailable")
+        if old_cookie is not None and auth_time is None:
+            raise SessionDenied("explicit authentication time required for session rotation")
         authenticated_at = now if auth_time is None else auth_time
         if (not isinstance(authenticated_at, (int, float)) or isinstance(authenticated_at, bool)
                 or not math.isfinite(authenticated_at) or authenticated_at < 0 or authenticated_at > now):
@@ -92,8 +98,6 @@ class SessionService:
             if user is None or user.status is not UserStatus.ACTIVE:
                 raise SessionDenied("active account required")
             old_session = self.repositories.sessions.get(old_hash) if old_hash else None
-            if old_session is not None and old_session.user_id != user_id:
-                raise SessionDenied("session rotation binding failed")
             created = self.repositories.sessions.create(
                 user_id,
                 id_hash=id_hash,
