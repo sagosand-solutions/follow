@@ -1,0 +1,328 @@
+{
+  "question_id": "py-nonlocal-independent-counters",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "two-factory-bindings-and-module",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "a460038216f08b4d4eaa3e51d6d4c061bee02ec20b16cf4b116ad782d26d3e2b",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "1 2 1\n100\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "count": "100"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 11,
+          "locals": {
+            "count": "100",
+            "make_counter": "<function make_counter>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "make_counter",
+          "line": 3,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "make_counter",
+          "line": 4,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "make_counter",
+          "line": 5,
+          "locals": {
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "make_counter",
+          "line": 9,
+          "locals": {
+            "advance": "<function advance>",
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "make_counter",
+          "line": 9,
+          "locals": {
+            "advance": "<function advance>",
+            "count": "0"
+          },
+          "stdout_len": 0,
+          "value": "<function advance>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 12,
+          "locals": {
+            "count": "100",
+            "first": "<function advance>",
+            "make_counter": "<function make_counter>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "make_counter",
+          "line": 3,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "make_counter",
+          "line": 4,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "make_counter",
+          "line": 5,
+          "locals": {
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "make_counter",
+          "line": 9,
+          "locals": {
+            "advance": "<function advance>",
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "make_counter",
+          "line": 9,
+          "locals": {
+            "advance": "<function advance>",
+            "count": "0"
+          },
+          "stdout_len": 0,
+          "value": "<function advance>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 13,
+          "locals": {
+            "count": "100",
+            "first": "<function advance>",
+            "make_counter": "<function make_counter>",
+            "second": "<function advance>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "advance",
+          "line": 5,
+          "locals": {
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "advance",
+          "line": 7,
+          "locals": {
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "advance",
+          "line": 8,
+          "locals": {
+            "count": "1"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "advance",
+          "line": 8,
+          "locals": {
+            "count": "1"
+          },
+          "stdout_len": 0,
+          "value": "1"
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "advance",
+          "line": 5,
+          "locals": {
+            "count": "1"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "advance",
+          "line": 7,
+          "locals": {
+            "count": "1"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "advance",
+          "line": 8,
+          "locals": {
+            "count": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "advance",
+          "line": 8,
+          "locals": {
+            "count": "2"
+          },
+          "stdout_len": 0,
+          "value": "2"
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "advance",
+          "line": 5,
+          "locals": {
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "advance",
+          "line": 7,
+          "locals": {
+            "count": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "advance",
+          "line": 8,
+          "locals": {
+            "count": "1"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "advance",
+          "line": 8,
+          "locals": {
+            "count": "1"
+          },
+          "stdout_len": 0,
+          "value": "1"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 14,
+          "locals": {
+            "count": "100",
+            "first": "<function advance>",
+            "make_counter": "<function make_counter>",
+            "second": "<function advance>"
+          },
+          "stdout_len": 6
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 14,
+          "locals": {
+            "count": "100",
+            "first": "<function advance>",
+            "make_counter": "<function make_counter>",
+            "second": "<function advance>"
+          },
+          "stdout_len": 10,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

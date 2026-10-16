@@ -71,7 +71,9 @@
             "py-shared-default-ai-review",
             "py-closure-loop-readers",
             "py-and-skips-record-call",
-            "py-default-none-guard-ownership"
+            "py-default-none-guard-ownership",
+            "py-keyword-evaluation-before-binding",
+            "py-nonlocal-independent-counters"
           ]
         },
         {
@@ -105,6 +107,29 @@
           ],
           "questions": [
             "py-iterator-cursor-ownership"
+          ]
+        },
+        {
+          "id": "modules",
+          "title": "Modules and imports",
+          "summary": "What happens when a file imports another one: which names point to which module object, and what a from-import copies.",
+          "builds_on": [
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-import-module-and-from-binding"
+          ]
+        },
+        {
+          "id": "classes",
+          "title": "Objects and classes",
+          "summary": "Where an attribute comes from: the instance, the class, or a parent class, and what happens when you assign through an instance.",
+          "builds_on": [
+            "functions-and-scope",
+            "lists-and-mutation"
+          ],
+          "questions": [
+            "py-instance-shadow-and-class-list"
           ]
         },
         {

@@ -1,0 +1,67 @@
+{
+  "schema_version": "0.1",
+  "id": "py-keyword-evaluation-before-binding",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.48,
+  "concepts": ["py.functions", "py.lists"],
+  "prompt": "Run this as a fresh Python script. Each mark call appends its label and returns its value. Which option gives both complete output lines and a correct general account of argument evaluation and keyword binding? The keyword arguments are deliberately written in a different order from the parameters.",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "events = []\n\ndef mark(label, value):\n    events.append(label)\n    return value\n\ndef subtract(left, right=1):\n    return left - right\n\nresult = subtract(right=mark(\"R\", 2), left=mark(\"L\", 9))\nprint(result)\nprint(events)\n",
+      "highlight_lines": [10]
+    }
+  ],
+  "options": [
+    {
+      "id": "evaluate-in-parameter-order",
+      "text": "The lines are 7 and ['L', 'R']. The keyword names bind left to 9 and right to 2, but the supplied expressions are evaluated in the function's parameter order, left before right.",
+      "score": 0,
+      "feedback": "The binding and subtraction are right, but the event order is not. For this call, the supplied keyword expressions are evaluated in their written order: mark R first, then mark L. The lines are 7 and ['R', 'L'].",
+      "misconception": "py.argument-evaluation-follows-parameters"
+    },
+    {
+      "id": "source-order-named-binding",
+      "text": "The lines are 7 and ['R', 'L']. The supplied expressions are evaluated in their written order; their keyword names bind right to 2 and left to 9. The explicit right argument is used instead of its default.",
+      "score": 1,
+      "feedback": "Correct. mark R runs before mark L, while the keyword names associate the resulting values with right and left. The body therefore returns 9 - 2, not 2 - 9 or 9 - 1.",
+      "misconception": null
+    },
+    {
+      "id": "keywords-bind-by-position",
+      "text": "The lines are -7 and ['R', 'L']. The supplied expressions run in their written order, and the first value fills left while the second fills right, ignoring the keyword names.",
+      "score": 0,
+      "feedback": "Keyword arguments are associated by name, not by the position of each keyword in the call. The events do occur in the order R, L, but left receives 9 and right receives 2. The result is 7.",
+      "misconception": "py.keyword-binding-is-positional"
+    },
+    {
+      "id": "defaulted-parameters-evaluated-first",
+      "text": "The lines are 7 and ['R', 'L']. The keyword names bind the values correctly. At every call, expressions supplied for parameters with defaults are evaluated before those supplied for required parameters, regardless of their written order.",
+      "score": 0.5,
+      "feedback": "Both lines and the named binding are right. The claimed priority is wrong: a parameter's having a default does not reorder expressions supplied at a call. R comes first here because its expression is written first, not because right has a default.",
+      "misconception": "py.defaulted-parameter-arguments-evaluate-first",
+      "partial_reason": "Correct: predicts the complete result 7 and event list ['R', 'L'], using the keyword names to bind the supplied values. Incorrect: infers a defaulted-parameter-first evaluation rule instead of the written order of these keyword argument expressions. The orders happen to coincide in this call."
+    },
+    {
+      "id": "default-overrides-explicit-keyword",
+      "text": "The lines are 8 and ['R', 'L']. Both supplied expressions run in their written order, but right remains its default 1 even after right= supplies 2; left receives 9.",
+      "score": 0,
+      "feedback": "A default fills a parameter only if no argument supplied its value. The explicit right= argument supplies 2, so the body returns 9 - 2 = 7. Both mark calls still run, giving ['R', 'L'].",
+      "misconception": "py.explicit-keyword-cannot-replace-default"
+    }
+  ],
+  "explanation": "The first supplied expression calls mark with R and 2, appending R and returning 2. The second calls mark with L and 9, appending L and returning 9. Keyword names associate these results with right and left, independently of their written order. Because right is supplied explicitly, the default 1 is not used. subtract returns 9 - 2 = 7. The two lines are 7 and ['R', 'L']. This example uses ordinary keyword arguments only; it does not establish every rule for starred argument unpacking.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "named-call-event-order", "snippet_id": "main", "stdin": "", "expected": {"stdout": "7\n['R', 'L']\n", "exit_code": 0}}
+    ],
+    "rationale": "Run the exact displayed script and compare the complete result and event list. Event order and parameter binding must both match. The general rule and half-credit explanation need independent semantic review: defaulted-first and written-order evaluation coincide in this single call.",
+    "limitations": "Only this safe memory-only example is executed. No hidden counterexample, starred-unpacking program, general proof, sandbox, empirical calibration or publication approval is claimed."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

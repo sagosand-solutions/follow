@@ -1,0 +1,276 @@
+{
+  "question_id": "py-instance-shadow-and-class-list",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "shared-then-shadowed",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "08ffe6f71bd49e446044c324a460456bd6a35ffa3dd96568d6728d2a60eb8130",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "['own', 'z'] ['x', 'y'] ['x', 'y']\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "LabelBox",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "LabelBox",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "LabelBox",
+          "line": 2,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "LabelBox",
+          "line": 4,
+          "locals": {
+            "labels": "[]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "LabelBox",
+          "line": 4,
+          "locals": {
+            "add": "<function add>",
+            "labels": "[]"
+          },
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 7,
+          "locals": {
+            "LabelBox": "<class LabelBox>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 8,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 9,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>",
+            "right": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "add",
+          "line": 4,
+          "locals": {
+            "label": "'x'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add",
+          "line": 5,
+          "locals": {
+            "label": "'x'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "add",
+          "line": 5,
+          "locals": {
+            "label": "'x'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 10,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>",
+            "right": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 11,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>",
+            "right": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "add",
+          "line": 4,
+          "locals": {
+            "label": "'z'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add",
+          "line": 5,
+          "locals": {
+            "label": "'z'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "add",
+          "line": 5,
+          "locals": {
+            "label": "'z'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 12,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>",
+            "right": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "add",
+          "line": 4,
+          "locals": {
+            "label": "'y'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add",
+          "line": 5,
+          "locals": {
+            "label": "'y'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "add",
+          "line": 5,
+          "locals": {
+            "label": "'y'",
+            "self": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 13,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>",
+            "right": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 13,
+          "locals": {
+            "LabelBox": "<class LabelBox>",
+            "left": "<__main__.LabelBox object at 0x\u2026>",
+            "right": "<__main__.LabelBox object at 0x\u2026>"
+          },
+          "stdout_len": 35,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
