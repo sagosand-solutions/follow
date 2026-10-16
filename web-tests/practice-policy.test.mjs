@@ -179,18 +179,30 @@ test('full score prefers a fresh same-objective transfer at the same or higher e
   assert.ok(result.limitations.includes('single_observation_only'));
 });
 
-test('full-score fallback is limited to explicit prerequisite objectives', () => {
+test('full-score fallback requires a direct prerequisite edge and an allowlisted target', () => {
   const current = item('current', { level: 'advanced', family: 'done' });
-  const adjacent = item('adjacent-entry', { objective: 'adjacent', family: 'fresh' });
-  const bank = { schema_version: 'practice-bank-v1', bank_version: 'bank', items: [current, adjacent] };
-  const result = recommend({
-    bank,
-    events: [event(current, { score: 1 })],
+  const record = event(current, { score: 1 });
+  const decide = (prerequisites) => recommend({
+    bank: {
+      schema_version: 'practice-bank-v1', bank_version: 'bank',
+      items: [current, item('adjacent-entry', { objective: 'adjacent', family: 'fresh', prerequisites })],
+    },
+    events: [record],
     contextOverrides: { allowed_prerequisite_objectives: ['adjacent'] },
   });
-  assert.equal(result.reason_code, 'transfer_allowlisted_objective');
-  assert.equal(result.candidate_item_id, 'adjacent-entry');
-  assert.ok(result.limitations.includes('objective_is_allowlisted_not_mastered'));
+
+  const unrelated = decide([]);
+  assert.equal(unrelated.status, 'insufficient');
+  assert.equal(unrelated.reason_code, 'no_transfer_candidate');
+
+  const connected = decide(['values']);
+  assert.equal(connected.reason_code, 'transfer_allowlisted_objective');
+  assert.equal(connected.candidate_item_id, 'adjacent-entry');
+  assert.ok(connected.limitations.includes('objective_is_allowlisted_not_mastered'));
+
+  const blockedPrerequisite = decide(['values', 'unapproved']);
+  assert.equal(blockedPrerequisite.status, 'insufficient');
+  assert.equal(blockedPrerequisite.reason_code, 'no_transfer_candidate');
 });
 
 test('unknown is not score zero and offers an eligible beginner introduction', () => {
@@ -231,6 +243,41 @@ test('unanswered and abandoned attempts offer an introduction or stop, never inf
     assert.equal(result.reason_code, 'offer_introduction_after_no_response');
     assert.ok(['entry-a', 'entry-b'].includes(result.candidate_item_id));
     assert.deepEqual(result.evidence_event_ids, []);
+  }
+});
+
+test('selected objective or chapter cannot bypass unknown and no-response introduction gates', () => {
+  const current = item('selected-current', {
+    objective: 'values', chapter: 'selected', family: 'seen', level: 'intermediate',
+  });
+  const onlyFreshSameTopic = item('selected-mid', {
+    objective: 'values', chapter: 'selected', family: 'fresh', level: 'intermediate',
+  });
+  const otherIntroduction = item('other-intro', {
+    objective: 'other', chapter: 'other', family: 'other-intro', level: 'beginner',
+  });
+  const bank = {
+    schema_version: 'practice-bank-v1', bank_version: 'selection-gate',
+    items: [current, onlyFreshSameTopic, otherIntroduction],
+  };
+  const selections = [
+    { selected_objective: 'values' },
+    { selected_chapter_id: 'selected' },
+  ];
+  for (const outcome of ['unknown', 'unanswered', 'abandoned']) {
+    for (const selection of selections) {
+      const record = event(current, {
+        outcome, score: null, event_id: `selected-${outcome}`, attempt_id: `selected-${outcome}-attempt`,
+      });
+      const result = recommend({ bank, events: [record], contextOverrides: selection });
+      assert.equal(result.status, 'insufficient');
+      assert.equal(result.reason_code, outcome === 'unknown'
+        ? 'no_intro_candidate_after_unknown'
+        : 'no_intro_candidate_after_no_response');
+      assert.equal(result.candidate_item_id, null);
+      assert.deepEqual(result.evidence_event_ids, []);
+      if (outcome === 'unknown') assert.ok(result.limitations.includes('unknown_response_not_scored'));
+    }
   }
 });
 
@@ -314,6 +361,22 @@ test('session history conservatively excludes all seen families, not only the la
   const result = recommend({ bank, events: [event(seen)] });
   assert.notEqual(result.candidate_item_id, 'duplicate-family-new-id');
   assert.notEqual(result.candidate_item_id, seen.item_id);
+});
+
+test('known item exposure derives its current bank family conservatively', () => {
+  const seen = item('known-item', { family: 'shared-family' });
+  const sibling = item('known-sibling', { family: 'shared-family' });
+  const fresh = item('unexposed-family', { family: 'fresh-family' });
+  const makeBank = (items) => ({ schema_version: 'practice-bank-v1', bank_version: 'known-exposure', items });
+  const knownExposure = { known_item_exposures: ['known-item'] };
+
+  const withAlternative = recommend({ bank: makeBank([seen, sibling, fresh]), contextOverrides: knownExposure });
+  assert.equal(withAlternative.status, 'suggestion');
+  assert.equal(withAlternative.candidate_item_id, 'unexposed-family');
+
+  const noAlternative = recommend({ bank: makeBank([seen, sibling]), contextOverrides: knownExposure });
+  assert.equal(noAlternative.status, 'insufficient');
+  assert.equal(noAlternative.reason_code, 'no_fresh_eligible_item');
 });
 
 test('identical event/attempt duplicates are idempotent', () => {

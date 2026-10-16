@@ -252,7 +252,10 @@ function seededChoice(items, seed) {
   return ordered[fnv1a32(seedText) % ordered.length];
 }
 
-function selectEligible({ items, context, seed, targetObjective = null, includeAllowlistedObjectives = false }) {
+function selectEligible({
+  items, context, seed, targetObjective = null,
+  includeAllowlistedObjectives = false, requiredPrerequisiteObjective = null,
+}) {
   const allowedObjectives = new Set(context.allowedPrerequisites);
   if (targetObjective !== null) allowedObjectives.add(targetObjective);
   const targetObjectives = new Set();
@@ -262,8 +265,12 @@ function selectEligible({ items, context, seed, targetObjective = null, includeA
   }
   return seededChoice(items.filter((item) => {
     if (!targetObjectives.has(item.primary_objective)) return false;
+    if (context.selectedObjective !== null && item.primary_objective !== context.selectedObjective) return false;
     if (context.selectedChapterId !== null && item.chapter_id !== context.selectedChapterId) return false;
-    if (!item.prerequisites.every((prerequisite) => allowedObjectives.has(prerequisite))) return false;
+    if (requiredPrerequisiteObjective !== null
+        && !item.prerequisites.includes(requiredPrerequisiteObjective)) return false;
+    if (!item.prerequisites.every((prerequisite) => prerequisite === requiredPrerequisiteObjective
+        || allowedObjectives.has(prerequisite))) return false;
     return true;
   }), seed);
 }
@@ -271,6 +278,10 @@ function selectEligible({ items, context, seed, targetObjective = null, includeA
 function makeExposureSets(context, events, bankById) {
   const itemIds = new Set(context.knownItems);
   const familyIds = new Set(context.knownFamilies);
+  for (const itemId of context.knownItems) {
+    const knownItem = bankById.get(itemId);
+    if (knownItem) familyIds.add(knownItem.family_id);
+  }
   for (const event of events) {
     itemIds.add(event.item_id);
     familyIds.add(event.family_id);
@@ -306,29 +317,27 @@ function asPolicy(input) {
   if (freshItems.length === 0) return insufficient('no_fresh_eligible_item');
 
   const { selectedObjective, selectedChapterId } = context;
-  if (selectedObjective !== null || selectedChapterId !== null) {
-    const contextForStart = { ...context, selectedObjective };
-    const startPool = selectedObjective !== null
-      ? freshItems.filter((item) => item.primary_objective === selectedObjective)
-      : freshItems.filter((item) => item.editorial_level === 'beginner'
-        && item.prerequisites.length === 0
-        && (selectedChapterId === null || item.chapter_id === selectedChapterId));
-    const candidate = selectedObjective === null
-      ? seededChoice(startPool, input.seed)
-      : selectEligible({
-        items: startPool,
-        context: contextForStart,
-        seed: input.seed,
-        targetObjective: selectedObjective,
-      });
-    return candidate
-      ? suggestion(selectedObjective ? 'start_from_selected_objective' : 'start_from_selected_chapter', candidate)
-      : insufficient('no_fresh_eligible_item');
-  }
-
   const practiceEvents = events.filter((event) => event.mode === 'practice');
   const latest = practiceEvents.length ? practiceEvents[practiceEvents.length - 1] : null;
   if (latest === null) {
+    if (selectedObjective !== null || selectedChapterId !== null) {
+      const startPool = selectedObjective !== null
+        ? freshItems.filter((item) => item.primary_objective === selectedObjective)
+        : freshItems.filter((item) => item.editorial_level === 'beginner'
+          && item.prerequisites.length === 0
+          && (selectedChapterId === null || item.chapter_id === selectedChapterId));
+      const candidate = selectedObjective === null
+        ? seededChoice(startPool, input.seed)
+        : selectEligible({
+          items: startPool,
+          context,
+          seed: input.seed,
+          targetObjective: selectedObjective,
+        });
+      return candidate
+        ? suggestion(selectedObjective ? 'start_from_selected_objective' : 'start_from_selected_chapter', candidate)
+        : insufficient('no_fresh_eligible_item');
+    }
     const candidate = seededChoice(freshItems.filter((item) => item.editorial_level === 'beginner'
       && item.prerequisites.length === 0), input.seed);
     return candidate
@@ -402,12 +411,13 @@ function asPolicy(input) {
   const transfer = selectEligible({ items: transferItems, context, seed: input.seed, targetObjective });
   if (transfer) return suggestion('transfer_same_objective', transfer, evidence, ['single_observation_only']);
 
-  const prerequisiteTransfer = selectEligible({
+  const prerequisiteTransfer = targetObjective === null ? null : selectEligible({
     items: freshItems,
     context,
     seed: input.seed,
     targetObjective: null,
     includeAllowlistedObjectives: true,
+    requiredPrerequisiteObjective: targetObjective,
   });
   return prerequisiteTransfer
     ? suggestion('transfer_allowlisted_objective', prerequisiteTransfer, evidence,

@@ -141,16 +141,19 @@ The frozen limitation-code set is `local_advice_only`,
    every family present in the supplied session history or known-exposure lists.
    This policy conservatively applies family cooldown to the entire supplied
    history; it invents no retention or 30-day window.
-3. If the learner selected an objective/chapter, recommend only an eligible
-   item in that choice. Otherwise, with no practice result, choose among
-   beginner items with no prerequisites.
+3. A learner-selected objective/chapter constrains which candidates may be
+   suggested; it never bypasses the evidence policy. With no practice result,
+   an explicit choice can start at an eligible item in that choice, while the
+   default is a beginner item with no prerequisites.
 4. Use only the latest practice event ordered by its explicit `sequence`;
    placement/exam results do not update or steer the practice outcome. A clean
    first-attempt score of 0 or 0.5 suggests the same objective in a different
    family. A clean score of 1 prefers a same-objective transfer item at the same
-   or higher editorial level, then a candidate in an explicitly allowlisted
-   objective. An unknown/unanswered/abandoned event can offer a beginner
-   introduction with no prerequisites, otherwise returns insufficient evidence.
+   or higher editorial level, then an explicitly allowlisted target objective
+   whose bank-authored prerequisites include the latest objective; all other
+   prerequisites must also pass the explicit allowlist gate. An
+   unknown/unanswered/abandoned event can offer a beginner introduction with
+   no prerequisites, otherwise returns insufficient evidence.
 5. Retries, assisted/exposed attempts, and stale versions may motivate a
    different-example follow-up, but are never used as fresh scored evidence.
    They cannot create a mastery or diagnostic claim. If no safe fresh candidate
