@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { stdoutAt, variableRows, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, isNextLine } from '../public/js/trace.js';
+import { stdoutAt, variableRows, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, isNextLine, usableTraces, validEnvelope } from '../public/js/trace.js';
 
 const dir = new URL('../public/data/traces/', import.meta.url).pathname;
 const qdir = new URL('../public/data/questions/', import.meta.url).pathname;
@@ -114,4 +114,21 @@ test('the corpus has the three ending kinds the player must show honestly', () =
     }
   }
   assert.ok(kinds.has('escaping') && kinds.has('event'), [...kinds].join());
+});
+
+test('usableTraces: the real path rejects bad envelopes and malformed traces without throwing', async () => {
+  const q = JSON.parse(readFileSync(qdir + 'm1-negative-index-guard.json', 'utf8'));
+  const good = JSON.parse(readFileSync(dir + 'm1-negative-index-guard.json', 'utf8'));
+  assert.equal((await usableTraces(q, good)).length, 1);
+  assert.equal((await usableTraces(q, { ...good, schema_version: '0.1' })).length, 0);
+  assert.equal((await usableTraces(q, { ...good, schema_version: '9.9', traces: [{ snippet_id: 'main' }] })).length, 0, 'unknown version without steps');
+  assert.equal((await usableTraces(q, { ...good, question_id: 'other-question' })).length, 0);
+  assert.equal((await usableTraces(q, { ...good, traces: [{ ...good.traces[0], steps: undefined }] })).length, 0, 'missing steps');
+  assert.equal((await usableTraces(q, { ...good, traces: [{ ...good.traces[0], steps: [] }] })).length, 0, 'empty steps');
+  assert.equal((await usableTraces(q, { ...good, traces: 'nope' })).length, 0);
+  assert.equal((await usableTraces(q, null)).length, 0);
+  assert.equal((await usableTraces(q, good, async () => null)).length, 0, 'no WebCrypto: fail closed');
+  assert.equal(validEnvelope(good, q.id), true);
+  const cut = { ...good.traces[0], truncated: true, truncated_at_step: good.traces[0].steps.length + 1 };
+  assert.equal((await usableTraces(q, { ...good, traces: [cut] })).length, 0, 'truncated_at_step must equal the step count');
 });

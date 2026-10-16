@@ -185,7 +185,7 @@
   "about.source": "Source code",
   "step.varsCaptionEvent": "Variables at this event",
   "step.input": "One recorded run is replayed. Input: “{stdin}”.",
-  "step.noInput": "One recorded run is replayed. This program reads no input.",
+  "step.noInput": "One recorded run is replayed. Input supplied: empty stdin.",
   "step.truncated": "Trace stops here (step limit). The rest of the run is not recorded.",
   "step.endedWith": "The run ended with an uncaught {type}: {message} (line {line}).",
   "step.endOfRecording": "End of the recording.",

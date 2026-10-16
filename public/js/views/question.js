@@ -11,7 +11,7 @@ import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 import { createStudySheet } from '../components/study.js';
 import { createStepPlayer } from '../components/step-player.js';
-import { pickTrace, sha256Hex, bindCase, stdinMatches } from '../trace.js';
+import { usableTraces } from '../trace.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -210,18 +210,7 @@ async function mountStepper(q, box, figures) {
     return;
   }
   if (!file) return;
-  const list = [];
-  for (let i = 0; i < q.snippets.length; i += 1) {
-    const s = q.snippets[i];
-    const trace = pickTrace(file, s.id);
-    if (!trace || !trace.steps.length) continue;
-    const digest = await sha256Hex(s.code);
-    if (digest !== trace.source_sha256) continue;
-    const input = bindCase(q, s.id, trace, file);
-    if (!input || !(await stdinMatches(trace))) continue;
-    if (trace.truncated && trace.truncated_at_step !== trace.steps.length) continue;
-    list.push({ id: s.id, input, label: s.label || t('step.snippetN', { n: i + 1 }), trace, figure: figures[i] });
-  }
+  const list = (await usableTraces(q, file)).map(({ index, trace, input }) => ({ id: q.snippets[index].id, input, label: q.snippets[index].label || t('step.snippetN', { n: index + 1 }), trace, figure: figures[index] }));
   if (!list.length || !box.isConnected) return;
   box.append(createStepPlayer(list));
 }

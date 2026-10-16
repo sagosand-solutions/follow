@@ -68,3 +68,27 @@ export function clampStep(index, count) {
   if (count <= 0) return 0;
   return Math.min(Math.max(index, 0), count - 1);
 }
+
+// The envelope is checked before any field of any trace is read.
+export function validEnvelope(file, questionId) {
+  return !!file && typeof file === 'object' && file.schema_version === TRACE_VERSION && file.question_id === questionId && Array.isArray(file.traces);
+}
+
+// Decides which traces may be shown for a question: for each snippet, a trace that passes every check
+// (envelope, steps array, source hash, case identity, stdin text and hash, truncation consistency).
+// Returns [{ index, trace, input }]; anything doubtful is simply left out (fail closed). No DOM, no network.
+export async function usableTraces(question, file, hash = sha256Hex) {
+  if (!validEnvelope(file, question && question.id)) return [];
+  const out = [];
+  for (let i = 0; i < question.snippets.length; i += 1) {
+    const snippet = question.snippets[i];
+    const trace = pickTrace(file, snippet.id);
+    if (!trace || !Array.isArray(trace.steps) || trace.steps.length === 0 || typeof trace.stdout !== 'string') continue;
+    if ((await hash(snippet.code)) !== trace.source_sha256) continue;
+    const input = bindCase(question, snippet.id, trace, file);
+    if (!input || !(await stdinMatches(trace, hash))) continue;
+    if (trace.truncated && trace.truncated_at_step !== trace.steps.length) continue;
+    out.push({ index: i, trace, input });
+  }
+  return out;
+}
