@@ -101,3 +101,16 @@ export function buildsOnThis(course, lessonId) {
     .filter((lesson) => Array.isArray(lesson.builds_on) && lesson.builds_on.includes(lessonId))
     .map((lesson) => ({ id: lesson.id, title: lesson.title }));
 }
+
+// Course page cards. Above this many questions a level's map row shows a count instead of every cell.
+export const COMPACT_LIMIT = 40;
+
+export function isCompactLevel(questionCount) {
+  return questionCount > COMPACT_LIMIT;
+}
+
+// Which sentence a card or compact row shows: nothing answered, some answered, or all answered.
+export function readState(answered, total) {
+  if (!answered) return 'none';
+  return answered >= total ? 'all' : 'some';
+}

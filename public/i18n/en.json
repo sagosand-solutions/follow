@@ -88,7 +88,7 @@
   "home.limits": "No account needed. Progress stays in this browser. Early draft: few questions, still growing.",
   "course.title": "Python: reading code",
   "course.lead": "Start where you like. The order is a suggestion, nothing is locked.",
-  "course.lesson.progress": "{answered} of {total} answered",
+  "course.lesson.progress": "{answered} of {total} read",
   "course.lesson.notStarted": "Not started",
   "course.lesson.buildsOn": "Builds on: {names}",
   "course.limits.title": "Where your progress lives",
