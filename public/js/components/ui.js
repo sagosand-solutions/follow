@@ -34,6 +34,11 @@ export function showInstructionNote(answeredCount, limit = NOTE_LIMIT) {
   return Number.isInteger(answeredCount) && answeredCount < limit;
 }
 
+// Pick the singular or plural template by the number ("1 question", "2 questions").
+export function pluralTemplate(n, one, other) {
+  return n === 1 ? one : other;
+}
+
 // Numbers for the pills, computed from the data (never typed in).
 export function courseCounts(course) {
   const levels = (course && course.levels) || [];

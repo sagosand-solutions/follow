@@ -48,3 +48,24 @@ test('licenceInfo reads the question licence field and never assumes the open li
   assert.deepEqual(licenceInfo('SOMETHING-ELSE'), { key: 'licence.other', params: { license: 'SOMETHING-ELSE' }, link: false });
   assert.equal(licenceInfo(undefined).params.license, 'unknown');
 });
+
+test('pluralTemplate picks the singular only for exactly one', async () => {
+  installFakeDom();
+  const { pluralTemplate } = await import('../public/js/components/ui.js');
+  assert.equal(pluralTemplate(1, '{b} question', '{b} questions'), '{b} question');
+  for (const n of [0, 2, 13]) assert.equal(pluralTemplate(n, 'one', 'other'), 'other');
+});
+
+test('every lesson with one question gets a singular pill in the real course', async () => {
+  installFakeDom();
+  const { readFileSync } = await import('node:fs');
+  const course = JSON.parse(readFileSync(new URL('../public/data/courses/python.json', import.meta.url), 'utf8'));
+  const strings = JSON.parse(readFileSync(new URL('../public/i18n/en.json', import.meta.url), 'utf8'));
+  const { pluralTemplate, factPill } = await import('../public/js/components/ui.js');
+  const one = course.levels.flatMap((l) => l.lessons).filter((l) => l.questions.length === 1);
+  assert.ok(one.length > 0);
+  for (const l of one) {
+    const li = factPill(pluralTemplate(l.questions.length, strings['facts.question'], strings['facts.questions']), l.questions.length);
+    assert.equal(li.children.map((c) => (c.text !== undefined ? c.text : c.children.map((x) => x.text).join(''))).join(''), '1 question');
+  }
+});

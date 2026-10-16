@@ -6,7 +6,7 @@ import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
 import { nextUp, homeShortcuts, homeHintKey } from '../course-nav.js';
 import { reviewQueue } from '../review.js';
-import { eyebrow, facts, courseCounts } from '../components/ui.js';
+import { eyebrow, facts, courseCounts, pluralTemplate } from '../components/ui.js';
 import { CONFIG } from '../config.js';
 
 // The headline carries one highlighted phrase; both strings are translated whole.
@@ -70,10 +70,10 @@ export async function homeView() {
     if (shortcuts.length) {
       after.push(
         h(
-          'p',
+          'details',
           { class: 'hero__shortcuts' },
-          h('span', {}, t('home.shortcuts.lead')),
-          ...shortcuts.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title }))),
+          h('summary', {}, t('home.shortcuts.lead')),
+          h('div', { class: 'hero__shortcut-links' }, ...shortcuts.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title })))),
         ),
       );
     }
@@ -83,8 +83,8 @@ export async function homeView() {
   const counts = courseCounts(course);
   const pills = facts(
     [
-      { template: t('facts.questions'), bold: counts.questions || null },
-      { template: t('facts.lessons'), bold: counts.lessons || null },
+      { template: pluralTemplate(counts.questions, t('facts.question'), t('facts.questions')), bold: counts.questions || null },
+      { template: pluralTemplate(counts.lessons, t('facts.lesson'), t('facts.lessons')), bold: counts.lessons || null },
       CONFIG.accountsUi ? null : { template: t('facts.noAccount') },
     ],
     t('facts.label'),
