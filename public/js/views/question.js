@@ -232,7 +232,7 @@ async function mountStepper(q, box, figures) {
   const player = createStepPlayer(list);
   box.append(player);
   // A pointer under the verdict, so the first-time reader finds the player (it lives next to the code).
-  const after = box.ownerDocument.querySelector('#feedback .q-next');
+  const after = box.closest('.question') ? box.closest('.question').querySelector('#feedback .q-next') : null;
   if (after) {
     const go = h('button', { type: 'button', class: 'button button--secondary button--block step-pointer' }, t('step.pointer'));
     go.addEventListener('click', () => {
@@ -240,8 +240,7 @@ async function mountStepper(q, box, figures) {
       if (title) {
         title.setAttribute('tabindex', '-1');
         title.focus({ preventScroll: true });
-        const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        player.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+        player.scrollIntoView({ block: 'start', behavior: 'auto' });
       }
     });
     after.insertAdjacentElement('afterend', go);

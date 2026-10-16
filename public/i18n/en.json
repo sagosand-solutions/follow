@@ -323,5 +323,8 @@
   "licence.other": "Licence: {license}",
   "q.source.byline": "Written by {author}.",
   "q.checkHint": "or press Ctrl+Enter",
-  "step.pointer": "See it run, line by line"
+  "step.pointer": "See it run, line by line",
+  "facts.question": "{b} question",
+  "facts.lesson": "{b} lesson",
+  "facts.level": "{b} level"
 }

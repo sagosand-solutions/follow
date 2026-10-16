@@ -6,7 +6,7 @@ import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
-import { eyebrow, facts, courseCounts } from '../components/ui.js';
+import { eyebrow, facts, courseCounts, pluralTemplate } from '../components/ui.js';
 import { nextUp, hasProgress, readState } from '../course-nav.js';
 import { reviewQueue } from '../review.js';
 
@@ -132,6 +132,6 @@ export async function courseView() {
 
   return {
     title: t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(t('course.eyebrow')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: t('facts.questions'), bold: c.questions || null }, { template: t('facts.lessons'), bold: c.lessons || null }, { template: t('facts.levels'), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(t('course.eyebrow')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }
