@@ -171,7 +171,8 @@ class TestValidateStudy(StudyTestCase):
 
     def test_url_semantics(self):
         for url in ("http://example.org", "https:///nohost", "https://user:pw@example.org",
-                    "https://example.org/\x01", "https://example.org/%0a", "https://exa mple.org"):
+                    "https://example.org/\x01", "https://example.org/%0a", "https://exa mple.org",
+                    "https://example.org/\x85", "https://example.org/\x9f"):
             with self.subTest(url=url):
                 note = make_note()
                 note["sources"][0]["url"] = url
@@ -323,6 +324,33 @@ class TestBuildManifest(StudyTestCase):
         with self.assertRaises(core.ContentError):
             self.build([{"path": "data/study/py-complexity.json", "sha256": "0" * 64}])
         self.assertEqual(snapshot(self.root), before)
+
+    def test_trailing_lf_rejected_in_path_and_sha(self):
+        write_note(self.root, "py-complexity.json", make_note())
+        raw = (self.root / "py-complexity.json").read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        with self.assertRaises(core.ContentError):
+            self.build([{"path": "data/study/py-complexity.json\n", "sha256": digest}])
+        with self.assertRaises(core.ContentError):
+            self.build([{"path": "data/study/py-complexity.json", "sha256": digest + "\n"}])
+
+    def test_symlinked_ancestor_is_rejected(self):
+        base = Path(self.tmp.name)
+        real = base / "real"
+        (real / "study").mkdir(parents=True)
+        raw = write_note(real / "study", "py-complexity.json", make_note())
+        digest = hashlib.sha256(raw).hexdigest()
+        link = base / "link"
+        link.symlink_to(real, target_is_directory=True)
+        approvals = [{"path": "data/study/py-complexity.json", "sha256": digest}]
+        absolute = link / "study"
+        with self.assertRaises(core.SetupError):
+            study.build_manifest(absolute, approvals, concept_ids=CONCEPT_IDS,
+                                 lesson_ids=LESSON_IDS, question_ids=QUESTION_IDS)
+        relative = os.path.relpath(absolute, os.getcwd())
+        with self.assertRaises(core.SetupError):
+            study.build_manifest(relative, approvals, concept_ids=CONCEPT_IDS,
+                                 lesson_ids=LESSON_IDS, question_ids=QUESTION_IDS)
 
     def test_count_cap(self):
         approvals = [{"path": f"data/study/x{i}.json", "sha256": "a" * 64}

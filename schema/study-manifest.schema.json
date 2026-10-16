@@ -52,11 +52,17 @@
         },
         "path": {
           "type": "string",
-          "pattern": "^data/study/[A-Za-z0-9._/-]+\\.json$"
+          "pattern": "^data/study/[A-Za-z0-9._/-]+\\.json$",
+          "not": {
+            "pattern": "\\s"
+          }
         },
         "sha256": {
           "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
+          "pattern": "^[0-9a-f]{64}$",
+          "not": {
+            "pattern": "\\s"
+          }
         }
       }
     },

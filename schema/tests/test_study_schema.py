@@ -345,6 +345,9 @@ class TestStudyManifestSchema(unittest.TestCase):
             ("percent-path", lambda m: m["notes"][0].__setitem__("path", "data/study/x%2f.json")),
             ("extra-entry-property", lambda m: m["notes"][0].__setitem__("extra", 1)),
             ("bad-concept-id", lambda m: m["notes"][0].__setitem__("target_id", "bad id")),
+            ("path-trailing-lf", lambda m: m["notes"][0].__setitem__("path", "data/study/x.json\n")),
+            ("sha-trailing-lf", lambda m: m["notes"][0].__setitem__("sha256", "a" * 64 + "\n")),
+            ("sha-trailing-cr", lambda m: m["notes"][0].__setitem__("sha256", "a" * 64 + "\r")),
         ]
         for label, mutate in mutations:
             with self.subTest(label=label):

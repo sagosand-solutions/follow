@@ -10,6 +10,7 @@ is a later task; do not treat this module as a publication pipeline.
 """
 from datetime import date
 import hashlib
+import os
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -21,8 +22,8 @@ DATA_VERSION = 1
 MANIFEST_PREFIX = "data/study/"
 MAX_MANIFEST_ENTRIES = 512
 
-_SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_MANIFEST_PATH = re.compile(r"^data/study/[A-Za-z0-9._/-]+\.json$")
+_SHA256 = re.compile(r"\A[0-9a-f]{64}\Z")
+_MANIFEST_PATH = re.compile(r"\Adata/study/[A-Za-z0-9._/-]+\.json\Z")
 _SCOPES = ("concept", "lesson", "question")
 
 
@@ -41,7 +42,8 @@ _URL_ENCODED_CONTROL = re.compile(r"%(?:0[0-9a-fA-F]|1[0-9a-fA-F]|7[fF])")
 
 def _url_problem(value):
     """Return a reason string if ``value`` is not a safe https URL, else None."""
-    if any(ord(character) <= 0x20 or ord(character) == 0x7f for character in value):
+    if any(ord(character) <= 0x20 or ord(character) == 0x7f or 0x80 <= ord(character) <= 0x9f
+           for character in value):
         return "URL must not contain whitespace or control characters"
     if _URL_ENCODED_CONTROL.search(value):
         return "URL must not contain percent-encoded control characters"
@@ -119,6 +121,21 @@ def _manifest_relative(path):
     return relative
 
 
+def _reject_symlink_components(path):
+    """Reject a symlink in any component from the filesystem root down to ``path``.
+
+    Checked lexically (``abspath`` only collapses ``.`` and ``..`` and does not
+    resolve links), so a symlinked ancestor of ``notes_root`` is caught too and
+    the normalised result is never trusted as a substitute for the real path.
+    """
+    absolute = Path(os.path.abspath(os.fspath(path)))
+    current = Path(absolute.anchor)
+    for part in absolute.parts[1:]:
+        current = current / part
+        if current.is_symlink():
+            raise core.SetupError(f"{current}: symlinks are not supported for study notes")
+
+
 def _resolve_within(notes_root, relative):
     """Resolve below notes_root, rejecting symlinks in any component."""
     if notes_root.is_symlink():
@@ -147,6 +164,7 @@ def build_manifest(notes_root, approvals, *, concept_ids, lesson_ids, question_i
         raise core.InputLimitError(notes_root, f"manifest-count: {len(approvals)} approvals exceeds {MAX_MANIFEST_ENTRIES} per invocation")
     if not approvals:
         return {"data_version": DATA_VERSION, "notes": []}
+    _reject_symlink_components(notes_root)
     budget = core.QuestionBudget()
     entries, seen_paths, seen_targets = [], set(), set()
     for approval in approvals:
