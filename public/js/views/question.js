@@ -11,7 +11,7 @@ import { reviewQueue, nextReview } from '../review.js';
 import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 import { createStudySheet } from '../components/study.js';
-import { eyebrow, noteBox, sourceCard, showInstructionNote } from '../components/ui.js';
+import { eyebrow, noteBox, sourceCard, showInstructionNote, licenceInfo } from '../components/ui.js';
 import { createStepPlayer } from '../components/step-player.js';
 import { usableTraces } from '../trace.js';
 
@@ -243,7 +243,11 @@ function answeredDistinct() {
 
 function sourceFor(q) {
   const name = q.author && q.author.name ? q.author.name : null;
-  return name ? sourceCard({ title: t('q.source.title'), text: t('q.source.text', { author: name }), link: { href: CONFIG.licenseUrl, label: t('q.license') } }) : null;
+  if (!name) return null;
+  const lic = licenceInfo(q.license);
+  if (lic.link) return sourceCard({ title: t('q.source.title'), text: t('q.source.text', { author: name }), link: { href: CONFIG.licenseUrl, label: t(lic.key) } });
+  // Not the open licence: say what the question's own field says, without a link to a licence it is not under.
+  return sourceCard({ title: t('q.source.title'), text: `${t('q.source.byline', { author: name })} ${t(lic.key, lic.params)}` });
 }
 
 function navActions(ctx) {
