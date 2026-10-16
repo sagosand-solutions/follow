@@ -18,7 +18,7 @@ export function getClient() {
     const initial = query().get('scenario');
     client = CONFIG.accountsApi === null
       ? createFakeClient({ scenario: SCENARIOS.includes(initial) ? initial : 'signed-out' })
-      : createHttpClient({ baseUrl: CONFIG.accountsApi });
+      : createHttpClient({ baseUrl: CONFIG.accountsApi, checkoutOrigins: CONFIG.accountsCheckoutOrigins });
   }
   return client;
 }

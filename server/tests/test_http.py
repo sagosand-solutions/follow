@@ -248,14 +248,14 @@ class EmailStartTests(HttpTestCase):
         self.email_adapter = self.FakeEmail()
         self.fx = self.make(providers={"email": self.email_adapter})
 
-    def start(self, email):
+    def start(self, email, return_to="/account"):
         status, headers, body = call(self.fx.app, "GET", "/auth/csrf")
         csrf = json_body((status, headers, body))["csrf_token"]
         cookie = headers["set-cookie"].split(";", 1)[0]
         status, response_headers, response_body = call(
             self.fx.app, "POST", "/auth/email/start",
             headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
-            body=json.dumps({"email": email, "return_to": "/account", "intent": "login"}).encode())
+            body=json.dumps({"email": email, "return_to": return_to, "intent": "login"}).encode())
         return status, response_headers, response_body, cookie
 
     def test_known_and_unknown_addresses_receive_identical_202_and_outbox(self):
@@ -281,6 +281,9 @@ class EmailStartTests(HttpTestCase):
         self.assertEqual(no_csrf[0], 403)
         invalid = self.start("bad email@@example.test")
         self.assertEqual(invalid[0], 400)
+        for hidden in ("a\u202eb@example.test", "a\u200bb@example.test", "a\u00a0b@example.test"):
+            self.assertEqual(self.start(hidden)[0], 400)
+        self.assertEqual(self.start("clean@example.test", return_to="/acc\u200bount")[0], 400)
         self.assertEqual(self.fx.repos.auth_transactions.count_active(now=self.fx.clock[0]), 0)
         started = self.start("known@example.test")
         link = self.email_adapter.outbox[-1]["url"]

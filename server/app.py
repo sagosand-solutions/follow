@@ -14,7 +14,6 @@ import ipaddress
 import json
 import secrets
 import time
-import unicodedata
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Callable, Mapping
@@ -321,7 +320,7 @@ def create_app(settings, services: Services) -> Starlette:
             return http.error_response("invalid", _request_id(request))
         email = body["email"]
         if (len(email) > 254 or email.count("@") != 1
-                or any(ch.isspace() or unicodedata.category(ch) == "Cc" for ch in email)):
+                or http.has_disallowed_text_characters(email) or any(ch.isspace() for ch in email)):
             return http.error_response("invalid", _request_id(request))
         local, domain = email.rsplit("@", 1)
         if not local or not domain:

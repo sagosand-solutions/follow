@@ -6,6 +6,8 @@ import hashlib
 import hmac
 import math
 import threading
+import unicodedata
+import ipaddress
 from collections import OrderedDict, deque
 
 
@@ -29,7 +31,17 @@ class EmailStartLimiter:
         now = self._clock()
         if not isinstance(now, (int, float)) or isinstance(now, bool) or not math.isfinite(now):
             return False, self._window
-        keys = (self._key(b"email-start:email", email), self._key(b"email-start:ip", ip))
+        normalized_email = unicodedata.normalize("NFC", email).casefold()
+        try:
+            address = ipaddress.ip_address(ip)
+            if address.version == 6:
+                network = ipaddress.ip_network(f"{address}/64", strict=False)
+                normalized_ip = f"{network.network_address.compressed}/64"
+            else:
+                normalized_ip = address.compressed
+        except ValueError:
+            normalized_ip = ip
+        keys = (self._key(b"email-start:email", normalized_email), self._key(b"email-start:ip", normalized_ip))
         limits = (self._per_email, self._per_ip)
         cutoff = now - self._window
         with self._lock:

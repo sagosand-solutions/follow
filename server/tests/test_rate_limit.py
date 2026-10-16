@@ -17,6 +17,20 @@ class EmailStartLimiterTests(unittest.TestCase):
         now[0] = 7200.0
         self.assertEqual(limiter.consume("person@example.test", "192.0.2.1"), (True, 0))
 
+    def test_case_and_unicode_normalization_share_the_email_quota(self):
+        now = [100.0]
+        limiter = EmailStartLimiter(b"secret" * 8, clock=lambda: now[0], per_email=2, per_ip=100)
+        self.assertEqual(limiter.consume("Éxample@domain.test", "192.0.2.1")[0], True)
+        self.assertEqual(limiter.consume("e\u0301XAMPLE@DOMAIN.TEST", "192.0.2.2")[0], True)
+        self.assertEqual(limiter.consume("ÉXAMPLE@DOMAIN.TEST", "192.0.2.3")[0], False)
+
+    def test_ipv6_addresses_in_same_64_share_ip_quota(self):
+        now = [100.0]
+        limiter = EmailStartLimiter(b"secret" * 8, clock=lambda: now[0], per_email=100, per_ip=2)
+        self.assertEqual(limiter.consume("a@one.test", "2001:db8:abcd:12::1")[0], True)
+        self.assertEqual(limiter.consume("b@two.test", "2001:db8:abcd:12::2")[0], True)
+        self.assertEqual(limiter.consume("c@three.test", "2001:db8:abcd:12::ffff")[0], False)
+
     def test_ip_limit_and_lru_capacity_are_bounded(self):
         now = [10.0]
         limiter = EmailStartLimiter(b"secret" * 8, clock=lambda: now[0], per_email=9, per_ip=2, max_keys=2)

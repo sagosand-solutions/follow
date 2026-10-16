@@ -3,6 +3,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { navigate, refresh } from '../router.js';
 import { getClient, testStrip, query } from '../account/index.js';
+import { safeHttpsUrl } from '../account/http-client.js';
 import { PROVIDERS, formatPrice, purchaseStatus, canPay, payBlockedReason, safeNext } from '../account/model.js';
 
 const page = (c, title, ...children) => ({ title, node: h('div', { class: 'stack account' }, testStrip(c), h('h1', {}, title), ...children) });
@@ -49,9 +50,12 @@ export async function signinView() {
     }
     b.addEventListener('click', async () => {
       const r = await c.startSignIn(id);
-      if (r.ok && r.authorize_url) globalThis.location.assign(r.authorize_url);
-      else if (r.ok) navigate(`/${next}`);
-      else status.textContent = t('signin.error');
+      if (r.ok && r.authorize_url) {
+        const authorizeUrl = safeHttpsUrl(r.authorize_url);
+        if (authorizeUrl) globalThis.location.assign(authorizeUrl);
+        else status.textContent = t('signin.error');
+      } else if (r.ok) navigate(`/${next}`);
+      else status.textContent = r.message || t('signin.error');
     });
     return h('div', { class: 'provider-row' }, b);
   });
@@ -61,8 +65,8 @@ export async function signinView() {
   emailForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!emailOn) return;
-    await c.emailStart(email.value);
-    status.textContent = t('signin.email.sent');
+    const result = await c.emailStart(email.value);
+    status.textContent = result?.ok === false ? (result.message || t('signin.error')) : t('signin.email.sent');
   });
   return page(
     c,
@@ -95,8 +99,9 @@ export async function checkoutView() {
   pay.addEventListener('click', async () => {
     if (pay.getAttribute('aria-disabled') === 'true') return;
     const r = await c.checkout({ product_id: p.id, policy_version: p.policy.version, acknowledgements: box.checked ? ['withdrawal-consent'] : [] });
-    if (r.ok) navigate('/purchase');
-    else reason.textContent = t('checkout.error');
+    if (r.ok && r.redirect_url) globalThis.location.assign(r.redirect_url);
+    else if (r.ok) navigate('/purchase');
+    else reason.textContent = r.message || t('checkout.error');
   });
   sync();
   return page(
@@ -157,6 +162,10 @@ export async function accountView() {
   const exportBtn = h('button', { type: 'button', class: 'button button--secondary' }, t('account.export'));
   exportBtn.addEventListener('click', async () => {
     const data = await c.exportData();
+    if (data?.ok === false) {
+      message.textContent = data.message || t('account.exportFailed');
+      return;
+    }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = h('a', { href: url, download: 'account-export.json' });
@@ -166,9 +175,29 @@ export async function accountView() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     message.textContent = t('account.exported');
   });
-  const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': 'del-title' }, h('h2', { id: 'del-title' }, t('delete.title')), h('p', {}, t('delete.what')), h('p', {}, t('delete.kept')), h('div', { class: 'actions actions--row' }, h('button', { type: 'button', class: 'button button--secondary', autofocus: true, onclick: () => dialog.close() }, t('delete.cancel')), h('button', { type: 'button', class: 'button button--primary', onclick: async () => { await c.deleteAccount(); dialog.close(); navigate('/'); } }, t('delete.confirm'))));
-  const del = h('button', { type: 'button', class: 'button button--secondary', onclick: () => dialog.showModal() }, t('account.delete'));
-  const out = h('button', { type: 'button', class: 'button button--secondary', onclick: async () => { await c.logout(); navigate('/'); } }, t('account.signout'));
+  const deleteConfirm = h('button', { type: 'button', class: 'button button--primary' }, t('delete.confirm'));
+  const deleteStatus = h('p', { class: 'account__status', role: 'status' });
+  const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': 'del-title' }, h('h2', { id: 'del-title' }, t('delete.title')), h('p', {}, t('delete.what')), h('p', {}, t('delete.kept')), deleteStatus, h('div', { class: 'actions actions--row' }, h('button', { type: 'button', class: 'button button--secondary', autofocus: true, onclick: () => dialog.close() }, t('delete.cancel')), deleteConfirm));
+  deleteConfirm.addEventListener('click', async () => {
+    const result = await c.deleteAccount();
+    if (result?.ok !== true) {
+      deleteStatus.textContent = result?.message || t('account.deleteFailed');
+      return;
+    }
+    dialog.close();
+    navigate('/');
+  });
+  const del = h('button', { type: 'button', class: 'button button--secondary' }, t('account.delete'));
+  del.addEventListener('click', () => { deleteStatus.textContent = ''; dialog.showModal(); });
+  const out = h('button', { type: 'button', class: 'button button--secondary' }, t('account.signout'));
+  out.addEventListener('click', async () => {
+    const result = await c.logout();
+    if (result?.ok !== true) {
+      message.textContent = result?.message || t('account.logoutFailed');
+      return;
+    }
+    navigate('/');
+  });
   const purchaseLine = status === 'active' ? t('account.purchase.active', { title: p.title }) : status === 'pending' ? t('account.purchase.pending', { title: p.title }) : status === 'revoked' ? t('account.purchase.revoked', { title: p.title }) : t('account.purchase.none');
   return page(
     c,

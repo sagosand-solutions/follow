@@ -8,7 +8,7 @@ function mockFetch(routes) {
     calls.push({ url, init });
     const route = routes.shift();
     assert.ok(route, `unexpected request ${url}`);
-    return { ok: route.status >= 200 && route.status < 300, status: route.status, async json() { return route.body; } };
+    return { ok: route.status >= 200 && route.status < 300, status: route.status, async json() { if (route.nonJson) throw new SyntaxError('not JSON'); return route.body; } };
   };
   return { calls, fetchImpl };
 }
@@ -27,7 +27,7 @@ test('GET interfaces use same-origin credentials and exact API paths', async () 
 });
 
 test('mutations carry CSRF, method, content type and exact bodies', async () => {
-  const mock = mockFetch([ok(token), ok({ authorize_url: 'https://id.example/auth' }), ok({ csrf_token: 'csrf2' }), ok({ accepted: true }), ok({ csrf_token: 'csrf-session' }), ok({ state: 'pending' }), ok({ ok: true }), ok({ ok: true })]);
+  const mock = mockFetch([ok(token), ok({ authorize_url: 'https://id.example/auth' }), ok({ csrf_token: 'csrf2' }), ok({ accepted: true }), ok({ csrf_token: 'csrf-session' }), ok({ state: 'pending' }), ok({ ok: true }), ok({ user: { id: 'u' }, csrf_token: 'csrf-session-2' }), ok({ ok: true })]);
   const c = createHttpClient({ baseUrl: '/api', fetchImpl: mock.fetchImpl });
   await c.startSignIn('google');
   await c.emailStart('person@example.test');
@@ -57,11 +57,74 @@ test('logout obtains a preauth CSRF token if no session token is loaded', async 
 
 test('HTTP statuses map to stable user-facing states and network errors offer retry', async () => {
   assert.equal(mapHttpError(401, {}).code, 'signed_out');
+  assert.equal(mapHttpError(400, {}).code, 'invalid_request');
+  assert.equal(mapHttpError(403, {}).code, 'reauth_required');
   assert.equal(mapHttpError(404, {}).code, 'not_found');
   assert.equal(mapHttpError(409, {}).code, 'conflict');
+  assert.equal(mapHttpError(429, {}).code, 'rate_limited');
   assert.equal(mapHttpError(503, {}).code, 'unavailable');
   const c = createHttpClient({ baseUrl: '/api', fetchImpl: async () => { throw new Error('offline'); } });
   assert.match((await c.catalog()).message, /try again/i);
+});
+
+test('recent-auth 403s for export, logout and delete remain failures', async () => {
+  const forbidden = { status: 403, body: { error: { code: 'forbidden' } } };
+  const mock = mockFetch([ok({ user: { id: 'u' }, csrf_token: 'session-token' }), forbidden, forbidden, forbidden]);
+  const c = createHttpClient({ baseUrl: '/api', fetchImpl: mock.fetchImpl });
+  await c.me();
+  assert.equal((await c.logout()).ok, false);
+  assert.equal((await c.deleteAccount()).ok, false);
+  assert.equal((await c.exportData()).ok, false);
+});
+
+test('preauth and session CSRF tokens stay separate across sign-in and account mutations', async () => {
+  const mock = mockFetch([
+    ok({ csrf_token: 'preauth-token' }),
+    ok({ authorize_url: 'https://accounts.example/authorize' }),
+    ok({ user: { id: 'u' }, providers: [], csrf_token: 'session-token' }),
+    ok({ ok: true }),
+  ]);
+  const c = createHttpClient({ baseUrl: '/api', fetchImpl: mock.fetchImpl });
+  await c.startSignIn('google');
+  await c.logout();
+  assert.equal(mock.calls[1].init.headers['X-CSRF-Token'], 'preauth-token');
+  assert.equal(mock.calls[3].init.headers['X-CSRF-Token'], 'session-token');
+});
+
+test('authorize and checkout redirects require HTTPS and checkout origin allowlist', async () => {
+  const badAuth = mockFetch([ok(token), ok({ authorize_url: 'http://accounts.example/authorize' })]);
+  const authResult = await createHttpClient({ baseUrl: '/api', fetchImpl: badAuth.fetchImpl }).startSignIn('google');
+  assert.equal(authResult.code, 'unsafe_redirect');
+
+  const allowed = mockFetch([ok({ user: { id: 'u' }, csrf_token: 'session-token' }), ok({ state: 'pending', purchase_id: 'p1', redirect_url: 'https://pay.example/checkout/1' })]);
+  const c = createHttpClient({ baseUrl: '/api', checkoutOrigins: ['https://pay.example'], fetchImpl: allowed.fetchImpl });
+  await c.me();
+  const result = await c.checkout({ product_id: 'p', policy_version: 'v1', acknowledgements: ['ack'] });
+  assert.equal(result.ok, true);
+  assert.equal(result.redirect_url, 'https://pay.example/checkout/1');
+
+  for (const redirect_url of ['http://pay.example/checkout', 'https://evil.example/checkout']) {
+    const mock = mockFetch([ok({ user: { id: 'u' }, csrf_token: 'session-token' }), ok({ state: 'pending', redirect_url })]);
+    const client = createHttpClient({ baseUrl: '/api', checkoutOrigins: ['https://pay.example'], fetchImpl: mock.fetchImpl });
+    await client.me();
+    assert.equal((await client.checkout({ product_id: 'p', policy_version: 'v1', acknowledgements: ['ack'] })).code, 'unsafe_redirect');
+  }
+});
+
+test('HTTP 200 with invalid JSON is an error, never an empty success', async () => {
+  const mock = mockFetch([{ status: 200, nonJson: true }]);
+  const result = await createHttpClient({ baseUrl: '/api', fetchImpl: mock.fetchImpl }).me();
+  assert.equal(result.code, 'invalid_response');
+  assert.match(result.message, /unexpected response/i);
+});
+
+test('views do not report failed account mutations as success', async () => {
+  const source = await (await import('node:fs/promises')).readFile(new URL('../public/js/views/account.js', import.meta.url), 'utf8');
+  assert.match(source, /const result = await c\.deleteAccount\(\);[\s\S]*if \(result\?\.ok !== true\)[\s\S]*dialog\.close\(\);[\s\S]*navigate\('\/'\);/);
+  assert.match(source, /const result = await c\.logout\(\);[\s\S]*if \(result\?\.ok !== true\)[\s\S]*navigate\('\/'\);/);
+  assert.match(source, /if \(data\?\.ok === false\)[\s\S]*account\.exportFailed/);
+  assert.match(source, /const authorizeUrl = safeHttpsUrl\(r\.authorize_url\);[\s\S]*if \(authorizeUrl\) globalThis\.location\.assign\(authorizeUrl\)/);
+  assert.match(source, /if \(r\.ok && r\.redirect_url\) globalThis\.location\.assign\(r\.redirect_url\)/);
 });
 
 test('client never accesses browser storage', async () => {
