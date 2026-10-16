@@ -131,8 +131,8 @@ class TestSeedConceptMap(unittest.TestCase):
         self.assertEqual(errors, [], "\n".join(str(e) for e in errors))
 
     def test_seed_map_counts(self):
-        self.assertEqual(len(self.map["concepts"]), 18)
-        self.assertEqual(len(self.map["misconceptions"]), 106)
+        self.assertEqual(len(self.map["concepts"]), 20)
+        self.assertEqual(len(self.map["misconceptions"]), 122)
         expected = {
             "py.slice-stop-is-count", "py.slice-mutates-source", "py.index-upper-bound-inclusive",
             "py.all-strings-truthy", "py.string-content-is-truth-value", "py.if-else-both-run",
@@ -169,7 +169,11 @@ class TestSeedConceptMap(unittest.TestCase):
         self.assertEqual({m["id"] for m in self.map["misconceptions"][77:92]}, material1_batch4)
         self.assertEqual({m["id"] for m in self.map["misconceptions"][92:105]}, material2_batch4)
         self.assertEqual(self.map["misconceptions"][105]["id"], "py.minimum-needs-all-pair-comparisons")
-        preserved_77 = {**self.map, "misconceptions": self.map["misconceptions"][:77]}
+        historical = {**self.map, "concepts": self.map["concepts"][:18]}
+        original_106 = {**historical, "misconceptions": self.map["misconceptions"][:106]}
+        original_106_digest = hashlib.sha256(json.dumps(original_106, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(original_106_digest, "1a6455672bfb62866cafbd5bdad1b94b66d8ee3df6a7ac170a2f4698b7a2e21f")
+        preserved_77 = {**historical, "misconceptions": self.map["misconceptions"][:77]}
         preserved_77_digest = hashlib.sha256(json.dumps(preserved_77, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
         self.assertEqual(preserved_77_digest, "7d30d46f56fb9a48f2e765a7b651a458e289337d82563f0699c7b32c6878d6db")
         for start, end, digest in (
@@ -180,14 +184,37 @@ class TestSeedConceptMap(unittest.TestCase):
             actual = hashlib.sha256(json.dumps(self.map["misconceptions"][start:end], sort_keys=True,
                                                separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
             self.assertEqual(actual, digest)
-        previous = {**self.map, "misconceptions": self.map["misconceptions"][:56]}
+        previous = {**historical, "misconceptions": self.map["misconceptions"][:56]}
         previous_digest = hashlib.sha256(json.dumps(previous, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
         self.assertEqual(previous_digest, "ec02b128b352ccb0ed4319bdef9bce1534f221103b1e1bf72a53ce1c8a37f565")
         self.assertNotIn("py.or-only-empty-string", {m["id"] for m in self.map["misconceptions"]})
         # Additive vocabulary revisions must preserve all initial definitions.
-        baseline = {**self.map, "misconceptions": self.map["misconceptions"][:43]}
+        baseline = {**historical, "misconceptions": self.map["misconceptions"][:43]}
         digest = hashlib.sha256(json.dumps(baseline, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
         self.assertEqual(digest, "49ccf22efef986c8d6a4a11e1f69c1c501d7d91c1c31d89edb51e48b1bb23c4f")
+
+    def test_approved_122_extension_is_exact_and_additive(self):
+        added_concepts = self.map["concepts"][18:]
+        added_misconceptions = self.map["misconceptions"][106:]
+        self.assertEqual({item["id"] for item in added_concepts}, {"py.modules", "py.classes"})
+        self.assertEqual(
+            {item["id"] for item in added_misconceptions},
+            {
+                "py.argument-evaluation-follows-parameters", "py.keyword-binding-is-positional",
+                "py.defaulted-parameter-arguments-evaluate-first", "py.explicit-keyword-cannot-replace-default",
+                "py.factory-calls-share-nonlocals", "py.nonlocal-nearest-scope-without-binding",
+                "py.nonlocal-resets-on-call", "py.nonlocal-targets-module", "py.from-import-deepcopies",
+                "py.repeated-import-fresh-module", "py.from-import-live-link", "py.module-constants-readonly",
+                "py.class-bindings-snapshotted-at-construction", "py.class-mutable-data-copied-per-instance",
+                "py.instance-assignment-writes-class", "py.instance-method-self-is-class",
+            },
+        )
+        for records, expected in (
+            (added_concepts, "c1b4f1bfe33a0a1fe0578e6253ccd308627b151571bfd9260743d6d358dc6abe"),
+            (added_misconceptions, "9b44f97d852964f727a5605f2058f79c05793a63eaef0e063b768edd4355b639"),
+        ):
+            actual = hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+            self.assertEqual(actual, expected)
 
     def test_seed_map_referential_integrity(self):
         concepts = self.map["concepts"]
