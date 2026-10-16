@@ -1,12 +1,14 @@
 {
   "question_id": "py-comprehension-filter-before-division",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "filter-zero-before-division",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "e6bad3cb6ad4ce8802344ad4480e72d3fa4fe0f02085c63053e2315f89554db9",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[6, 3]\n",
       "steps": [
         {

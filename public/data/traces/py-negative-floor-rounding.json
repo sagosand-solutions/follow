@@ -1,12 +1,14 @@
 {
   "question_id": "py-negative-floor-rounding",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "negative-quotient",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "f0b68eebdde605245c6635823b8c028755c495061ecdd8c2f0334503152f06cd",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "-3\n",
       "steps": [
         {

@@ -1,12 +1,14 @@
 {
   "question_id": "py-arithmetic-precedence-chain",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "three-precedence-levels",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "1341aab379cb71566c45530c5ea75e276c32e06f01b1ab068befc486c03c04de",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "50\n",
       "steps": [
         {

@@ -19,13 +19,21 @@ PROTOCOL = "__FOLLOW_TRACE_JSON__="
 # This wrapper receives source and snippet stdin as JSON data, compiles the source
 # under a synthetic filename, and emits trace metadata on stderr (separate from
 # the student's stdout). The wrapper itself never enters the trace collector.
-TRACER_TEMPLATE = r'''import io, json, re, reprlib, sys, types
+TRACER_TEMPLATE = r'''import dis, inspect, io, json, re, reprlib, sys, types
 
 data = json.loads(sys.stdin.read())
 source = data["source"]
 snippet_stdin = data["stdin"]
 steps = []
 stdout_buffer = io.StringIO()
+# Hold frame objects, not id(frame): a paused frame stays distinguishable even if
+# another frame is created before it resumes. Exits release their state below.
+frame_states = {}
+instruction_cache = {}
+GENERATOR_FLAGS = inspect.CO_GENERATOR | inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR
+YIELD_OPS = {"YIELD_VALUE"}
+RETURN_OPS = {"RETURN_VALUE", "RETURN_CONST"}
+RAISE_OPS = {"RAISE_VARARGS", "RERAISE"}
 class Tee:
     def write(self, text):
         stdout_buffer.write(text)
@@ -48,6 +56,39 @@ def short(value):
         text = text[:-3] + "…"
     return text if len(text) <= 80 else text[:79] + "…"
 
+def instructions_for(code):
+    cached = instruction_cache.get(code)
+    if cached is None:
+        instructions = list(dis.get_instructions(code))
+        cached = (instructions, {instruction.offset: index
+                                 for index, instruction in enumerate(instructions)})
+        instruction_cache[code] = cached
+    return cached
+
+def opname(frame):
+    instructions, offsets = instructions_for(frame.f_code)
+    index = offsets.get(frame.f_lasti)
+    return instructions[index].opname if index is not None else ""
+
+def returned_at_yield(frame):
+    instructions, offsets = instructions_for(frame.f_code)
+    index = offsets.get(frame.f_lasti)
+    if index is None:
+        return False
+    if instructions[index].opname in YIELD_OPS:
+        return True
+    # Python 3.13 can report the post-yield RESUME offset for the trace return.
+    return (instructions[index].opname == "RESUME" and index > 0 and
+            instructions[index - 1].opname in YIELD_OPS)
+
+def exception_record(arg, line):
+    exc_type, exc_value, _ = arg
+    try:
+        message = str(exc_value)[:200]
+    except BaseException:
+        message = "<unavailable>"
+    return {"type": exc_type.__name__, "message": message, "line": max(1, line)}
+
 class TraceLimitReached(BaseException):
     pass
 
@@ -57,8 +98,43 @@ def tracer(frame, event, arg):
     if len(steps) >= 300:
         sys.settrace(None)
         raise TraceLimitReached()
+    state = frame_states.get(frame)
+    semantic_event = event
+    if event == "call":
+        is_suspension_frame = bool(frame.f_code.co_flags & GENERATOR_FLAGS)
+        if state is not None and state.get("paused") and is_suspension_frame:
+            semantic_event = "resume"
+            state["paused"] = False
+        else:
+            semantic_event = "call"
+            if state is None:
+                state = {}
+                frame_states[frame] = state
+    elif event == "exception":
+        if state is None:
+            state = {}
+            frame_states[frame] = state
+        state["pending_exception"] = exception_record(arg, frame.f_lineno)
+    elif event == "return":
+        if state is None:
+            state = {}
+            frame_states[frame] = state
+        instruction = opname(frame)
+        is_suspension_frame = bool(frame.f_code.co_flags & GENERATOR_FLAGS)
+        if is_suspension_frame and returned_at_yield(frame):
+            semantic_event = "yield"
+            state["paused"] = True
+        else:
+            # exception trace events are provisional: except and finally both run
+            # lines after one. A real RETURN opcode confirms catch/suppression;
+            # RAISE/RERAISE or an escaping exception at a CALL remains unwind.
+            pending = state.get("pending_exception")
+            if instruction in RAISE_OPS or (pending is not None and instruction not in RETURN_OPS):
+                semantic_event = "unwind"
+            else:
+                semantic_event = "return"
     if event in ("line", "call", "return", "exception"):
-        record = {"line": max(1, frame.f_lineno), "event": event,
+        record = {"line": max(1, frame.f_lineno), "event": semantic_event,
                   "depth": max(0, sum(1 for active in iter_frames(frame)
                                       if active.f_code.co_filename == "<snippet>") - 1),
                   "function": frame.f_code.co_name,
@@ -74,15 +150,19 @@ def tracer(frame, event, arg):
                 rendered = "<unavailable>"
             if rendered is not None:
                 record["locals"][name] = rendered
-        if event == "return":
+        if semantic_event in ("return", "yield"):
             try:
                 record["value"] = short(arg) or "None"
             except BaseException:
                 record["value"] = "<unavailable>"
-        elif event == "exception":
-            exc_type, exc_value, _ = arg
-            record["exception"] = {"type": exc_type.__name__, "message": str(exc_value)[:200], "line": frame.f_lineno}
+        elif semantic_event == "exception":
+            record["exception"] = state["pending_exception"]
+        elif semantic_event == "unwind":
+            record["exception"] = state.get("pending_exception") or {
+                "type": "BaseException", "message": "exception leaves this frame", "line": max(1, frame.f_lineno)}
         steps.append(record)
+    if event == "return" and semantic_event != "yield":
+        frame_states.pop(frame, None)
     return tracer
 
 def iter_frames(frame):
@@ -116,6 +196,8 @@ try:
 except BaseException as exc:
     result_exception = {"type": type(exc).__name__, "message": str(exc)[:200], "line": 1}
 result = {"steps": steps, "stdout": stdout_buffer.getvalue(), "exception": result_exception, "truncated": truncated}
+if truncated:
+    result["truncated_at_step"] = len(steps)
 sys.stderr.write("\n" + "__FOLLOW_TRACE_JSON__=" + json.dumps(result, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n")
 '''
 
@@ -137,11 +219,18 @@ def _trace_question(question, filename, runner):
     cases = question.get("verification", {}).get("cases", [])
     snippets = []
     for snippet in question.get("snippets", []):
-        matching = [(index, case) for index, case in enumerate(cases)
-                    if case.get("snippet_id") == snippet.get("id")]
-        case_index, case = matching[0] if matching else (0, {})
+        matching = [case for case in cases if case.get("snippet_id") == snippet.get("id")]
+        if not matching:
+            raise RuntimeError(f"{filename} snippet {snippet['id']}: no verification case to bind trace input")
+        case = matching[0]
+        case_id = case.get("id")
+        snippet_stdin = case.get("stdin", "")
+        if not isinstance(case_id, str) or not case_id:
+            raise RuntimeError(f"{filename} snippet {snippet['id']}: verification case has no usable id")
+        if not isinstance(snippet_stdin, str):
+            raise RuntimeError(f"{filename} snippet {snippet['id']} case {case_id}: stdin is not a string")
         source = snippet["code"]
-        payload = json.dumps({"source": source, "stdin": case.get("stdin", "")}, ensure_ascii=True)
+        payload = json.dumps({"source": source, "stdin": snippet_stdin}, ensure_ascii=True)
         result = runner.run(TRACER_TEMPLATE, payload, TRACE_LIMITS)
         if result.status != "completed" or result.exit_code != 0:
             raise RuntimeError(f"{filename} snippet {snippet['id']}: trace runner {result.status}: {result.stderr[:300]}")
@@ -159,8 +248,10 @@ def _trace_question(question, filename, runner):
             raise RuntimeError(f"{filename} snippet {snippet['id']}: stdout differs from its verification case")
         snippets.append({"snippet_id": snippet["id"],
                          "source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
-                         "stdin_case": case_index, **observed})
-    return {"schema_version": "0.1", "question_id": question["id"], "traces": snippets}
+                         "case_id": case_id, "stdin": snippet_stdin,
+                         "stdin_sha256": hashlib.sha256(snippet_stdin.encode("utf-8")).hexdigest(),
+                         **observed})
+    return {"schema_version": "0.2", "question_id": question["id"], "traces": snippets}
 
 
 def _validate_trace(data, schema_path):
@@ -198,6 +289,7 @@ def _safe_child(root, relative):
 def _check(root, paths):
     expected = {}
     try:
+        schema_path = _safe_child(root, "schema/trace.schema.json")
         for path in paths:
             question = load_json(path)
             output = _safe_child(root, Path("public/data/traces") / f"{question['id']}.json")
@@ -207,17 +299,44 @@ def _check(root, paths):
                 expected[output] = None
                 continue
             trace = load_json(output)
-            source_by_pair = {(snippet["id"]): hashlib.sha256(snippet["code"].encode("utf-8")).hexdigest()
-                              for snippet in question["snippets"]}
+            try:
+                _validate_trace(trace, schema_path)
+            except (RuntimeError, SetupError) as exc:
+                print(f"{output}: invalid trace: {exc}")
+                expected[output] = None
+                continue
+            source_by_id = {snippet["id"]: hashlib.sha256(snippet["code"].encode("utf-8")).hexdigest()
+                            for snippet in question["snippets"]}
             trace_entries = trace.get("traces", [])
             trace_by_id = {entry.get("snippet_id"): entry for entry in trace_entries}
-            if (trace.get("question_id") != question["id"] or
-                    len(trace_by_id) != len(trace_entries) or set(trace_by_id) != set(source_by_pair)):
+            if (trace.get("schema_version") != "0.2" or trace.get("question_id") != question["id"] or
+                    len(trace_by_id) != len(trace_entries) or set(trace_by_id) != set(source_by_id)):
                 print(f"{output}: trace question/snippet set is stale")
                 expected[output] = None
                 continue
-            if any(trace_by_id[key].get("source_sha256") != digest for key, digest in source_by_pair.items()):
-                print(f"{output}: source hash is stale")
+            stale = False
+            for snippet_id, source_hash in source_by_id.items():
+                entry = trace_by_id[snippet_id]
+                if entry.get("source_sha256") != source_hash:
+                    print(f"{output}: source hash is stale for snippet {snippet_id}")
+                    stale = True
+                    continue
+                matches = [case for case in question.get("verification", {}).get("cases", [])
+                           if case.get("id") == entry.get("case_id") and case.get("snippet_id") == snippet_id]
+                if len(matches) != 1:
+                    print(f"{output}: case {entry.get('case_id')!r} is missing, duplicated, or belongs to another snippet")
+                    stale = True
+                    continue
+                actual_stdin = matches[0].get("stdin", "")
+                if not isinstance(actual_stdin, str):
+                    print(f"{output}: case {entry.get('case_id')!r} has invalid stdin")
+                    stale = True
+                    continue
+                stdin_hash = hashlib.sha256(actual_stdin.encode("utf-8")).hexdigest()
+                if entry.get("stdin") != actual_stdin or entry.get("stdin_sha256") != stdin_hash:
+                    print(f"{output}: case {entry.get('case_id')!r} stdin is stale")
+                    stale = True
+            if stale:
                 expected[output] = None
         directory = _safe_child(root, "public/data/traces")
         if directory.exists():
@@ -228,7 +347,7 @@ def _check(root, paths):
         if any(value is None for value in expected.values()):
             return 1
         return 0
-    except (ContentError, InputLimitError, SetupError, OSError, AttributeError, KeyError, TypeError, ValueError) as exc:
+    except (ContentError, InputLimitError, OSError, AttributeError, KeyError, TypeError, ValueError) as exc:
         print(f"trace check failed: {exc}")
         return 1
 

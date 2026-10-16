@@ -1,12 +1,14 @@
 {
   "question_id": "py-generator-send-roundtrip",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "prime-send-and-receive",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "7d272bed56290864bc978dfad5227453b9ecd88157146eba26d8db2df5bc7260",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "ready\n6\n",
       "steps": [
         {
@@ -64,7 +66,7 @@
         },
         {
           "depth": 1,
-          "event": "return",
+          "event": "yield",
           "function": "scale",
           "line": 2,
           "locals": {},
@@ -84,7 +86,7 @@
         },
         {
           "depth": 1,
-          "event": "call",
+          "event": "resume",
           "function": "scale",
           "line": 2,
           "locals": {},
@@ -102,7 +104,7 @@
         },
         {
           "depth": 1,
-          "event": "return",
+          "event": "yield",
           "function": "scale",
           "line": 3,
           "locals": {

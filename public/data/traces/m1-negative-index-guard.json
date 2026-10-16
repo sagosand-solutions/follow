@@ -1,8 +1,9 @@
 {
   "question_id": "m1-negative-index-guard",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "too-negative",
       "exception": {
         "line": 3,
         "message": "list index out of range",
@@ -10,7 +11,8 @@
       },
       "snippet_id": "main",
       "source_sha256": "1fdfcc93a134c5c5abe67be6d1b043bc7ee1d502b4af4e0f339348fa34e58b08",
-      "stdin_case": 0,
+      "stdin": "-3\n",
+      "stdin_sha256": "0f90e0b3538d04df294950dcec75952d7e07f1bb044e73e795c410d677b3c268",
       "stdout": "",
       "steps": [
         {
@@ -68,15 +70,19 @@
         },
         {
           "depth": 0,
-          "event": "return",
+          "event": "unwind",
+          "exception": {
+            "line": 3,
+            "message": "list index out of range",
+            "type": "IndexError"
+          },
           "function": "<module>",
           "line": 3,
           "locals": {
             "index": "-3",
             "items": "[4, 8]"
           },
-          "stdout_len": 0,
-          "value": "None"
+          "stdout_len": 0
         }
       ],
       "truncated": false

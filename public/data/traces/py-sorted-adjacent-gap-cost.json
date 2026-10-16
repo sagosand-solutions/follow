@@ -1,12 +1,14 @@
 {
   "question_id": "py-sorted-adjacent-gap-cost",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "unsorted-gap-example",
       "exception": null,
       "snippet_id": "main",
       "source_sha256": "fb80be1c1a89d5d89a81abb72e86c213580f232286b70b96c2beaca67e4517d1",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "1\n",
       "steps": [
         {
@@ -88,7 +90,7 @@
         },
         {
           "depth": 2,
-          "event": "return",
+          "event": "yield",
           "function": "<genexpr>",
           "line": 3,
           "locals": {
@@ -100,7 +102,7 @@
         },
         {
           "depth": 2,
-          "event": "call",
+          "event": "resume",
           "function": "<genexpr>",
           "line": 3,
           "locals": {
@@ -122,7 +124,7 @@
         },
         {
           "depth": 2,
-          "event": "return",
+          "event": "yield",
           "function": "<genexpr>",
           "line": 3,
           "locals": {
@@ -134,7 +136,7 @@
         },
         {
           "depth": 2,
-          "event": "call",
+          "event": "resume",
           "function": "<genexpr>",
           "line": 3,
           "locals": {
@@ -156,7 +158,7 @@
         },
         {
           "depth": 2,
-          "event": "return",
+          "event": "yield",
           "function": "<genexpr>",
           "line": 3,
           "locals": {
@@ -168,7 +170,7 @@
         },
         {
           "depth": 2,
-          "event": "call",
+          "event": "resume",
           "function": "<genexpr>",
           "line": 3,
           "locals": {

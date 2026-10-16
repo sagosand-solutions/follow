@@ -1,12 +1,14 @@
 {
   "question_id": "py-default-none-guard-ownership",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "traces": [
     {
+      "case_id": "truthiness-explicit-empty",
       "exception": null,
       "snippet_id": "truthiness",
       "source_sha256": "3a83e5a4f0055d91b42196aedf136c0e9f0e7c08ab7b14ff8786633b407ae8ee",
-      "stdin_case": 0,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[] [7] False\n",
       "steps": [
         {
@@ -142,10 +144,12 @@
       "truncated": false
     },
     {
+      "case_id": "none-explicit-empty",
       "exception": null,
       "snippet_id": "none-identity",
       "source_sha256": "f0d3a9e84d13a266f034a419955d16979349a8aff5156bde8f26c2c538ede450",
-      "stdin_case": 1,
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdout": "[7] [7] True\n",
       "steps": [
         {
