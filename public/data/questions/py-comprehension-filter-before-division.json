@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.47,
   "concepts": ["py.comprehensions", "py.iteration", "py.booleans", "py.numeric-operators"],
-  "prompt": "What does this program print, and which general evaluation-order rule for a filtered list comprehension is correct? Choose the option with both the complete result and the correct rule. The condition number != 0 accepts a number only when it is not zero.",
+  "prompt": "What does this program print? Choose the answer with the complete result and the right general evaluation-order rule for a filtered list comprehension. The condition number != 0 accepts a number only when it is not zero.",
   "snippets": [
     {"id": "main", "code": "numbers = [0, 1, 2]\nquotients = [6 // number for number in numbers if number != 0]\nprint(quotients)\n", "highlight_lines": [2]}
   ],
@@ -25,7 +25,7 @@
       "score": 0.5,
       "feedback": "The complete result is right, but the general ordering rule is wrong. Python handles one candidate at a time: test it, produce its result if accepted, then advance. It does not require a separate full-input filtering pass first.",
       "misconception": "py.comprehension-filters-all-before-mapping",
-      "partial_reason": "Correct: predicts exactly [6, 3] with no error. Incorrect: claims all input filters are evaluated before any result expression rather than interleaving filtering and result evaluation for each candidate."
+      "partial_reason": "The full result [6, 3], with no error, is right. The false step is treating all filtering as a complete pass before any result expression. Python tests each candidate and evaluates its result if accepted, then moves on."
     },
     {
       "id": "element-before-rejection",

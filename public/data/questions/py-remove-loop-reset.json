@@ -28,7 +28,7 @@
       "score": 0.5,
       "feedback": "The total and added values are right, but range(1, 4) does not visit 4: its stop is excluded. That extra imagined even value happens not to change the total in Reset removed.",
       "misconception": "py.range-stop-inclusive",
-      "partial_reason": "Correct: removing the reset retains the sum 1 + 3, giving 4. Incorrect: the loop visits the stop value 4; its actual values are only 1, 2 and 3."
+      "partial_reason": "Removing the reset keeps the sum 1 + 3, so the result 4 is right. The extra visit to 4 is not: range(1, 4) visits only 1, 2 and 3."
     },
     {
       "id": "accumulator-keeps-last",

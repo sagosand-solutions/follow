@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.53,
   "concepts": ["py.assignment", "py.lists", "py.mutation-aliasing"],
-  "prompt": "An editor replaces list concatenation followed by assignment with +=. The snippets are separate complete programs, each starting fresh. Do they print exactly the same values for both items and alias? Choose the correct comparison and explanation. Only these built-in lists of integers are in scope.",
+  "prompt": "Do these two programs print exactly the same values for both items and alias? Choose the answer with the right comparison and explanation. An editor has replaced list concatenation followed by assignment with +=. Each complete program starts fresh; only these built-in lists of integers are in scope.",
   "snippets": [
     {
       "id": "original",
@@ -36,7 +36,7 @@
       "score": 0.5,
       "feedback": "The final contents of items are right, but the comparison omits alias. The original leaves alias as [2, 4]; the rewrite changes the shared list to [2, 4, 6]. The complete output is different.",
       "misconception": "py.equivalence-ignores-aliases",
-      "partial_reason": "Correct: items contains [2, 4, 6] in both programs. Incorrect: concludes that the full output is preserved without checking alias, whose contents differ."
+      "partial_reason": "items contains [2, 4, 6] in both programs. The missing piece is alias: its contents differ, so the complete output is not preserved."
     },
     {
       "id": "reversed-mutation",

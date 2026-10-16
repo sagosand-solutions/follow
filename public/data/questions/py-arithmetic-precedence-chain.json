@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.35,
   "concepts": ["py.numeric-operators"],
-  "prompt": "What does this program print, and which general grouping rule is correct? ** means exponentiation: for example, 4 ** 2 is 16. Choose the option whose result and rule are both correct.",
+  "prompt": "What does this program print? Choose the answer with the right result and general grouping rule. ** means exponentiation: for example, 4 ** 2 is 16.",
   "snippets": [
     {"id": "main", "code": "print(2 + 3 * 4 ** 2)\n"}
   ],
@@ -39,7 +39,7 @@
       "score": 0.5,
       "feedback": "The result and ordinary precedence are right for this expression. The claim about parentheses is false: parentheses can change the grouping. This expression has no grouping parentheses inside print's argument.",
       "misconception": "py.parentheses-do-not-override-precedence",
-      "partial_reason": "Correct: predicts 50 using the actual precedence of the displayed operators. Incorrect: claims that this precedence overrides explicit grouping parentheses, which can change the grouping."
+      "partial_reason": "50 and the actual grouping of the displayed operators are right. The mistake is claiming that normal precedence overrides explicit grouping parentheses; parentheses can change the grouping."
     },
     {
       "id": "strict-left-to-right",

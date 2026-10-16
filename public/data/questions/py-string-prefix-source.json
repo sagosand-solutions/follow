@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.2,
   "concepts": ["py.strings"],
-  "prompt": "What single line does this program print, and which explanation of slicing is correct? Choose the option whose output and explanation are both correct.",
+  "prompt": "What single line does this program print? Choose the answer with the right output and slicing explanation.",
   "snippets": [
     {"id": "main", "code": "word = \"sunflower\"\nprefix = word[:3]\nprint(prefix, word)\n"}
   ],
@@ -39,7 +39,7 @@
       "score": 0.5,
       "feedback": "The printed line is right, but the general rule is wrong. The stop is an excluded index, not a length. It equals the selected length here only because the start is 0.",
       "misconception": "py.slice-stop-is-count",
-      "partial_reason": "Correct: both printed strings are sun and sunflower, and the source remains unchanged. Incorrect: a slice stop is always a count independent of its start; it is actually an excluded boundary index."
+      "partial_reason": "The printed strings sun and sunflower and the unchanged source are right. The false rule treats the stop as always a count independent of the start; it is an excluded boundary index."
     },
     {
       "id": "one-based-slice",

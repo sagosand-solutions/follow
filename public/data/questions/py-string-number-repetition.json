@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.18,
   "concepts": ["py.values", "py.strings", "py.numeric-operators"],
-  "prompt": "What does this program print, and which rule explains the role of the value's type? The quotes make value a string containing one digit, not the integer 3. Choose the option with both the correct output and the correct general rule.",
+  "prompt": "What does this program print? Choose the answer with the right output and general rule about the value's type. The quotes make value a string containing one digit, not the integer 3.",
   "snippets": [
     {"id": "main", "code": "value = \"3\"\nprint(value * 2)\n"}
   ],
@@ -39,7 +39,7 @@
       "score": 0.5,
       "feedback": "The shown output is right, but the type-independent rule is false. Strings support repetition; two numeric operands perform arithmetic. Unquoted 3 * 2 is 6, not 33.",
       "misconception": "py.multiplication-repeats-all-types",
-      "partial_reason": "Correct: predicts the entire printed text 33 for the shown string operand. Incorrect: extends string repetition to numeric operands, claiming that integer 3 * 2 would also give 33."
+      "partial_reason": "The entire printed text 33 is right for the shown string. The false rule extends repetition to numbers, claiming that the integer expression 3 * 2 also gives 33."
     },
     {
       "id": "string-repetition-illegal",

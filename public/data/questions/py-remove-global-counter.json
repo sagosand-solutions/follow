@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.62,
   "concepts": ["py.functions", "py.scope", "py.assignment", "py.exceptions"],
-  "prompt": "The changed script removes only line 4, global count, from the original script. Run each complete script fresh. The original prints 11 on two lines. Which option correctly describes what changes, including any exception and when it occurs, and gives a correct explanation? Output here means stdout, not an exception traceback on stderr.",
+  "prompt": "What changes when only line 4, global count, is removed? Choose the answer with the complete output, any exception and when it occurs, and the right explanation.\n\nRun each complete script fresh. The original prints 11 on two lines. Output means stdout, not an exception traceback on stderr.",
   "snippets": [
     {
       "id": "original",
@@ -43,7 +43,7 @@
       "score": 0.5,
       "feedback": "The changed result, exception and timing are right, but the universal reading rule is false. A function can read a module global without declaring it. Here the assignment makes count local, and += reads that uninitialized local.",
       "misconception": "py.global-required-for-read",
-      "partial_reason": "Correct: no stdout and a call-time UnboundLocalError for the changed script. Incorrect: claims every read of a module-global variable requires global; the actual failure comes from reading a name classified as local because this function assigns to it."
+      "partial_reason": "No stdout and a call-time UnboundLocalError are right for the changed script. The false rule requires global for every read of a module-global variable. Here count is local because the function contains an assignment to it. The call tries to read that local before it has a value."
     },
     {
       "id": "fallback-then-local-write",

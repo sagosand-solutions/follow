@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.48,
   "concepts": ["py.functions", "py.lists"],
-  "prompt": "Run this as a fresh Python script. Each mark call appends its label and returns its value. Which option gives both complete output lines and a correct general account of argument evaluation and keyword binding? The keyword arguments are deliberately written in a different order from the parameters.",
+  "prompt": "What are the two complete output lines? Choose the answer with the right general account of argument evaluation and keyword binding. Run this as a fresh Python script. Each mark call appends its label and returns its value. The keyword arguments are deliberately written in a different order from the parameters.",
   "snippets": [
     {
       "id": "main",
@@ -41,9 +41,9 @@
       "id": "defaulted-parameters-evaluated-first",
       "text": "The lines are 7 and ['R', 'L']. The keyword names bind the values correctly. At every call, expressions supplied for parameters with defaults are evaluated before those supplied for required parameters, regardless of their written order.",
       "score": 0.5,
-      "feedback": "Both lines and the named binding are right. The claimed priority is wrong: a parameter's having a default does not reorder expressions supplied at a call. R comes first here because its expression is written first, not because right has a default.",
+      "feedback": "Both lines and the named binding are right. A parameter's default does not give its supplied expression priority. R comes first because its expression is written first, not because right has a default.",
       "misconception": "py.defaulted-parameter-arguments-evaluate-first",
-      "partial_reason": "Correct: predicts the complete result 7 and event list ['R', 'L'], using the keyword names to bind the supplied values. Incorrect: infers a defaulted-parameter-first evaluation rule instead of the written order of these keyword argument expressions. The orders happen to coincide in this call."
+      "partial_reason": "The complete result 7 and event list ['R', 'L'] are right, with values bound by keyword name. The wrong rule gives expressions for defaulted parameters priority over the written order. Those two orders happen to agree in this call."
     },
     {
       "id": "default-overrides-explicit-keyword",
