@@ -28,7 +28,16 @@ function noteNode(note) {
 }
 
 // concepts: [{id, title}]. Returns { open(conceptId?), buttonFor }.
-export function createStudySheet(concepts) {
+export function createStudySheet(allConcepts) {
+  // Concepts that have notes come first; the others stay reachable and say so honestly.
+  let concepts = allConcepts;
+  let sorted = false;
+  async function sortByNotes() {
+    if (sorted) return;
+    sorted = true;
+    const has = await Promise.all(allConcepts.map((c) => loadStudy(c.id).then(() => true, () => false)));
+    concepts = [...allConcepts.filter((_, i) => has[i]), ...allConcepts.filter((_, i) => !has[i])];
+  }
   const title = h('h2', { id: 'study-title', class: 'sheet__title', tabindex: '-1' });
   const body = h('div', { class: 'sheet__body' });
   const close = h('button', { type: 'button', class: 'button button--secondary button--small' }, t('study.close'));
@@ -72,10 +81,11 @@ export function createStudySheet(concepts) {
 
   return {
     dialog,
-    open(conceptId, from) {
+    async open(conceptId, from) {
       opener = from || null;
       dialog.showModal();
-      show(conceptId || concepts[0].id);
+      await sortByNotes();
+      show(conceptId && allConcepts.length === 1 ? conceptId : concepts[0].id);
       title.focus();
     },
   };
