@@ -16,20 +16,26 @@
   --link: #3a35c8;
   --focus: #3a35c8;
 
-  /* the one warm colour: the highlighter. Always paired with --on-hl text. */
-  --hl: #ffc83d;
-  --hl-hover: #ffd566;
-  --on-hl: #111634;
-  --hl-text: #7a4f00;          /* highlighter colour as text on the page (>= 4.5:1) */
+  /* the one warm colour: the highlighter. Always paired with --on-accent-attention text. */
+  --accent-attention: #ffc83d;
+  --accent-attention-hover: #ffd566;
+  --on-accent-attention: #111634;
+  --accent-attention-text: #7a4f00;          /* highlighter colour as text on the page (>= 4.5:1) */
+
+  /* effects */
+  --shadow-attention: 0 6px 18px -8px rgba(255, 200, 61, 0.9);
+  --shadow-sheet: 0 -24px 60px -20px rgba(0, 0, 0, 0.5);
+  --attention-wash: rgba(255, 200, 61, 0.22);   /* the highlighter sweeping a line */
+  --scrim: rgba(7, 11, 24, 0.6);
 
   /* verdicts: always paired with an icon and a word */
-  --ok: #17603a;      --ok-bg: #e2f3e8;
-  --partial: #7a4f00; --partial-bg: #fff1c9;
-  --bad: #92264a;     --bad-bg: #fbe5ed;
+  --outcome-right: #17603a;      --outcome-right-bg: #e2f3e8;
+  --outcome-partial: #7a4f00; --outcome-partial-bg: #fff1c9;
+  --outcome-wrong: #92264a;     --outcome-wrong-bg: #fbe5ed;
 
   /* the stage (identical in both themes) */
-  --stage: #0e1428;
-  --stage-2: #18213f;          /* caption bar, hover */
+  --stage-bg: #0e1428;
+  --stage-bg-raised: #18213f;          /* caption bar, hover */
   --stage-line: #2a3563;
   --stage-ink: #e9ecfb;
   --stage-muted: #a3abd0;
@@ -49,11 +55,11 @@
   --tok-decorator: #c9a8ff;
 
   /* map cells */
-  --cell-none: transparent;
-  --cell-full: #17603a;
-  --cell-partial: #b88400;
-  --cell-wrong: #92264a;
-  --cell-unsure: #6f78a6;
+  --mark-none: transparent;
+  --mark-right: #17603a;
+  --mark-partial: #b88400;
+  --mark-wrong: #92264a;
+  --outcome-unknown: #6f78a6;
 
   /* type */
   --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -92,12 +98,12 @@
     --bg: #0b1020; --surface: #141b33; --surface-2: #1f2849;
     --ink: #e9ecfb; --muted: #a3abd0; --line: #232d54; --line-strong: #7983b3;
     --link: #aeb6ff; --focus: #ffc83d;
-    --hl-text: #ffc83d;
-    --ok: #8fd6a9; --ok-bg: #12301f;
-    --partial: #f0c765; --partial-bg: #33280d;
-    --bad: #f4a3bd; --bad-bg: #3a1424;
-    --stage: #070b18; --stage-2: #111833; --stage-line: #232d54;
-    --cell-full: #8fd6a9; --cell-partial: #f0c765; --cell-wrong: #f4a3bd; --cell-unsure: #7983b3;
+    --accent-attention-text: #ffc83d;
+    --outcome-right: #8fd6a9; --outcome-right-bg: #12301f;
+    --outcome-partial: #f0c765; --outcome-partial-bg: #33280d;
+    --outcome-wrong: #f4a3bd; --outcome-wrong-bg: #3a1424;
+    --stage-bg: #070b18; --stage-bg-raised: #111833; --stage-line: #232d54;
+    --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
     --shadow-stage: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   }
 }
@@ -106,11 +112,11 @@
   --bg: #0b1020; --surface: #141b33; --surface-2: #1f2849;
   --ink: #e9ecfb; --muted: #a3abd0; --line: #232d54; --line-strong: #7983b3;
   --link: #aeb6ff; --focus: #ffc83d;
-  --hl-text: #ffc83d;
-  --ok: #8fd6a9; --ok-bg: #12301f;
-  --partial: #f0c765; --partial-bg: #33280d;
-  --bad: #f4a3bd; --bad-bg: #3a1424;
-  --stage: #070b18; --stage-2: #111833; --stage-line: #232d54;
-  --cell-full: #8fd6a9; --cell-partial: #f0c765; --cell-wrong: #f4a3bd; --cell-unsure: #7983b3;
+  --accent-attention-text: #ffc83d;
+  --outcome-right: #8fd6a9; --outcome-right-bg: #12301f;
+  --outcome-partial: #f0c765; --outcome-partial-bg: #33280d;
+  --outcome-wrong: #f4a3bd; --outcome-wrong-bg: #3a1424;
+  --stage-bg: #070b18; --stage-bg-raised: #111833; --stage-line: #232d54;
+  --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
   --shadow-stage: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
