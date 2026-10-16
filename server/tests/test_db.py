@@ -121,6 +121,22 @@ class DbTests(unittest.TestCase):
         db.connect()
         db.close()
 
+    def test_owner_is_compared_by_object_not_numeric_ident(self):
+        db = Database(self.path)
+        real_owner = db._owner
+
+        class SameIdent:
+            ident = threading.get_ident()  # a recycled numeric id, different object
+
+        db._owner = SameIdent()
+        with self.assertRaises(StorageError):
+            db.connect()
+        with self.assertRaises(StorageError):
+            db.close()
+        db._owner = real_owner
+        db.connect()
+        db.close()
+
     def test_clock_is_injected(self):
         clock = [100.0]
         db = Database(self.path, clock=lambda: clock[0])

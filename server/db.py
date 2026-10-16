@@ -70,12 +70,13 @@ class Database:
         self.busy_timeout_ms = busy_timeout_ms
         self.connection: sqlite3.Connection | None = None
         self._savepoint = 0
-        # Ownership is fixed to the creating thread before any connection is
-        # opened, so two threads sharing one Database can never both open it.
-        self._owner = threading.get_ident()
+        # Ownership is fixed to the creating thread object (a strong reference)
+        # before any connection is opened. A numeric thread id can be reused
+        # after a thread exits, so compare the object itself with `is`.
+        self._owner = threading.current_thread()
 
     def _assert_owner(self) -> None:
-        if threading.get_ident() != self._owner:
+        if threading.current_thread() is not self._owner:
             raise StorageError("database is owned by its creating request/thread; use one Database per unit of work")
 
     def connect(self) -> sqlite3.Connection:
