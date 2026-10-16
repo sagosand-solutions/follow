@@ -188,12 +188,43 @@
     },
     {
       "concepts": [
+        "py.modules",
+        "py.assignment"
+      ],
+      "difficulty": 0.56,
+      "id": "py-import-module-and-from-binding",
+      "level": "intermediate",
+      "type": "ai-review"
+    },
+    {
+      "concepts": [
+        "py.classes",
+        "py.mutation-aliasing",
+        "py.lists"
+      ],
+      "difficulty": 0.6,
+      "id": "py-instance-shadow-and-class-list",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
         "py.iterators",
         "py.iteration",
         "py.lists"
       ],
       "difficulty": 0.61,
       "id": "py-iterator-cursor-ownership",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.lists"
+      ],
+      "difficulty": 0.48,
+      "id": "py-keyword-evaluation-before-binding",
       "level": "intermediate",
       "type": "output"
     },
@@ -224,6 +255,17 @@
       "difficulty": 0.18,
       "id": "py-nonempty-false-string",
       "level": "beginner",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope",
+        "py.assignment"
+      ],
+      "difficulty": 0.57,
+      "id": "py-nonlocal-independent-counters",
+      "level": "intermediate",
       "type": "output"
     },
     {

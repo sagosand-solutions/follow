@@ -5,6 +5,7 @@ import { store } from '../progress.js';
 import { errorNode } from './errors.js';
 import { currentAnswer } from '../answers.js';
 import { cells } from '../components/map.js';
+import { summaryNode } from '../components/summary.js';
 
 function statusOf(answer) {
   if (!answer) return t('lesson.status.none');
@@ -49,7 +50,7 @@ export async function lessonView({ id }) {
     ),
   );
 
-  const parts = [h('div', { class: 'course-head' }, h('p', { class: 'kicker' }, `${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
+  const parts = [h('div', { class: 'course-head' }, h('p', { class: 'kicker' }, `${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), summaryNode(lesson.summary, 'lead lesson-summary'), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
 
   if (questions && answered.length === lesson.questions.length) {
     const full = answered.filter((a) => a.outcome === 'answered' && a.score === 1).length;

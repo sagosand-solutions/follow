@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.1",
+  "id": "py-import-module-and-from-binding",
+  "language": "python",
+  "locale": "en",
+  "type": "ai-review",
+  "level": "intermediate",
+  "difficulty": 0.56,
+  "concepts": ["py.modules", "py.assignment"],
+  "prompt": "An AI claims that from math import pi creates a live link, so changing first.pi also changes the local name pi. Review the complete script in a fresh, ordinary Python process, with no custom import hooks or module reloads. Initially math.pi is about 3.14, not 3. The assignment intentionally changes only this process's module attribute as a teaching demonstration, not a recommended way to configure math. Which review gives the complete stdout or escaping exception and a correct explanation?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "import math as first\nimport math as second\nfrom math import pi\n\nfirst.pi = 3\nprint(second.pi == 3, pi == second.pi, first is second)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "cached-module-bound-name",
+      "text": "True False True. Both module names refer to the same cached module. The from import bound pi to the original number; rebinding the module attribute does not rebind that local name.",
+      "score": 1,
+      "feedback": "Correct. first and second name the same module object. first.pi = 3 changes its attribute, so second.pi is 3. The independently bound name pi still refers to the earlier number.",
+      "misconception": null
+    },
+    {
+      "id": "same-result-deepcopy-rule",
+      "text": "True False True. The module names share a module, but from imports always make a deep copy of the imported value, including nested mutable contents, which is why pi is independent here.",
+      "score": 0.5,
+      "feedback": "The entire printed line is right, and the module aliases do share state. The copying rule is wrong: a from import binds a name to the existing object; it does not deep-copy it. With a mutable imported object, mutation could therefore be visible through both names. Here the module attribute is rebound instead.",
+      "misconception": "py.from-import-deepcopies",
+      "partial_reason": "Correct: all three observations and module identity. Incorrect: from import is claimed to deep-copy arbitrary imported values, rather than bind a name to the current object. The numeric example cannot distinguish a copy from a separate binding."
+    },
+    {
+      "id": "each-import-new-module",
+      "text": "False True False. Each import loads a separate fresh module, so second keeps its original pi and the from import also obtains the original number from another fresh copy.",
+      "score": 0,
+      "feedback": "That model consistently leaves the other imports untouched, but ordinary repeated imports of the same name use the module cache. second is first, and second.pi therefore becomes 3. Only the local pi keeps the original binding.",
+      "misconception": "py.repeated-import-fresh-module"
+    },
+    {
+      "id": "live-from-link",
+      "text": "True True True. The module aliases share an object, and the imported name pi is a live link to its pi attribute, so it follows the change to 3.",
+      "score": 0,
+      "feedback": "The shared module and its changed attribute are right, but pi is not a live attribute lookup. The from statement bound it once to the original object. The AI's claim is therefore false.",
+      "misconception": "py.from-import-live-link"
+    },
+    {
+      "id": "constant-readonly",
+      "text": "There is no stdout, and AttributeError escapes at first.pi = 3. A documented mathematical constant is a read-only module attribute, even through an import alias.",
+      "score": 0,
+      "feedback": "The assignment succeeds. Calling math.pi a constant describes its mathematical/API role; it does not make this ordinary module attribute read-only. Rebinding it affects this process's module state, not the mathematical value of pi or another Python process.",
+      "misconception": "py.module-constants-readonly"
+    }
+  ],
+  "explanation": "Imports bind names. With ordinary caching and no reload/cache manipulation, first and second refer to the same math module. The from statement separately binds pi to the then-current attribute object. Assigning first.pi = 3 replaces that module attribute, not the old number and not the importing scope's pi binding. Thus second.pi == 3 is True, pi == second.pi is False, and first is second is True. No deep copy is involved. This controlled rebinding is not a recommendation to mutate standard-library modules in application code.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "fresh-process",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {"stdout": "True False True\n", "exit_code": 0}
+      }
+    ],
+    "rationale": "The exact displayed script checks the complete comparison and module identity in a fresh process. It supports the concrete output, not the general no-deep-copy claim or the validity of partial credit, which require language-reference and human review.",
+    "limitations": "Only the trusted standard-library math module is imported. No source files, import hooks, reloads, network calls or filesystem changes are authored in the specimen; only process-local module state is rebound. Execution does not measure real learner misconceptions, cache behavior under manipulation, or security of arbitrary imports."
+  },
+  "author": {"name": "Open learning contributors"},
+  "license": "CC-BY-SA-4.0"
+}

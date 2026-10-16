@@ -1,0 +1,67 @@
+{
+  "schema_version": "0.1",
+  "id": "py-nonlocal-independent-counters",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.57,
+  "concepts": ["py.functions", "py.scope", "py.assignment"],
+  "prompt": "Run this as a fresh Python script. The calls in the first print are evaluated from left to right. Which option gives both complete output lines and a correct account of the count bindings? first and second are functions returned by two separate calls to make_counter.",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "count = 100\n\ndef make_counter():\n    count = 0\n    def advance():\n        nonlocal count\n        count += 1\n        return count\n    return advance\n\nfirst = make_counter()\nsecond = make_counter()\nprint(first(), first(), second())\nprint(count)\n",
+      "highlight_lines": [4, 6, 13]
+    }
+  ],
+  "options": [
+    {
+      "id": "one-counter-for-all-factory-calls",
+      "text": "The lines are 1 2 3 and 100. All calls to make_counter share one enclosing count binding, so both returned functions advance the same counter; the module count is separate.",
+      "score": 0,
+      "feedback": "Each call to make_counter creates a new enclosing count binding initialized to 0. The two first calls use one binding and reach 1 then 2; second uses a different binding and reaches 1. The module count stays 100.",
+      "misconception": "py.factory-calls-share-nonlocals"
+    },
+    {
+      "id": "nearest-function-even-without-binding",
+      "text": "The lines are 1 2 1 and 100. The factory calls create separate counters that persist between calls. In general, nonlocal always targets the immediately surrounding function scope, even if that scope does not bind the named variable.",
+      "score": 0.5,
+      "feedback": "Both lines and the independent persistent counters are right. The final general rule is wrong: nonlocal searches enclosing function scopes for the nearest existing binding of the name; an intermediate function scope without that binding is skipped. The immediately surrounding function happens to bind count here.",
+      "misconception": "py.nonlocal-nearest-scope-without-binding",
+      "partial_reason": "Correct: predicts the complete 1 2 1 / 100 trace, including persistent state, independence between factory calls and unchanged module count. Incorrect: claims the immediately surrounding function scope is always the target whether or not it binds the name, rather than the nearest enclosing function scope that does bind it."
+    },
+    {
+      "id": "reset-nonlocal-on-every-inner-call",
+      "text": "The lines are 1 1 1 and 100. Every call to advance resets its enclosing count to the factory's initial 0 before adding 1; the module count is separate.",
+      "score": 0,
+      "feedback": "The initialization count = 0 executes in make_counter, not at the start of each advance call. Calling first a second time updates its retained count from 1 to 2. second has its own count, and the module count remains 100.",
+      "misconception": "py.nonlocal-resets-on-call"
+    },
+    {
+      "id": "separate-retained-enclosing-bindings",
+      "text": "The lines are 1 2 1 and 100. Each factory call creates its own count binding. Each returned function keeps access to that binding, and nonlocal updates it. In general the target is the nearest enclosing function scope that binds the name, not module scope.",
+      "score": 1,
+      "feedback": "Correct. first updates its enclosing count to 1 then 2; second updates a distinct enclosing count to 1. Neither updates the module count. A nonlocal target must be an existing enclosing function binding.",
+      "misconception": null
+    },
+    {
+      "id": "nonlocal-means-module-global",
+      "text": "The lines are 101 102 103 and 103. nonlocal makes every advance call update the module count, ignoring the count bindings in the factory calls.",
+      "score": 0,
+      "feedback": "nonlocal does not mean global. It targets the count binding in the enclosing make_counter call, not the module's count. The actual lines are 1 2 1 and 100.",
+      "misconception": "py.nonlocal-targets-module"
+    }
+  ],
+  "explanation": "The module binds count to 100. Each make_counter call creates a different local count initialized to 0 and returns an advance function with access to that binding. nonlocal count makes += rebind that enclosing count rather than create an advance-local name or modify the module name. The first two calls share first's enclosing binding, producing 1 then 2. second uses the other factory call's binding and produces 1. The module count stays 100. In general nonlocal searches enclosing function scopes for the nearest existing binding; a scope without that name is skipped. This is a language-level binding account, not a claim about mandatory interpreter frame allocation.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "two-factory-bindings-and-module", "snippet_id": "main", "stdin": "", "expected": {"stdout": "1 2 1\n100\n", "exit_code": 0}}
+    ],
+    "rationale": "Run the exact displayed script and compare both complete lines. Repeated first calls expose retained state, second exposes independent factory state, and the final print exposes unchanged module state. The nearest-binding rule needs separate review because this example has no intervening scope without count.",
+    "limitations": "Only the safe displayed in-memory script is executed. No hidden skipped-scope experiment, CPython frame-layout proof, hardened sandbox, empirical partial-credit calibration or publication approval is claimed."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

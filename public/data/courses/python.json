@@ -71,7 +71,9 @@
             "py-shared-default-ai-review",
             "py-closure-loop-readers",
             "py-and-skips-record-call",
-            "py-default-none-guard-ownership"
+            "py-default-none-guard-ownership",
+            "py-keyword-evaluation-before-binding",
+            "py-nonlocal-independent-counters"
           ]
         },
         {
@@ -105,6 +107,29 @@
           ],
           "questions": [
             "py-iterator-cursor-ownership"
+          ]
+        },
+        {
+          "id": "modules",
+          "title": "Modules and imports",
+          "summary": "Read module aliases and imported names, and distinguish a new name binding from rebinding a module attribute.",
+          "builds_on": [
+            "functions-and-scope"
+          ],
+          "questions": [
+            "py-import-module-and-from-binding"
+          ]
+        },
+        {
+          "id": "classes",
+          "title": "Objects and classes",
+          "summary": "Read ordinary instance and class attributes. Follow shared mutable data, instance shadowing, and the receiving object in a method call.",
+          "builds_on": [
+            "functions-and-scope",
+            "lists-and-mutation"
+          ],
+          "questions": [
+            "py-instance-shadow-and-class-list"
           ]
         },
         {

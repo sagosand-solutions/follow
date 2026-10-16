@@ -1,0 +1,81 @@
+{
+  "question_id": "py-import-module-and-from-binding",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "fresh-process",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "06fbffdc7b9f218f83b4275aa5be91f16fb9c8e481a96ee670d5e9af196bfba1",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "True False True\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "pi": "3.141592653589793"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "pi": "3.141592653589793"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "pi": "3.141592653589793"
+          },
+          "stdout_len": 16,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
