@@ -33,6 +33,28 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(len(self.map["concepts"]), 20)
         self.assertGreaterEqual(len(self.map["misconceptions"]), 20)
 
+    def test_prod_prefix_map_and_question_validate_py_data_unchanged(self):
+        concept_map = deepcopy(self.map)
+        concept_map["concepts"].append({"id": "prod.reading-queries", "title": "Reading queries", "level": "beginner", "prerequisites": []})
+        question = deepcopy(self.q)
+        question["concepts"] = [*self.q["concepts"], "prod.reading-queries"]  # misconceptions still relate to its py. tags
+        self.assertEqual(validate_map(concept_map), [])
+        self.assertEqual(validate_question(question, concept_map), [])
+        # The same question against a map without the prod concept is a reference error, not a schema pass.
+        self.assertTrue(validate_question(question, self.map))
+        # Other prefixes stay invalid in the map and the question.
+        for prefix in ("sql", "prodx"):
+            bad_map = deepcopy(concept_map)
+            bad_map["concepts"][-1]["id"] = f"{prefix}.reading-queries"
+            bad_question = deepcopy(question)
+            bad_question["concepts"] = [*self.q["concepts"], f"{prefix}.reading-queries"]
+            with self.subTest(prefix=prefix):
+                self.assertTrue(validate_map(bad_map))
+                self.assertTrue(validate_question(bad_question, bad_map))
+        # py.-only data is untouched.
+        self.assertEqual(validate_map(self.map), [])
+        self.assertEqual(validate_question(self.q, self.map), [])
+
     def test_real_schema_rejections(self):
         for field, value in (("schema_version", "bad"), ("locale", "sv"), ("difficulty", True),
                              ("license", "MIT"), ("options", self.q["options"][:4])):
