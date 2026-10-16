@@ -5,6 +5,8 @@ import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
 import { nextUp, homeShortcuts, homeHintKey } from '../course-nav.js';
+import { eyebrow, facts, courseCounts } from '../components/ui.js';
+import { CONFIG } from '../config.js';
 
 // The headline carries one highlighted phrase; both strings are translated whole.
 function headline() {
@@ -52,12 +54,12 @@ export async function homeView() {
   const after = [];
   if (answeredCount > 0) {
     intro.push(h('p', { class: 'welcome' }, nextId ? t('home.welcomeText', { count: answeredCount, total: ids.length }) : t('home.allDone')));
-    if (nextId) actions.append(h('a', { class: 'button button--primary', href: `#/q/${nextId}` }, t('home.continue')));
-    actions.append(h('a', { class: nextId ? 'button button--secondary' : 'button button--primary', href: '#/course' }, t('home.browse')));
+    if (nextId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${nextId}` }, t('home.continue')));
+    actions.append(h('a', { class: nextId ? 'button button--secondary button--block' : 'button button--primary button--block', href: '#/course' }, t('home.browse')));
   } else {
     intro.push(h('p', { class: 'lead' }, t('home.lead')));
-    if (index && index.onboarding_question) actions.append(h('a', { class: 'button button--primary', href: `#/q/${index.onboarding_question}` }, t('home.start')));
-    actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary' : 'button button--primary', href: '#/course' }, t('home.browse')));
+    if (index && index.onboarding_question) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${index.onboarding_question}` }, t('home.start')));
+    actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: '#/course' }, t('home.browse')));
     // Honest facts and shortcuts to existing lessons; never a promise the current storage mode cannot keep.
     after.push(h('p', { class: 'hero__facts' }, store.persistent ? t('home.facts.saved') : t('home.facts.memory')));
     const shortcuts = course ? homeShortcuts(course) : [];
@@ -73,13 +75,17 @@ export async function homeView() {
     }
   }
 
-  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, h('h1', {}, ...headline()), ...intro, actions, ...after, h('p', { class: 'hero__hint' }, t(homeHintKey({ hasProgress: answeredCount > 0, persistent: store.persistent })))), stage);
-
-  const pillars = h(
-    'ol',
-    { class: 'pillars', 'aria-label': t('home.steps') },
-    [1, 2, 3].map((n) => h('li', { class: 'pillar' }, h('span', { class: 'pillar__n', 'aria-hidden': 'true' }, `0${n}`), h('p', { class: 'pillar__title' }, t(`home.step${n}.title`)), h('p', { class: 'pillar__text' }, t(`home.step${n}.text`)))),
+  // Fact pills: the numbers come from the course data; "No account needed" is true only while the account UI is off.
+  const counts = courseCounts(course);
+  const pills = facts(
+    [
+      { template: t('facts.questions'), bold: counts.questions || null },
+      { template: t('facts.lessons'), bold: counts.lessons || null },
+      CONFIG.accountsUi ? null : { template: t('facts.noAccount') },
+    ],
+    t('facts.label'),
   );
+  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, eyebrow(t('home.eyebrow')), h('h1', {}, ...headline()), ...intro, pills, actions, ...after, h('p', { class: 'hero__hint' }, t(homeHintKey({ hasProgress: answeredCount > 0, persistent: store.persistent })))), stage);
 
   const parts = [hero];
   if (course) {
@@ -93,6 +99,5 @@ export async function homeView() {
       ),
     );
   }
-  parts.push(pillars);
   return { title: t('site.brand'), node: h('div', { class: 'home' }, ...parts) };
 }

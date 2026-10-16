@@ -5,6 +5,7 @@ import { store } from '../progress.js';
 import { errorNode } from './errors.js';
 import { currentAnswer } from '../answers.js';
 import { cells } from '../components/map.js';
+import { eyebrow, facts } from '../components/ui.js';
 import { summaryNode } from '../components/summary.js';
 import { lessonEnding } from './lesson-end.js';
 
@@ -51,7 +52,7 @@ export async function lessonView({ id }) {
     ),
   );
 
-  const parts = [h('div', { class: 'course-head' }, h('p', { class: 'kicker' }, `${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), summaryNode(lesson.summary, 'lead lesson-summary'), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
+  const parts = [h('div', { class: 'course-head' }, eyebrow(`${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), summaryNode(lesson.summary, 'lead lesson-summary'), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
 
   if (questions && answered.length === lesson.questions.length) {
     const full = answered.filter((a) => a.outcome === 'answered' && a.score === 1).length;
@@ -80,7 +81,7 @@ export async function lessonView({ id }) {
       console.error(err);
     }
     parts.push(
-      h('section', { class: 'summary' }, h('h2', {}, t('lesson.summary')), h('p', {}, t('lesson.counts', { answered: answered.length, total: lesson.questions.length, full, partial, wrong, unsure })), h('h3', {}, t('lesson.lookAgain')), again),
+      h('section', { class: 'summary' }, h('h2', {}, t('lesson.summary')), h('p', {}, t('lesson.answeredOf', { answered: answered.length, total: lesson.questions.length })), facts([{ template: t('lesson.count.full'), bold: full }, { template: t('lesson.count.partial'), bold: partial }, { template: t('lesson.count.wrong'), bold: wrong }, { template: t('lesson.count.unsure'), bold: unsure }].filter((x) => x.bold > 0), t('lesson.count.label')), h('h3', {}, t('lesson.lookAgain')), again),
     );
     // End of a finished lesson: where to go next and what builds on this lesson.
     const { next, buildsOn } = lessonEnding(course, lesson.id);
@@ -88,7 +89,7 @@ export async function lessonView({ id }) {
       h(
         'section',
         { class: 'lesson-next' },
-        next ? h('a', { class: 'button button--primary', href: `#/lesson/${next.id}` }, t('lesson.next', { title: next.title })) : h('p', {}, t('lesson.endOfCourse')),
+        next ? h('a', { class: 'button button--primary button--block', href: `#/lesson/${next.id}` }, t('lesson.next', { title: next.title })) : h('p', {}, t('lesson.endOfCourse')),
         buildsOn.length ? h('h3', {}, t('lesson.buildsOnTitle')) : null,
         buildsOn.length ? h('ul', {}, buildsOn.map((l) => h('li', {}, h('a', { href: `#/lesson/${l.id}` }, l.title)))) : null,
       ),

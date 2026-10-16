@@ -10,6 +10,7 @@ import { navigate } from '../router.js';
 import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 import { createStudySheet } from '../components/study.js';
+import { eyebrow, noteBox, sourceCard, showInstructionNote } from '../components/ui.js';
 import { createStepPlayer } from '../components/step-player.js';
 import { usableTraces } from '../trace.js';
 
@@ -94,7 +95,7 @@ function draw(ctx, prev, stale = false) {
   const header = h('div', { class: 'question__head' });
   const meta = h('div', { class: 'question__meta' });
   if (where) {
-    meta.append(h('p', { class: 'kicker' }, `${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}`));
+    meta.append(eyebrow(`${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}`));
     meta.append(progressBar(where.lesson.questions, q.id));
   }
   header.append(meta);
@@ -144,7 +145,7 @@ function draw(ctx, prev, stale = false) {
 
   const feedback = h('div', { class: 'feedback', id: 'feedback', role: 'region', 'aria-label': t('q.feedback') });
   const hint = h('p', { class: 'hint', id: 'hint' }, t('q.hint'));
-  const check = h('button', { type: 'button', class: 'button button--primary', 'aria-disabled': 'true', 'aria-describedby': 'hint' }, t('q.check'));
+  const check = h('button', { type: 'button', class: 'button button--primary button--block', 'aria-disabled': 'true', 'aria-describedby': 'hint' }, t('q.check'));
   const actions = h('div', { class: 'actions' }, check, hint);
 
   const selected = () => inputs.find((i) => i.checked);
@@ -180,8 +181,9 @@ function draw(ctx, prev, stale = false) {
   });
 
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
-  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, attribution(q));
-  root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
+  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, sourceFor(q));
+  const noteNode = showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
   if (answered) {
@@ -226,9 +228,14 @@ function progressBar(ids, currentId) {
   return bar;
 }
 
-function attribution(q) {
+// Distinct questions answered so far in this browser (the instruction note fades after the first few).
+function answeredDistinct() {
+  return new Set(store.answers().map((a) => a.question_id)).size;
+}
+
+function sourceFor(q) {
   const name = q.author && q.author.name ? q.author.name : null;
-  return name ? h('p', { class: 'attribution' }, `${t('q.attribution', { author: name })} `, h('a', { href: CONFIG.licenseUrl }, t('q.license'))) : null;
+  return name ? sourceCard({ title: t('q.source.title'), text: t('q.source.text', { author: name }), link: { href: CONFIG.licenseUrl, label: t('q.license') } }) : null;
 }
 
 function navActions(ctx) {
@@ -237,17 +244,17 @@ function navActions(ctx) {
   let next;
   if (where && where.position + 1 < where.lesson.questions.length) {
     const nextId = where.lesson.questions[where.position + 1];
-    next = h('button', { type: 'button', class: 'button button--primary', 'data-action': 'next', onclick: () => navigate(`/q/${nextId}`) }, t('q.next'));
+    next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate(`/q/${nextId}`) }, t('q.next'));
   } else if (where) {
-    next = h('button', { type: 'button', class: 'button button--primary', 'data-action': 'next', onclick: () => navigate(`/lesson/${where.lesson.id}`) }, t('q.finish'));
+    next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate(`/lesson/${where.lesson.id}`) }, t('q.finish'));
   } else {
-    next = h('button', { type: 'button', class: 'button button--primary', 'data-action': 'next', onclick: () => navigate('/course') }, t('q.backToCourse'));
+    next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate('/course') }, t('q.backToCourse'));
   }
   const again = h(
     'button',
     {
       type: 'button',
-      class: 'button button--secondary',
+      class: 'button button--secondary button--block',
       onclick: () => {
         draw(ctx, null);
         const title = ctx.root.querySelector('h1');
