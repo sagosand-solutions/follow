@@ -1,0 +1,146 @@
+{
+  "question_id": "py-shallow-inner-mutation",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "assignment",
+      "source_sha256": "4f94eba3e74de86a810c29e3cd8ff846c35d5a8eb58200cee944c70f472d24ca",
+      "stdin_case": 0,
+      "stdout": "[[1, 9], [2]]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "rows": "[[1], [2]]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "copied": "[[1], [2]]",
+            "rows": "[[1], [2]]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "copied": "[[1, 9], [2]]",
+            "rows": "[[1, 9], [2]]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "copied": "[[1, 9], [2]]",
+            "rows": "[[1, 9], [2]]"
+          },
+          "stdout_len": 14,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    },
+    {
+      "exception": null,
+      "snippet_id": "slice",
+      "source_sha256": "46225f6922277319bfc9ea96e400f45cbbae878a202bad05e03e86412bf03dd2",
+      "stdin_case": 1,
+      "stdout": "[[1, 9], [2]]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "rows": "[[1], [2]]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "copied": "[[1], [2]]",
+            "rows": "[[1], [2]]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "copied": "[[1, 9], [2]]",
+            "rows": "[[1, 9], [2]]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "copied": "[[1, 9], [2]]",
+            "rows": "[[1, 9], [2]]"
+          },
+          "stdout_len": 14,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

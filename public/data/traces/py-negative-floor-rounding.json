@@ -1,0 +1,53 @@
+{
+  "question_id": "py-negative-floor-rounding",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "f0b68eebdde605245c6635823b8c028755c495061ecdd8c2f0334503152f06cd",
+      "stdin_case": 0,
+      "stdout": "-3\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "value": "-8"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "value": "-8"
+          },
+          "stdout_len": 3,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

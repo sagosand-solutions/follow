@@ -1,0 +1,420 @@
+{
+  "question_id": "py-dict-default-or-equivalence",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "original",
+      "source_sha256": "7d62dabae0c89f43baf2cf93977de1d7791714c5f8cc2beeb9b7f57491cab1de",
+      "stdin_case": 0,
+      "stdout": "'guest'\n''\n'Ada'\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "display_name",
+          "line": 1,
+          "locals": {
+            "profile": "{}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{}"
+          },
+          "stdout_len": 0,
+          "value": "'guest'"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "display_name",
+          "line": 1,
+          "locals": {
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8,
+          "value": "''"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 11
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 11
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "display_name",
+          "line": 1,
+          "locals": {
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 11
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 11
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 11,
+          "value": "'Ada'"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 17
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 17,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    },
+    {
+      "exception": null,
+      "snippet_id": "rewrite",
+      "source_sha256": "35b7382a4e8750083bc1c75b7ed975d83311c228f11a468e46b8e8cea9ae903d",
+      "stdin_case": 1,
+      "stdout": "'guest'\n'guest'\n'Ada'\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "display_name",
+          "line": 1,
+          "locals": {
+            "profile": "{}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{}"
+          },
+          "stdout_len": 0,
+          "value": "'guest'"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "display_name",
+          "line": 1,
+          "locals": {
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 8,
+          "value": "'guest'"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': ''}"
+          },
+          "stdout_len": 16
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 16
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "display_name",
+          "line": 1,
+          "locals": {
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 16
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 16
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "display_name",
+          "line": 2,
+          "locals": {
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 16,
+          "value": "'Ada'"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 22
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "display_name": "<function display_name>",
+            "profile": "{'name': 'Ada'}"
+          },
+          "stdout_len": 22,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

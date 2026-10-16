@@ -91,6 +91,15 @@ class TraceTests(unittest.TestCase):
             self.skipTest("jsonschema dependency is not installed")
         trace._validate_trace(payload, self.root / "schema/trace.schema.json")
 
+    def test_repr_addresses_are_stable_and_compiler_locals_are_hidden(self):
+        source = "functions = [lambda: 1]\ngen = (value for value in [1])\nprint(1)"
+        first = self.trace_one(source)
+        second = self.trace_one(source)
+        self.assertEqual(trace._serialize(first), trace._serialize(second))
+        names = {name for step in first["steps"] for name in step["locals"]}
+        self.assertNotIn(".0", names)
+        self.assertNotIn("<lambda> at 0x7", " ".join(str(step["locals"]) for step in first["steps"]))
+
     def test_stdout_len_tracks_output_after_line(self):
         record = self.trace_one("print('a')\nprint('bc')")
         lines = [step for step in record["steps"] if step["event"] == "line"]

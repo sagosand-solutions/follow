@@ -1,0 +1,85 @@
+{
+  "question_id": "m1-negative-index-guard",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": {
+        "line": 3,
+        "message": "list index out of range",
+        "type": "IndexError"
+      },
+      "snippet_id": "main",
+      "source_sha256": "1fdfcc93a134c5c5abe67be6d1b043bc7ee1d502b4af4e0f339348fa34e58b08",
+      "stdin_case": 0,
+      "stdout": "",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "items": "[4, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "index": "-3",
+            "items": "[4, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "exception",
+          "exception": {
+            "line": 3,
+            "message": "list index out of range",
+            "type": "IndexError"
+          },
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "index": "-3",
+            "items": "[4, 8]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "index": "-3",
+            "items": "[4, 8]"
+          },
+          "stdout_len": 0,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

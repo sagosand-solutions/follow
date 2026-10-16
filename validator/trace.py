@@ -10,7 +10,7 @@ import tempfile
 from . import core
 from .cli import Parser
 from .core import ContentError, InputLimitError, SetupError, load_json
-from .runner import Limits, RunResult, TrustedLocalRunner
+from .runner import Limits, TrustedLocalRunner
 
 ROOT = core.ROOT
 TRACE_LIMITS = Limits(python_hash_seed="0")
@@ -19,7 +19,7 @@ PROTOCOL = "__FOLLOW_TRACE_JSON__="
 # This wrapper receives source and snippet stdin as JSON data, compiles the source
 # under a synthetic filename, and emits trace metadata on stderr (separate from
 # the student's stdout). The wrapper itself never enters the trace collector.
-TRACER_TEMPLATE = r'''import builtins, contextlib, io, json, reprlib, sys, types
+TRACER_TEMPLATE = r'''import io, json, re, reprlib, sys, types
 
 data = json.loads(sys.stdin.read())
 source = data["source"]
@@ -43,7 +43,7 @@ def short(value):
     rep = reprlib.Repr()
     rep.maxstring = rep.maxother = rep.maxlong = 80
     rep.maxlist = rep.maxtuple = rep.maxdict = rep.maxset = rep.maxfrozenset = 8
-    text = rep.repr(value)
+    text = re.sub(r" at 0x[0-9a-fA-F]+", " at 0x…", rep.repr(value))
     if text.endswith("..."):
         text = text[:-3] + "…"
     return text if len(text) <= 80 else text[:79] + "…"
@@ -58,12 +58,14 @@ def tracer(frame, event, arg):
         sys.settrace(None)
         raise TraceLimitReached()
     if event in ("line", "call", "return", "exception"):
-        record = {"line": frame.f_lineno, "event": event,
+        record = {"line": max(1, frame.f_lineno), "event": event,
                   "depth": max(0, sum(1 for active in iter_frames(frame)
                                       if active.f_code.co_filename == "<snippet>") - 1),
                   "function": frame.f_code.co_name,
                   "locals": {}, "stdout_len": len(stdout_buffer.getvalue())}
         for name, value in frame.f_locals.items():
+            if not name.isidentifier():
+                continue
             if name.startswith("__") and name.endswith("__"):
                 continue
             try:
@@ -151,8 +153,10 @@ def _trace_question(question, filename, runner):
             observed = json.loads(lines[0][len(marker):])
         except (json.JSONDecodeError, ValueError) as exc:
             raise RuntimeError(f"{filename} snippet {snippet['id']}: invalid trace result: {exc}") from exc
-        if "expected" in case and observed["stdout"] != case["expected"].get("stdout", ""):
-            raise RuntimeError(f"{filename} snippet {snippet['id']}: traced stdout differs from its verification case")
+        if result.stdout != observed["stdout"]:
+            raise RuntimeError(f"{filename} snippet {snippet['id']}: stdout capture differs from runner output")
+        if "expected" in case and result.stdout != case["expected"].get("stdout", ""):
+            raise RuntimeError(f"{filename} snippet {snippet['id']}: stdout differs from its verification case")
         snippets.append({"snippet_id": snippet["id"],
                          "source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
                          "stdin_case": case_index, **observed})

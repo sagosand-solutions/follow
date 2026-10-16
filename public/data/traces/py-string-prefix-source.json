@@ -1,0 +1,65 @@
+{
+  "question_id": "py-string-prefix-source",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "d941a4cab676e8b928394c16f6f262637302c0e681202afe020b8b95a31c35b9",
+      "stdin_case": 0,
+      "stdout": "sun sunflower\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "word": "'sunflower'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "prefix": "'sun'",
+            "word": "'sunflower'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "prefix": "'sun'",
+            "word": "'sunflower'"
+          },
+          "stdout_len": 14,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
