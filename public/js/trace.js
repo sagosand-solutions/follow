@@ -48,12 +48,14 @@ export async function stdinMatches(trace, hash = sha256Hex) {
 
 
 // Rows for the variable table: every variable in `after`, flagged `new` or `changed` relative to `before`
-// (plain values as strings, exactly as recorded). `before` null means nothing is flagged.
-export function diffLocals(before, after) {
+// (plain values as strings, exactly as recorded). `before` null means nothing is flagged. With `beforeOmitted` (0.3: the
+// earlier observation left names out of this namespace) a name missing from `before` may only have been unrecorded, so
+// it is not called `new`; a `changed` for a name present in both still stands.
+export function diffLocals(before, after, beforeOmitted = false) {
   return Object.entries(after).map(([name, value]) => {
     let change = 'same';
     if (before) {
-      if (!(name in before)) change = 'new';
+      if (!(name in before)) change = beforeOmitted ? 'same' : 'new';
       else if (before[name] !== value) change = 'changed';
     }
     return { name, value, change };
@@ -168,9 +170,12 @@ export function momentState(trace, moment) {
   const { step, after } = moment;
   if (!isV3Step(step)) return state;
   const shown = (moment.kind === 'ran' && after) || moment.kind === 'interrupted' ? after : step;
-  const rows = state.mode === 'after' ? diffLocals(step.globals, after.globals) : diffLocals(null, shown.globals);
-  const unchanged = state.mode === 'after' && rows.every((r) => r.change === 'same') && Object.keys(step.globals).length === Object.keys(after.globals).length;
-  return { ...state, scope: shown.scope, frameId: shown.frame_id, globals: rows, globalsUnchanged: unchanged, omitted: shown.locals_omitted + shown.globals_omitted };
+  const rows = state.mode === 'after' ? diffLocals(step.globals, after.globals, step.globals_omitted > 0) : diffLocals(null, shown.globals);
+  // "Unchanged" is a claim about ALL globals: it needs a complete recording of them at both observations. A name the
+  // recording left out (globals_omitted > 0) may have changed unseen, so nothing is claimed then.
+  const complete = step.globals_omitted === 0 && (state.mode !== 'after' || after.globals_omitted === 0);
+  const unchanged = complete && state.mode === 'after' && rows.every((r) => r.change === 'same') && Object.keys(step.globals).length === Object.keys(after.globals).length;
+  return { ...state, scope: shown.scope, frameId: shown.frame_id, globals: rows, globalsUnchanged: unchanged, globalsOmitted: shown.globals_omitted, omitted: shown.locals_omitted + shown.globals_omitted };
 }
 
 function baseState(trace, moment) {
@@ -181,7 +186,7 @@ function baseState(trace, moment) {
     const startLen = Math.min(Math.max(moment.baseLen || 0, step.stdout_len), endLen);
     const shown = points.slice(0, startLen).join('');
     const added = points.slice(startLen, endLen).join('');
-    return { mode: 'after', rows: diffLocals(moment.safe ? step.locals : null, after.locals), shown, added };
+    return { mode: 'after', rows: diffLocals(moment.safe ? step.locals : null, after.locals, step.locals_omitted > 0), shown, added };
   }
   if (moment.kind === 'interrupted') return { mode: 'event', rows: diffLocals(null, after.locals), shown: stdoutAt(trace, after), added: '' };
   const len = Math.max(moment.baseLen || 0, step.stdout_len);
