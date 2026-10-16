@@ -74,7 +74,10 @@
     },
     "hash": {
       "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
+      "pattern": "^[0-9a-f]{64}$",
+      "not": {
+        "pattern": "\\s"
+      }
     },
     "event": {
       "type": "object",

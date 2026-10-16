@@ -303,6 +303,13 @@ class CliTests(unittest.TestCase):
         code, _ = self.run_cli([str(self.exam_path)])
         self.assertEqual(code, 2)
 
+    def test_input_limit_is_exit_one_not_two(self):
+        oversized = self.root / "oversized.json"
+        oversized.write_text(json.dumps({"pad": "x" * (270 * 1024)}), encoding="utf-8")
+        code, out = self.run_cli([str(oversized), "--map", str(self.map_path)])
+        self.assertEqual(code, 1)
+        self.assertIn("input-limit", out)
+
     def test_cli_accepts_only_empty_study_refs(self):
         data = exam()
         data["study_refs"] = ["concept:py.functions"]

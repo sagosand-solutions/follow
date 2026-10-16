@@ -259,7 +259,8 @@ class _Parser(argparse.ArgumentParser):
 def main(argv=None):
     """CLI: ``python -m validator.exam EXAM --map MAP [--attempt ATTEMPT]``.
 
-    Exit 0 valid, 1 invalid content, 2 setup/dependency/input-limit failure.
+    Exit 0 valid; exit 1 invalid content or an input-limit failure; exit 2 setup
+    or dependency failure, such as a missing or unreadable file.
     Static-only: no output files, verification flags, network or process calls.
     Non-empty study_refs are only accepted through the Python API, which takes an
     explicit ``known_study_keys`` set; the CLI therefore passes an empty set.

@@ -4,12 +4,13 @@ Validate a chapter examination and, optionally, a local attempt from the
 repository root:
 
 ```sh
-python3 -m validator.exam content/exam/c01.json --map public/data/concept-map.json
-python3 -m validator.exam content/exam/c01.json --map public/data/concept-map.json --attempt attempt.json
+python3 -m validator.exam content/exam/c01.json --map public/data/concepts.json
+python3 -m validator.exam content/exam/c01.json --map public/data/concepts.json --attempt attempt.json
 ```
 
-Exit codes are `0` valid, `1` invalid content, and `2` setup, missing file, or
-input-limit failure. The command is **static-only**: it never executes, imports
+Exit codes are `0` valid, `1` invalid content **or an input-limit failure** (for
+example a file above the bounded-load limit), and `2` setup or dependency failure
+(for example a missing or unreadable file). The command is **static-only**: it never executes, imports
 or replays contributor code, never opens a process or the network, and never
 writes output files. No model answer or rubric text is printed by the CLI.
 
