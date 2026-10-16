@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-comprehension-filter-before-division",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.47,
+  "concepts": ["py.comprehensions", "py.iteration", "py.booleans", "py.numeric-operators"],
+  "prompt": "What does this program print, and which general evaluation-order rule for a filtered list comprehension is correct? Choose the option with both the complete result and the correct rule. The condition number != 0 accepts a number only when it is not zero.",
+  "snippets": [
+    {"id": "main", "code": "numbers = [0, 1, 2]\nquotients = [6 // number for number in numbers if number != 0]\nprint(quotients)\n", "highlight_lines": [2]}
+  ],
+  "options": [
+    {
+      "id": "condition-values-as-list",
+      "text": "[False, True, True]. The trailing if supplies one Boolean list entry for each input instead of selecting inputs for the result expression.",
+      "score": 0,
+      "feedback": "The condition selects candidates; it is not the list's element expression. Zero is rejected, and 6 // number is evaluated for 1 and 2, producing [6, 3].",
+      "misconception": "py.comprehension-filter-becomes-result"
+    },
+    {
+      "id": "whole-filter-pass-then-results",
+      "text": "[6, 3]. The comprehension first tests the entire input to build a complete filtered sequence, then starts evaluating any result expressions.",
+      "score": 0.5,
+      "feedback": "The complete result is right, but the general ordering rule is wrong. Python handles one candidate at a time: test it, produce its result if accepted, then advance. It does not require a separate full-input filtering pass first.",
+      "misconception": "py.comprehension-filters-all-before-mapping",
+      "partial_reason": "Correct: predicts exactly [6, 3] with no error. Incorrect: claims all input filters are evaluated before any result expression rather than interleaving filtering and result evaluation for each candidate."
+    },
+    {
+      "id": "element-before-rejection",
+      "text": "It prints nothing and raises ZeroDivisionError. The result expression 6 // number runs for 0 before the trailing if can reject it.",
+      "score": 0,
+      "feedback": "The filter runs before the element expression for each candidate. For 0 the filter is false, so no division is attempted. The program succeeds and prints [6, 3].",
+      "misconception": "py.comprehension-expression-before-filter"
+    },
+    {
+      "id": "filter-then-result-per-candidate",
+      "text": "[6, 3]. Each candidate is tested first; an accepted candidate immediately supplies 6 // number before the comprehension advances to the next candidate.",
+      "score": 1,
+      "feedback": "Correct. Zero is rejected without division. Candidate 1 is accepted and produces 6; then candidate 2 is accepted and produces 3.",
+      "misconception": null
+    },
+    {
+      "id": "accepted-inputs-not-results",
+      "text": "[1, 2]. The condition removes zero, and a filtered comprehension keeps the accepted input values unchanged rather than applying its element expression.",
+      "score": 0,
+      "feedback": "Accepted values feed the element expression; they are not necessarily the output elements themselves. Here 1 produces 6 and 2 produces 3, so the list is [6, 3].",
+      "misconception": "py.comprehension-ignores-element-expression"
+    }
+  ],
+  "explanation": "For each number, the trailing if is tested before evaluating 6 // number. Zero is skipped safely. For 1, the result expression gives 6 before moving on to 2, which gives 3. The comprehension therefore prints [6, 3]. This is per-candidate filtering followed by result evaluation, not a separate complete filtering pass over all inputs before any result is evaluated.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "filter-zero-before-division", "snippet_id": "main", "stdin": "", "expected": {"stdout": "[6, 3]\n", "exit_code": 0}}
+    ],
+    "rationale": "Run the exact displayed script and compare the complete successful result. Normative evaluation-order reasoning distinguishes the actual per-candidate rule from a false complete-filter-pass rule that happens to give the same pure-expression result here.",
+    "limitations": "No hidden logging or side-effect snippet is executed to distinguish the two ordering models. One matching result cannot prove general evaluation order, genuine half credit or calibrated distractor appeal. No physical compiler-optimization claim."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}

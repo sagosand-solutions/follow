@@ -1,0 +1,63 @@
+{
+  "schema_version": "0.1",
+  "id": "py-strip-characters-not-substring",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": ["py.strings"],
+  "prompt": "What single line does this program print, and which rule for the string method strip is correct? Choose the option with both the correct result and the correct rule.",
+  "snippets": [
+    {"id": "main", "code": "text = \"xyhexyllo!xy\"\nprint(text.strip(\"xy\"))\n"}
+  ],
+  "options": [
+    {
+      "id": "delete-throughout-string",
+      "text": "hello! The method deletes every x or y anywhere in the string, including the middle.",
+      "score": 0,
+      "feedback": "strip trims boundaries, not interior positions. The x and y inside hexyllo! remain, so the output is hexyllo!, not hello!.",
+      "misconception": "py.strip-removes-interior"
+    },
+    {
+      "id": "exact-boundary-substring",
+      "text": "hexyllo! The argument is the exact substring xy, which strip removes once from each end when present.",
+      "score": 0.5,
+      "feedback": "The output is right here, but the argument is not an exact substring. It specifies individual characters x and y to trim repeatedly from either boundary in any order. The middle stays unchanged.",
+      "misconception": "py.strip-argument-is-substring",
+      "partial_reason": "Correct: predicts the complete result hexyllo! and keeps the interior xy. Incorrect: treats xy as one exact boundary substring removed once, rather than individual trim characters used repeatedly."
+    },
+    {
+      "id": "right-boundary-only",
+      "text": "xyhexyllo! The method trims matching characters only from the right end.",
+      "score": 0,
+      "feedback": "strip works at both ends. It removes the initial x and y as well as the final y and x, stopping at h on the left and ! on the right. The result is hexyllo!.",
+      "misconception": "py.strip-trims-right-only"
+    },
+    {
+      "id": "individual-characters-at-both-ends",
+      "text": "hexyllo! The argument supplies individual characters x and y to trim repeatedly from both ends, without removing interior characters.",
+      "score": 1,
+      "feedback": "Correct. Both boundary runs contain only x and y, so they are removed. Trimming stops at h and !, leaving the interior xy untouched.",
+      "misconception": null
+    },
+    {
+      "id": "whitespace-only-despite-argument",
+      "text": "xyhexyllo!xy The method removes only whitespace, ignoring its argument, so this string is unchanged.",
+      "score": 0,
+      "feedback": "Whitespace trimming is the default when no character argument is supplied. Here the explicit argument selects x and y, so those boundary characters are removed and hexyllo! is printed.",
+      "misconception": "py.strip-ignores-characters-argument"
+    }
+  ],
+  "explanation": "strip's argument is a collection of individual characters, not a prefix or suffix string. Starting at each boundary, it removes x and y until a different character is reached. The boundaries xy disappear, but the interior xy between he and llo! remains. The printed result is hexyllo!. Exact-substring removal happens to predict this example too, but is not the general strip rule.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {"id": "trim-both-boundaries", "snippet_id": "main", "stdin": "", "expected": {"stdout": "hexyllo!\n", "exit_code": 0}}
+    ],
+    "rationale": "Execute the exact displayed script and compare its whole line. Manual method semantics distinguish character-set trimming from exact-substring trimming, which yields the same line for these boundaries.",
+    "limitations": "This one case does not distinguish every boundary algorithm. No differently ordered or repeated boundary string is silently executed as a proof case. Scoring and distractor appeal remain uncalibrated editorial hypotheses."
+  },
+  "author": {"name": "Code reading contributors"},
+  "license": "CC-BY-SA-4.0"
+}
