@@ -39,6 +39,8 @@ jobs:
         run: python -m unittest discover -s validator/tests -v
       - name: Schema tests
         run: python -m unittest discover -s schema/tests -v
+      - name: Server tests (accounts, mock mode)
+        run: python -m unittest discover -s server/tests -v
       - name: Validate questions (static only)
         run: python -m validator public/data/questions/*.json
       - name: Exported site data is up to date
