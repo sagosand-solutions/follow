@@ -177,7 +177,7 @@ function draw(ctx, prev, stale = false) {
 
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q));
-  root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), h('div', { class: 'q-grid' }, stageBox, side), sheet ? sheet.dialog : null);
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) {
     renderFeedback(ctx, feedback, prev, letters);
