@@ -186,6 +186,7 @@ export function createStepPlayer(traces, { firstRun = false, onFirstRunDone = ()
     }, FIRST_RUN_INTERVAL_MS);
     skip.addEventListener('click', finish);
     root.addEventListener('pointerdown', finish, { once: true });
+    root.addEventListener('click', finish, { once: true });
     root.addEventListener('keydown', finish, { once: true });
   }
   return root;

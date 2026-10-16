@@ -462,7 +462,7 @@
 .moment { display: grid; gap: var(--s-2); padding: var(--s-4) var(--s-5); border: 1px solid var(--line); border-inline-start: 4px solid var(--accent-line); border-radius: var(--radius); background: var(--surface); animation: slide-in 240ms var(--ease) both; }
 .moment__title { font-size: var(--text-lg); }
 .moment p { margin: 0; color: var(--muted); }
-.lesson-done__line { margin: 0; font-weight: 800; color: var(--outcome-right); }
+.lesson-done__line { margin: 0; font-weight: 800; color: var(--ink); }
 .lesson-done .map__cells { gap: 0; animation: close-gap 500ms var(--ease) both; }
 .lesson-done .map__cells .cell { border-radius: 0; margin-inline-end: -2px; }
 .lesson-done .map__cells .cell:first-child { border-start-start-radius: 5px; border-end-start-radius: 5px; }
