@@ -78,6 +78,7 @@ main { padding-block: var(--s-5) var(--s-8); }
 .kicker { color: var(--muted); font-size: var(--text-sm); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
 
 .button {
+  text-align: center;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
   min-height: var(--tap); padding: var(--s-2) var(--s-5);
   border: 2px solid transparent; border-radius: var(--radius-md);

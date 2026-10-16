@@ -39,3 +39,12 @@ test('eyebrow, note and source card are plain text nodes', async () => {
   assert.equal(showInstructionNote(3), false, 'the note is gone once three questions are answered');
   assert.equal(showInstructionNote(undefined), false);
 });
+
+test('licenceInfo reads the question licence field and never assumes the open licence', async () => {
+  installFakeDom();
+  const { licenceInfo } = await import('../public/js/components/ui.js');
+  assert.deepEqual(licenceInfo('CC-BY-SA-4.0'), { key: 'q.license', params: {}, link: true });
+  assert.deepEqual(licenceInfo('LicenseRef-Proprietary'), { key: 'licence.proprietary', params: {}, link: false });
+  assert.deepEqual(licenceInfo('SOMETHING-ELSE'), { key: 'licence.other', params: { license: 'SOMETHING-ELSE' }, link: false });
+  assert.equal(licenceInfo(undefined).params.license, 'unknown');
+});

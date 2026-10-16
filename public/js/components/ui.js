@@ -41,3 +41,11 @@ export function courseCounts(course) {
   const questions = new Set(lessons.flatMap((l) => l.questions || []));
   return { levels: levels.length, lessons: lessons.length, questions: questions.size };
 }
+
+// What the source card says about a question's licence, from its own `license` field (never assumed).
+// Returns { key, params, link } where link is true only for the open licence whose text we can link.
+export function licenceInfo(license) {
+  if (license === 'CC-BY-SA-4.0') return { key: 'q.license', params: {}, link: true };
+  if (license === 'LicenseRef-Proprietary') return { key: 'licence.proprietary', params: {}, link: false };
+  return { key: 'licence.other', params: { license: typeof license === 'string' && license ? license : 'unknown' }, link: false };
+}
