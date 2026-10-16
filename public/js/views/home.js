@@ -4,7 +4,7 @@ import { loadIndex, loadCourse, loadQuestion, allQuestionIds } from '../data.js'
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
-import { nextUp, homeShortcuts } from '../course-nav.js';
+import { nextUp, homeShortcuts, homeHintKey } from '../course-nav.js';
 
 // The headline carries one highlighted phrase; both strings are translated whole.
 function headline() {
@@ -73,7 +73,7 @@ export async function homeView() {
     }
   }
 
-  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, h('h1', {}, ...headline()), ...intro, actions, ...after, h('p', { class: 'hero__hint' }, t('home.limits'))), stage);
+  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, h('h1', {}, ...headline()), ...intro, actions, ...after, h('p', { class: 'hero__hint' }, t(homeHintKey({ hasProgress: answeredCount > 0, persistent: store.persistent })))), stage);
 
   const pillars = h(
     'ol',

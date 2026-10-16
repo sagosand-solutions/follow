@@ -85,7 +85,6 @@
   "home.step2.text": "Or say you are not sure. That is a fine answer.",
   "home.step3.title": "See why each answer fits",
   "home.step3.text": "Each wrong answer is a specific misunderstanding, explained.",
-  "home.limits": "No account needed. Progress stays in this browser. Early draft: few questions, still growing.",
   "home.facts.saved": "About 2 minutes for the first question · no account · saved only in this browser.",
   "home.facts.memory": "About 2 minutes for the first question · no account · not saved when you close this page.",
   "home.shortcuts.lead": "Already know some Python?",
@@ -298,5 +297,8 @@
   "delete.cancel": "Cancel",
   "delete.confirm": "Delete my account",
   "nav.signin": "Sign in",
-  "nav.account": "Account"
+  "nav.account": "Account",
+  "home.hint.draft": "Early draft: few questions, still growing.",
+  "home.hint.saved": "No account needed. Progress stays in this browser. Early draft: few questions, still growing.",
+  "home.hint.memory": "No account needed. Progress is not saved when you close this page. Early draft: few questions, still growing."
 }
