@@ -91,6 +91,8 @@ class SessionServiceTests(unittest.TestCase):
         first = self.service.issue(self.user.id)
         second = self.service.issue(self.user.id, old_cookie=first.cookie_value)
         self.assertIsNone(self.service.authenticate(first.cookie_value))
+        self.assertFalse(self.service.verify_csrf(first.cookie_value, first.csrf_token))
+        self.assertFalse(self.service.verify_csrf(second.cookie_value, first.csrf_token))
         self.assertEqual(self.service.authenticate(second.cookie_value).user_id, self.user.id)
         self.assertIsNone(self.repos.sessions.get(first.session.id_hash))
         self.assertIsNotNone(self.repos.sessions.get(second.session.id_hash))
