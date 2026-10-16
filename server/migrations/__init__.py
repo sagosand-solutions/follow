@@ -152,4 +152,11 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             """,
         ),
     ),
+    (
+        3,
+        (
+            "ALTER TABLE purchases ADD COLUMN created_at REAL NOT NULL DEFAULT 0",
+            "CREATE INDEX idx_purchases_user_created ON purchases (user_id, created_at DESC, id DESC)",
+        ),
+    ),
 )

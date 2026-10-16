@@ -33,7 +33,7 @@ class LimitSettings:
     auth_body_bytes: int = 16 * 1024
     webhook_body_bytes: int = 256 * 1024
     email_per_address_per_hour: int = 5
-    email_per_ip_per_hour: int = 30
+    email_per_ip_per_hour: int = 20
     verify_per_transaction: int = 10
     verify_per_ip_per_hour: int = 60
     auth_start_per_ip_per_hour: int = 30
@@ -190,7 +190,7 @@ def load_config(env: Mapping[str, str]) -> Settings:
         auth_body_bytes=_int_env(env, "LIMIT_AUTH_BODY_BYTES", 16 * 1024),
         webhook_body_bytes=_int_env(env, "LIMIT_WEBHOOK_BODY_BYTES", 256 * 1024),
         email_per_address_per_hour=_int_env(env, "LIMIT_EMAIL_PER_ADDRESS_PER_HOUR", 5),
-        email_per_ip_per_hour=_int_env(env, "LIMIT_EMAIL_PER_IP_PER_HOUR", 30),
+        email_per_ip_per_hour=_int_env(env, "LIMIT_EMAIL_PER_IP_PER_HOUR", 20),
         verify_per_transaction=_int_env(env, "LIMIT_VERIFY_PER_TRANSACTION", 10),
         verify_per_ip_per_hour=_int_env(env, "LIMIT_VERIFY_PER_IP_PER_HOUR", 60),
         auth_start_per_ip_per_hour=_int_env(env, "LIMIT_AUTH_START_PER_IP_PER_HOUR", 30),

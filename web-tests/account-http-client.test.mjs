@@ -16,12 +16,14 @@ const ok = (body = {}) => ({ status: 200, body });
 const token = { csrf_token: 'csrf-session' };
 
 test('GET interfaces use same-origin credentials and exact API paths', async () => {
-  const mock = mockFetch([ok({ user: { id: 'u' }, csrf_token: 'csrf-session' }), ok({ products: [] }), ok({ entitlements: [] })]);
+  const mock = mockFetch([ok({ user: { id: 'u' }, providers: [], csrf_token: 'csrf-session' }), ok({ products: [] }), ok({ entitlements: [] }), ok({ providers: [{ id: 'google', kind: 'oauth' }] }), ok({ purchases: [{ id: 'p1', product_id: 'python', state: 'pending', entitled: false }] })]);
   const c = createHttpClient({ baseUrl: '/follow/api', fetchImpl: mock.fetchImpl });
   await c.me(); await c.catalog(); await c.entitlements();
-  assert.deepEqual(mock.calls.map((x) => x.url), ['/follow/api/me', '/follow/api/products', '/follow/api/entitlements']);
+  assert.deepEqual(await c.providers(), [{ id: 'google', kind: 'oauth', available: true }]);
+  assert.deepEqual(await c.purchase(), { id: 'p1', product_id: 'python', state: 'pending', entitled: false });
+  assert.deepEqual(mock.calls.map((x) => x.url), ['/follow/api/me', '/follow/api/products', '/follow/api/entitlements', '/follow/api/auth/providers', '/follow/api/purchases']);
   for (const { init } of mock.calls) assert.equal(init.credentials, 'same-origin');
-  assert.deepEqual(mock.calls.map((x) => x.init.method), ['GET', 'GET', 'GET']);
+  assert.deepEqual(mock.calls.map((x) => x.init.method), ['GET', 'GET', 'GET', 'GET', 'GET']);
 });
 
 test('mutations carry CSRF, method, content type and exact bodies', async () => {
@@ -39,8 +41,8 @@ test('mutations carry CSRF, method, content type and exact bodies', async () => 
     assert.equal(init.credentials, 'same-origin');
     assert.ok(init.headers['X-CSRF-Token']);
   }
-  assert.deepEqual(JSON.parse(mutations[0].init.body), { intent: 'login', return_to: '/' });
-  assert.deepEqual(JSON.parse(mutations[1].init.body), { email: 'person@example.test', intent: 'login' });
+  assert.deepEqual(JSON.parse(mutations[0].init.body), { intent: 'login', return_to: '/account' });
+  assert.deepEqual(JSON.parse(mutations[1].init.body), { email: 'person@example.test', intent: 'login', return_to: '/account' });
   assert.deepEqual(JSON.parse(mutations[2].init.body), { product_id: 'p', policy_version: 'v1', acknowledgements: ['ack'] });
   assert.equal(mutations[3].init.body, undefined);
   assert.equal(mutations[4].init.body, undefined);

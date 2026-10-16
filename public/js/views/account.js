@@ -42,7 +42,7 @@ export async function signinView() {
   const providers = await c.providers();
   const status = h('p', { class: 'account__status', role: 'status' });
   const buttons = PROVIDERS.map((id) => {
-    const on = providers.find((x) => x.id === id).available;
+    const on = !!providers.find((x) => x.id === id)?.available;
     const b = h('button', { type: 'button', class: 'button button--secondary provider', 'aria-disabled': on ? null : 'true', 'aria-describedby': on ? null : `unavail-${id}` }, t(`provider.${id}`));
     if (!on) {
       return h('div', { class: 'provider-row' }, b, h('span', { id: `unavail-${id}`, class: 'provider-note' }, t('provider.unavailable')));
@@ -55,7 +55,7 @@ export async function signinView() {
     });
     return h('div', { class: 'provider-row' }, b);
   });
-  const emailOn = providers.find((x) => x.id === 'email').available;
+  const emailOn = !!providers.find((x) => x.id === 'email')?.available;
   const email = h('input', { type: 'email', id: 'email', name: 'email', autocomplete: 'email', required: true });
   const emailForm = h('form', { class: 'email-form' }, h('label', { for: 'email' }, t('signin.email.label')), email, h('button', { type: 'submit', class: 'button button--secondary', 'aria-disabled': emailOn ? null : 'true' }, t('signin.email.button')));
   emailForm.addEventListener('submit', async (e) => {

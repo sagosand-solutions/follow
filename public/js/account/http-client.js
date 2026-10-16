@@ -13,7 +13,6 @@ export function mapHttpError(status, body) {
 export function createHttpClient({ baseUrl, fetchImpl = globalThis.fetch } = {}) {
   if (typeof baseUrl !== 'string' || !baseUrl.startsWith('/') || baseUrl.startsWith('//')) throw new TypeError('baseUrl must be a same-origin path');
   let csrfToken = null;
-  let sessionCsrf = false;
   const base = baseUrl.replace(/\/$/, '');
 
   async function request(path, { method = 'GET', body, csrf = false } = {}) {
@@ -43,11 +42,10 @@ export function createHttpClient({ baseUrl, fetchImpl = globalThis.fetch } = {})
     try { data = await response.json(); } catch { /* stable fallback below */ }
     if (!response.ok) {
       const error = mapHttpError(response.status, data);
-      if (error.code === 'signed_out') { csrfToken = null; sessionCsrf = false; }
+      if (error.code === 'signed_out') csrfToken = null;
       return error;
     }
-    if (path === '/me') { csrfToken = data?.csrf_token || null; sessionCsrf = !!csrfToken; }
-    if (path === '/auth/csrf') { csrfToken = data?.csrf_token || null; sessionCsrf = false; }
+    if (path === '/me' || path === '/auth/csrf') csrfToken = data?.csrf_token || null;
     return { ok: true, data };
   }
   const result = async (path, options) => {
@@ -61,29 +59,42 @@ export function createHttpClient({ baseUrl, fetchImpl = globalThis.fetch } = {})
       if (!r.ok) return r.code === 'signed_out' ? { signed_in: false, identities: [] } : r;
       return { ...r.data, signed_in: true, identities: (r.data.providers || []).map((provider) => ({ provider, connected: true })) };
     },
-    async providers() { return ['google', 'apple', 'discord', 'metamask', 'email'].map((id) => ({ id, available: true })); },
+    async providers() {
+      const data = await result('/auth/providers');
+      if (!data || !Array.isArray(data.providers)) return [];
+      return data.providers.map((provider) => ({ ...provider, available: true }));
+    },
     async catalog() {
       const data = await result('/products');
       if (!data || !Array.isArray(data.products)) return data;
       return { ...data, products: data.products.map((product) => ({ ...product, checkout_enabled: data.checkout_enabled, policy: data.checkout_policy })) };
     },
     async entitlements() { const r = await result('/entitlements'); return r?.entitlements ?? r; },
-    async purchase() { return null; },
+    async purchase() {
+      const data = await result('/purchases');
+      if (!data || !Array.isArray(data.purchases)) return data?.ok === false ? data : null;
+      return data.purchases.find((purchase) => purchase.state === 'pending') || null;
+    },
     async startSignIn(provider) {
       const token = await request('/auth/csrf');
       if (!token.ok) return token;
-      csrfToken = token.data?.csrf_token || null; sessionCsrf = false;
-      const r = await request(`/auth/${encodeURIComponent(provider)}/start`, { method: 'POST', csrf: true, body: { intent: 'login', return_to: '/' } });
+      csrfToken = token.data?.csrf_token || null;
+      const next = new URLSearchParams(globalThis.location?.hash?.split('?')[1] || '').get('next');
+      const returnTo = `/${['premium', 'checkout', 'account'].includes(next) ? next : 'account'}`;
+      const r = await request(`/auth/${encodeURIComponent(provider)}/start`, { method: 'POST', csrf: true, body: { intent: 'login', return_to: returnTo } });
       if (!r.ok) return r;
       return { ok: true, authorize_url: r.data?.authorize_url };
     },
     async emailStart(email) {
       const token = await request('/auth/csrf');
       if (!token.ok) return token;
-      csrfToken = token.data?.csrf_token || null; sessionCsrf = false;
-      return result('/auth/email/start', { method: 'POST', csrf: true, body: { email, intent: 'login' } });
+      csrfToken = token.data?.csrf_token || null;
+      return result('/auth/email/start', { method: 'POST', csrf: true, body: { email, intent: 'login', return_to: '/account' } });
     },
-    async checkout({ product_id, policy_version, acknowledgements }) { return result('/checkout', { method: 'POST', csrf: true, body: { product_id, policy_version, acknowledgements } }); },
+    async checkout({ product_id, policy_version, acknowledgements }) {
+      const data = await result('/checkout', { method: 'POST', csrf: true, body: { product_id, policy_version, acknowledgements } });
+      return data?.ok === false ? data : { ok: true, ...data };
+    },
     async logout() { return result('/logout', { method: 'POST', csrf: true }); },
     async exportData() { return result('/account/export'); },
     async deleteAccount() { return result('/account/delete', { method: 'POST', csrf: true }); },

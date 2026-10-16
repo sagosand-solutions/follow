@@ -1,5 +1,7 @@
+import hashlib
 import json
 import unittest
+from types import SimpleNamespace
 
 from server.db import Database
 from server.repositories import Repositories
@@ -11,6 +13,18 @@ class HttpTestCase(unittest.TestCase):
         fixture, tmp = build_fixture(**kwargs)
         self.addCleanup(tmp.cleanup)
         return fixture
+
+
+class ClientIpTests(unittest.TestCase):
+    def test_forwarded_ip_is_used_only_through_trusted_proxy_chain(self):
+        from server.app import _client_ip
+        settings = SimpleNamespace(trusted_proxies=("10.0.0.0/8",))
+        request = SimpleNamespace(client=SimpleNamespace(host="10.0.0.1"),
+                                  headers={"x-forwarded-for": "198.51.100.7, 10.0.0.2"})
+        self.assertEqual(_client_ip(request, settings), "198.51.100.7")
+        untrusted = SimpleNamespace(client=SimpleNamespace(host="198.51.100.9"),
+                                    headers={"x-forwarded-for": "203.0.113.3"})
+        self.assertEqual(_client_ip(untrusted, settings), "198.51.100.9")
 
 
 class CsrfAndSessionTests(HttpTestCase):
@@ -76,6 +90,18 @@ class ProductTests(HttpTestCase):
 
 
 class ProviderTests(HttpTestCase):
+    def test_provider_catalog_exposes_only_declared_public_fields(self):
+        class Adapter:
+            kind = "oauth"
+            client_id = "must-not-leak"
+            authorize_url = "https://private.example"
+        class EmailAdapter:
+            kind = "email"
+        fx = self.make(providers={"google": Adapter(), "email": EmailAdapter(), "hidden": object()})
+        payload = json_body(call(fx.app, "GET", "/auth/providers"))
+        self.assertEqual(payload, {"providers": [{"id": "email", "kind": "email"}, {"id": "google", "kind": "oauth"}]})
+        self.assertEqual(json_body(call(self.make().app, "GET", "/auth/providers")), {"providers": []})
+
     def test_disabled_provider_is_unavailable(self):
         fx = self.make()
         status, _, body = call(fx.app, "POST", "/auth/google/start", headers=fx.headers(csrf=True),
@@ -169,6 +195,123 @@ class CallbackBindingTests(HttpTestCase):
         self.assertEqual(call(fx2.app, "GET", "/auth/google/callback", headers={"cookie": cookie})[0], 400)
 
 
+class EmailStartTests(HttpTestCase):
+    class FakeEmail:
+        kind = "email"
+
+        def __init__(self):
+            self.outbox = []
+            self.users = {"known@example.test": "u1"}
+
+        def start(self, *, email, transaction_token, callback_url, **kwargs):
+            self.outbox.append({"email": email, "url": f"{callback_url}?state={transaction_token}"})
+
+        def callback(self, request):
+            token = request.query_params.get("state", "")
+            entry = next((item for item in self.outbox if item["url"].endswith(f"state={token}")), None)
+            user_id = self.users.get(entry["email"]) if entry else None
+            return SimpleNamespace(user_id=user_id, return_to=None,
+                                   transaction_token_hash=hashlib.sha256(token.encode()).hexdigest())
+
+    def setUp(self):
+        self.email_adapter = self.FakeEmail()
+        self.fx = self.make(providers={"email": self.email_adapter})
+
+    def start(self, email):
+        status, headers, body = call(self.fx.app, "GET", "/auth/csrf")
+        csrf = json_body((status, headers, body))["csrf_token"]
+        cookie = headers["set-cookie"].split(";", 1)[0]
+        status, response_headers, response_body = call(
+            self.fx.app, "POST", "/auth/email/start",
+            headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
+            body=json.dumps({"email": email, "return_to": "/account", "intent": "login"}).encode())
+        return status, response_headers, response_body, cookie
+
+    def test_known_and_unknown_addresses_receive_identical_202_and_outbox(self):
+        known = self.start("known@EXAMPLE.TEST")
+        unknown = self.start("unknown@example.test")
+        self.assertEqual((known[0], json_body(known)), (202, {"ok": True}))
+        self.assertEqual((unknown[0], json_body(unknown)), (202, {"ok": True}))
+        self.assertEqual(len(self.email_adapter.outbox), 2)
+        self.assertEqual([item["email"] for item in self.email_adapter.outbox],
+                         ["known@example.test", "unknown@example.test"])
+        self.assertNotIn("known@example.test", json.dumps(json_body(known)))
+
+    def test_email_validation_csrf_and_pre_auth_bound_callback_one_time(self):
+        no_csrf = call(self.fx.app, "POST", "/auth/email/start", headers={"origin": "http://testserver"},
+                       body=b'{"email":"x@y.test","return_to":"/","intent":"login"}')
+        self.assertEqual(no_csrf[0], 403)
+        invalid = self.start("bad email@@example.test")
+        self.assertEqual(invalid[0], 400)
+        started = self.start("known@example.test")
+        link = self.email_adapter.outbox[-1]["url"]
+        from urllib.parse import urlsplit
+        path = urlsplit(link).path
+        query = urlsplit(link).query.encode()
+        _, other_headers, _ = call(self.fx.app, "GET", "/auth/csrf")
+        other_cookie = other_headers["set-cookie"].split(";", 1)[0]
+        self.assertEqual(call(self.fx.app, "GET", path, headers={"cookie": other_cookie}, query=query)[0], 400)
+        success = call(self.fx.app, "GET", path, headers={"cookie": started[3]}, query=query)
+        self.assertEqual(success[0], 302)
+        self.assertEqual(success[1]["location"], "/account")
+        self.assertEqual(call(self.fx.app, "GET", path, headers={"cookie": started[3]}, query=query)[0], 400)
+
+    def test_email_limit_per_address_and_per_ip_sets_retry_after(self):
+        for _ in range(5):
+            self.assertEqual(self.start("known@example.test")[0], 202)
+        limited = self.start("known@example.test")
+        self.assertEqual(limited[0], 429)
+        self.assertIn("retry-after", limited[1])
+        self.assertEqual(json_body(limited)["error"]["code"], "throttled")
+
+        fx2, tmp2 = build_fixture(providers={"email": self.email_adapter})
+        self.addCleanup(tmp2.cleanup)
+        for i in range(20):
+            status, headers, body = call(fx2.app, "GET", "/auth/csrf")
+            csrf = json_body((status, headers, body))["csrf_token"]
+            cookie = headers["set-cookie"].split(";", 1)[0]
+            result = call(fx2.app, "POST", "/auth/email/start",
+                          headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
+                          body=json.dumps({"email": f"{i}@example.test", "return_to": "/", "intent": "login"}).encode())
+            self.assertEqual(result[0], 202)
+        # A deliberately fresh valid token/cookie for the final IP-limited request.
+        status, headers, body = call(fx2.app, "GET", "/auth/csrf")
+        final = call(fx2.app, "POST", "/auth/email/start",
+                     headers={"origin": "http://testserver", "cookie": headers["set-cookie"].split(";", 1)[0],
+                              "x-csrf-token": json_body((status, headers, body))["csrf_token"]},
+                     body=b'{"email":"over@example.test","return_to":"/","intent":"login"}')
+        self.assertEqual(final[0], 429)
+        self.assertIn("retry-after", final[1])
+
+
+class PurchaseHttpTests(HttpTestCase):
+    def test_purchase_list_requires_session_and_details_are_owner_scoped(self):
+        fx = self.make()
+        self.assertEqual(call(fx.app, "GET", "/purchases")[0], 401)
+        own = fx.repos.purchases.list_for_user("u1")[0]
+        other = fx.repos.users.create(user_id="u2")
+        foreign = fx.repos.purchases.create(other.id, "python-lifetime", "mock", "foreign-p")
+        listing = json_body(call(fx.app, "GET", "/purchases", headers=fx.headers()))["purchases"]
+        self.assertEqual(listing, [{"id": own.id, "product_id": own.product_id, "state": "pending", "entitled": True}])
+        self.assertEqual(json_body(call(fx.app, "GET", f"/purchases/{own.id}", headers=fx.headers())), listing[0])
+        self.assertEqual(call(fx.app, "GET", f"/purchases/{foreign.id}", headers=fx.headers())[0], 404)
+        self.assertEqual(call(fx.app, "GET", "/purchases/missing", headers=fx.headers())[0], 404)
+
+    def test_purchase_list_is_newest_first_and_capped_at_twenty(self):
+        fx = self.make()
+        db = Database(fx.path, clock=lambda: fx.clock[0])
+        repos = Repositories(db)
+        ids = []
+        for i in range(22):
+            fx.clock[0] += 1
+            ids.append(repos.purchases.create("u1", "python-lifetime", "mock", f"cap-{i}").id)
+        db.close()
+        values = json_body(call(fx.app, "GET", "/purchases", headers=fx.headers()))["purchases"]
+        self.assertEqual(len(values), 20)
+        self.assertEqual([p["id"] for p in values], list(reversed(ids[-20:])))
+        self.assertTrue(all(p["entitled"] is False for p in values))
+
+
 class ErrorContractTests(HttpTestCase):
     def test_404_and_405_are_json_with_request_id(self):
         fx = self.make()
@@ -214,6 +357,7 @@ class CheckoutTests(HttpTestCase):
         payload = json_body((status, {}, body))
         self.assertEqual(payload["state"], "pending")
         self.assertEqual(payload["redirect_url"], "https://pay.example/checkout/1")
+        self.assertEqual(payload["purchase_id"], payments.calls[0][0])
         self.assertTrue(payments.calls)
 
     def test_checkout_unavailable_without_payments(self):
