@@ -31,7 +31,7 @@ async function boot() {
     main.scrollIntoView({ block: 'start' });
   });
   const header = document.getElementById('site-header');
-  const tagline = h('a', { class: 'brand', href: '#/' }, CONFIG.productName ? `${CONFIG.productName} · ${t('site.tagline')}` : t('site.tagline'));
+  const tagline = h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand__mark', 'aria-hidden': 'true' }, h('span'), h('span'), h('span')), h('span', { class: 'brand__text' }, CONFIG.productName ? CONFIG.productName : t('site.brand')));
   const themeButton = h('button', { type: 'button', class: 'theme-toggle' });
   const label = () => {
     const mode = readTheme();
