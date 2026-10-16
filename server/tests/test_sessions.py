@@ -105,6 +105,9 @@ class SessionServiceTests(unittest.TestCase):
             other.id, old_cookie=first.cookie_value, auth_time=self.now[0])
 
         self.assertIsNone(self.service.authenticate(first.cookie_value))
+        self.assertFalse(self.service.verify_csrf(first.cookie_value, first.csrf_token))
+        self.assertFalse(self.service.verify_csrf(second.cookie_value, first.csrf_token))
+        self.assertTrue(self.service.verify_csrf(second.cookie_value, second.csrf_token))
         principal = self.service.authenticate(second.cookie_value)
         self.assertIsNotNone(principal)
         self.assertEqual(principal.user_id, other.id)
@@ -118,6 +121,8 @@ class SessionServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(SessionDenied, "explicit authentication time"):
             self.service.issue(self.user.id, old_cookie=first.cookie_value)
         self.assertIsNotNone(self.repos.sessions.get(first.session.id_hash))
+        self.assertEqual(
+            self.db.connect().execute("SELECT COUNT(*) FROM sessions").fetchone()[0], 1)
 
         second = self.service.issue(
             self.user.id, old_cookie=first.cookie_value, auth_time=first.session.auth_time)
@@ -126,7 +131,27 @@ class SessionServiceTests(unittest.TestCase):
         self.assertEqual(principal.auth_time, first.session.auth_time)
         self.assertFalse(self.service.require_recent_auth(principal))
 
-    def test_rotation_failure_rolls_back_new_session_and_keeps_old(self):
+    def test_rotation_creation_failure_keeps_old_session(self):
+        first = self.service.issue(self.user.id)
+        original_create = self.repos.sessions.create
+
+        def fail_create(*_args, **_kwargs):
+            raise RuntimeError("synthetic session creation failure")
+
+        self.repos.sessions.create = fail_create
+        try:
+            with self.assertRaisesRegex(RuntimeError, "session creation failure"):
+                self.service.issue(
+                    self.user.id, old_cookie=first.cookie_value,
+                    auth_time=first.session.auth_time)
+        finally:
+            self.repos.sessions.create = original_create
+
+        self.assertIsNotNone(self.repos.sessions.get(first.session.id_hash))
+        self.assertEqual(
+            self.db.connect().execute("SELECT COUNT(*) FROM sessions").fetchone()[0], 1)
+
+    def test_rotation_revoke_failure_rolls_back_new_session_and_keeps_old(self):
         first = self.service.issue(self.user.id)
         original_revoke = self.repos.sessions.revoke
 
