@@ -9,6 +9,7 @@ import { CONFIG } from '../config.js';
 import { navigate } from '../router.js';
 import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
+import { createStudySheet } from '../components/study.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -89,11 +90,24 @@ function draw(ctx, prev, stale = false) {
   const chosenId = prev ? prev.option_id : null;
 
   const header = h('div', { class: 'question__head' });
+  const meta = h('div', { class: 'question__meta' });
   if (where) {
-    header.append(h('p', { class: 'kicker' }, `${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}`));
-    header.append(progressBar(where.lesson.questions, q.id));
+    meta.append(h('p', { class: 'kicker' }, `${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}`));
+    meta.append(progressBar(where.lesson.questions, q.id));
   }
+  header.append(meta);
   const chips = h('p', { class: 'chips' }, h('span', { class: 'chip' }, t(`type.${q.type}`)), q.level ? h('span', { class: 'chip' }, t(`level.${q.level}`)) : null);
+
+  // Study layer: notes for the concepts this question practises, in a sheet that keeps the question in place.
+  const known = ctx.concepts ? ctx.concepts.concepts || [] : [];
+  const studyConcepts = (q.concepts || []).map((cid) => known.find((c) => c.id === cid) || { id: cid, title: cid });
+  let sheet = null;
+  if (studyConcepts.length) {
+    sheet = createStudySheet(studyConcepts);
+    const open = h('button', { type: 'button', class: 'button button--secondary button--small study-open', 'aria-haspopup': 'dialog' }, t('study.open'));
+    open.addEventListener('click', () => sheet.open(studyConcepts[0].id, open));
+    header.append(open);
+  }
 
   const title = h('h1', { id: 'q-title', class: q.prompt.length > 90 ? 'question__title question__title--long' : 'question__title' }, renderInline(q.prompt));
 
@@ -161,9 +175,9 @@ function draw(ctx, prev, stale = false) {
     submit();
   });
 
-  root.replaceChildren(
-    h('div', { class: 'stack' }, header, chips, title, ...snippets, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q)),
-  );
+  const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
+  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q));
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), h('div', { class: 'q-grid' }, stageBox, side), sheet ? sheet.dialog : null);
 
   if (answered) {
     renderFeedback(ctx, feedback, prev, letters);

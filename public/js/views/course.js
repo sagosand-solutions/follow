@@ -4,6 +4,7 @@ import { loadCourse } from '../data.js';
 import { store } from '../progress.js';
 import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
+import { cells, readingMap, summaryText } from '../components/map.js';
 
 export async function courseView() {
   let course;
@@ -16,11 +17,14 @@ export async function courseView() {
   const lessonTitles = new Map();
   for (const level of course.levels) for (const l of level.lessons) lessonTitles.set(l.id, l.title);
 
+  const allIds = course.levels.flatMap((level) => level.lessons.flatMap((l) => l.questions));
+  const nextId = allIds.find((id) => !store.latest(id));
+
   const levels = course.levels.map((level) =>
     h(
       'section',
       { class: 'level' },
-      h('h2', {}, `${t(`level.${level.level}`)} · ${level.title}`),
+      h('div', { class: 'level__head' }, h('p', { class: 'kicker' }, t(`level.${level.level}`)), h('h2', {}, level.title)),
       h(
         'ol',
         { class: 'lessons' },
@@ -31,7 +35,14 @@ export async function courseView() {
           return h(
             'li',
             {},
-            h('a', { class: 'lesson-link', href: `#/lesson/${lesson.id}` }, h('span', { class: 'lesson-link__title' }, lesson.title), h('span', { class: 'lesson-link__status' }, status)),
+            h(
+              'a',
+              { class: 'lesson-link', href: `#/lesson/${lesson.id}` },
+              h('span', { class: 'lesson-link__title' }, lesson.title),
+              h('span', { class: 'lesson-link__status' }, status),
+              cells(lesson.questions, nextId),
+              h('span', { class: 'visually-hidden' }, summaryText(lesson.questions)),
+            ),
             builds.length ? h('p', { class: 'muted small' }, t('course.lesson.buildsOn', { names: builds.join(', ') })) : null,
           );
         }),
@@ -96,6 +107,6 @@ export async function courseView() {
 
   return {
     title: t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', {}, h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead'))), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead'))), h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }

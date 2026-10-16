@@ -25,6 +25,9 @@ export const loadIndex = () => getJson('index.json');
 export const loadCourse = () => getJson('courses/python.json');
 export const loadConcepts = () => getJson('concepts.json');
 
+// Study notes: data/study/<concept id with dots as hyphens>.json. A missing file (404) means no notes yet.
+export const loadStudy = (conceptId) => getJson(`study/${String(conceptId).replace(/[^a-z0-9-]/gi, '-')}.json`);
+
 export async function loadQuestion(id) {
   if (typeof id !== 'string' || !QUESTION_ID.test(id)) {
     const err = new Error('bad id');

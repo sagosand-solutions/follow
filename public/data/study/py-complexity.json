@@ -1,0 +1,47 @@
+{
+  "schema_version": "0.1",
+  "concept": "py.complexity",
+  "title": "Algorithmic complexity",
+  "summary": "Complexity describes how the amount of work grows as the input grows. It is not how long one run takes on your machine.",
+  "sections": [
+    {
+      "id": "what",
+      "heading": "What it measures",
+      "deeper": false,
+      "body": "We count basic steps as a function of the input size `n`. Doubling `n` tells you more than a stopwatch: a single loop over a list does about twice the work for a list twice as long, while a loop inside a loop does about four times the work."
+    },
+    {
+      "id": "shapes",
+      "heading": "Shapes you will meet",
+      "deeper": false,
+      "body": "`O(1)`: the same work however big the input is, like `xs[0]`.\n\n`O(n)`: one pass over the data, like a single `for` loop over a list.\n\n`O(n²)`: a pass inside a pass over the same data.\n\n`O(log n)`: the problem is halved each step, like binary search in sorted data.\n\nIn Python, `x in some_list` is a pass over the list (`O(n)`), while `x in some_set` is about `O(1)` on average."
+    },
+    {
+      "id": "nested",
+      "heading": "Why a nested loop is about n squared",
+      "deeper": true,
+      "body": "If the inner loop only looks at the items after the current one, it does (n - 1) + (n - 2) + ... + 1 comparisons. That sum equals n * (n - 1) / 2, which grows like n² / 2. Big-O drops the constant factor 1/2 and keeps the shape: doubling `n` roughly quadruples the work.",
+      "formula": "1 + 2 + ... + (n - 1) = n * (n - 1) / 2",
+      "example": {
+        "language": "python",
+        "caption": "About n * (n - 1) / 2 comparisons in the worst case",
+        "code": "def has_duplicate(xs):\n    for i in range(len(xs)):\n        for j in range(i + 1, len(xs)):\n            if xs[i] == xs[j]:\n                return True\n    return False\n"
+      }
+    },
+    {
+      "id": "log",
+      "heading": "Why halving gives log n",
+      "deeper": true,
+      "body": "Halve 1000 again and again: 500, 250, 125, 62, 31, 15, 7, 3, 1. That is about 10 steps, because 2 to the power 10 is 1024. In general, n can be halved about log2(n) times before reaching 1, so doubling the input adds only one more step.",
+      "formula": "2 ** 10 = 1024, so log2(1024) = 10"
+    }
+  ],
+  "related": [
+    "py.iteration"
+  ],
+  "status": "draft",
+  "author": {
+    "name": "Team draft (needs content review)"
+  },
+  "license": "CC BY-SA 4.0"
+}

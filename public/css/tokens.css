@@ -1,71 +1,87 @@
-/* Design tokens v0. Source of truth for public/css/tokens.css.
-   All text/background pairs below were checked against WCAG AA (>= 4.5:1 text, >= 3:1 UI borders).
+/* Design tokens v1 ("code on a stage"). The code stage is dark in both themes; the page around it is cool paper (light) or night (dark).
+   Every text/background and control/background pair below was checked for WCAG AA (>= 4.5:1 text, >= 3:1 controls).
    Theme: follows the OS by default; <html data-theme="light|dark"> overrides it. */
 
 :root {
   color-scheme: light;
 
-  /* surfaces */
-  --bg: #fffaf1;
-  --surface: #fbf2e5;          /* cards, options */
-  --surface-2: #f4e3c8;        /* hover, progress track */
-  --code-bg: #f6ecdb;
-  --code-mark: #f0dfc0;        /* marked line background */
-  --code-mark-edge: #a64024;   /* marked line left edge */
+  /* page */
+  --bg: #f4f5fa;
+  --surface: #ffffff;
+  --surface-2: #e8eaf6;        /* hover, tracks */
+  --ink: #111634;
+  --muted: #4b5278;
+  --line: #d5d9ee;             /* decorative dividers */
+  --line-strong: #6f78a6;      /* borders of interactive controls (>= 3:1 on --bg and --surface) */
+  --link: #3a35c8;
+  --focus: #3a35c8;
 
-  /* text */
-  --ink: #32231b;
-  --muted: #66524a;
-  --linenum: #7a6a5e;
-  --on-accent: #fffaf1;
+  /* the one warm colour: the highlighter. Always paired with --on-hl text. */
+  --hl: #ffc83d;
+  --hl-hover: #ffd566;
+  --on-hl: #111634;
+  --hl-text: #7a4f00;          /* highlighter colour as text on the page (>= 4.5:1) */
 
-  /* brand / interaction */
-  --accent: #a64024;
-  --accent-hover: #8f3419;
-  --link: #17396e;
-  --focus: #17396e;
-  --line: #e3d2b8;             /* decorative dividers (not required to meet 3:1) */
-  --line-strong: #a8896b;      /* borders of interactive controls (3.1:1 on --bg) */
+  /* verdicts: always paired with an icon and a word */
+  --ok: #17603a;      --ok-bg: #e2f3e8;
+  --partial: #7a4f00; --partial-bg: #fff1c9;
+  --bad: #92264a;     --bad-bg: #fbe5ed;
 
-  /* feedback: always paired with an icon and a word, never colour alone */
-  --ok: #245a38;      --ok-bg: #e7f1ea;
-  --partial: #7a5200; --partial-bg: #f8ecc8;
-  --bad: #8a2f4d;     --bad-bg: #f7e3e8;
+  /* the stage (identical in both themes) */
+  --stage: #0e1428;
+  --stage-2: #18213f;          /* caption bar, hover */
+  --stage-line: #2a3563;
+  --stage-ink: #e9ecfb;
+  --stage-muted: #a3abd0;
+  --stage-linenum: #8d97c4;
+  --stage-mark: #2b2a1f;       /* marked line background */
+  --stage-mark-edge: #ffc83d;
+  --stage-focus: #ffc83d;
+  --stage-link: #aeb6ff;
 
-  /* syntax */
-  --tok-keyword: #8a2c6b;
-  --tok-string: #1f6b3a;
-  --tok-number: #8a4b00;
-  --tok-comment: #685a50;
-  --tok-function: #17396e;
-  --tok-builtin: #0f6070;
-  --tok-decorator: #7a4a8a;
+  /* syntax, on the stage */
+  --tok-keyword: #ff9ac1;
+  --tok-string: #9be3a8;
+  --tok-number: #ffc07a;
+  --tok-comment: #8d97c4;
+  --tok-function: #8fb4ff;
+  --tok-builtin: #7fe0e8;
+  --tok-decorator: #c9a8ff;
+
+  /* map cells */
+  --cell-none: transparent;
+  --cell-full: #17603a;
+  --cell-partial: #b88400;
+  --cell-wrong: #92264a;
+  --cell-unsure: #6f78a6;
 
   /* type */
-  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --font-code: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
   --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.1875rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 2rem;
-  --text-3xl: clamp(2rem, 1.4rem + 2.6vw, 3rem);
-  --text-code: 0.9375rem;      /* code is never below 15px */
-  --lh-body: 1.65;
-  --lh-tight: 1.2;
-  --lh-code: 1.6;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: clamp(1.625rem, 1.3rem + 1.4vw, 2.25rem);
+  --text-3xl: clamp(2.5rem, 1.6rem + 4.2vw, 4.25rem);
+  --text-code: 1.0625rem;
+  --lh-body: 1.6;
+  --lh-tight: 1.1;
+  --lh-code: 1.7;
 
   /* space: 4px base */
   --s-1: 0.25rem; --s-2: 0.5rem; --s-3: 0.75rem; --s-4: 1rem; --s-5: 1.5rem;
   --s-6: 2rem; --s-7: 3rem; --s-8: 4.5rem;
 
-  --radius: 8px;
-  --radius-sm: 4px;
-  --shadow: 0 12px 36px rgba(111, 68, 31, 0.09);
-  --measure: 40rem;            /* reading column */
-  --wide: 64rem;               /* page max width */
-  --tap: 3rem;                 /* min touch target (48px) */
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-stage: 18px;
+  --shadow-stage: 0 24px 60px -24px rgba(14, 20, 40, 0.55), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
+  --measure: 40rem;
+  --wide: 76rem;
+  --tap: 3rem;
   --dur: 160ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 /* Dark values are declared twice (OS-driven and manual) because CSS cannot share a block between
@@ -73,30 +89,28 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #1f1914; --surface: #2a221b; --surface-2: #3a2f24;
-    --code-bg: #17120e; --code-mark: #3a2f24; --code-mark-edge: #f29b6e;
-    --ink: #f1e6d6; --muted: #bda98f; --linenum: #a08f7c; --on-accent: #1f1914;
-    --accent: #f29b6e; --accent-hover: #f7b08a; --link: #9bb5e8; --focus: #9bb5e8;
-    --line: #3a2f24; --line-strong: #8a7560;
-    --ok: #8fcea6; --ok-bg: #22302a;
-    --partial: #e6c078; --partial-bg: #33291a;
-    --bad: #eba3b9; --bad-bg: #352029;
-    --tok-keyword: #e59ac6; --tok-string: #9bd5a8; --tok-number: #efb072; --tok-comment: #a89684;
-    --tok-function: #9bb5e8; --tok-builtin: #7fd0dd; --tok-decorator: #c9a8e0;
-    --shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    --bg: #0b1020; --surface: #141b33; --surface-2: #1f2849;
+    --ink: #e9ecfb; --muted: #a3abd0; --line: #232d54; --line-strong: #7983b3;
+    --link: #aeb6ff; --focus: #ffc83d;
+    --hl-text: #ffc83d;
+    --ok: #8fd6a9; --ok-bg: #12301f;
+    --partial: #f0c765; --partial-bg: #33280d;
+    --bad: #f4a3bd; --bad-bg: #3a1424;
+    --stage: #070b18; --stage-2: #111833; --stage-line: #232d54;
+    --cell-full: #8fd6a9; --cell-partial: #f0c765; --cell-wrong: #f4a3bd; --cell-unsure: #7983b3;
+    --shadow-stage: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1f1914; --surface: #2a221b; --surface-2: #3a2f24;
-  --code-bg: #17120e; --code-mark: #3a2f24; --code-mark-edge: #f29b6e;
-  --ink: #f1e6d6; --muted: #bda98f; --linenum: #a08f7c; --on-accent: #1f1914;
-  --accent: #f29b6e; --accent-hover: #f7b08a; --link: #9bb5e8; --focus: #9bb5e8;
-  --line: #3a2f24; --line-strong: #8a7560;
-  --ok: #8fcea6; --ok-bg: #22302a;
-  --partial: #e6c078; --partial-bg: #33291a;
-  --bad: #eba3b9; --bad-bg: #352029;
-  --tok-keyword: #e59ac6; --tok-string: #9bd5a8; --tok-number: #efb072; --tok-comment: #a89684;
-  --tok-function: #9bb5e8; --tok-builtin: #7fd0dd; --tok-decorator: #c9a8e0;
-  --shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  --bg: #0b1020; --surface: #141b33; --surface-2: #1f2849;
+  --ink: #e9ecfb; --muted: #a3abd0; --line: #232d54; --line-strong: #7983b3;
+  --link: #aeb6ff; --focus: #ffc83d;
+  --hl-text: #ffc83d;
+  --ok: #8fd6a9; --ok-bg: #12301f;
+  --partial: #f0c765; --partial-bg: #33280d;
+  --bad: #f4a3bd; --bad-bg: #3a1424;
+  --stage: #070b18; --stage-2: #111833; --stage-line: #232d54;
+  --cell-full: #8fd6a9; --cell-partial: #f0c765; --cell-wrong: #f4a3bd; --cell-unsure: #7983b3;
+  --shadow-stage: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
