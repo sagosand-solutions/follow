@@ -14,6 +14,8 @@ import { createStudySheet } from '../components/study.js';
 import { eyebrow, noteBox, sourceCard, showInstructionNote, licenceInfo } from '../components/ui.js';
 import { createStepPlayer } from '../components/step-player.js';
 import { usableTraces } from '../trace.js';
+import { changedToFit } from '../moments.js';
+import { createSeenFlag } from '../seen.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -93,6 +95,7 @@ function draw(ctx, prev, stale = false) {
   const seed = questionSeed(store.seed(), q.id);
   const order = seededShuffle(q.options, seed);
   const answered = !!prev;
+  if (!answered) ctx.fit = null;
   const chosenId = prev ? prev.option_id : null;
 
   const header = h('div', { class: 'question__head' });
@@ -167,12 +170,14 @@ function draw(ctx, prev, stale = false) {
   const submit = () => {
     const input = selected();
     if (!input || answered) return;
+    const before = store.latest(q.id);
     let record;
     if (input.value === UNKNOWN) record = store.recordUnknown({ questionId: q.id });
     else {
       const opt = q.options.find((o) => o.id === input.value);
       record = store.recordAnswer({ questionId: q.id, optionId: opt.id, score: opt.score });
     }
+    ctx.fit = changedToFit(before, record);
     // Submitting does not change the hash, so tell the header to refresh now.
     document.dispatchEvent(new Event('progresschange'));
     draw(ctx, record);
@@ -229,7 +234,8 @@ async function mountStepper(q, box, figures) {
   if (!file) return;
   const list = (await usableTraces(q, file)).map(({ index, trace, input }) => ({ id: q.snippets[index].id, input, label: q.snippets[index].label || t('step.snippetN', { n: index + 1 }), trace, figure: figures[index] }));
   if (!list.length || !box.isConnected) return;
-  const player = createStepPlayer(list);
+  const seen = createSeenFlag('first-run');
+  const player = createStepPlayer(list, { firstRun: !seen.isSeen(), onFirstRunDone: () => seen.markSeen() });
   box.append(player);
   // A pointer under the verdict, so the first-time reader finds the player (it lives next to the code).
   const after = box.closest('.question') ? box.closest('.question').querySelector('#feedback .q-next') : null;
@@ -350,6 +356,12 @@ function renderFeedback(ctx, container, prev, letters) {
 
   // The way on sits right under the verdict, not after all the explanations.
   frag.push(navActions(ctx));
+  // A quiet moment when a not-sure or wrong answer now fits (only after an earlier answer, never on a first answer).
+  if (ctx.fit && !unknown && chosen && chosen.score === 1) {
+    const earlier = ctx.fit.kind === 'wrong' ? q.options.find((o) => o.id === ctx.fit.optionId) : null;
+    const body = ctx.fit.kind === 'unknown' ? t('moment.fit.unknown') : earlier && earlier.misconception ? t('moment.fit.wrong', { title: misconceptionTitle(ctx, earlier.misconception) }) : t('moment.fit.wrongPlain');
+    frag.push(h('section', { class: 'moment moment--fit' }, h('h2', { class: 'moment__title' }, t('moment.fit.title')), h('p', {}, body)));
+  }
 
   if (unknown || chosen.id !== correct.id) {
     const { parts } = optionBlock(ctx, correct, letters.get(correct.id), true);

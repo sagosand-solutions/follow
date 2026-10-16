@@ -329,5 +329,16 @@
   "step.pointer": "See it run, line by line",
   "facts.question": "{b} question",
   "facts.lesson": "{b} lesson",
-  "facts.level": "{b} level"
+  "facts.level": "{b} level",
+  "moment.fit.title": "This time it fits.",
+  "moment.fit.wrong": "Before, you chose: {title}.",
+  "moment.fit.wrongPlain": "Before, your answer did not fit.",
+  "moment.fit.unknown": "Before, you marked this not sure.",
+  "moment.lessonDone": "Lesson finished",
+  "moment.revisited.one": "You went back to 1 question.",
+  "moment.revisited.many": "You went back to {n} questions.",
+  "moment.revisited.last": "The most recent one is in:",
+  "moment.readingAt": "You were reading {lesson}, question {n}.",
+  "moment.firstRun": "This is how the computer read it.",
+  "moment.firstRun.skip": "Skip"
 }

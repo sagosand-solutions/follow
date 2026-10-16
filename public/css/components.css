@@ -457,3 +457,17 @@
 .step-pointer { margin-block-start: var(--s-2); }
 .hint--keys { align-self: center; }
 @media (forced-colors: active) { .hero__shortcut-links a { border: 1px solid ButtonText; } }
+
+/* === moments === */
+.moment { display: grid; gap: var(--s-2); padding: var(--s-4) var(--s-5); border: 1px solid var(--line); border-inline-start: 4px solid var(--accent-line); border-radius: var(--radius); background: var(--surface); animation: slide-in 240ms var(--ease) both; }
+.moment__title { font-size: var(--text-lg); }
+.moment p { margin: 0; color: var(--muted); }
+.lesson-done__line { margin: 0; font-weight: 800; color: var(--outcome-right); }
+.lesson-done .map__cells { gap: 0; animation: close-gap 500ms var(--ease) both; }
+.lesson-done .map__cells .cell { border-radius: 0; margin-inline-end: -2px; }
+.lesson-done .map__cells .cell:first-child { border-start-start-radius: 5px; border-end-start-radius: 5px; }
+.lesson-done .map__cells .cell:last-child { border-start-end-radius: 5px; border-end-end-radius: 5px; margin-inline-end: 0; }
+@keyframes close-gap { from { gap: 5px; } to { gap: 0; } }
+.sp-firstrun { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: 0; font-weight: 700; color: var(--stage-ink); }
+.sp-firstrun .button--secondary { color: var(--stage-ink); border-color: var(--stage-muted); }
+.review-empty p { margin: 0; }
