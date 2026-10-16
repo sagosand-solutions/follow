@@ -178,6 +178,45 @@ class ExportTests(unittest.TestCase):
                 with self.subTest(path=path, field=field):
                     self.assert_invalid_unchanged(code)
 
+    def test_lesson_summary_is_optional_preserved_and_not_exported(self):
+        self.assertEqual(self.invoke()[0], 0)
+        baseline = [path.read_bytes() for path in self.outputs]
+        lesson = self.course["levels"][0]["lessons"][0]
+        lesson["summary"] = "An introduction to independent choices."
+        self.save_inputs()
+        course_bytes = self.course_path.read_bytes()
+        self.assertEqual(self.invoke()[0], 0)
+        self.assertEqual([path.read_bytes() for path in self.outputs], baseline)
+        self.assertEqual(self.course_path.read_bytes(), course_bytes)
+        before = self.snapshot()
+        self.assertEqual(self.invoke("--check")[0], 0)
+        self.assertEqual(before, self.snapshot())
+        self.assertEqual(self.course_path.read_bytes(), course_bytes)
+
+    def test_invalid_lesson_summary_blocks_writes_and_execution(self):
+        invalid = ("", None, 1, [], {}, " " * 200, "x" * 201,
+                   "a\nb", "a\rb", "a\tb", "a\x00b", "a\x1fb",
+                   "a\x7fb", "a\x9fb", "a\u2028b", "a\u2029b")
+        for summary in invalid:
+            with self.subTest(summary=repr(summary)):
+                self.course["levels"][0]["lessons"][0]["summary"] = summary
+                self.save_inputs()
+                expected = "blank" if isinstance(summary, str) and summary and summary.strip() == "" else "schema"
+                with patch("validator.runner.TrustedLocalRunner.run", side_effect=AssertionError("must not execute")) as run:
+                    self.assert_invalid_unchanged(expected)
+                run.assert_not_called()
+
+    def test_summary_is_rejected_outside_lesson(self):
+        for path in ((), ("levels", 0)):
+            course = deepcopy(self.course)
+            target = course
+            for part in path:
+                target = target[part]
+            target["summary"] = "Not allowed here."
+            self.write(self.course_path, course)
+            with self.subTest(path=path):
+                self.assert_invalid_unchanged("schema")
+
     def test_course_structural_contract(self):
         variants = [None, [], {**self.course, "id": "other"}, {**self.course, "language": "other"},
                     {**self.course, "levels": []}, {**self.course, "levels": self.course["levels"] * 2}]

@@ -61,6 +61,13 @@ and cannot form a cycle. All objects reject unknown fields. IDs use the question
 contract's local/question ID rules, including rejecting trailing whitespace.
 There is no optional course onboarding override in this version.
 
+A lesson may include an optional plain-text `summary` of 1–200 Unicode code
+points. It must be a single paragraph without C0/C1 controls or Unicode line
+separators; whitespace-only values are invalid. Omit the field when absent.
+Summaries are authored English course content, not i18n keys or Markdown, and
+remain in the source course file. Export validates but does not rewrite the
+course file or add summaries to the generated question index or concept map.
+
 The first question of the first lesson in the first course level becomes
 `onboarding_question`. It must exist and be beginner-level. Question order inside
 the course remains editorial; it is not sorted or rewritten.
