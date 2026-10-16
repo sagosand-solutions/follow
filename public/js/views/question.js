@@ -4,12 +4,14 @@ import { renderText, renderInline } from '../text.js';
 import { seededShuffle, questionSeed } from '../shuffle.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
-import { loadQuestion, loadCourse, loadConcepts, findLessonOf } from '../data.js';
+import { loadQuestion, loadCourse, loadConcepts, loadTrace, findLessonOf } from '../data.js';
 import { CONFIG } from '../config.js';
 import { navigate } from '../router.js';
 import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 import { createStudySheet } from '../components/study.js';
+import { createStepPlayer } from '../components/step-player.js';
+import { pickTrace, sha256Hex } from '../trace.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -179,6 +181,7 @@ function draw(ctx, prev, stale = false) {
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q));
   root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
+  if (answered) mountStepper(q, stageBox, snippets);
   if (answered) {
     renderFeedback(ctx, feedback, prev, letters);
   }
@@ -194,6 +197,30 @@ function draw(ctx, prev, stale = false) {
       } else check.click();
     }
   };
+}
+
+// The trace shows the answer, so it exists only after the learner has answered. A trace is used only when it
+// was made from exactly the code on screen (SHA-256 of the snippet); otherwise the player is simply not shown.
+async function mountStepper(q, box, figures) {
+  let file = null;
+  try {
+    file = await loadTrace(q.id);
+  } catch (err) {
+    console.error(err);
+    return;
+  }
+  if (!file) return;
+  const list = [];
+  for (let i = 0; i < q.snippets.length; i += 1) {
+    const s = q.snippets[i];
+    const trace = pickTrace(file, s.id);
+    if (!trace || !trace.steps.length) continue;
+    const digest = await sha256Hex(s.code);
+    if (digest !== trace.source_sha256) continue;
+    list.push({ id: s.id, label: s.label || t('step.snippetN', { n: i + 1 }), trace, figure: figures[i] });
+  }
+  if (!list.length || !box.isConnected) return;
+  box.append(createStepPlayer(list));
 }
 
 function progressBar(ids, currentId) {

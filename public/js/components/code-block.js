@@ -172,3 +172,11 @@ export function setMarks(figure, lines) {
   const state = STATE.get(figure);
   if (state) applyMarks(state, figure, lines);
 }
+
+// The line the step player will run next. Distinct from author marks and personal marks.
+export function setActiveLine(figure, n, scroll = true) {
+  const state = STATE.get(figure);
+  if (!state) return;
+  state.lineEls.forEach((l, i) => l.classList.toggle('is-active', i + 1 === n));
+  if (scroll && n && state.lineEls[n - 1]) state.lineEls[n - 1].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
