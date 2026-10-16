@@ -4,6 +4,7 @@ import { loadIndex, loadCourse, loadQuestion, allQuestionIds } from '../data.js'
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
+import { nextUp } from '../course-nav.js';
 
 // The headline carries one highlighted phrase; both strings are translated whole.
 function headline() {
@@ -29,7 +30,9 @@ export async function homeView() {
   }
   const ids = course ? allQuestionIds(course) : [];
   const answeredCount = ids.filter((id) => store.latest(id)).length;
-  const nextId = ids.find((id) => !store.latest(id));
+  // The same Continue rule everywhere: the home link must match the header and the course page.
+  const target = course ? nextUp(course, store.answers()) : null;
+  const nextId = target ? target.questionId : null;
 
   // The real onboarding code is the hero: the visitor sees what they will be reading.
   let stage = null;

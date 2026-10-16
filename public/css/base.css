@@ -115,7 +115,8 @@ button.chip:hover { background: var(--surface-2); }
 }
 
 @media (max-width: 37.49rem) {
-  .site-header .shell { flex-wrap: nowrap; padding-block: var(--s-1); }
+  .site-header .shell { flex-wrap: wrap; padding-block: var(--s-1); }
+  .nav { flex-wrap: wrap; justify-content: flex-end; }
   .brand { padding-block: var(--s-1); }
   .brand__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .nav a, .theme-toggle { padding-inline: var(--s-2); font-size: 0.875rem; }

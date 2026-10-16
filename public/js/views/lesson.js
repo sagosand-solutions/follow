@@ -6,6 +6,7 @@ import { errorNode } from './errors.js';
 import { currentAnswer } from '../answers.js';
 import { cells } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
+import { lessonEnding } from './lesson-end.js';
 
 function statusOf(answer) {
   if (!answer) return t('lesson.status.none');
@@ -80,6 +81,17 @@ export async function lessonView({ id }) {
     }
     parts.push(
       h('section', { class: 'summary' }, h('h2', {}, t('lesson.summary')), h('p', {}, t('lesson.counts', { answered: answered.length, total: lesson.questions.length, full, partial, wrong, unsure })), h('h3', {}, t('lesson.lookAgain')), again),
+    );
+    // End of a finished lesson: where to go next and what builds on this lesson.
+    const { next, buildsOn } = lessonEnding(course, lesson.id);
+    parts.push(
+      h(
+        'section',
+        { class: 'lesson-next' },
+        next ? h('a', { class: 'button button--primary', href: `#/lesson/${next.id}` }, t('lesson.next', { title: next.title })) : h('p', {}, t('lesson.endOfCourse')),
+        buildsOn.length ? h('h3', {}, t('lesson.buildsOnTitle')) : null,
+        buildsOn.length ? h('ul', {}, buildsOn.map((l) => h('li', {}, h('a', { href: `#/lesson/${l.id}` }, l.title)))) : null,
+      ),
     );
   }
   parts.push(h('p', {}, h('a', { href: '#/course' }, t('lesson.back'))));
