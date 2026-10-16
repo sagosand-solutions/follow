@@ -1,11 +1,13 @@
 import os
+import sqlite3
 import tempfile
 import threading
 import unittest
 
 from server.db import Database
-from server.models import (AuthIntent, ConflictError, EntitlementState, PaymentEventStatus, Product,
-                           PurchaseState, UserStatus)
+from server.models import (AuthIntent, ConflictError, EntitlementState, NotFoundError, PaymentEventStatus,
+                           PolicyActivation, PolicyBundle, Product, PurchaseState, SetupError, UserStatus,
+                           compute_bundle_digest, resolve_active_bundle)
 from server.repositories import Repositories
 
 
@@ -222,6 +224,169 @@ class PaymentEventTests(RepoTestCase):
             self.repos.payment_events.record("mock", "evt-1", "digest-b", purchase_id=None,
                                              normalized_state="paid", revision=1)
         self.assertEqual(self.repos.payment_events.get("mock", "evt-1").payload_digest, "digest-a")
+
+
+CORE_ACK = tuple(sorted(("terms", "immediate_delivery_request", "withdrawal_acknowledgement")))
+
+
+class ConsentTestCase(RepoTestCase):
+    def bundle(self, *, bundle_id="pb-1", product_id="python-lifetime", locale="en", version="2026-10-16",
+               required=CORE_ACK, effective_at=1_000.0, digest=None):
+        if digest is None:
+            digest = compute_bundle_digest(product_id=product_id, access_scope="python", locale=locale,
+                                           version=version, terms_sha256="a" * 64, refunds_sha256="b" * 64,
+                                           privacy_sha256="c" * 64, required_acknowledgements=required,
+                                           effective_at=effective_at)
+        return PolicyBundle(bundle_id, product_id, "python", locale, version, "a" * 64, "b" * 64, "c" * 64,
+                            tuple(required), digest, effective_at)
+
+    def purchase(self, product_id="python-lifetime"):
+        self.repos.products.upsert(Product(product_id, "Python lifetime", "USD", 500, "python", True))
+        user = self.repos.users.create()
+        self._prov = getattr(self, "_prov", 0) + 1
+        return user, self.repos.purchases.create(user.id, product_id, "mock", f"prov-{self._prov}")
+
+
+class PolicyBundleTests(ConsentTestCase):
+    def test_insert_is_idempotent_and_getable(self):
+        bundle = self.bundle()
+        self.repos.policies.insert(bundle)
+        self.repos.policies.insert(bundle)  # identical repeat is a no-op
+        self.assertEqual(self.repos.policies.get("pb-1"), bundle)
+        self.assertEqual([b.id for b in self.repos.policies.list_for_product("python-lifetime")], ["pb-1"])
+
+    def test_changed_content_or_digest_is_rejected(self):
+        self.repos.policies.insert(self.bundle())
+        with self.assertRaises(ConflictError):
+            self.repos.policies.insert(self.bundle(version="2026-10-17"))  # same id, different content
+        with self.assertRaises(ConflictError):
+            self.repos.policies.insert(self.bundle(bundle_id="pb-2", digest="0" * 64))  # digest mismatch
+        with self.assertRaises(ConflictError):
+            self.repos.policies.insert(self.bundle(bundle_id="pb-3", version="2026-10-16"))  # UNIQUE(product,version,locale)
+
+    def test_acknowledgement_validation(self):
+        for required in (("terms", "immediate_delivery_request"),  # missing withdrawal
+                         ("terms", "immediate_delivery_request", "withdrawal_acknowledgement", "nope"),
+                         ("terms", "terms", "immediate_delivery_request", "withdrawal_acknowledgement")):
+            with self.subTest(required=required):
+                with self.assertRaises(ConflictError):
+                    self.repos.policies.insert(self.bundle(bundle_id="x-" + str(len(required)), required=required))
+
+    def test_ack_order_does_not_change_digest(self):
+        a = compute_bundle_digest(product_id="p", access_scope="s", locale="en", version="v", terms_sha256="a" * 64,
+                                  refunds_sha256="b" * 64, privacy_sha256="c" * 64,
+                                  required_acknowledgements=CORE_ACK, effective_at=1.0)
+        b = compute_bundle_digest(product_id="p", access_scope="s", locale="en", version="v", terms_sha256="a" * 64,
+                                  refunds_sha256="b" * 64, privacy_sha256="c" * 64,
+                                  required_acknowledgements=tuple(reversed(CORE_ACK)), effective_at=1.0)
+        self.assertEqual(a, b)
+
+
+class ConsentTests(ConsentTestCase):
+    def test_record_derives_user_and_time_and_snapshots(self):
+        user, purchase = self.purchase()
+        bundle = self.bundle()
+        self.repos.policies.insert(bundle)
+        consent = self.repos.consents.record(purchase.id, "pb-1", list(reversed(CORE_ACK)))
+        self.assertEqual(consent.user_id, user.id)
+        self.assertEqual(consent.accepted_at, 1_000.0)
+        self.assertEqual(consent.bundle_version, "2026-10-16")
+        self.assertEqual(consent.bundle_digest, bundle.bundle_digest)
+        self.assertEqual(consent.acknowledgements, tuple(sorted(CORE_ACK)))
+        self.assertEqual(self.repos.consents.get_for_purchase(purchase.id).id, consent.id)
+        self.assertEqual(len(self.repos.consents.list_for_user(user.id)), 1)
+
+    def test_acknowledgement_mismatch_and_unknown_ids(self):
+        _, purchase = self.purchase()
+        self.repos.policies.insert(self.bundle())
+        for bad in (["terms"], CORE_ACK + ("privacy",), ["terms", "terms", "immediate_delivery_request",
+                                                         "withdrawal_acknowledgement"], ["refunds"]):
+            with self.subTest(bad=bad):
+                with self.assertRaises(ConflictError):
+                    self.repos.consents.record(purchase.id, "pb-1", bad)
+        with self.assertRaises(NotFoundError):
+            self.repos.consents.record("missing-purchase", "pb-1", CORE_ACK)
+        with self.assertRaises(NotFoundError):
+            self.repos.consents.record(purchase.id, "missing-bundle", CORE_ACK)
+
+    def test_duplicate_consent_and_other_product_bundle(self):
+        _, purchase = self.purchase()
+        self.repos.policies.insert(self.bundle())
+        self.repos.consents.record(purchase.id, "pb-1", CORE_ACK)
+        with self.assertRaises(ConflictError):
+            self.repos.consents.record(purchase.id, "pb-1", CORE_ACK)
+        # A bundle for another product cannot be consumed for this purchase.
+        self.repos.products.upsert(Product("other-product", "Other", "USD", 500, "python", True))
+        other = self.bundle(bundle_id="pb-other", product_id="other-product")
+        self.repos.policies.insert(other)
+        _, purchase2 = self.purchase()
+        with self.assertRaises(ConflictError):
+            self.repos.consents.record(purchase2.id, "pb-other", CORE_ACK)
+
+    def test_consent_row_is_immutable(self):
+        _, purchase = self.purchase()
+        self.repos.policies.insert(self.bundle())
+        self.repos.consents.record(purchase.id, "pb-1", CORE_ACK)
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.db.transaction(immediate=True) as conn:
+                conn.execute("UPDATE purchase_consents SET accepted_at = 1 WHERE purchase_id = ?", (purchase.id,))
+
+    def test_policy_bundle_row_is_immutable(self):
+        self.repos.policies.insert(self.bundle())
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.db.transaction(immediate=True) as conn:
+                conn.execute("UPDATE policy_bundles SET version = 'x' WHERE id = 'pb-1'")
+
+    def test_restrict_prevents_hard_delete_with_consent(self):
+        _, purchase = self.purchase()
+        self.repos.policies.insert(self.bundle())
+        self.repos.consents.record(purchase.id, "pb-1", CORE_ACK)
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.db.transaction(immediate=True) as conn:
+                conn.execute("DELETE FROM purchases WHERE id = ?", (purchase.id,))
+
+    def test_atomic_purchase_and_consent_roll_back_together(self):
+        user = self.repos.users.create(user_id="u-atomic")
+        self.repos.products.upsert(Product("python-lifetime", "Python lifetime", "USD", 500, "python", True))
+        self.repos.policies.insert(self.bundle())
+        with self.assertRaises(ConflictError):
+            with self.db.transaction(immediate=True):
+                purchase = self.repos.purchases.create(user.id, "python-lifetime", "mock", "prov-atomic")
+                self.repos.consents.record(purchase.id, "pb-1", ["terms"])  # invalid ack set
+        self.assertIsNone(self.repos.purchases.get_by_provider_id("mock", "prov-atomic"))
+
+
+class ActivationTests(ConsentTestCase):
+    def test_resolve_active_bundle_rules(self):
+        bundle = self.bundle()
+        good = PolicyActivation("python-lifetime", "python", "en", "pb-1", approved=True)
+        self.assertEqual(resolve_active_bundle([good], [bundle], product_id="python-lifetime", access_scope="python",
+                                               locale="en", now=1_500.0, app_env="development"), bundle)
+        # not approved
+        self.assertIsNone(resolve_active_bundle([PolicyActivation("python-lifetime", "python", "en", "pb-1", False)],
+                                                [bundle], product_id="python-lifetime", access_scope="python",
+                                                locale="en", now=1_500.0, app_env="development"))
+        # duplicate activations
+        self.assertIsNone(resolve_active_bundle([good, good], [bundle], product_id="python-lifetime", access_scope="python",
+                                               locale="en", now=1_500.0, app_env="development"))
+        # product/scope/locale mismatch
+        self.assertIsNone(resolve_active_bundle([good], [bundle], product_id="other", access_scope="python",
+                                               locale="en", now=1_500.0, app_env="development"))
+        # future effective_at
+        self.assertIsNone(resolve_active_bundle([good], [bundle], product_id="python-lifetime", access_scope="python",
+                                               locale="en", now=999.0, app_env="development"))
+
+    def test_test_only_is_refused_in_production(self):
+        bundle = self.bundle()
+        activation = PolicyActivation("python-lifetime", "python", "en", "pb-1", approved=True, test_only=True)
+        self.assertEqual(resolve_active_bundle([activation], [bundle], product_id="python-lifetime", access_scope="python",
+                                               locale="en", now=1_500.0, app_env="test"), bundle)
+        self.assertIsNone(resolve_active_bundle([activation], [bundle], product_id="python-lifetime", access_scope="python",
+                                                locale="en", now=1_500.0, app_env="production"))
+
+    def test_unknown_app_env_fails_closed(self):
+        with self.assertRaises(SetupError):
+            resolve_active_bundle([], [], product_id="p", access_scope="s", locale="en", now=1.0, app_env="staging")
 
 
 if __name__ == "__main__":

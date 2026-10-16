@@ -107,4 +107,49 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             """,
         ),
     ),
+    (
+        2,
+        (
+            """
+            CREATE TABLE policy_bundles (
+                id TEXT PRIMARY KEY,
+                product_id TEXT NOT NULL,
+                access_scope TEXT NOT NULL,
+                locale TEXT NOT NULL,
+                version TEXT NOT NULL,
+                terms_sha256 TEXT NOT NULL,
+                refunds_sha256 TEXT NOT NULL,
+                privacy_sha256 TEXT NOT NULL,
+                required_acknowledgements TEXT NOT NULL,
+                bundle_digest TEXT NOT NULL,
+                effective_at REAL NOT NULL,
+                UNIQUE (product_id, version, locale)
+            )
+            """,
+            """
+            CREATE TABLE purchase_consents (
+                id TEXT PRIMARY KEY,
+                purchase_id TEXT NOT NULL UNIQUE REFERENCES purchases(id),
+                user_id TEXT NOT NULL REFERENCES users(id),
+                policy_bundle_id TEXT NOT NULL REFERENCES policy_bundles(id),
+                bundle_version TEXT NOT NULL,
+                bundle_digest TEXT NOT NULL,
+                acknowledgements TEXT NOT NULL,
+                accepted_at REAL NOT NULL
+            )
+            """,
+            """
+            CREATE TRIGGER policy_bundles_no_update BEFORE UPDATE ON policy_bundles
+            BEGIN
+                SELECT RAISE(ABORT, 'policy_bundles is immutable');
+            END
+            """,
+            """
+            CREATE TRIGGER purchase_consents_no_update BEFORE UPDATE ON purchase_consents
+            BEGIN
+                SELECT RAISE(ABORT, 'purchase_consents is immutable');
+            END
+            """,
+        ),
+    ),
 )

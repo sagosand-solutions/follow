@@ -7,16 +7,20 @@ one-time claims and session revocation are enforced atomically in SQLite.
 """
 from __future__ import annotations
 
+import json
+import math
+import re
 import secrets
 import sqlite3
 
 from .models import (
-    AuthIntent, AuthTransaction, ConflictError, Entitlement, EntitlementState,
-    Identity, PaymentEvent, PaymentEventStatus, Product, Purchase, PurchaseState,
-    Session, User, UserStatus,
+    CORE_ACKNOWLEDGEMENTS, AuthIntent, AuthTransaction, ConflictError, Entitlement, EntitlementState,
+    Identity, NotFoundError, PaymentEvent, PaymentEventStatus, PolicyBundle, Product, Purchase, PurchaseConsent,
+    PurchaseState, Session, User, UserStatus, canonical_acknowledgements, compute_bundle_digest,
 )
 
 _PAYMENT_STATES = {state.value for state in PaymentEventStatus}
+_HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 def new_id() -> str:
@@ -59,6 +63,18 @@ def _entitlement(row: sqlite3.Row) -> Entitlement:
 def _payment_event(row: sqlite3.Row) -> PaymentEvent:
     return PaymentEvent(row["provider"], row["event_id"], row["payload_digest"], row["purchase_id"],
                         row["normalized_state"], row["revision"], PaymentEventStatus(row["status"]), row["received_at"])
+
+
+def _policy_bundle(row: sqlite3.Row) -> PolicyBundle:
+    return PolicyBundle(row["id"], row["product_id"], row["access_scope"], row["locale"], row["version"],
+                        row["terms_sha256"], row["refunds_sha256"], row["privacy_sha256"],
+                        tuple(json.loads(row["required_acknowledgements"])), row["bundle_digest"], row["effective_at"])
+
+
+def _consent(row: sqlite3.Row) -> PurchaseConsent:
+    return PurchaseConsent(row["id"], row["purchase_id"], row["user_id"], row["policy_bundle_id"],
+                           row["bundle_version"], row["bundle_digest"], tuple(json.loads(row["acknowledgements"])),
+                           row["accepted_at"])
 
 
 class _Repo:
@@ -298,6 +314,99 @@ class PaymentEventRepository(_Repo):
         return _payment_event(row) if row else None
 
 
+class PolicyBundleRepository(_Repo):
+    def _normalize(self, bundle: PolicyBundle) -> tuple[PolicyBundle, str]:
+        acknowledgements = canonical_acknowledgements(bundle.required_acknowledgements)
+        if not CORE_ACKNOWLEDGEMENTS.issubset(acknowledgements):
+            raise ConflictError("bundle is missing a required acknowledgement: " + ", ".join(sorted(CORE_ACKNOWLEDGEMENTS)))
+        for name, value in (("terms_sha256", bundle.terms_sha256), ("refunds_sha256", bundle.refunds_sha256),
+                            ("privacy_sha256", bundle.privacy_sha256)):
+            if not isinstance(value, str) or not _HEX64.fullmatch(value):
+                raise ConflictError(f"{name} must be 64 lowercase hex characters")
+        if not isinstance(bundle.effective_at, (int, float)) or isinstance(bundle.effective_at, bool) \
+                or not math.isfinite(bundle.effective_at):
+            raise ConflictError("effective_at must be a finite epoch second")
+        expected = compute_bundle_digest(product_id=bundle.product_id, access_scope=bundle.access_scope,
+                                         locale=bundle.locale, version=bundle.version, terms_sha256=bundle.terms_sha256,
+                                         refunds_sha256=bundle.refunds_sha256, privacy_sha256=bundle.privacy_sha256,
+                                         required_acknowledgements=acknowledgements, effective_at=bundle.effective_at)
+        if expected != bundle.bundle_digest:
+            raise ConflictError("bundle digest does not match its content")
+        normalized = PolicyBundle(bundle.id, bundle.product_id, bundle.access_scope, bundle.locale, bundle.version,
+                                  bundle.terms_sha256, bundle.refunds_sha256, bundle.privacy_sha256,
+                                  acknowledgements, bundle.bundle_digest, float(bundle.effective_at))
+        return normalized, json.dumps(list(acknowledgements))
+
+    def insert(self, bundle: PolicyBundle) -> None:
+        """Insert an immutable policy bundle; identical repeat is a no-op."""
+        normalized, acknowledgements_json = self._normalize(bundle)
+        with self.db.transaction(immediate=True) as conn:
+            row = conn.execute("SELECT * FROM policy_bundles WHERE id = ?", (normalized.id,)).fetchone()
+            if row is not None:
+                existing = _policy_bundle(row)
+                if existing == normalized:
+                    return
+                raise ConflictError("bundle id reused with different content")
+            try:
+                conn.execute(
+                    "INSERT INTO policy_bundles (id, product_id, access_scope, locale, version, terms_sha256,"
+                    " refunds_sha256, privacy_sha256, required_acknowledgements, bundle_digest, effective_at)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (normalized.id, normalized.product_id, normalized.access_scope, normalized.locale, normalized.version,
+                     normalized.terms_sha256, normalized.refunds_sha256, normalized.privacy_sha256, acknowledgements_json,
+                     normalized.bundle_digest, normalized.effective_at))
+            except sqlite3.IntegrityError as exc:
+                raise ConflictError("policy version already exists for this product and locale") from exc
+
+    def get(self, bundle_id: str) -> PolicyBundle | None:
+        row = self.db.connect().execute("SELECT * FROM policy_bundles WHERE id = ?", (bundle_id,)).fetchone()
+        return _policy_bundle(row) if row else None
+
+    def list_for_product(self, product_id: str) -> list[PolicyBundle]:
+        rows = self.db.connect().execute("SELECT * FROM policy_bundles WHERE product_id = ? ORDER BY effective_at, id",
+                                         (product_id,)).fetchall()
+        return [_policy_bundle(row) for row in rows]
+
+
+class ConsentRepository(_Repo):
+    def record(self, purchase_id: str, policy_bundle_id: str, acknowledgements, *, consent_id: str | None = None) -> PurchaseConsent:
+        """Record an immutable consent snapshot, deriving user and time server-side."""
+        ack = canonical_acknowledgements(acknowledgements)
+        consent = consent_id or new_id()
+        with self.db.transaction(immediate=True) as conn:
+            purchase = conn.execute("SELECT user_id, product_id FROM purchases WHERE id = ?", (purchase_id,)).fetchone()
+            if purchase is None:
+                raise NotFoundError("purchase not found")
+            bundle_row = conn.execute("SELECT * FROM policy_bundles WHERE id = ?", (policy_bundle_id,)).fetchone()
+            if bundle_row is None:
+                raise NotFoundError("policy bundle not found")
+            if set(ack) != set(json.loads(bundle_row["required_acknowledgements"])):
+                raise ConflictError("acknowledgements do not match the bundle requirements")
+            if purchase["product_id"] != bundle_row["product_id"]:
+                raise ConflictError("consent bundle belongs to another product")
+            try:
+                conn.execute(
+                    "INSERT INTO purchase_consents (id, purchase_id, user_id, policy_bundle_id, bundle_version,"
+                    " bundle_digest, acknowledgements, accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (consent, purchase_id, purchase["user_id"], policy_bundle_id, bundle_row["version"],
+                     bundle_row["bundle_digest"], json.dumps(list(ack)), self._now()))
+            except sqlite3.IntegrityError as exc:
+                if "UNIQUE" in str(exc).upper():
+                    raise ConflictError("purchase already has a consent") from exc
+                raise
+            row = conn.execute("SELECT * FROM purchase_consents WHERE id = ?", (consent,)).fetchone()
+        return _consent(row)
+
+    def get_for_purchase(self, purchase_id: str) -> PurchaseConsent | None:
+        row = self.db.connect().execute("SELECT * FROM purchase_consents WHERE purchase_id = ?", (purchase_id,)).fetchone()
+        return _consent(row) if row else None
+
+    def list_for_user(self, user_id: str) -> list[PurchaseConsent]:
+        rows = self.db.connect().execute("SELECT * FROM purchase_consents WHERE user_id = ? ORDER BY accepted_at, id",
+                                         (user_id,)).fetchall()
+        return [_consent(row) for row in rows]
+
+
 class Repositories:
     """Facade wiring every repository to one database and clock."""
 
@@ -311,3 +420,5 @@ class Repositories:
         self.purchases = PurchaseRepository(database)
         self.entitlements = EntitlementRepository(database)
         self.payment_events = PaymentEventRepository(database)
+        self.policies = PolicyBundleRepository(database)
+        self.consents = ConsentRepository(database)

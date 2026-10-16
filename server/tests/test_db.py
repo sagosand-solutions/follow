@@ -17,10 +17,10 @@ class DbTests(unittest.TestCase):
     def test_migrate_creates_schema_and_repeat_is_noop(self):
         conn = connect(self.path)
         self.addCleanup(conn.close)
-        self.assertEqual(apply_migrations(conn), 1)
+        self.assertEqual(apply_migrations(conn), 2)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         for table in ("users", "identities", "sessions", "auth_transactions", "products", "purchases",
-                      "entitlements", "payment_events", "schema_migrations"):
+                      "entitlements", "payment_events", "policy_bundles", "purchase_consents", "schema_migrations"):
             self.assertIn(table, names)
         self.assertEqual(apply_migrations(conn), 0)
 
