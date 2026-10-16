@@ -11,7 +11,7 @@ import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
 import { createStudySheet } from '../components/study.js';
 import { createStepPlayer } from '../components/step-player.js';
-import { pickTrace, sha256Hex, bindCase } from '../trace.js';
+import { pickTrace, sha256Hex, bindCase, stdinMatches } from '../trace.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -216,9 +216,10 @@ async function mountStepper(q, box, figures) {
     const trace = pickTrace(file, s.id);
     if (!trace || !trace.steps.length) continue;
     const digest = await sha256Hex(s.code);
-    if (digest !== trace.source_sha256 || file.question_id !== q.id || file.schema_version !== '0.1') continue;
-    const input = bindCase(q, s.id, trace);
-    if (!input) continue;
+    if (digest !== trace.source_sha256) continue;
+    const input = bindCase(q, s.id, trace, file);
+    if (!input || !(await stdinMatches(trace))) continue;
+    if (trace.truncated && trace.truncated_at_step !== trace.steps.length) continue;
     list.push({ id: s.id, input, label: s.label || t('step.snippetN', { n: i + 1 }), trace, figure: figures[i] });
   }
   if (!list.length || !box.isConnected) return;

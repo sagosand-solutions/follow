@@ -7,10 +7,16 @@ import { stdoutAt, variableRows, clampStep, isNextLine } from '../trace.js';
 import { setActiveLine } from './code-block.js';
 
 function describe(step) {
-  if (step.event === 'call') return step.function === '<module>' ? t('step.start') : t('step.call', { fn: step.function, line: step.line });
-  if (step.event === 'return') return step.function === '<module>' ? t('step.end', { line: step.line }) : t('step.return', { fn: step.function, value: step.value, line: step.line });
-  if (step.event === 'exception') return t('step.exception', { type: step.exception.type, message: step.exception.message, line: step.line });
-  return t('step.line', { line: step.line });
+  const main = step.function === '<module>';
+  switch (step.event) {
+    case 'call': return main ? t('step.start') : t('step.call', { fn: step.function, line: step.line });
+    case 'resume': return t('step.resume', { fn: step.function, line: step.line });
+    case 'yield': return t('step.yield', { fn: step.function, value: step.value, line: step.line });
+    case 'return': return main ? t('step.end', { line: step.line }) : t('step.return', { fn: step.function, value: step.value, line: step.line });
+    case 'unwind': return t(main ? 'step.unwindMain' : 'step.unwind', { fn: step.function, type: step.exception.type, line: step.line });
+    case 'exception': return t('step.exception', { type: step.exception.type, message: step.exception.message, line: step.line });
+    default: return t('step.line', { line: step.line });
+  }
 }
 
 const frameName = (step) => (step.function === '<module>' ? t('step.module') : step.function);
@@ -48,7 +54,7 @@ export function createStepPlayer(traces) {
     setActiveLine(cur.figure, step.line, announce, isNextLine(step) ? 'next' : 'event');
     caption.textContent = isNextLine(step) ? t('step.varsCaption') : t('step.varsCaptionEvent');
     const { stdin, total } = cur.input;
-    inputNote.textContent = total === 0 ? t('step.noInput') : t('step.input', { stdin: stdin.replace(/\n/g, '↵') || t('step.emptyInput'), n: total });
+    inputNote.textContent = (stdin === '' ? t('step.noInput') : t('step.input', { stdin: stdin.replace(/\n/g, '↵') })) + (total > 1 ? ` ${t('step.ofCases', { n: total })}` : '');
     const last = index === steps.length - 1;
     if (last && cur.trace.truncated) endNote.textContent = t('step.truncated');
     else if (last && cur.trace.exception) endNote.textContent = t('step.endedWith', { type: cur.trace.exception.type, message: cur.trace.exception.message, line: cur.trace.exception.line });
@@ -112,7 +118,7 @@ export function createStepPlayer(traces) {
     });
     root.append(picker);
   }
-  root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, outTitle, out, h('p', { class: 'muted small sp-hint' }, t('step.limits')), live);
+  root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, outTitle, out, live);
   render(false);
   return root;
 }
