@@ -2,21 +2,142 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { stdoutAt, variableRows, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, isNextLine, usableTraces, validEnvelope } from '../public/js/trace.js';
+import { stdoutAt, diffLocals, buildMoments, momentState, pickTrace, sha256Hex, clampStep, bindCase, stdinMatches, usableTraces, validEnvelope } from '../public/js/trace.js';
 
 const dir = new URL('../public/data/traces/', import.meta.url).pathname;
 const qdir = new URL('../public/data/questions/', import.meta.url).pathname;
 
-test('variableRows marks new and changed values only inside the same frame', () => {
-  const a = { event: 'line', depth: 1, function: 'f', locals: { x: '1' } };
-  const b = { event: 'line', depth: 1, function: 'f', locals: { x: '2', y: '5' } };
-  assert.deepEqual(variableRows(a, b), [{ name: 'x', value: '2', change: 'changed' }, { name: 'y', value: '5', change: 'new' }]);
-  const c = { depth: 2, function: 'g', locals: { x: '9' } };
-  assert.equal(variableRows(b, c)[0].change, 'same');
-  const call = { event: 'call', depth: 1, function: 'f', locals: { x: '1' } };
-  const line = { event: 'line', depth: 1, function: 'f', locals: { x: '2' } };
-  assert.equal(variableRows(call, line)[0].change, 'same', 'no comparison across a call event');
-  assert.equal(variableRows(null, b)[0].change, 'same');
+test('diffLocals flags new and changed values and nothing without a before state', () => {
+  assert.deepEqual(diffLocals({ x: '1' }, { x: '2', y: '5' }), [{ name: 'x', value: '2', change: 'changed' }, { name: 'y', value: '5', change: 'new' }]);
+  assert.equal(diffLocals(null, { x: '1' })[0].change, 'same');
+  assert.equal(diffLocals({ x: '1' }, { x: '1' })[0].change, 'same');
+});
+
+const S = (event, line, locals, extra = {}) => ({ event, line, depth: 0, function: '<module>', locals, stdout_len: 0, ...extra });
+
+const D = (d, fn) => (event, line, locals, extra = {}) => ({ event, line, depth: d, function: fn, locals, stdout_len: 0, ...extra });
+const M = D(0, '<module>');
+const kinds = (m) => m.map((x) => `${x.kind}:${x.step.line}${x.step.event === 'line' ? '' : '/' + x.step.event}`);
+
+test('buildMoments: plain lines are shown as ran with the state after, the empty start is skipped, the last print is kept', () => {
+  const trace = { stdout: 'ab\n', steps: [M('call', 1, {}), M('line', 1, {}), M('line', 2, { x: '3' }), M('line', 3, { x: '3', y: '1' }), M('return', 3, { x: '3', y: '1' }, { stdout_len: 3, value: 'None' })] };
+  const m = buildMoments(trace);
+  assert.deepEqual(kinds(m), ['ran:1', 'ran:2', 'ran:3', 'event:3/return']);
+  assert.deepEqual(momentState(trace, m[0]).rows, [{ name: 'x', value: '3', change: 'new' }], 'x = 3 after line 1, new');
+  assert.equal(momentState(trace, m[2]).added, 'ab\n', 'output of the last line, from the terminal return step');
+  assert.equal(momentState(trace, m[3]).mode, 'event');
+});
+
+test('buildMoments: a calling line is not "ran" before its callee is played; its result appears after the return', () => {
+  const F = D(1, 'f');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 1, {}), M('line', 4, { f: '<f>' }), F('call', 1, { a: '2' }), F('line', 2, { a: '2' }), F('return', 2, { a: '2' }, { value: '2' }), M('line', 5, { f: '<f>', r: '2' }), M('return', 5, { f: '<f>', r: '2' })] };
+  const m = buildMoments(trace);
+  assert.deepEqual(kinds(m), ['ran:1', 'event:1/call', 'ran:2', 'event:2/return', 'ran:4', 'ran:5', 'event:5/return']);
+  assert.equal(m[1].callerLine, 4, 'the call event says which line of the caller is calling');
+  const callLine = m[4];
+  assert.equal(callLine.safe, true, 'only deeper steps lay between, so the frame was never left');
+});
+
+test('buildMoments: changes are flagged only when the same frame is provable', () => {
+  const F = D(1, 'f');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 4, { f: '<f>' }), F('call', 1, {}), F('return', 1, {}, { value: '2' }), M('line', 5, { f: '<f>', r: '2' }), M('return', 5, { f: '<f>', r: '2' })] };
+  const ranCall = buildMoments(trace).find((x) => x.kind === 'ran' && x.step.line === 4);
+  assert.equal(ranCall.safe, true, 'only deeper steps lay between: the frame was never left');
+  assert.deepEqual(momentState(trace, ranCall).rows.find((r) => r.name === 'r'), { name: 'r', value: '2', change: 'new' });
+});
+
+test('buildMoments: yield is a pause, the assignment around it completes after the resume', () => {
+  const G = D(1, 'gen');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, {}), G('yield', 2, {}, { value: "'ready'" }), M('line', 6, {}), G('resume', 2, {}), G('line', 3, { got: '3' }), G('return', 3, { got: '3' }, { value: 'None' }), M('return', 6, {})] };
+  const m = buildMoments(trace);
+  assert.deepEqual(kinds(m), ['event:1/call', 'event:2/yield', 'ran:5', 'event:2/resume', 'ran:3', 'event:3/return', 'ran:6', 'event:6/return']);
+  assert.ok(!m.some((x) => x.kind === 'ran' && x.step.line === 2 && x.step.function === 'gen'), 'the line paused at the yield is never shown as ran');
+});
+
+test('buildMoments: a new frame at a depth never completes a paused generator line (yield g, then call h)', () => {
+  const G = D(1, 'g');
+  const Hh = D(1, 'h');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 10, {}), G('call', 1, {}), G('line', 2, { gl: 'g-local' }), G('yield', 2, { gl: 'g-local' }, { value: '1' }), M('line', 11, {}), Hh('call', 20, { arg: 'h-arg' }), Hh('line', 21, { arg: 'h-arg' }), Hh('return', 21, { arg: 'h-arg' }, { value: 'None' }), M('return', 11, {})] };
+  const m = buildMoments(trace);
+  assert.ok(!m.some((x) => x.kind === 'ran' && x.step.function === 'g'), 'g line 2 is never shown as ran: g is still paused');
+  const hl = m.find((x) => x.kind === 'ran' && x.step.function === 'h');
+  assert.deepEqual(momentState(trace, hl).rows.map((r) => r.name), ['arg'], 'h shows only its own locals');
+});
+
+test('buildMoments: two paused generator instances with the same name and depth are never guessed apart', () => {
+  const G = D(1, 'gen');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, { id: 'first' }), G('yield', 2, { id: 'first' }, { value: '1' }), M('line', 6, {}), G('call', 1, {}), G('line', 2, { id: 'second' }), G('yield', 2, { id: 'second' }, { value: '2' }), M('line', 7, {}), G('resume', 2, { id: '?' }), G('line', 3, { id: '?' }), G('return', 3, { id: '?' }, { value: 'None' }), M('return', 7, {})] };
+  const m = buildMoments(trace);
+  const gen2 = m.filter((x) => x.kind === 'ran' && x.step.function === 'gen' && x.step.line === 2);
+  assert.equal(gen2.length, 0, 'no completion is attributed to either paused instance');
+  assert.ok(m.some((x) => x.kind === 'event' && x.step.event === 'resume'), 'the resume itself is still shown');
+});
+
+test('buildMoments: one generator yielding at depth 1, then 2 through a wrapper, then 1 again, never revives the old yield line', () => {
+  const G1 = D(1, 'gen');
+  const G2 = D(2, 'gen');
+  const W = D(1, 'wrap');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 9, {}), G1('call', 1, {}), G1('line', 2, { a: 'd1' }), G1('yield', 2, { a: 'd1' }, { value: '1' }), M('line', 10, {}), W('call', 5, {}), W('line', 6, {}), G2('resume', 2, { a: 'd2' }), G2('line', 3, { a: 'd2' }), G2('yield', 3, { a: 'd2' }, { value: '2' }), W('line', 7, {}), W('return', 7, {}, { value: 'None' }), G1('resume', 3, { a: 'd1b' }), G1('line', 4, { a: 'd1b' }), G1('return', 4, { a: 'd1b' }, { value: 'None' }), M('return', 10, {})] };
+  const m = buildMoments(trace);
+  for (const x of m) if (x.kind === 'ran' && x.step.function === 'gen') assert.notEqual(x.step.line, 2, 'the d1 yield line 2 is never completed by a later d1 line');
+  assert.ok(m.filter((x) => x.step.event === 'yield').length === 2 && m.filter((x) => x.step.event === 'resume').length === 2, 'every yield and resume is still shown, in order');
+});
+
+test('buildMoments: truncation picks the active caller line, not a generator that is paused deeper', () => {
+  const G = D(1, 'g');
+  const trace = { stdout: '', truncated: true, steps: [M('call', 1, {}), M('line', 5, {}), G('call', 1, {}), G('line', 2, {}), G('yield', 2, {}, { value: '1' }), M('line', 6, {})] };
+  const m = buildMoments(trace);
+  const last = m[m.length - 1];
+  assert.equal(last.kind, 'ran');
+  assert.equal(last.after, null);
+  assert.equal(last.step.function, '<module>');
+  assert.equal(last.step.line, 6);
+});
+
+test('buildMoments: an exception interrupts the line; unwind is not a normal return; the handler line carries on', () => {
+  const F = D(1, 'f');
+  const trace = { stdout: '', steps: [M('call', 1, {}), M('line', 3, {}), F('call', 1, {}), F('line', 2, {}), F('exception', 2, {}, { exception: { type: 'KeyError', message: "'k'", line: 2 } }), F('unwind', 2, {}, { exception: { type: 'KeyError', message: "'k'", line: 2 } }), M('line', 5, { e: 'KeyError' }), M('return', 5, { e: 'KeyError' }, { value: 'None' })] };
+  const m = buildMoments(trace);
+  assert.deepEqual(kinds(m), ['event:1/call', 'event:2/exception', 'event:2/unwind', 'interrupted:3', 'ran:5', 'event:5/return']);
+  assert.equal(m[3].kind, 'interrupted');
+  assert.equal(momentState(trace, m[3]).mode, 'event');
+});
+
+test('buildMoments: a truncated recording ends with the innermost pending line and no invented after state', () => {
+  const trace = { stdout: '', truncated: true, steps: [M('call', 1, {}), M('line', 1, {}), M('line', 2, { x: '1' })] };
+  const m = buildMoments(trace);
+  assert.deepEqual(kinds(m), ['ran:1', 'ran:2']);
+  assert.equal(m[1].after, null);
+  assert.equal(momentState(trace, m[1]).mode, 'before');
+});
+
+test('buildMoments on the real corpus: first example, ordering, and output never shrinks or shows early', () => {
+  const file = JSON.parse(readFileSync(dir + 'm1-assignment-snapshot.json', 'utf8'));
+  const first = buildMoments(file.traces[0]);
+  assert.deepEqual(momentState(file.traces[0], first[0]).rows, [{ name: 'x', value: '3', change: 'new' }]);
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
+    for (const t of JSON.parse(readFileSync(dir + f, 'utf8')).traces) {
+      const moments = buildMoments(t);
+      assert.ok(moments.length > 0, f);
+      let last = 0;
+      for (const mm of moments) {
+        const st = momentState(t, mm);
+        const len = Array.from(st.shown).length + Array.from(st.added).length;
+        assert.ok(len >= last, `${f}: output shrank at line ${mm.step.line}`);
+        last = len;
+      }
+    }
+  }
+});
+
+test('the keyword-evaluation example: line 10 completes only after the calls, with result 7', () => {
+  const t = JSON.parse(readFileSync(dir + 'py-keyword-evaluation-before-binding.json', 'utf8')).traces[0];
+  const m = buildMoments(t);
+  const i10 = m.findIndex((x) => x.kind === 'ran' && x.step.line === 10);
+  const firstCall = m.findIndex((x) => x.kind === 'event' && x.step.event === 'call' && x.step.function === 'mark');
+  assert.ok(firstCall >= 0 && firstCall < i10, 'the calls are played before line 10 is shown as ran');
+  assert.deepEqual(momentState(t, m[i10]).rows.find((r) => r.name === 'result'), { name: 'result', value: '7', change: 'new' });
+  assert.equal(m[firstCall].callerLine, 10);
 });
 
 test('stdoutAt, clampStep and pickTrace', () => {
@@ -58,11 +179,6 @@ test('stdoutAt counts Unicode code points like Python len, not UTF-16 units', ()
   assert.equal(stdoutAt(trace, { stdout_len: 2 }), '😀x');
   assert.equal(stdoutAt(trace, { stdout_len: 3 }), '😀x\n');
   assert.equal(stdoutAt(trace, { stdout_len: 0 }), '');
-});
-
-test('only line events name the next line', () => {
-  assert.equal(isNextLine({ event: 'line' }), true);
-  for (const event of ['call', 'resume', 'yield', 'return', 'unwind', 'exception']) assert.equal(isNextLine({ event }), false);
 });
 
 test('bindCase (0.2) fails closed unless version, snippet, case id, stdin and stdout agree', () => {

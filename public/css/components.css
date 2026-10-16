@@ -209,8 +209,8 @@
 .option__input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .option__ring { display: none; }
 .option__letter {
-  flex: none; display: grid; place-items: center; width: 1.875rem; height: 1.875rem;
-  border-radius: 8px; background: var(--surface-2); color: var(--ink); font-weight: 800; font-size: var(--text-sm);
+  flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; margin-inline-end: var(--s-1);
+  border-radius: 50%; background: var(--ink); color: var(--bg); font-weight: 800; font-size: var(--text-sm);
 }
 .option__text { min-width: 0; overflow-wrap: anywhere; padding-block: 0.15rem; }
 .option:has(.option__input:checked) { border-color: var(--link); background: var(--surface); box-shadow: 0 0 0 1px var(--link); }
@@ -248,7 +248,8 @@
 .icon { flex: none; }
 
 .fb__heading { font-size: var(--text-lg); }
-.fb__letter { font-weight: 800; }
+.fb__letter { display: inline-block; padding: 0 var(--s-2); margin-inline-end: var(--s-1); border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 800; font-size: var(--text-sm); }
+.q-next { align-items: center; }
 .fb__answer { font-weight: 700; }
 .chip--misc { background: var(--surface); border: 1px solid var(--line-strong); }
 .partial { padding-inline-start: var(--s-3); border-inline-start: 4px solid var(--outcome-partial); display: grid; gap: var(--s-1); }
@@ -320,7 +321,7 @@
 .code .line.is-active { background: var(--stage-bg-raised); box-shadow: inset 4px 0 0 var(--stage-link); }
 .code .line.is-active::before { background: var(--stage-bg-raised); color: var(--stage-ink); }
 .code .line.is-active.is-marked { box-shadow: inset 4px 0 0 var(--stage-link), inset 8px 0 0 var(--stage-mark-edge); }
-.code .line.is-active::after { content: "  \25C0  next"; color: var(--stage-link); font-family: var(--font-ui); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
+.code .line.is-active::after { content: "  \25C0  ran"; color: var(--stage-link); font-family: var(--font-ui); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; }
 .stage-tools__title { font-size: var(--text-lg); color: var(--stage-ink); }
 .sp-hint { color: var(--stage-muted); }
 .sp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
@@ -354,3 +355,5 @@
 
 .lesson-link__summary { grid-column: 1 / -1; color: var(--muted); font-size: var(--text-sm); }
 .lesson-summary { max-width: 40rem; }
+.sp-newout { background: var(--stage-mark); box-shadow: 0 0 0 2px var(--stage-mark); border-radius: 2px; }
+.sp-vars td .sp-tag { white-space: nowrap; }

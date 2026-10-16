@@ -1,6 +1,6 @@
 {
   "step.title": "Step through the code",
-  "step.hint": "Use the left and right arrow keys to step. Nothing is run here: this replays a recorded run.",
+  "step.hint": "Each step shows a line that has just run. The highlighted line is the one that ran; the table and the output show the situation after it. Use the left and right arrow keys to step. Nothing is run here: this replays a recording.",
   "step.first": "Start",
   "step.back": "Back",
   "step.next": "Next step",
@@ -10,10 +10,8 @@
   "step.call": "A call to {fn} starts (line {line}).",
   "step.return": "{fn} returns {value} (line {line}).",
   "step.exception": "An exception is raised at line {line}: {type}: {message}. It may be caught later.",
-  "step.line": "Line {line} runs next.",
   "step.module": "main program",
   "step.frame": "Now in {fn}, call depth {depth}",
-  "step.varsCaption": "Variables, before this line runs",
   "step.name": "Name",
   "step.value": "Value",
   "step.new": "new",
@@ -193,5 +191,14 @@
   "step.yield": "{fn} pauses at line {line} and yields {value}.",
   "step.unwind": "{fn} exits at line {line} because {type} is propagating.",
   "step.unwindMain": "The main program exits at line {line} because {type} is propagating.",
-  "step.ofCases": "The question has {n} input cases; only the first is replayed."
+  "step.ofCases": "The question has {n} input cases; only the first is replayed.",
+  "step.ran": "Ran line {line}.",
+  "step.ranEnd": "Line {line} was running when the recording ends.",
+  "step.varsAfter": "Variables and output, after this line ran",
+  "step.varsBeforeEnd": "Variables, before this line (the recording ends here)",
+  "step.printed": "Printed: {text}",
+  "q.nextHint": "or press Ctrl+Enter",
+  "step.callFrom": "Line {caller} calls {fn}. Now in {fn}, which starts at line {line}.",
+  "step.resumeFrom": "Line {caller} resumes {fn}. Now in {fn} at line {line}.",
+  "step.interrupted": "Line {line} did not finish: an exception left it. Execution continues at line {next}."
 }

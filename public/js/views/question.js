@@ -178,7 +178,7 @@ function draw(ctx, prev, stale = false) {
   });
 
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
-  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, answered ? navActions(ctx) : null, attribution(q));
+  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, attribution(q));
   root.replaceChildren(h('div', { class: 'question__top stack' }, header, chips, title), h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
@@ -231,7 +231,7 @@ function attribution(q) {
 
 function navActions(ctx) {
   const { where, q } = ctx;
-  const buttons = h('div', { class: 'actions' });
+  const buttons = h('div', { class: 'actions actions--row q-next' });
   let next;
   if (where && where.position + 1 < where.lesson.questions.length) {
     const nextId = where.lesson.questions[where.position + 1];
@@ -257,7 +257,7 @@ function navActions(ctx) {
     },
     t('q.retry'),
   );
-  buttons.append(next, again);
+  buttons.append(next, again, h('span', { class: 'hint', 'aria-hidden': 'true' }, t('q.nextHint')));
   return buttons;
 }
 
@@ -294,6 +294,9 @@ function renderFeedback(ctx, container, prev, letters) {
     const { v, parts } = optionBlock(ctx, chosen, letters.get(chosen.id), true);
     frag.push(h('section', { class: `verdict verdict--${v.kind}` }, verdictHeading(v.icon, v.word, v.points), ...parts));
   }
+
+  // The way on sits right under the verdict, not after all the explanations.
+  frag.push(navActions(ctx));
 
   if (unknown || chosen.id !== correct.id) {
     const { parts } = optionBlock(ctx, correct, letters.get(correct.id), true);
