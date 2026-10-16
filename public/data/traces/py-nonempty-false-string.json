@@ -1,0 +1,63 @@
+{
+  "question_id": "py-nonempty-false-string",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "9b3ff08aaa43e8ded5c4571b6e06164c8d40cfb55ec77e7c48ee7655938ac81d",
+      "stdin_case": 0,
+      "stdout": "open\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "status": "'False'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "status": "'False'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "status": "'False'"
+          },
+          "stdout_len": 5,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

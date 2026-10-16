@@ -7,6 +7,9 @@ def main(argv=None):
     if args[:1] == ["export"]:
         from .export import main as export_main
         return export_main(args[1:])
+    if args[:1] == ["trace"]:
+        from .trace import main as trace_main
+        return trace_main(args[1:])
     from .cli import main as validate_main
     return validate_main(args)
 

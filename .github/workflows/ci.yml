@@ -43,6 +43,8 @@ jobs:
         run: python -m validator public/data/questions/*.json
       - name: Exported site data is up to date
         run: python -m validator export --check
+      - name: Traces match question code (static, nothing executed)
+        run: python -m validator trace --check
 
   web:
     name: Web tests

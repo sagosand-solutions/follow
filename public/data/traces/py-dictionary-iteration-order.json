@@ -1,0 +1,126 @@
+{
+  "question_id": "py-dictionary-iteration-order",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "baa5717f8c49536ad5511d8bd7f133f74f1791c559bc20effa500a6c7b8cbc1c",
+      "stdin_case": 0,
+      "stdout": "['blue', 'red']\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "seen": "[]",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "entry": "'blue'",
+            "seen": "[]",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "entry": "'blue'",
+            "seen": "['blue']",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "entry": "'red'",
+            "seen": "['blue']",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "entry": "'red'",
+            "seen": "['blue', 'red']",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "entry": "'red'",
+            "seen": "['blue', 'red']",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "entry": "'red'",
+            "seen": "['blue', 'red']",
+            "weights": "{'blue': 2, 'red': 4}"
+          },
+          "stdout_len": 16,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

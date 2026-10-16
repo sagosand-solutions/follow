@@ -1,0 +1,146 @@
+{
+  "question_id": "m1-list-iadd-equivalence",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "original",
+      "source_sha256": "0ef86d50d8c510fda816bdf6073dd1df7c6047683dcb80edd513dbe3636b2419",
+      "stdin_case": 0,
+      "stdout": "[2, 4, 6] [2, 4]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "items": "[2, 4]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "alias": "[2, 4]",
+            "items": "[2, 4]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "alias": "[2, 4]",
+            "items": "[2, 4, 6]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "alias": "[2, 4]",
+            "items": "[2, 4, 6]"
+          },
+          "stdout_len": 17,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    },
+    {
+      "exception": null,
+      "snippet_id": "rewrite",
+      "source_sha256": "6712e3a2a06e6e4bb3113c6b9a8791cf19b1cf48b9bffcd071d1b0bf4bc65a37",
+      "stdin_case": 1,
+      "stdout": "[2, 4, 6] [2, 4, 6]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "items": "[2, 4]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "alias": "[2, 4]",
+            "items": "[2, 4]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "alias": "[2, 4, 6]",
+            "items": "[2, 4, 6]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "alias": "[2, 4, 6]",
+            "items": "[2, 4, 6]"
+          },
+          "stdout_len": 20,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

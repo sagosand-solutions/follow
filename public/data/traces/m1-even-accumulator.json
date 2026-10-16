@@ -1,0 +1,175 @@
+{
+  "question_id": "m1-even-accumulator",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "a59882ab36bd56e222d4869d1a64a19cd7989b5b51796cf54e07f6464d77b714",
+      "stdin_case": 0,
+      "stdout": "6\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "total": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "n": "1",
+            "total": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "n": "1",
+            "total": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "n": "2",
+            "total": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "n": "2",
+            "total": "0"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "n": "2",
+            "total": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "n": "3",
+            "total": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "n": "3",
+            "total": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "n": "4",
+            "total": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "n": "4",
+            "total": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "n": "4",
+            "total": "6"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "n": "4",
+            "total": "6"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "n": "4",
+            "total": "6"
+          },
+          "stdout_len": 2,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "question_id": "py-strip-characters-not-substring",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "05cb69fc89ee1de1b1fbdb220a099a1a24ac207c4ea6fdb830911565b424e4b0",
+      "stdin_case": 0,
+      "stdout": "hexyllo!\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "text": "'xyhexyllo!xy'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "text": "'xyhexyllo!xy'"
+          },
+          "stdout_len": 9,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

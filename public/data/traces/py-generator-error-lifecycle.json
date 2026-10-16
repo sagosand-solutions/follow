@@ -1,0 +1,246 @@
+{
+  "question_id": "py-generator-error-lifecycle",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "35a914b0dd2ff286ab347792820ec739d0cc8eba6355c7dfb867e3e125bf9285",
+      "stdin_case": 0,
+      "stdout": "1\n['closed', 'caught']\ndone\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "events": "[]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 11,
+          "locals": {
+            "events": "[]",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 12,
+          "locals": {
+            "events": "[]",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "steps",
+          "line": 3,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "steps",
+          "line": 4,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "steps",
+          "line": 5,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "steps",
+          "line": 5,
+          "locals": {},
+          "stdout_len": 0,
+          "value": "1"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 13,
+          "locals": {
+            "events": "[]",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 14,
+          "locals": {
+            "events": "[]",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "steps",
+          "line": 5,
+          "locals": {},
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "steps",
+          "line": 6,
+          "locals": {},
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "exception",
+          "exception": {
+            "line": 6,
+            "message": "bad",
+            "type": "ValueError"
+          },
+          "function": "steps",
+          "line": 6,
+          "locals": {},
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "steps",
+          "line": 9,
+          "locals": {},
+          "stdout_len": 2
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "steps",
+          "line": 9,
+          "locals": {},
+          "stdout_len": 2,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "exception",
+          "exception": {
+            "line": 14,
+            "message": "bad",
+            "type": "ValueError"
+          },
+          "function": "<module>",
+          "line": 14,
+          "locals": {
+            "events": "['closed']",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 15,
+          "locals": {
+            "events": "['closed']",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 16,
+          "locals": {
+            "events": "['closed']",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 17,
+          "locals": {
+            "events": "['closed', 'caught']",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 18,
+          "locals": {
+            "events": "['closed', 'caught']",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 23
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 18,
+          "locals": {
+            "events": "['closed', 'caught']",
+            "it": "<generator object steps at 0x\u2026>",
+            "steps": "<function steps>"
+          },
+          "stdout_len": 28,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "question_id": "py-shared-default-ai-review",
+  "schema_version": "0.1",
+  "traces": [
+    {
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "2ad59197d34166a3f175e6f8ebfd5b69a3877dc8d9d668ef89150537a470a17d",
+      "stdin_case": 0,
+      "stdout": "['red']\n['red', 'blue']\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "add_tag": "<function add_tag>"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "add_tag",
+          "line": 1,
+          "locals": {
+            "tag": "'red'",
+            "tags": "[]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add_tag",
+          "line": 2,
+          "locals": {
+            "tag": "'red'",
+            "tags": "[]"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add_tag",
+          "line": 3,
+          "locals": {
+            "tag": "'red'",
+            "tags": "['red']"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "add_tag",
+          "line": 3,
+          "locals": {
+            "tag": "'red'",
+            "tags": "['red']"
+          },
+          "stdout_len": 0,
+          "value": "['red']"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "add_tag": "<function add_tag>"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "function": "add_tag",
+          "line": 1,
+          "locals": {
+            "tag": "'blue'",
+            "tags": "['red']"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add_tag",
+          "line": 2,
+          "locals": {
+            "tag": "'blue'",
+            "tags": "['red']"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "function": "add_tag",
+          "line": 3,
+          "locals": {
+            "tag": "'blue'",
+            "tags": "['red', 'blue']"
+          },
+          "stdout_len": 8
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "function": "add_tag",
+          "line": 3,
+          "locals": {
+            "tag": "'blue'",
+            "tags": "['red', 'blue']"
+          },
+          "stdout_len": 8,
+          "value": "['red', 'blue']"
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "add_tag": "<function add_tag>"
+          },
+          "stdout_len": 24,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
