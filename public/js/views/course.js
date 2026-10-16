@@ -5,6 +5,7 @@ import { store } from '../progress.js';
 import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
+import { summaryNode } from '../components/summary.js';
 
 export async function courseView() {
   let course;
@@ -40,7 +41,7 @@ export async function courseView() {
               { class: 'lesson-link', href: `#/lesson/${lesson.id}` },
               h('span', { class: 'lesson-link__title' }, lesson.title),
               h('span', { class: 'lesson-link__status' }, status),
-              lesson.summary ? h('span', { class: 'lesson-link__summary' }, lesson.summary) : null,
+              summaryNode(lesson.summary, 'lesson-link__summary', 'span'),
               cells(lesson.questions, nextId),
               h('span', { class: 'visually-hidden' }, summaryText(lesson.questions)),
             ),

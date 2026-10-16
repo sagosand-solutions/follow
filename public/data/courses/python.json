@@ -112,7 +112,7 @@
         {
           "id": "modules",
           "title": "Modules and imports",
-          "summary": "What happens when a file imports another one: which names point to which module object, and what a from-import copies.",
+          "summary": "Read module aliases and imported names, and distinguish a new name binding from rebinding a module attribute.",
           "builds_on": [
             "functions-and-scope"
           ],
@@ -123,7 +123,7 @@
         {
           "id": "classes",
           "title": "Objects and classes",
-          "summary": "Where an attribute comes from: the instance, the class, or a parent class, and what happens when you assign through an instance.",
+          "summary": "Read ordinary instance and class attributes. Follow shared mutable data, instance shadowing, and the receiving object in a method call.",
           "builds_on": [
             "functions-and-scope",
             "lists-and-mutation"
