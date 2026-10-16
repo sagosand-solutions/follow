@@ -105,7 +105,16 @@ class Issue:
         return asdict(self)
 
 
-def load_json(path, *, budget=None):
+def parse_json_bytes(raw, path):
+    """Strictly parse already bounded-read UTF-8 JSON bytes.
+
+    This is the single strict byte-to-value seam. Callers that must hash and
+    parse the *same* content (for example the study manifest builder) hash the
+    exact bytes they pass here, so no second read can observe different data.
+    The bytes must already satisfy :func:`read_json_bytes`/`check_json_size`;
+    the UTF-8, depth, duplicate-key, finite-number and parser-resource gates
+    applied here are identical to the historical ``load_json`` behaviour.
+    """
     def pairs(items):
         result = {}
         for key, value in items:
@@ -123,7 +132,6 @@ def load_json(path, *, budget=None):
             raise ValueError(f"nonfinite number {value}")
         return result
 
-    raw = read_json_bytes(path, budget=budget)
     try:
         text = raw.decode("utf-8")
     except UnicodeError as exc:
@@ -139,6 +147,11 @@ def load_json(path, *, budget=None):
     except ValueError as exc:
         # The stdlib object hook supplies no source offset for duplicate keys.
         raise ContentError(f"{path}: JSON document: {exc}") from exc
+
+
+def load_json(path, *, budget=None):
+    raw = read_json_bytes(path, budget=budget)
+    return parse_json_bytes(raw, path)
 
 
 def pointer(parts):
