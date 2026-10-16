@@ -40,6 +40,12 @@ export function createStepPlayer(traces) {
   const varBody = h('tbody');
   const vars = h('table', { class: 'sp-vars' }, caption, h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, t('step.name')), h('th', { scope: 'col' }, t('step.value')))), varBody);
   const empty = h('p', { class: 'muted small' }, t('step.noVars'));
+  // Format 0.3: the program's global data values are their own table, never merged into the locals table.
+  const captionG = h('caption', {});
+  const varBodyG = h('tbody');
+  const varsG = h('table', { class: 'sp-vars sp-vars--globals' }, captionG, h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, t('step.name')), h('th', { scope: 'col' }, t('step.value')))), varBodyG);
+  const globalsNote = h('p', { class: 'muted small sp-globals-note' });
+  const omittedNote = h('p', { class: 'sp-omitted small', role: 'note' });
   const out = h('pre', { class: 'sp-out', tabindex: '0', 'aria-label': t('step.output') });
   const outTitle = h('h3', { class: 'sp-h' }, t('step.output'));
   const inputNote = h('p', { class: 'sp-input muted small' });
@@ -55,7 +61,6 @@ export function createStepPlayer(traces) {
     const step = moment.step;
     const state = momentState(cur.trace, moment);
     setActiveLine(cur.figure, step.line, announce, moment.kind === 'ran' && state.mode === 'after' ? 'ran' : 'event');
-    caption.textContent = t(state.mode === 'after' ? 'step.varsAfter' : state.mode === 'before' ? 'step.varsBeforeEnd' : 'step.varsCaptionEvent');
     const { stdin, total } = cur.input;
     inputNote.textContent = (stdin === '' ? t('step.noInput') : t('step.input', { stdin: stdin.replace(/\n/g, '↵') })) + (total > 1 ? ` ${t('step.ofCases', { n: total })}` : '');
     const last = index === moments.length - 1;
@@ -69,25 +74,46 @@ export function createStepPlayer(traces) {
     back.disabled = index === 0;
     next.disabled = index === moments.length - 1;
     now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : moment.kind === 'interrupted' ? t('step.interrupted', { line: step.line, next: moment.after.line }) : describe(step, moment);
-    frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth });
-    // Format 0.3 module scope keeps its variables in `globals` (locals are empty there): show them in this table,
-    // so 0.3 plays without a false "No variables yet." The dedicated Globals view is the Designer's separate delivery.
-    const rows = state.scope === 'module' && state.globals ? state.globals : state.rows;
-    varBody.replaceChildren(
-      ...rows.map((r) =>
-        h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))),
-      ),
-    );
-    vars.hidden = rows.length === 0;
-    empty.hidden = rows.length !== 0;
+    frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth }) + (state.scope ? ` · ${t(`step.scope.${state.scope}`)}` : '');
+    const rowNodes = (rows) => rows.map((r) => h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))));
+    const v3 = !!state.scope;
+    const ending = state.mode === 'after' ? 'After' : state.mode === 'before' ? 'BeforeEnd' : 'Event';
+    let localRows = state.rows;
+    let globalRows = null;
+    if (v3) {
+      globalRows = state.globals;
+      if (state.scope === 'module') {
+        // At module level the variables ARE the globals: one table, titled as such.
+        localRows = [];
+      }
+    }
+    // Locals table (or, in 0.2 and at module level, the only table).
+    const mainRows = v3 && state.scope === 'module' ? globalRows : localRows;
+    caption.textContent = v3 ? (state.scope === 'module' ? t(`step.globals${ending}`) : t(`step.locals${ending}`, { fn: frameName(step) })) : t(state.mode === 'after' ? 'step.varsAfter' : state.mode === 'before' ? 'step.varsBeforeEnd' : 'step.varsCaptionEvent');
+    varBody.replaceChildren(...rowNodes(mainRows));
+    vars.hidden = mainRows.length === 0;
+    empty.hidden = mainRows.length !== 0;
+    // Globals table next to the locals of a function or class body.
+    const showGlobals = v3 && state.scope !== 'module';
+    captionG.textContent = t(`step.globals${ending}`);
+    varBodyG.replaceChildren(...(showGlobals ? rowNodes(globalRows) : []));
+    varsG.hidden = !showGlobals || globalRows.length === 0;
+    // "No global changed" is said only when the recorded globals really did not change, never because the locals did not.
+    globalsNote.textContent = showGlobals ? (globalRows.length === 0 ? t('step.noGlobals') : state.globalsUnchanged ? t('step.globalsUnchanged') : '') : '';
+    globalsNote.hidden = !globalsNote.textContent;
+    omittedNote.textContent = v3 && state.omitted > 0 ? t('step.omitted', { n: state.omitted }) : '';
+    omittedNote.hidden = !omittedNote.textContent;
+    const rows = [...mainRows, ...(showGlobals ? globalRows : [])];
     const outNodes = [];
     if (!state.shown && !state.added) outNodes.push(t('step.noOutput'));
     if (state.shown) outNodes.push(state.shown);
     if (state.added) outNodes.push(h('span', { class: 'sp-newout' }, state.added));
     out.replaceChildren(...outNodes);
     if (announce) {
-      const changed = rows.filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value} (${t(`step.${r.change}`)})`);
-      live.textContent = [`${t('step.counter', { n: index + 1, total: moments.length })}.`, `${now.textContent}`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', state.added ? `${t('step.printed', { text: state.added.replace(/\n/g, '↵') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
+      const flagged = (list) => list.filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value} (${t(`step.${r.change}`)})`);
+      const changed = flagged(mainRows);
+      const changedG = showGlobals ? flagged(globalRows) : [];
+      live.textContent = [`${t('step.counter', { n: index + 1, total: moments.length })}.`, `${now.textContent}`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', changedG.length ? `${t('step.changedGlobals', { list: changedG.join(', ') })}.` : '', omittedNote.textContent, state.added ? `${t('step.printed', { text: state.added.replace(/\n/g, '↵') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
     }
   }
 
@@ -127,7 +153,7 @@ export function createStepPlayer(traces) {
     });
     root.append(picker);
   }
-  root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, outTitle, out, live);
+  root.append(h('p', { class: 'muted small sp-hint' }, t('step.hint')), inputNote, h('div', { class: 'sp-controls' }, first, back, next, counter), now, frame, endNote, vars, empty, varsG, globalsNote, omittedNote, outTitle, out, live);
   render(false);
   return root;
 }
