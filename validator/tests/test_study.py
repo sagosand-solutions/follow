@@ -352,6 +352,21 @@ class TestBuildManifest(StudyTestCase):
             study.build_manifest(relative, approvals, concept_ids=CONCEPT_IDS,
                                  lesson_ids=LESSON_IDS, question_ids=QUESTION_IDS)
 
+    def test_dotdot_root_over_symlink_is_rejected(self):
+        base = Path(self.tmp.name)
+        (base / "a").mkdir()
+        target = base / "elsewhere"
+        (target / "study").mkdir(parents=True)
+        raw = write_note(target / "study", "py-complexity.json", make_note())
+        digest = hashlib.sha256(raw).hexdigest()
+        (base / "a" / "link").symlink_to(target, target_is_directory=True)
+        approvals = [{"path": "data/study/py-complexity.json", "sha256": digest}]
+        for evil in (base / "a" / "link" / ".." / "study", base / "a" / ".." / "a" / "study"):
+            with self.subTest(root=str(evil)):
+                with self.assertRaises(core.SetupError):
+                    study.build_manifest(evil, approvals, concept_ids=CONCEPT_IDS,
+                                         lesson_ids=LESSON_IDS, question_ids=QUESTION_IDS)
+
     def test_count_cap(self):
         approvals = [{"path": f"data/study/x{i}.json", "sha256": "a" * 64}
                      for i in range(study.MAX_MANIFEST_ENTRIES + 1)]

@@ -121,6 +121,22 @@ def _manifest_relative(path):
     return relative
 
 
+def _reject_ambiguous_root(path):
+    """Reject a dot or dotdot component in the caller-supplied notes root.
+
+    ``os.path.abspath`` collapses ``..`` lexically, so a root such as
+    ``<t>/a/link/../study`` (with ``link`` a symlink) would be checked as
+    ``<t>/a/study`` while the filesystem reads it through ``link``. Rejecting the
+    ambiguous form before any normalisation prevents that bypass.
+    """
+    text = os.fspath(path)
+    for separator in filter(None, (os.sep, os.altsep)):
+        if separator in text:
+            text = text.replace(separator, "/")
+    if any(segment in (".", "..") for segment in text.split("/")):
+        raise core.SetupError(f"{path}: notes root must not contain '.' or '..' segments")
+
+
 def _reject_symlink_components(path):
     """Reject a symlink in any component from the filesystem root down to ``path``.
 
@@ -157,13 +173,14 @@ def build_manifest(notes_root, approvals, *, concept_ids, lesson_ids, question_i
     Every entry must validate before anything is returned; a failure raises and
     never produces a partial manifest. No byte is re-serialized for hashing.
     """
-    notes_root = Path(notes_root)
     if not isinstance(approvals, (list, tuple)):
         raise core.SetupError("approvals must be a list of {path, sha256} entries")
     if len(approvals) > MAX_MANIFEST_ENTRIES:
         raise core.InputLimitError(notes_root, f"manifest-count: {len(approvals)} approvals exceeds {MAX_MANIFEST_ENTRIES} per invocation")
     if not approvals:
         return {"data_version": DATA_VERSION, "notes": []}
+    _reject_ambiguous_root(notes_root)
+    notes_root = Path(notes_root)
     _reject_symlink_components(notes_root)
     budget = core.QuestionBudget()
     entries, seen_paths, seen_targets = [], set(), set()
