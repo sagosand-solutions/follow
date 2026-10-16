@@ -102,7 +102,7 @@ function draw(ctx, prev, stale = false) {
   const known = ctx.concepts ? ctx.concepts.concepts || [] : [];
   const studyConcepts = (q.concepts || []).map((cid) => known.find((c) => c.id === cid) || { id: cid, title: cid });
   let sheet = null;
-  if (studyConcepts.length) {
+  if (CONFIG.studyLayer && studyConcepts.length) {
     sheet = createStudySheet(studyConcepts);
     const open = h('button', { type: 'button', class: 'button button--secondary button--small study-open', 'aria-haspopup': 'dialog' }, t('study.open'));
     open.addEventListener('click', () => sheet.open(studyConcepts[0].id, open));

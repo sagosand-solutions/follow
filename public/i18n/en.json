@@ -20,6 +20,7 @@
   "study.none": "There are no study notes for this concept yet. They are being written.",
   "study.draft": "Draft: not yet reviewed",
   "study.deeper": "Go deeper: {heading}",
+  "study.sources": "Sources",
   "study.formula": "Formula",
   "study.by": "Written by {author} ·",
   "site.tagline": "Learn to read code, not just write it.",
