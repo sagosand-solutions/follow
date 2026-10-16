@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.54,
   "concepts": ["py.assignment", "py.iteration", "py.scope", "py.comprehensions"],
-  "prompt": "Run this as a fresh Python 3 script. What complete line does it print, and which explanation of the comprehension's value binding is correct? Choose the option whose output and explanation are both correct.",
+  "prompt": "What complete line does this program print? Choose the answer with the right output and explanation of the comprehension's value binding. Run this as a fresh Python 3 script.",
   "snippets": [
     {"id": "main", "code": "value = 7\nsquares = [value * value for value in range(3)]\nprint(value, squares)\n", "highlight_lines": [2]}
   ],
@@ -32,7 +32,7 @@
       "score": 0.5,
       "feedback": "The complete output is right, but no save-and-restore of the outer binding is needed. The comprehension uses a separate iteration binding; the surrounding value is never overwritten here.",
       "misconception": "py.comprehension-restores-outer",
-      "partial_reason": "Correct: predicts the outer value 7 and all three list entries 0, 1, 4. Incorrect: claims that this comprehension overwrites and later restores the outer binding instead of keeping a separate iteration binding."
+      "partial_reason": "The surrounding value 7 and all three list entries 0, 1, 4 are right. But the comprehension does not overwrite and later restore that outer binding; its iteration binding is separate."
     },
     {
       "id": "expression-uses-outer",

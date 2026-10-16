@@ -43,7 +43,7 @@
       "score": 0.5,
       "feedback": "Both complete outputs are right, but the outer-list claim is wrong. A full slice makes a new outer list whose elements refer to the existing inner lists. Sharing the first inner list is enough for this append to affect rows.",
       "misconception": "py.slice-shares-outer-container",
-      "partial_reason": "Correct: both programs print exactly [[1, 9], [2]], so their shown outputs match. Incorrect: slicing returns the same outer list; it creates a new outer list while preserving references to the existing inner lists."
+      "partial_reason": "Both programs print exactly [[1, 9], [2]], so their shown outputs match. The claim that slicing returns the same outer list is wrong: it creates a new outer list with references to the existing inner lists."
     },
     {
       "id": "same-inner-different-outer",

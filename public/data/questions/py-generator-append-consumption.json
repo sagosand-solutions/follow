@@ -7,7 +7,7 @@
   "level":"advanced",
   "difficulty":0.76,
   "concepts":["py.generators","py.iterators","py.lists","py.iteration"],
-  "prompt":"Run this as a fresh Python script. The source is the ordinary list numbers, and 5 is appended before the first next call. Which option gives the complete three-line stdout and a correct explanation of evaluation and consumption?",
+  "prompt":"What are the three stdout lines? Choose the answer with the right output and explanation of evaluation and consumption. Run this as a fresh Python script. The source is the ordinary list numbers, and 5 is appended before the first next call.",
   "snippets":[
     {"id":"main","code":"numbers = [1, 2, 3]\nsquares = (number * number for number in numbers if number % 2 == 1)\nnumbers.append(5)\nprint(next(squares))\nprint(list(squares))\nprint(list(squares))\n","highlight_lines":[2,3,4,5,6]}
   ],
@@ -25,7 +25,7 @@
       "score":0.5,
       "feedback":"The whole output and lazy consumption are right, but the universal growth rule is false. This ordinary list iterator sees the appended item. Dictionary iterators do not share a universal guarantee of safe size changes.",
       "misconception":"py.all-iterators-allow-size-change",
-      "partial_reason":"Correct: all three output lines, lazy body evaluation, and exhaustion after consuming the remaining values. Incorrect: generalizes this list iterator's growth behavior to every Python container iterator; size changes can invalidate dictionary iteration."
+      "partial_reason":"All three output lines, lazy body evaluation and exhaustion after consuming the remaining values are right. But this list iterator's growth behavior is not a guarantee for every Python container iterator; changing a dictionary's size can invalidate iteration."
     },
     {
       "id":"explicit-next-only-previews",

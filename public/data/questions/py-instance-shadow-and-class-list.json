@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.6,
   "concepts": ["py.classes", "py.mutation-aliasing", "py.lists"],
-  "prompt": "Run this complete script fresh. LabelBox is an ordinary user-defined class, with no inheritance beyond object and no custom attribute machinery. Calling LabelBox() creates a new instance. Which option gives the complete stdout line and a correct explanation of how method calls, shared class data and the instance assignment interact?",
+  "prompt": "What is the complete stdout line? Choose the answer that explains how method calls, shared class data and the instance assignment interact. Run the script fresh. LabelBox is an ordinary user-defined class, with no inheritance beyond object and no custom attribute machinery. Calling LabelBox() creates a new instance.",
   "snippets": [
     {
       "id": "main",
@@ -26,9 +26,9 @@
       "id": "construction-reference-snapshot",
       "text": "['own', 'z'] ['x', 'y'] ['x', 'y']. Construction automatically stores references to all class data attributes in every instance. Those saved references never follow later class-attribute rebinding; left then replaces its saved labels reference.",
       "score": 0.5,
-      "feedback": "The complete output and this example's shared-list effects are right, but the proposed construction rule is false. Ordinary instances do not automatically receive a saved copy of every class data binding. An instance without its own labels attribute looks up the class attribute when it is read, so a later class-level rebinding could affect right.",
+      "feedback": "All three lists and the shared-list effects are right. The construction rule is not: an ordinary instance does not automatically save every class data binding. Without its own labels attribute, it looks up the class attribute when read. A later class-level rebinding could therefore affect right.",
       "misconception": "py.class-bindings-snapshotted-at-construction",
-      "partial_reason": "Correct: all three printed lists, shared mutations before shadowing, and left's later independent list. Incorrect: construction is claimed to install a permanent reference snapshot of class data attributes into every instance, instead of later class lookup when the instance attribute is absent."
+      "partial_reason": "All three printed lists are right, including the shared mutations before shadowing and left's later independent list. The false claim is that construction saves a permanent snapshot of all class data bindings in every instance. Without its own attribute, an instance instead looks up the class attribute when read."
     },
     {
       "id": "fresh-class-defaults-per-instance",

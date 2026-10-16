@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.43,
   "concepts": ["py.dictionaries", "py.iteration", "py.lists"],
-  "prompt": "Run this as a fresh Python script. Which option gives the exact printed list and a correct rule for what direct dictionary iteration yields and in what order?",
+  "prompt": "What list is printed? Choose the answer that also explains what direct dictionary iteration yields and in what order. Run this as a fresh Python script.",
   "snippets": [
     {"id":"main","code":"weights = {\"blue\": 2, \"red\": 4}\nseen = []\nfor entry in weights:\n    seen.append(entry)\nprint(seen)\n","highlight_lines":[1,3,4]}
   ],
@@ -46,7 +46,7 @@
       "score":0.5,
       "feedback":"The entire printed list is right, but the ordering rule is wrong. Dictionary iteration preserves insertion order. Alphabetical order happens to match this literal's insertion order; it is not imposed by the dictionary.",
       "misconception":"py.dict-iteration-sorts-keys",
-      "partial_reason":"Correct: both yielded keys and the complete printed list ['blue', 'red']. Incorrect: claims dictionaries alphabetically sort their string keys; Python instead preserves their insertion order."
+      "partial_reason":"The complete printed list ['blue', 'red'] and both yielded keys are right. The mistake is the alphabetical-sorting rule: dictionary iteration preserves insertion order instead."
     }
   ],
   "explanation":"The dictionary inserts blue, then red. Direct iteration yields each key in insertion order, so the loop appends the two strings and prints ['blue', 'red']. To obtain values or key-value pairs, one would explicitly use values() or items(). The observed alphabetical order is coincidental, not evidence that dictionaries sort their keys.",

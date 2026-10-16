@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.25,
   "concepts": ["py.numeric-operators"],
-  "prompt": "What does this program print, and which rule for // is correct? The ordinary mathematical quotient -8 divided by 3 is about -2.67. Choose the option with both the correct result and the correct rounding rule.",
+  "prompt": "What does this program print? Choose the answer with the right result and rule for //. The ordinary mathematical quotient -8 divided by 3 is about -2.67.",
   "snippets": [
     {"id": "main", "code": "value = -8\nprint(value // 3)\n"}
   ],
@@ -25,7 +25,7 @@
       "score": 0.5,
       "feedback": "The result is right for this quotient, but the rounding rule is wrong. // takes the floor, not the nearest integer. For example, -7 // 3 is also -3 even though its nearest integer quotient is -2.",
       "misconception": "py.floor-rounds-nearest",
-      "partial_reason": "Correct: predicts the complete output -3. Incorrect: describes // as nearest-integer rounding; nearest and floor happen to agree for -8 divided by 3, but not for all quotients."
+      "partial_reason": "The complete output -3 is right. The mistake is calling // nearest-integer rounding: nearest and floor agree for -8 divided by 3, but not for all quotients."
     },
     {
       "id": "floor-toward-negative-infinity",

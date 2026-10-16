@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.61,
   "concepts": ["py.lists", "py.booleans", "py.conditionals", "py.exceptions"],
-  "prompt": "Consider only the four one-line integer inputs -3, -1, 0, and 2. The program is run fresh for each input. Which of those inputs raises IndexError, and why? Assume the input line is supplied, so parsing and end-of-input errors are not at issue.",
+  "prompt": "Which of the inputs -3, -1, 0, and 2 raises IndexError, and why? Run the program fresh for each one-line integer input. Each input line is supplied, so parsing and end-of-input errors are not at issue.",
   "snippets": [
     {
       "id": "main",
@@ -29,7 +29,7 @@
       "score": 0.5,
       "feedback": "You correctly identify the crash for -3, whose upper-bound check is true. But and short-circuits: for 2, the check 2 < 2 is false, so items[2] is never evaluated. Only -3 crashes.",
       "misconception": "py.and-evaluates-both",
-      "partial_reason": "Correct: identifies -3 as an invalid index that is actually evaluated and crashes. Incorrect: also predicts a crash for 2 by evaluating the right-hand side of and despite a false left-hand side."
+      "partial_reason": "-3 is a real crash: its invalid index is evaluated. But 2 does not crash. The left side of and is false for 2, so the lookup on the right is skipped."
     },
     {
       "id": "negative-beyond-length",

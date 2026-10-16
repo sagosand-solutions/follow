@@ -7,7 +7,7 @@
   "level": "beginner",
   "difficulty": 0.18,
   "concepts": ["py.strings", "py.booleans", "py.conditionals"],
-  "prompt": "What does this program print, and which rule explains the selected branch? Notice that the assigned value is a quoted string, not the boolean value False. Choose the option with both the correct output and the correct rule.",
+  "prompt": "What does this program print? Choose the answer with the right output and rule for the selected branch. The assigned value is a quoted string, not the boolean value False.",
   "snippets": [
     {"id": "main", "code": "status = \"False\"\nif status:\n    print(\"open\")\nelse:\n    print(\"closed\")\n"}
   ],
@@ -46,7 +46,7 @@
       "score": 0.5,
       "feedback": "The output is right, but the rule is too broad. Nonempty strings are true; the empty string is false. This particular string is nonempty, so it prints open.",
       "misconception": "py.all-strings-truthy",
-      "partial_reason": "Correct: predicts exactly the printed line open for this string. Incorrect: claims that empty strings are also true, rather than distinguishing empty from nonempty strings."
+      "partial_reason": "The printed line open is right for this string. The rule is not: empty strings are false, so not every string is true in a condition."
     }
   ],
   "explanation": "The quotes create a string containing the five characters False. Nonempty strings are truthy regardless of their spelling, while the empty string is false. The if branch therefore prints open once and the else branch does not run. The unquoted boolean False would be a different value.",

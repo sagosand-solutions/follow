@@ -7,7 +7,7 @@
   "level": "intermediate",
   "difficulty": 0.45,
   "concepts": ["py.booleans", "py.functions", "py.lists"],
-  "prompt": "Run this as a fresh Python script. Which option gives both output lines and a correct general rule for and? A call to record would append called to events and return 7; simply defining the function does not call it.",
+  "prompt": "What are the two output lines? Choose the answer with the right output and general rule for and. Run this as a fresh Python script. A call to record would append called to events and return 7; defining the function alone does not call it.",
   "snippets": [
     {"id": "main", "code": "events = []\n\ndef record():\n    events.append(\"called\")\n    return 7\n\nresult = False and record()\nprint(result)\nprint(events)\n", "highlight_lines": [7]}
   ],
@@ -39,7 +39,7 @@
       "score": 0.5,
       "feedback": "Both lines and the skipped call are right, but and does not always convert its result to bool. It returns an operand value. That value happens to be the Boolean False here.",
       "misconception": "py.and-returns-bool",
-      "partial_reason": "Correct: predicts both complete output lines and correctly skips record. Incorrect: claims and always normalizes the result to bool rather than returning an operand that may have another type."
+      "partial_reason": "Both complete output lines are right, and record is skipped. But and does not always convert its result to bool: it returns an operand, which need not be Boolean."
     },
     {
       "id": "skipped-expression-is-none",
