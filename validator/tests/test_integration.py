@@ -30,7 +30,7 @@ class IntegrationTests(unittest.TestCase):
         with patch("subprocess.Popen", side_effect=AssertionError("static execution")):
             self.assertEqual(validate_map(self.map), [])
             self.assertEqual(validate_question(self.q, self.map), [])
-        self.assertEqual(len(self.map["concepts"]), 18)
+        self.assertEqual(len(self.map["concepts"]), 20)
         self.assertGreaterEqual(len(self.map["misconceptions"]), 20)
 
     def test_real_schema_rejections(self):

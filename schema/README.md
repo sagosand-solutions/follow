@@ -17,7 +17,7 @@ course content is licensed separately under **CC BY-SA 4.0** (see
 |---|---|
 | `question.schema.json` | JSON Schema (draft 2020-12) for one question. |
 | `concept-map.schema.json` | JSON Schema (draft 2020-12) for the shared concept map. |
-| `concepts/python-v0.json` | Python concept map: 18 concepts and 106 misconceptions. |
+| `concepts/python-v0.json` | Python concept map: 20 concepts and 122 misconceptions; the original 18 concepts and 106 misconceptions remain unchanged. |
 | `trace.schema.json` | JSON Schema (draft 2020-12) for precomputed trace schema 0.2. |
 | `tests/` | Standard-library `unittest` suite that validates the schemas, the vocabulary and an example question. |
 | `../content/examples/independent-if.json` | One illustrative question in this contract (CC BY-SA 4.0). |
