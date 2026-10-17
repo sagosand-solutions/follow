@@ -207,17 +207,21 @@ test('stdinMatches compares the SHA-256 of stdin', async () => {
   assert.equal(await stdinMatches({ stdin, stdin_sha256: good }, async () => null), false, 'no WebCrypto: fail closed');
 });
 
-test('every shipped 0.2 trace binds to its question case and its stdin hash', async () => {
+test('every shipped trace binds to its question case and its stdin hash', async () => {
+  const versions = new Set();
   for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
     const file = JSON.parse(readFileSync(dir + f, 'utf8'));
     const q = JSON.parse(readFileSync(qdir + f, 'utf8'));
-    assert.equal(file.schema_version, '0.2', f);
+    assert.ok(['0.2', '0.3'].includes(file.schema_version), `${f}: supported schema version`);
+    versions.add(file.schema_version);
     for (const t of file.traces) {
       assert.ok(bindCase(q, t.snippet_id, t, file), `${f}: ${t.snippet_id}`);
       assert.equal(await stdinMatches(t), true, `${f}: stdin hash`);
       if (t.truncated) assert.equal(t.truncated_at_step, t.steps.length, f);
     }
   }
+  assert.ok(versions.has('0.2'), 'existing traces retain the 0.2 format');
+  assert.ok(versions.has('0.3'), 'new multi-course sample traces use 0.3');
 });
 
 test('the corpus has the three ending kinds the player must show honestly', () => {

@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "id": "prod-saga-undoes-the-finished-steps-newest-first",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "advanced",
+  "difficulty": 0.6,
+  "concepts": [
+    "prod.workflows-deploy",
+    "py.lists"
+  ],
+  "prompt": "Run this complete script fresh. A saga runs five steps. The third one fails, and the saga compensates the steps that were already done. What does log hold?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "steps = [(\"reserve\", False), (\"charge\", False), (\"ship\", True), (\"notify\", False), (\"archive\", False)]\nlog = []\ndone = []\nfor name, fails in steps:  # fails: whether the step raises an error\n    if fails:\n        log.append(\"fail \" + name)\n        break\n    log.append(\"do \" + name)\n    done.append(name)\nfor name in reversed(done):  # compensate what was done\n    log.append(\"undo \" + name)\nprint(log)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "forward-order",
+      "text": "`['do reserve', 'do charge', 'fail ship', 'undo reserve', 'undo charge']`. The compensations run oldest first, in the order in which the steps were done.",
+      "score": 0,
+      "feedback": "reversed(done) walks the finished steps newest first: charge is undone before reserve.",
+      "misconception": "prod.compensation-runs-oldest-first"
+    },
+    {
+      "id": "undo-the-failed-step",
+      "text": "`['do reserve', 'do charge', 'fail ship', 'undo ship', 'undo charge', 'undo reserve']`. The failed step is undone too, since it may have done part of its work.",
+      "score": 0,
+      "feedback": "Only steps that finished are in done. ship failed and was not added, so it is not undone by this saga.",
+      "misconception": "prod.failed-step-is-compensated"
+    },
+    {
+      "id": "automatic-rollback",
+      "text": "`['do reserve', 'do charge', 'fail ship']`. The effects are rolled back automatically, so no undo lines appear in the log at all.",
+      "score": 0,
+      "feedback": "A saga has no automatic rollback. Each compensation is an explicit action, and the loop at the end performs them.",
+      "misconception": "prod.saga-rolls-back-by-itself"
+    },
+    {
+      "id": "db-rollback",
+      "text": "`['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']`. The undo lines are reversed because the database rolls back the steps.",
+      "score": 0.5,
+      "feedback": "The order is right, but nothing is rolled back by a database. The undos are ordinary actions that run in reverse because later steps may depend on earlier ones, and each of them can fail.",
+      "misconception": "prod.saga-compensation-is-a-database-rollback",
+      "partial_reason": "Correct: the five entries. Incorrect: the reason; compensations are explicit steps run newest first, not a transactional rollback."
+    },
+    {
+      "id": "newest-first",
+      "text": "`['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']`. The finished steps are undone newest first; later steps never run.",
+      "score": 1,
+      "feedback": "Correct. reserve and charge finish, ship fails and stops the loop, so notify and archive never run. The compensations walk the finished steps in reverse: charge, then reserve.",
+      "misconception": null
+    }
+  ],
+  "explanation": "The loop does reserve and charge (both go into done), then reaches ship, which fails: fail ship is logged and the loop stops with break, so notify and archive never run. The second loop compensates the finished steps in reverse order: undo charge, then undo reserve. A saga replaces one distributed transaction with local steps and explicit compensations, undone newest first because later steps may depend on earlier ones.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (integer simulated time, visible delay and jitter values). A matching output alone cannot separate the correct model from the half-credit model, so that reasoning needs human review.",
+    "limitations": "Simulated time only: plain integer arithmetic on visible schedules and visible jitter values; no real time, I/O, randomness or imports (contract R1-R4). The misconception models are uncalibrated editorial hypotheses, not prevalence claims."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

@@ -1,0 +1,256 @@
+{
+  "concepts": [
+    {
+      "id": "py.values",
+      "level": "beginner",
+      "prerequisites": [],
+      "title": "Values and basic types"
+    },
+    {
+      "id": "py.assignment",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Names and assignment"
+    },
+    {
+      "id": "py.booleans",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Booleans and truthiness"
+    },
+    {
+      "id": "py.conditionals",
+      "level": "beginner",
+      "prerequisites": [
+        "py.booleans"
+      ],
+      "title": "Conditional statements"
+    },
+    {
+      "id": "py.lists",
+      "level": "beginner",
+      "prerequisites": [
+        "py.assignment"
+      ],
+      "title": "Lists"
+    },
+    {
+      "id": "py.functions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.assignment",
+        "py.conditionals"
+      ],
+      "title": "Functions"
+    },
+    {
+      "id": "sql.app-access",
+      "level": "advanced",
+      "prerequisites": [
+        "sql.joining-grouping",
+        "py.functions"
+      ],
+      "title": "SQL from application code"
+    },
+    {
+      "id": "sql.joining-grouping",
+      "level": "intermediate",
+      "prerequisites": [
+        "sql.querying"
+      ],
+      "title": "Joins, grouping and aggregates"
+    },
+    {
+      "id": "sql.querying",
+      "level": "beginner",
+      "prerequisites": [
+        "py.lists"
+      ],
+      "title": "SELECT, WHERE and NULL logic"
+    },
+    {
+      "id": "sql.subqueries-writes",
+      "level": "intermediate",
+      "prerequisites": [
+        "sql.joining-grouping"
+      ],
+      "title": "Subqueries, EXISTS and writing data"
+    },
+    {
+      "id": "sql.transactions-schema",
+      "level": "advanced",
+      "prerequisites": [
+        "sql.subqueries-writes"
+      ],
+      "title": "Transactions and schema changes"
+    }
+  ],
+  "language": "python",
+  "misconceptions": [
+    {
+      "concepts": [
+        "sql.querying"
+      ],
+      "description": "A comparison with NULL is thought to be false, though it is unknown, which is why its negation does not select the row either. Editorial hypothesis.",
+      "id": "sql.a-comparison-with-null-is-false",
+      "title": "A comparison with null is false"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "A join with an ON condition is thought to return every combination of rows, as if the condition did not filter. Editorial hypothesis.",
+      "id": "sql.a-join-gives-every-combination",
+      "title": "A join gives every combination"
+    },
+    {
+      "concepts": [
+        "sql.app-access"
+      ],
+      "description": "A join is thought to return different rows from a loop of queries over the same tables. Editorial hypothesis.",
+      "id": "sql.a-join-returns-different-rows-from-a-loop",
+      "title": "A join returns different rows from a loop"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "A LEFT JOIN is thought to return exactly one row per row of the left table, whatever the number of matches. Editorial hypothesis.",
+      "id": "sql.a-left-join-gives-one-row-per-left-row",
+      "title": "A left join gives one row per left row"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "A LEFT JOIN is thought to return one row per row of the right table only, so the unmatched left rows add nothing. Editorial hypothesis.",
+      "id": "sql.a-left-join-gives-one-row-per-order",
+      "title": "A left join gives one row per order"
+    },
+    {
+      "concepts": [
+        "sql.app-access"
+      ],
+      "description": "A loop of queries is thought to count as one statement. Editorial hypothesis.",
+      "id": "sql.a-loop-of-queries-is-one-statement",
+      "title": "A loop of queries is one statement"
+    },
+    {
+      "concepts": [
+        "sql.transactions-schema"
+      ],
+      "description": "A with conn: block is thought only to commit and never to roll back, so a change before an exception stays. Editorial hypothesis.",
+      "id": "sql.a-with-block-never-rolls-back",
+      "title": "A with block never rolls back"
+    },
+    {
+      "concepts": [
+        "sql.transactions-schema"
+      ],
+      "description": "Statements after a raise are thought still to run. Editorial hypothesis.",
+      "id": "sql.code-after-a-raise-still-runs",
+      "title": "Code after a raise still runs"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "COUNT(column) is thought to count the rows with a NULL in the column too, like COUNT(*). Editorial hypothesis.",
+      "id": "sql.count-of-a-column-counts-the-nulls",
+      "title": "Count of a column counts the nulls"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "COUNT(column) is thought to skip zero values, instead of NULL values only. Editorial hypothesis.",
+      "id": "sql.count-of-a-column-skips-zero",
+      "title": "Count of a column skips zero"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "COUNT(*) is thought to count only rows with a value and COUNT(column) all rows. Editorial hypothesis.",
+      "id": "sql.count-star-and-count-column-are-swapped",
+      "title": "Count star and count column are swapped"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "COUNT(*) is thought to skip the rows that have a NULL in some column. Editorial hypothesis.",
+      "id": "sql.count-star-skips-rows-with-a-null-column",
+      "title": "Count star skips rows with a null column"
+    },
+    {
+      "concepts": [
+        "sql.querying"
+      ],
+      "description": "A comparison with = NULL is thought to work like IS NULL and to find rows with a missing value. Distinct from sql.null-can-never-be-matched. Editorial hypothesis.",
+      "id": "sql.equals-null-works-like-is-null",
+      "title": "Equals null works like is null"
+    },
+    {
+      "concepts": [
+        "sql.querying"
+      ],
+      "description": "A missing value is thought to be impossible to match with any query. Distinct from sql.equals-null-works-like-is-null. Editorial hypothesis.",
+      "id": "sql.null-can-never-be-matched",
+      "title": "Null can never be matched"
+    },
+    {
+      "concepts": [
+        "sql.querying"
+      ],
+      "description": "NULL is thought to compare equal to zero, so = NULL finds rows with zero. Editorial hypothesis.",
+      "id": "sql.null-compares-equal-to-zero",
+      "title": "Null compares equal to zero"
+    },
+    {
+      "concepts": [
+        "sql.transactions-schema"
+      ],
+      "description": "After a rollback the last statement of the block is thought to survive. Editorial hypothesis.",
+      "id": "sql.only-the-last-statement-survives-the-rollback",
+      "title": "Only the last statement survives the rollback"
+    },
+    {
+      "concepts": [
+        "sql.transactions-schema"
+      ],
+      "description": "Statements in a with conn: block are thought to be queued and run only at the end of the block, instead of at once. Editorial hypothesis.",
+      "id": "sql.statements-in-a-with-block-are-queued-until-the-end",
+      "title": "Statements in a with block are queued until the end"
+    },
+    {
+      "concepts": [
+        "sql.app-access"
+      ],
+      "description": "The query that fetches the list a loop runs over is thought not to count as a call. Editorial hypothesis.",
+      "id": "sql.the-first-query-of-a-loop-is-not-counted",
+      "title": "The first query of a loop is not counted"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "description": "The extra row of a one-to-many join is thought to come from the first left row being counted twice, not from a left row with two matches. Editorial hypothesis.",
+      "id": "sql.the-first-row-is-counted-twice",
+      "title": "The first row is counted twice"
+    },
+    {
+      "concepts": [
+        "sql.app-access"
+      ],
+      "description": "A loop over the parents is thought to make one call per child row instead of one per parent. Editorial hypothesis.",
+      "id": "sql.the-loop-makes-one-call-per-order",
+      "title": "The loop makes one call per order"
+    }
+  ],
+  "schema_version": "0.1"
+}

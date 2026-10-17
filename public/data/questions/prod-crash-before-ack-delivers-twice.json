@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "id": "prod-crash-before-ack-delivers-twice",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "advanced",
+  "difficulty": 0.6,
+  "concepts": [
+    "prod.messaging",
+    "py.lists"
+  ],
+  "prompt": "Run this complete script fresh. The consumer does the work and then acknowledges the message. It dies once, after the work on m1 and before the acknowledgement. What does done hold?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "queue = [\"m1\", \"m2\"]\ndone = []\ncrash_once = True\nwhile queue:\n    msg = queue[0]  # delivered, not yet acknowledged\n    done.append(msg)  # the work\n    if msg == \"m1\" and crash_once:\n        crash_once = False  # the consumer dies before it can acknowledge\n        continue  # no ack: the queue delivers m1 again\n    queue.pop(0)  # ack\nprint(done)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "exactly-once",
+      "text": "`['m1', 'm2']`. The queue delivers each message exactly once, so m1 is worked on once even though the consumer died.",
+      "score": 0,
+      "feedback": "Without the acknowledgement m1 stays in the queue and is delivered again. The work on m1 therefore runs a second time.",
+      "misconception": "prod.queue-delivers-exactly-once"
+    },
+    {
+      "id": "goes-to-the-back",
+      "text": "`['m1', 'm2', 'm1']`. The queue puts the unacknowledged m1 behind m2, so m1 is delivered a second time at the end.",
+      "score": 0,
+      "feedback": "An unacknowledged message stays where it is, at the front, so the queue delivers m1 again before m2. (m2 is the second entry, not the first.)",
+      "misconception": "prod.redelivery-goes-to-the-back"
+    },
+    {
+      "id": "twice-for-safety",
+      "text": "`['m1', 'm1', 'm2', 'm2']`. At-least-once means every message is delivered twice, so each appears two times.",
+      "score": 0,
+      "feedback": "At-least-once means a message may be delivered again when it is not acknowledged, not that every message is doubled. m2 is acknowledged at once.",
+      "misconception": "prod.at-least-once-means-twice"
+    },
+    {
+      "id": "queue-bug",
+      "text": "`['m1', 'm1', 'm2']`. The duplicate m1 is a bug of the queue, which should never deliver the same message twice.",
+      "score": 0.5,
+      "feedback": "The output is right, but redelivery is not a bug: it is how at-least-once delivery avoids losing messages. The consumer has to cope with duplicates, for example by being idempotent.",
+      "misconception": "prod.duplicates-are-a-queue-bug",
+      "partial_reason": "Correct: the three entries. Incorrect: that the duplicate is a defect of the queue; it follows from acknowledging after the work."
+    },
+    {
+      "id": "redelivered",
+      "text": "`['m1', 'm1', 'm2']`. No ack arrived for m1, so the queue delivers it again and the work on m1 is done twice.",
+      "score": 1,
+      "feedback": "Correct. The crash comes after the work and before the ack, so m1 stays at the front and is delivered a second time. Then m2 is delivered and acknowledged once.",
+      "misconception": null
+    }
+  ],
+  "explanation": "The consumer takes m1 from the front without removing it, does the work (done gets m1) and dies before the pop that stands for the acknowledgement. The message stays in the queue, so the next delivery is m1 again: done gets m1 a second time. After that m1 is acknowledged and m2 is processed once. At-least-once delivery trades possible duplicates for no losses, so consumers must be idempotent.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "['m1', 'm1', 'm2']\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (integer simulated time, visible delay and jitter values). A matching output alone cannot separate the correct model from the half-credit model, so that reasoning needs human review.",
+    "limitations": "Simulated time only: plain integer arithmetic on visible schedules and visible jitter values; no real time, I/O, randomness or imports (contract R1-R4). The misconception models are uncalibrated editorial hypotheses, not prevalence claims."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

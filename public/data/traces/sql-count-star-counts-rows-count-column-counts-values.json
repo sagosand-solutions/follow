@@ -1,0 +1,150 @@
+{
+  "question_id": "sql-count-star-counts-rows-count-column-counts-values",
+  "schema_version": "0.3",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "55ece0ef611e45954e909757e989a8dfcea32fcb02998bb3ab27b3030be63501",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "[('E', 1, 0), ('N', 2, 1), ('S', 3, 2)]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 3,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "rows": "[('E', 1, 0), ('N', 2, 1), ('S', 3, 2)]"
+          },
+          "globals_omitted": 0,
+          "line": 14,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "rows": "[('E', 1, 0), ('N', 2, 1), ('S', 3, 2)]"
+          },
+          "globals_omitted": 0,
+          "line": 14,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 40,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

@@ -12,6 +12,32 @@
       },
       "start_question": "m1-assignment-snapshot",
       "title": "Python: reading code"
+    },
+    {
+      "concept_map": "schema/concepts/production-v0.json",
+      "description": "Read the code behind timeouts, retries, idempotency, queues and sagas.",
+      "free_questions": 5,
+      "id": "production",
+      "language": "python",
+      "premium": {
+        "questions": 85,
+        "status": "coming-soon"
+      },
+      "start_question": "prod-timeout-does-not-cancel-the-work",
+      "title": "Production patterns: reading code"
+    },
+    {
+      "concept_map": "schema/concepts/sql-v0.json",
+      "description": "Read SQL and the Python around it: NULL, joins, grouping, transactions and the N+1 trap.",
+      "free_questions": 5,
+      "id": "sql",
+      "language": "python",
+      "premium": {
+        "questions": 70,
+        "status": "coming-soon"
+      },
+      "start_question": "sql-equals-null-matches-nothing",
+      "title": "SQL: reading code"
     }
   ],
   "data_version": 1

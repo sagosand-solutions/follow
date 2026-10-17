@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "id": "prod-timeout-does-not-cancel-the-work",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.6,
+  "concepts": [
+    "prod.timeouts-retries",
+    "py.exceptions"
+  ],
+  "prompt": "Run this complete script fresh. The service counts the requests it receives in svc.processed. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "class Clock:\n    def __init__(self):\n        self.t = 0\n\n    def sleep(self, ms):\n        self.t += ms\n\n\nclass Timeout(Exception):\n    pass\n\n\nclass FakeService:\n    def __init__(self, clock, script):\n        self.clock = clock\n        self.script = list(script)\n        self.processed = 0\n\n    def call(self, timeout=None):\n        latency, outcome = self.script.pop(0)\n        self.processed += 1\n        if timeout is not None and latency > timeout:\n            self.clock.sleep(timeout)\n            raise Timeout()\n        self.clock.sleep(latency)\n        return outcome\n\n\nclock = Clock()\nsvc = FakeService(clock, [(800, \"created\"), (800, \"created\"), (100, \"created\")])\nfor attempt in range(3):\n    try:\n        result = svc.call(timeout=200)\n        print(\"t=%d %s\" % (clock.t, result))\n        break\n    except Timeout:\n        pass\nprint(\"t=%d processed=%d\" % (clock.t, svc.processed))\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "never-processed",
+      "text": "t=500 created / t=500 processed=1. A request that timed out never reached the service, so only the last attempt was processed.",
+      "score": 0,
+      "feedback": "A timeout is the client giving up on the answer. The request was already sent, and the service processed it. All three attempts are counted.",
+      "misconception": "prod.timed-out-request-never-processed"
+    },
+    {
+      "id": "cancelled-effects",
+      "text": "t=500 created / t=500 processed=3. Three requests were seen, but the client's timeouts cancelled the first two, so one order exists.",
+      "score": 0.5,
+      "feedback": "The count is right, but a client timeout does not cancel work at the service. All three attempts took effect, and retrying a create without protection can make duplicates.",
+      "misconception": "prod.timeout-cancels-server-work",
+      "partial_reason": "Correct: the printed lines and the three processed requests. Incorrect: that the client's timeout undid the first two at the service; here the counter shows they ran."
+    },
+    {
+      "id": "all-printed",
+      "text": "t=200 created / t=200 processed=1. The first attempt returns its result although it timed out, so the loop breaks after one pass.",
+      "score": 0,
+      "feedback": "A call that times out raises Timeout instead of returning, so no value is printed for it and the loop goes on. Only the third attempt prints created.",
+      "misconception": "prod.timeout-still-returns-late-value"
+    },
+    {
+      "id": "service-runs-on",
+      "text": "t=500 created / t=500 processed=3. All three requests were processed. The client waited only 200 ms for each of the first two.",
+      "score": 1,
+      "feedback": "Correct. Attempts 1 and 2 time out after 200 ms each (t=400), but the service still counted them. Attempt 3 takes 100 ms, so t=500, and the service has processed three requests.",
+      "misconception": null
+    },
+    {
+      "id": "waits-full",
+      "text": "t=1700 created / t=1700 processed=3. The client always waits for each full latency and only afterwards treats the slow ones as timed out.",
+      "score": 0,
+      "feedback": "A timeout stops the waiting at 200 ms. The first two attempts cost 200 ms each, not 800, so the clock ends at t=500.",
+      "misconception": "prod.timeout-fires-after-call-completes"
+    }
+  ],
+  "explanation": "The client's timeout is 200 ms. Attempts 1 and 2 have latency 800, so each times out after 200 ms (t=200, then t=400), and Timeout is caught by the empty handler. FakeService counts a request as processed as soon as it is received, so both are counted. Attempt 3 has latency 100, returns created and the clock reaches t=500. The service has processed 3 requests, even though the caller saw only one result.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "t=500 created\nt=500 processed=3\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (integer simulated time, visible failure script). A matching output alone cannot separate the correct model from the half-credit model, so that reasoning needs human review.",
+    "limitations": "Simulated time only: a Clock with integer milliseconds and a scripted FakeService; no real time, I/O, randomness or imports (contract R1-R4). The misconception models are uncalibrated editorial hypotheses, not prevalence claims. A simulation shows the stated model, not a real network."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

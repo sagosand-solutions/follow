@@ -1,0 +1,138 @@
+{
+  "question_id": "sql-equals-null-matches-nothing",
+  "schema_version": "0.3",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "93fe8cf5e16b450c546807e6633bd16bc972f384a322115d06cd3dd221437bbf",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "[] [('Ben',)]\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 3,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 8,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "eq": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "eq": "[]",
+            "is_null": "[('Ben',)]"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "eq": "[]",
+            "is_null": "[('Ben',)]"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 14,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

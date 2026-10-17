@@ -375,12 +375,15 @@ class InputBoundsTests(unittest.TestCase):
 
     def test_default_corpus_reexports_idempotently_without_changing_inputs(self):
         for relative in ("schema/question.schema.json", "schema/concept-map.schema.json",
-                         "schema/course.schema.json", "schema/catalog.schema.json", "schema/concepts/python-v0.json"):
+                         "schema/course.schema.json", "schema/catalog.schema.json"):
             target = self.root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(core.ROOT / relative, target)
+        shutil.copytree(core.ROOT / "schema/concepts", self.root / "schema/concepts")
         shutil.copytree(core.ROOT / "public/data", self.root / "public/data")
-        outputs = [self.root / "public/data" / name for name in ("index.json", "concepts.json")]
+        outputs = [self.root / "public/data" / name for name in (
+            "index.json", "concepts.json", "index-production.json", "concepts-production.json",
+            "index-sql.json", "concepts-sql.json")]
         before = {path: path.read_bytes() for path in self.root.rglob("*.json") if path not in outputs}
         with patch("subprocess.Popen", side_effect=AssertionError("must stay static")):
             self.assertEqual(self.invoke_export()[0], 0)
