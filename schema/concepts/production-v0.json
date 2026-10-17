@@ -1,0 +1,268 @@
+{
+  "concepts": [
+    {
+      "id": "py.values",
+      "level": "beginner",
+      "prerequisites": [],
+      "title": "Values and basic types"
+    },
+    {
+      "id": "py.assignment",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Names and assignment"
+    },
+    {
+      "id": "py.booleans",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Booleans and truthiness"
+    },
+    {
+      "id": "py.conditionals",
+      "level": "beginner",
+      "prerequisites": [
+        "py.booleans"
+      ],
+      "title": "Conditional statements"
+    },
+    {
+      "id": "py.lists",
+      "level": "beginner",
+      "prerequisites": [
+        "py.assignment"
+      ],
+      "title": "Lists"
+    },
+    {
+      "id": "py.iteration",
+      "level": "beginner",
+      "prerequisites": [
+        "py.conditionals",
+        "py.lists"
+      ],
+      "title": "Iteration over sequences"
+    },
+    {
+      "id": "py.functions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.assignment",
+        "py.conditionals"
+      ],
+      "title": "Functions"
+    },
+    {
+      "id": "py.exceptions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.conditionals"
+      ],
+      "title": "Exceptions"
+    },
+    {
+      "id": "py.iterators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ],
+      "title": "Iterators"
+    },
+    {
+      "id": "prod.backoff-idempotency",
+      "level": "intermediate",
+      "prerequisites": [
+        "prod.timeouts-retries"
+      ],
+      "title": "Backoff, jitter and idempotency"
+    },
+    {
+      "id": "prod.messaging",
+      "level": "advanced",
+      "prerequisites": [
+        "prod.backoff-idempotency",
+        "py.iterators"
+      ],
+      "title": "Queues, at-least-once delivery and event-driven systems"
+    },
+    {
+      "id": "prod.timeouts-retries",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.exceptions"
+      ],
+      "title": "Timeouts, deadlines and retries"
+    },
+    {
+      "id": "prod.workflows-deploy",
+      "level": "advanced",
+      "prerequisites": [
+        "prod.messaging"
+      ],
+      "title": "Sagas, rollout and deployment workflows"
+    }
+  ],
+  "language": "python",
+  "misconceptions": [
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "All 4xx statuses are thought to be permanent client errors that never succeed on retry, though some, such as 429 or 408, are routinely retried. Editorial hypothesis.",
+      "id": "prod.all-4xx-never-retryable",
+      "title": "Every 4xx error is permanent"
+    },
+    {
+      "concepts": [
+        "prod.backoff-idempotency"
+      ],
+      "description": "A retry is thought to be protected by having some key, even when every attempt uses a different one. Editorial hypothesis.",
+      "id": "prod.any-key-makes-retry-safe",
+      "title": "Any idempotency key makes a retry safe"
+    },
+    {
+      "concepts": [
+        "prod.messaging"
+      ],
+      "description": "At-least-once delivery is thought to deliver every message two times. Editorial hypothesis.",
+      "id": "prod.at-least-once-means-twice",
+      "title": "At-least-once means twice"
+    },
+    {
+      "concepts": [
+        "prod.backoff-idempotency"
+      ],
+      "description": "A loop that records a key and then breaks is thought to break first. Editorial hypothesis.",
+      "id": "prod.break-before-record",
+      "title": "The loop stops before the last attempt is recorded"
+    },
+    {
+      "concepts": [
+        "prod.workflows-deploy"
+      ],
+      "description": "The compensations of a saga are thought to run in the order the steps were done. Editorial hypothesis.",
+      "id": "prod.compensation-runs-oldest-first",
+      "title": "Compensations run oldest first"
+    },
+    {
+      "concepts": [
+        "prod.messaging"
+      ],
+      "description": "A message delivered twice is thought to be a defect of the queue, though redelivery is how at-least-once avoids loss. Editorial hypothesis.",
+      "id": "prod.duplicates-are-a-queue-bug",
+      "title": "A duplicate delivery is a queue bug"
+    },
+    {
+      "concepts": [
+        "prod.workflows-deploy"
+      ],
+      "description": "The step that failed is thought to be undone as well, though it did not finish. Editorial hypothesis.",
+      "id": "prod.failed-step-is-compensated",
+      "title": "The failed step is compensated"
+    },
+    {
+      "concepts": [
+        "prod.backoff-idempotency"
+      ],
+      "description": "Duplicate charges are thought to show that the service does not deduplicate, although the client may have defeated a working key check. Editorial hypothesis.",
+      "id": "prod.no-protection-means-duplicates",
+      "title": "Duplicate charges mean the bank has no protection"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "After an error that should not be retried, the function is thought to run on to its final return. Editorial hypothesis.",
+      "id": "prod.non-retryable-error-falls-through",
+      "title": "A non-retryable error does not stop the retry function"
+    },
+    {
+      "concepts": [
+        "prod.messaging"
+      ],
+      "description": "A queue is thought to deliver each message exactly once, even when a consumer dies before acknowledging. Editorial hypothesis.",
+      "id": "prod.queue-delivers-exactly-once",
+      "title": "The queue delivers exactly once"
+    },
+    {
+      "concepts": [
+        "prod.messaging"
+      ],
+      "description": "An unacknowledged message is thought to be delivered again behind the later messages, though the queue keeps it at the front. Distinct from prod.broker-sorts-by-failure-count and the returned-message order of the redelivery question. Editorial hypothesis.",
+      "id": "prod.redelivery-goes-to-the-back",
+      "title": "An unacknowledged message is redelivered last"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "All errors, including permanent client errors, are thought to be worth retrying. Distinct from prod.retry-covers-all-failures: this concerns which statuses are retried, that one concerns which exception types the loop catches. Editorial hypothesis.",
+      "id": "prod.retry-all-errors",
+      "title": "Every error is retried"
+    },
+    {
+      "concepts": [
+        "prod.workflows-deploy"
+      ],
+      "description": "The undo of a saga is thought to be a transactional rollback instead of explicit compensating steps. Editorial hypothesis.",
+      "id": "prod.saga-compensation-is-a-database-rollback",
+      "title": "Compensation is a database rollback"
+    },
+    {
+      "concepts": [
+        "prod.workflows-deploy"
+      ],
+      "description": "The effects of finished steps are thought to be undone without any compensating action. Editorial hypothesis.",
+      "id": "prod.saga-rolls-back-by-itself",
+      "title": "A saga rolls back by itself"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "A 5xx status such as 503 is thought not to be retried, so the first failure ends the loop. Editorial hypothesis.",
+      "id": "prod.server-error-is-not-retried",
+      "title": "A server error is not retried"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "A request that the client gave up on is thought never to have been processed by the service. Distinct from prod.timeout-cancels-server-work: here the request is thought never to have been processed; there it was processed and then undone. Editorial hypothesis.",
+      "id": "prod.timed-out-request-never-processed",
+      "title": "A timed-out request never reached the service"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "The client giving up is thought to cancel or undo the request at the service, so only the successful attempt has any effect. Distinct from prod.timed-out-request-never-processed: here the request is thought to have been processed and then undone, and the processed count still includes it. Editorial hypothesis.",
+      "id": "prod.timeout-cancels-server-work",
+      "title": "A client timeout cancels the work at the service"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "A timeout is thought to be checked only once the call has returned, so the client waits out the full latency before treating it as timed out. Editorial hypothesis.",
+      "id": "prod.timeout-fires-after-call-completes",
+      "title": "A timeout fires after the call has finished"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries"
+      ],
+      "description": "After a timeout, the late service value is thought to be returned to the caller as a result, instead of an exception being raised. Editorial hypothesis.",
+      "id": "prod.timeout-still-returns-late-value",
+      "title": "A timed-out call still returns its late value"
+    }
+  ],
+  "schema_version": "0.1"
+}

@@ -36,9 +36,10 @@ All paths below are relative to that root:
 - `schema/question.schema.json`
 - `schema/concept-map.schema.json`
 - `schema/course.schema.json`
-- `schema/concepts/python-v0.json`
-- `public/data/questions/*.json`
-- `public/data/courses/python.json`
+- `schema/catalog.schema.json` and `public/data/catalog.json` (when the catalog exists, see Courses below)
+- `schema/concepts/<course>-v0.json` (python, production, sql)
+- `public/data/questions/*.json` (one flat directory; ids are globally unique)
+- `public/data/courses/<course>.json`
 
 [Shared input bounds](INPUT_LIMITS.md) apply: 256 KiB per JSON file, 512 question
 entries, 16 MiB actual question bytes and 32 nested containers. Directory scanning
@@ -132,3 +133,22 @@ it is not a race-proof filesystem sandbox or a corpus locking mechanism.
 Diagnostics include the file, issue code, JSON pointer and message. The final
 status explicitly says execution was skipped and no publication approval is
 implied. There is no additional runtime dependency beyond the core validator.
+
+## Courses (catalog mode)
+
+When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the export covers every course it lists
+(python, production, sql); without a catalog it is the original single Python course, unchanged.
+
+- The catalog entry names the course vocabulary (`schema/concepts/<id>-v0.json`), the course file is
+  `public/data/courses/<id>.json` (its `id` must equal the catalog id), and `free_questions` and `start_question` must match
+  the course file (`catalog-count`, `catalog-start`). `premium.questions` is set by hand (the private repository is never read).
+- Every question is validated against the vocabulary of the **one** course that lists it. A question in two courses
+  (`question-in-two-courses`) or in none (`orphan-question`), a course without a vocabulary or course file, and a duplicate
+  or non-python catalog are errors.
+- Prefix rule (`course-prefix`): python may use `py.` only; production `prod.` and `py.`; sql `sql.` and `py.`; for vocabulary
+  ids, prerequisites, misconception references and a question's concepts and misconceptions.
+- Lesson ids are unique across ALL courses (`lesson-in-two-courses`): the client finds a lesson's course by its id, so production and sql lessons carry their course prefix (e.g. `prod-timeouts`, `sql-null-logic`).
+- The first-question-is-beginner rule applies to the python course only.
+- Derived files: python keeps `index.json` and `concepts.json` **byte for byte**; the other courses write
+  `index-<id>.json` and `concepts-<id>.json`. `--check` compares all of them.
+- Static only, no code is executed; `validator.trace --check` already covers every question in the flat directory.
