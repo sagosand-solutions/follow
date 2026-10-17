@@ -15,6 +15,10 @@ from server.tests.support import call
 
 
 class DevRunnerTests(unittest.TestCase):
+    def test_host_is_loopback(self):
+        self.assertEqual(dev.HOST, "127.0.0.1")
+        self.assertIn(f"http://{dev.HOST}:", dev.dev_environment(8000, ":memory:")["PUBLIC_ORIGIN"])
+
     def test_production_is_refused(self):
         with mock.patch.dict(os.environ, {"APP_ENV": "production"}):
             with self.assertRaises(dev.DevRefused):
