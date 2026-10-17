@@ -147,6 +147,7 @@ When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the
   or non-python catalog are errors.
 - Prefix rule (`course-prefix`): python may use `py.` only; production `prod.` and `py.`; sql `sql.` and `py.`; for vocabulary
   ids, prerequisites, misconception references and a question's concepts and misconceptions.
+- Lesson ids are unique across ALL courses (`lesson-in-two-courses`): the client finds a lesson's course by its id, so production and sql lessons carry their course prefix (e.g. `prod-timeouts`, `sql-null-logic`).
 - The first-question-is-beginner rule applies to the python course only.
 - Derived files: python keeps `index.json` and `concepts.json` **byte for byte**; the other courses write
   `index-<id>.json` and `concepts-<id>.json`. `--check` compares all of them.

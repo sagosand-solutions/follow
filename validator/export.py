@@ -205,7 +205,7 @@ def _export(root, args, add, issues_seen):
     for entry in entries:
         for name in derived_names(entry["id"]):
             safe_path(root, Path("public/data") / name)
-    courses, assigned = {}, {}
+    courses, assigned, lesson_course = {}, {}, {}
     for entry in entries:
         cid = entry["id"]
         map_path = safe_path(root, entry["concept_map"])
@@ -221,6 +221,10 @@ def _export(root, args, add, issues_seen):
             add(course_path, Issue("course-id", "/id", f"Course file id {course['id']!r} does not match its catalog id {cid!r}"))
         courses[cid] = {"map": map_data, "map_path": map_path, "course": course, "course_path": course_path, "ok": not shape, "questions": {}}
         if not shape:
+            for i, lesson in enumerate(l for level in course["levels"] for l in level["lessons"]):
+                # Lesson ids are global: the client finds a lesson's course by its id (first hit wins).
+                if lesson_course.setdefault(lesson["id"], cid) != cid:
+                    add(course_path, Issue("lesson-in-two-courses", "/levels", f"Lesson id {lesson['id']!r} is already used in the {lesson_course[lesson['id']]} course; lesson ids must be unique across courses (give production and sql lessons their course prefix)"))
             for lesson in (l for level in course["levels"] for l in level["lessons"]):
                 for qid in lesson["questions"]:
                     if assigned.setdefault(qid, cid) != cid:

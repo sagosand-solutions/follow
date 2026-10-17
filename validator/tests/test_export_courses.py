@@ -164,6 +164,21 @@ class MultiCourseExportTests(CourseFixture):
         self.assertEqual(code, 1)
         self.assertIn("question-in-two-courses", output)
 
+    def test_lesson_ids_are_unique_across_courses(self):
+        production = deepcopy(self.courses["production"])
+        production["levels"][0]["lessons"][0]["id"] = self.courses["sql"]["levels"][0]["lessons"][0]["id"]
+        self.write(self.data / "courses/production.json", production)
+        code, output = self.run_export()
+        self.assertEqual(code, 1)
+        self.assertIn("lesson-in-two-courses", output)
+        self.assertIn("lesson ids must be unique across courses", output)
+        # the same id inside ONE course is still the course's own duplicate-lesson error, not this one
+        self.setUp()
+        python = deepcopy(self.courses["python"])
+        python["levels"][0]["lessons"].append(deepcopy(python["levels"][0]["lessons"][0]))
+        self.write(self.data / "courses/python.json", python)
+        self.assertNotIn("lesson-in-two-courses", self.run_export()[1])
+
     def test_a_question_in_no_course_is_an_orphan(self):
         self.write(self.data / "questions/py-orphan.json", make_question(self.maps["python"], "py-orphan", "py.values"))
         code, output = self.run_export()
