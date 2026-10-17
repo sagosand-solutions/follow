@@ -1,6 +1,8 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { loadIndex, loadCourse, loadQuestion, allQuestionIds } from '../data.js';
+import { loadIndex, loadCourses, loadCatalog, loadQuestion, allQuestionIds } from '../data.js';
+import { activeCourse, courseHref, reviewHref } from '../catalog.js';
+import { catalogSection } from '../components/catalog-card.js';
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
@@ -22,16 +24,22 @@ function headline() {
 export async function homeView() {
   let index = null;
   let course = null;
+  let entries = [];
   try {
     index = await loadIndex();
   } catch {
     /* start button is hidden when no onboarding question is known */
   }
   try {
-    course = await loadCourse();
+    entries = await loadCourses();
   } catch {
     /* course link still works and shows its own error */
   }
+  const catalog = await loadCatalog();
+  // The hero and the map speak about the course the reader touched last (Python until something is answered).
+  const active = activeCourse(entries, store.answers());
+  course = active ? active.course : null;
+  const browseHref = courseHref(active ? active.id : undefined);
   const ids = course ? allQuestionIds(course) : [];
   const answeredCount = ids.filter((id) => store.latest(id)).length;
   // The same Continue rule everywhere: the home link must match the header and the course page.
@@ -61,12 +69,12 @@ export async function homeView() {
     const where = course ? lastRead(course, records) : null;
     if (where) intro.push(h('p', { class: 'lead' }, t('moment.readingAt', { lesson: where.lessonTitle, n: where.position })));
     if (nextId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${nextId}` }, t('home.continue')));
-    actions.append(h('a', { class: nextId ? 'button button--secondary button--block' : 'button button--primary button--block', href: '#/course' }, t('home.browse')));
-    if (reviewCount > 0) actions.append(h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })));
+    actions.append(h('a', { class: nextId ? 'button button--secondary button--block' : 'button button--primary button--block', href: browseHref }, t('home.browse')));
+    if (reviewCount > 0) actions.append(h('a', { class: 'button button--secondary button--block', href: reviewHref(active ? active.id : undefined) }, t('review.button', { count: reviewCount })));
   } else {
     intro.push(h('p', { class: 'lead' }, t('home.lead')));
     if (index && index.onboarding_question) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${index.onboarding_question}` }, t('home.start')));
-    actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: '#/course' }, t('home.browse')));
+    actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: browseHref }, t('home.browse')));
     // Honest facts and shortcuts to existing lessons; never a promise the current storage mode cannot keep.
     after.push(h('p', { class: 'hero__facts' }, store.persistent ? t('home.facts.saved') : t('home.facts.memory')));
     const shortcuts = course ? homeShortcuts(course) : [];
@@ -95,12 +103,14 @@ export async function homeView() {
   const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, eyebrow(t('home.eyebrow')), h('h1', {}, ...headline()), ...intro, pills, actions, ...after, h('p', { class: 'hero__hint' }, t(homeHintKey({ hasProgress: answeredCount > 0, persistent: store.persistent })))), stage);
 
   const parts = [hero];
+  if (catalog) parts.push(catalogSection(catalog, new Map(entries.map((e) => [e.id, e.course]))));
   if (course) {
     parts.push(
       h(
         'section',
         { class: 'map-card', 'aria-labelledby': 'map-title' },
         h('h2', { id: 'map-title' }, t('home.map.title')),
+        catalog && catalog.length > 1 ? h('p', { class: 'kicker' }, course.title) : null,
         h('p', { class: 'muted map-intro map-intro--wide' }, answeredCount ? t('home.map.some', { summary: summaryText(ids) }) : t('home.map.empty')),
         // The phone map shows counts, not squares, so it gets a sentence that does not mention squares.
         h('p', { class: 'muted map-intro map-intro--phone' }, answeredCount ? t('home.map.some.phone', { summary: summaryText(ids) }) : t('home.map.empty.phone')),

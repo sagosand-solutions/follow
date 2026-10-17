@@ -1,18 +1,21 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { loadCourse } from '../data.js';
+import { courseHref, DEFAULT_COURSE } from '../catalog.js';
 import { store } from '../progress.js';
 import { reviewQueue } from '../review.js';
 import { revisitedSummary } from '../moments.js';
 import { findLessonOf } from '../data.js';
 import { questionView } from './question.js';
 import { errorNode } from './errors.js';
+import { notFoundView } from './notfound.js';
 
-export async function reviewView() {
+export async function reviewView({ id = DEFAULT_COURSE } = {}) {
   let course;
   try {
-    course = await loadCourse();
+    course = await loadCourse(id);
   } catch (err) {
+    if (err.status === 404) return notFoundView({});
     console.error(err);
     return { title: t('error.title'), node: errorNode(t('error.course')) };
   }
@@ -27,7 +30,7 @@ export async function reviewView() {
         h('h1', {}, t('review.title')),
         h('p', { class: 'muted' }, t('review.done')),
         ...revisitedLines(course),
-        h('a', { class: 'button button--secondary button--block', href: '#/course' }, t('review.back')),
+        h('a', { class: 'button button--secondary button--block', href: courseHref(course.id) }, t('review.back')),
       ),
     };
   }

@@ -4,8 +4,8 @@ import { loadLocale, t } from './i18n.js';
 import { h } from './dom.js';
 import { registerRoute, startRouter, setNotFound } from './router.js';
 import { store } from './progress.js';
-import { loadCourse } from './data.js';
-import { nextUp, hasProgress } from './course-nav.js';
+import { loadCourses, loadCatalog } from './data.js';
+import { continueAcross } from './catalog.js';
 import { homeView } from './views/home.js';
 import { courseView } from './views/course.js';
 import { lessonView } from './views/lesson.js';
@@ -34,6 +34,8 @@ async function boot() {
     main.focus();
     main.scrollIntoView({ block: 'start' });
   });
+  const catalog = await loadCatalog();
+  const manyCourses = !!catalog && catalog.length > 1;
   const header = document.getElementById('site-header');
   const tagline = h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand__mark', 'aria-hidden': 'true' }, h('span'), h('span'), h('span')), h('span', { class: 'brand__text' }, CONFIG.productName ? CONFIG.productName : t('site.brand')));
   // One native select: keyboard and screen-reader friendly, and it scales to any number of themes.
@@ -47,11 +49,10 @@ async function boot() {
   const continueSlot = h('span', { class: 'nav__continue' });
   const accountSlot = h('span', { class: 'nav__account' });
   header.replaceChildren(
-    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: '#/course' }, t('nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
+    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
   );
   const refreshContinue = async () => {
-    const course = await loadCourse().catch(() => null);
-    const target = course && hasProgress(course, store.answers()) ? nextUp(course, store.answers()) : null;
+    const target = continueAcross(await loadCourses().catch(() => []), store.answers());
     continueSlot.replaceChildren();
     if (!target) return;
     const label = t('course.continue.text', { lesson: target.lessonTitle, n: target.position, total: target.total });
@@ -64,6 +65,8 @@ async function boot() {
 
   registerRoute('/', homeView);
   registerRoute('/course', courseView);
+  registerRoute('/course/:id', courseView);
+  registerRoute('/course/:id/review', reviewView);
   registerRoute('/lesson/:id', lessonView);
   registerRoute('/q/:id', questionView);
   registerRoute('/review', reviewView);

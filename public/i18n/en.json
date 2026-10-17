@@ -355,5 +355,15 @@
   "premium.q.error.title": "This question could not be opened",
   "premium.q.error.text": "Something went wrong on our side. Try again later.",
   "premium.q.retry": "Try again",
-  "premium.q.see": "See the paid course"
+  "premium.q.see": "See the paid course",
+  "nav.courses": "Courses",
+  "course.eyebrow.other": "Course",
+  "catalog.title": "Courses",
+  "catalog.lead": "Free questions you can read now: {n} across {m} courses.",
+  "catalog.free": "{b} free questions",
+  "catalog.free.one": "{b} free question",
+  "catalog.premium": "Premium · coming soon",
+  "catalog.premium.count": "{n} more questions are in preparation. No date or price has been set.",
+  "catalog.premium.nocount": "More questions are in preparation. No date or price has been set.",
+  "about.catalog": "The course catalog lists {n} free questions across {m} courses."
 }
