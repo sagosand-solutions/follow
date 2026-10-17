@@ -6,6 +6,15 @@ import { t } from '../i18n.js';
 import { renderText, renderInline } from '../text.js';
 import { renderCodeBlock } from './code-block.js';
 import { loadStudy } from '../data.js';
+import { licenceInfo } from './ui.js';
+import { CONFIG } from '../config.js';
+
+// The note's own licence, read from its field (open licence with a link; proprietary and others as plain text).
+function licenceNode(license) {
+  const lic = licenceInfo(license);
+  const label = t(lic.key, lic.params);
+  return lic.link ? h('a', { href: CONFIG.licenseUrl }, label) : h('span', {}, label);
+}
 
 function noteNode(note) {
   const sections = (note.sections || []).map((s) => {
@@ -24,7 +33,7 @@ function noteNode(note) {
     note.summary ? h('p', { class: 'note__summary' }, renderInline(note.summary)) : null,
     ...sections,
     note.sources && note.sources.length ? h('section', { class: 'note-section' }, h('h3', {}, t('study.sources')), h('ul', {}, note.sources.map((x) => h('li', {}, h('a', { href: x.url, rel: 'noopener' }, x.title))))) : null,
-    note.author && note.author.name ? h('p', { class: 'attribution' }, t('study.by', { author: note.author.name }), ' ', h('span', {}, note.license || '')) : null,
+    note.author && note.author.name ? h('p', { class: 'attribution' }, t('study.by', { author: note.author.name }), ' ', licenceNode(note.license)) : null,
   );
 }
 
