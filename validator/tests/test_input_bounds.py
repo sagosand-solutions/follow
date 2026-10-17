@@ -375,7 +375,7 @@ class InputBoundsTests(unittest.TestCase):
 
     def test_default_corpus_reexports_idempotently_without_changing_inputs(self):
         for relative in ("schema/question.schema.json", "schema/concept-map.schema.json",
-                         "schema/course.schema.json", "schema/concepts/python-v0.json"):
+                         "schema/course.schema.json", "schema/catalog.schema.json", "schema/concepts/python-v0.json"):
             target = self.root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(core.ROOT / relative, target)
