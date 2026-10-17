@@ -12,6 +12,13 @@ export function safeHttpsUrl(value) {
   }
 }
 
+// Where the browser should land after sign-in: this app's real location (its own base path plus a hash route), same origin.
+// The server only accepts a local absolute path, so anything odd falls back to the site root.
+export function appReturnTo(route = 'account', location = globalThis.location) {
+  const path = typeof location?.pathname === 'string' && /^\/(?!\/)[^\\?#\s]*$/.test(location.pathname) ? location.pathname : '/';
+  return `${path}#/${route}`;
+}
+
 export function mapHttpError(status, body) {
   const code = body?.error?.code;
   if (status === 401 || code === 'no-session') return { ok: false, code: 'signed_out', message: 'You are signed out. Please sign in again.' };
@@ -98,9 +105,11 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       if (!data || !Array.isArray(data.products)) return data;
       return { ...data, products: data.products.map((product) => ({ ...product, checkout_enabled: data.checkout_enabled, policy: data.checkout_policy })) };
     },
-    async entitlements() { const r = await result('/entitlements'); return r?.entitlements ?? r; },
+    // Signed out is a state, not an error: no entitlements, no purchase (same answers as the fake client).
+    async entitlements() { const r = await result('/entitlements'); return r?.code === 'signed_out' ? [] : (r?.entitlements ?? r); },
     async purchase() {
       const data = await result('/purchases');
+      if (data?.code === 'signed_out') return null;
       if (!data || !Array.isArray(data.purchases)) return data?.ok === false ? data : null;
       return data.purchases.find((purchase) => purchase.state === 'pending') || null;
     },
@@ -109,7 +118,7 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       if (!token.ok) return token;
       preauthCsrfToken = token.data?.csrf_token || null;
       const next = new URLSearchParams(globalThis.location?.hash?.split('?')[1] || '').get('next');
-      const returnTo = `/${['premium', 'checkout', 'account'].includes(next) ? next : 'account'}`;
+      const returnTo = appReturnTo(['premium', 'checkout', 'account'].includes(next) ? next : 'account');
       const r = await request(`/auth/${encodeURIComponent(provider)}/start`, { method: 'POST', csrf: true, body: { intent: 'login', return_to: returnTo } });
       if (!r.ok) return r;
       const authorizeUrl = safeHttpsUrl(r.data?.authorize_url);
@@ -120,7 +129,12 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       const token = await request('/auth/csrf');
       if (!token.ok) return token;
       preauthCsrfToken = token.data?.csrf_token || null;
-      return result('/auth/email/start', { method: 'POST', csrf: true, body: { email, intent: 'login', return_to: '/account' } });
+      return result('/auth/email/start', { method: 'POST', csrf: true, body: { email, intent: 'login', return_to: appReturnTo('account') } });
+    },
+    // A premium question the server lets this session read: { ok:true, question } or { ok:false, code }. Never cached or stored.
+    async premiumQuestion(id) {
+      const r = await request(`/content/question/${encodeURIComponent(id)}`);
+      return r.ok ? { ok: true, question: r.data } : r;
     },
     async checkout({ product_id, policy_version, acknowledgements }) {
       const data = await result('/checkout', { method: 'POST', csrf: true, body: { product_id, policy_version, acknowledgements } });

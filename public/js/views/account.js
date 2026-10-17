@@ -4,7 +4,7 @@ import { t } from '../i18n.js';
 import { navigate, refresh } from '../router.js';
 import { getClient, testStrip, query } from '../account/index.js';
 import { safeHttpsUrl } from '../account/http-client.js';
-import { PROVIDERS, formatPrice, purchaseStatus, canPay, payBlockedReason, safeNext } from '../account/model.js';
+import { PROVIDERS, formatPrice, purchaseStatus, canPay, payBlockedReason, safeNext, acknowledgementsFor } from '../account/model.js';
 
 const page = (c, title, ...children) => ({ title, node: h('div', { class: 'stack account' }, testStrip(c), h('h1', {}, title), ...children) });
 
@@ -98,7 +98,7 @@ export async function checkoutView() {
   box.addEventListener('change', sync);
   pay.addEventListener('click', async () => {
     if (pay.getAttribute('aria-disabled') === 'true') return;
-    const r = await c.checkout({ product_id: p.id, policy_version: p.policy.version, acknowledgements: box.checked ? ['withdrawal-consent'] : [] });
+    const r = await c.checkout({ product_id: p.id, policy_version: p.policy.version, acknowledgements: acknowledgementsFor(p.policy, box.checked) });
     if (r.ok && r.redirect_url) globalThis.location.assign(r.redirect_url);
     else if (r.ok) navigate('/purchase');
     else reason.textContent = r.message || t('checkout.error');

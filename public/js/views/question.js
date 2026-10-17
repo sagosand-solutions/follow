@@ -6,7 +6,7 @@ import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
 import { loadQuestion, loadCourse, loadConcepts, loadTrace, findLessonOf } from '../data.js';
 import { CONFIG } from '../config.js';
-import { navigate } from '../router.js';
+import { navigate, refresh } from '../router.js';
 import { reviewQueue, nextReview } from '../review.js';
 import { currentAnswer } from '../answers.js';
 import { errorNode } from './errors.js';
@@ -16,6 +16,8 @@ import { createStepPlayer } from '../components/step-player.js';
 import { usableTraces } from '../trace.js';
 import { changedToFit } from '../moments.js';
 import { createSeenFlag } from '../seen.js';
+import { premiumState } from '../account/premium.js';
+import { checkQuestion } from '../question-check.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -31,9 +33,16 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   try {
     q = await loadQuestion(id);
   } catch (err) {
-    if (err.status === 404) return notFound();
-    console.error(err);
-    return { title: t('error.title'), node: errorNode(t('error.question')) };
+    if (err.status === 404) {
+      // Not in the public course. When the account service is active, ask it: the question may be a premium one.
+      const premium = await loadPremiumQuestion(id);
+      if (!premium) return notFound();
+      if (premium.state !== 'ok') return premiumNotice(premium.state, id);
+      q = premium.question;
+    } else {
+      console.error(err);
+      return { title: t('error.title'), node: errorNode(t('error.question')) };
+    }
   }
   let course = suppliedCourse;
   let concepts = null;
@@ -57,6 +66,30 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   draw(ctx, usable, !!record && !usable);
   const pageTitle = where ? `${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}` : titleOf(q);
   return { title: pageTitle, node: root };
+}
+
+// Premium questions come from the account service (never cached or stored here). Null when the service is not active.
+async function loadPremiumQuestion(id) {
+  if (!CONFIG.accountsUi) return null;
+  const { getClient } = await import('../account/index.js');
+  const client = getClient();
+  if (client.mock !== false || typeof client.premiumQuestion !== 'function') return null;
+  const answer = premiumState(await client.premiumQuestion(id));
+  if (answer.state !== 'ok') return answer;
+  // The same guard as for public questions: refuse data the view cannot show correctly.
+  return checkQuestion(answer.question, id) ? { state: 'error' } : answer;
+}
+
+// Honest states for a premium question that cannot be shown: sign in, not available to you, no connection, or an error.
+function premiumNotice(state, id) {
+  const links = {
+    signin: h('a', { class: 'button button--primary', href: '#/signin?next=premium' }, t('signin.title')),
+    unavailable: h('a', { href: '#/premium' }, t('premium.q.see')),
+    network: h('button', { type: 'button', class: 'button button--secondary', onclick: () => refresh() }, t('premium.q.retry')),
+    error: h('a', { href: '#/course' }, t('notfound.course')),
+  };
+  const title = t(`premium.q.${state}.title`);
+  return { title, node: h('div', { class: 'stack' }, h('h1', {}, title), h('p', {}, t(`premium.q.${state}.text`)), h('div', { class: 'actions' }, links[state]), h('p', {}, h('a', { href: '#/course' }, t('notfound.course')))) };
 }
 
 function titleOf(q) {

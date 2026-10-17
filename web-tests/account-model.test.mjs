@@ -71,3 +71,26 @@ test('the account UI is off by default and never rendered with innerHTML', () =>
   assert.match(readFileSync(join(root, 'js/config.js'), 'utf8'), /accountsUi: false/);
   for (const f of ['js/views/account.js', 'js/account/index.js', 'js/account/client.js', 'js/account/http-client.js']) assert.doesNotMatch(readFileSync(join(root, f), 'utf8'), /innerHTML|insertAdjacentHTML/, f);
 });
+
+import { acknowledgementsFor } from '../public/js/account/model.js';
+
+test('acknowledgementsFor sends exactly the server\'s required acknowledgements, only when ticked, never invented', () => {
+  const policy = { version: 'v', required_acknowledgements: ['immediate_delivery_request', 'terms', 'withdrawal_acknowledgement'] };
+  assert.deepEqual(acknowledgementsFor(policy, true), ['immediate_delivery_request', 'terms', 'withdrawal_acknowledgement']);
+  assert.deepEqual(acknowledgementsFor(policy, false), []);
+  const sent = acknowledgementsFor(policy, true);
+  sent.push('extra');
+  assert.equal(policy.required_acknowledgements.length, 3, 'a copy, the policy is not mutated');
+  for (const bad of [null, undefined, {}, { required_acknowledgements: 'terms' }, { required_acknowledgements: [1] }, { required_acknowledgements: [''] }]) assert.deepEqual(acknowledgementsFor(bad, true), []);
+});
+
+test('purchaseStatus treats a failed lookup (an error object, not a list) as nothing known, never as paid', () => {
+  assert.equal(purchaseStatus({ entitlements: { ok: false, code: 'unavailable' }, purchase: null }, 'p'), 'none');
+  assert.equal(purchaseStatus({ entitlements: [], purchase: { product_id: 'p', state: 'pending' } }, 'p'), 'pending');
+});
+
+test('the account views send the policy acknowledgements, not a hard-coded one', () => {
+  const src = readFileSync(`${root}js/views/account.js`, 'utf8');
+  assert.match(src, /acknowledgementsFor\(p\.policy, box\.checked\)/);
+  assert.doesNotMatch(src, /withdrawal-consent/);
+});
