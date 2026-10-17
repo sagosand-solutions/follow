@@ -14,6 +14,7 @@ import unittest
 
 from validator import core
 from validator import export as exporter
+from validator.cli import main as cli_main
 from helpers import question
 
 SCHEMAS = ("question.schema.json", "concept-map.schema.json", "course.schema.json", "catalog.schema.json")
@@ -244,6 +245,64 @@ class MultiCourseExportTests(CourseFixture):
         from unittest.mock import patch
         with patch("subprocess.Popen", side_effect=AssertionError("export must stay static")):
             self.assertEqual(self.run_export()[0], 0)
+
+
+class ExportIsTheGateTests(CourseFixture):
+    """CI relies on export --check instead of the generic CLI line: it must catch everything that line caught."""
+
+    def cli_ok(self, course, qid):
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            code = cli_main(["--concept-map", str(self.root / f"schema/concepts/{course}-v0.json"), str(self.data / "questions" / f"{qid}.json")])
+        return code == 0
+
+    def test_valid_data_passes_both_and_each_defect_the_cli_finds_fails_the_export(self):
+        self.assertEqual(self.run_export()[0], 0)
+        for course, (_, qid, _) in self.PICK.items():
+            self.assertTrue(self.cli_ok(course, qid), course)
+        defects = {
+            "missing required field": lambda q: q.pop("explanation"),
+            "unknown concept": lambda q: q.update(concepts=["py.no-such-concept"]),
+            "misconception not related to the tagged concept": lambda q, m=None: q["options"][2].update(misconception=m),
+            "score shape": lambda q: q["options"][0].update(score=0.7),
+            "extra field": lambda q: q.update(unexpected=True),
+        }
+        for course, (_, qid, _) in self.PICK.items():
+            original = json.loads((self.data / "questions" / f"{qid}.json").read_text(encoding="utf-8"))
+            for name, mutate in defects.items():
+                with self.subTest(course=course, defect=name):
+                    broken = deepcopy(original)
+                    if name.startswith("misconception"):
+                        unrelated = next(m["id"] for m in self.maps[course]["misconceptions"] if original["concepts"][0] not in m["concepts"])
+                        mutate(broken, unrelated)
+                    else:
+                        mutate(broken)
+                    self.write(self.data / "questions" / f"{qid}.json", broken)
+                    self.assertFalse(self.cli_ok(course, qid), "the CLI rejects it")
+                    self.assertEqual(self.run_export()[0], 1, "so does the export")
+                    self.write(self.data / "questions" / f"{qid}.json", original)
+
+    def test_export_adds_what_the_cli_cannot_see(self):
+        qid = self.PICK["sql"][1]
+        original = json.loads((self.data / "questions" / f"{qid}.json").read_text(encoding="utf-8"))
+        wrong_file = self.data / "questions" / "renamed.json"
+        (self.data / "questions" / f"{qid}.json").rename(wrong_file)
+        self.assertTrue(self.cli_ok("sql", "renamed"), "the CLI is happy with any file name")
+        code, output = self.run_export()
+        self.assertEqual(code, 1)
+        self.assertIn("filename", output)
+        wrong_file.rename(self.data / "questions" / f"{qid}.json")
+        original["license"] = "LicenseRef-Proprietary"
+        self.write(self.data / "questions" / f"{qid}.json", original)
+        self.assertTrue(self.cli_ok("sql", qid), "the CLI does not look at the licence")
+        self.assertIn("non-public-license", self.run_export()[1])
+
+    def test_the_workflow_runs_the_export_check_and_not_the_single_vocabulary_line(self):
+        workflow = (core.ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("python -m validator export --check", workflow)
+        self.assertNotIn("python -m validator public/data/questions", workflow)
+        readme = (core.ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("--concept-map schema/concepts/sql-v0.json", readme, "author examples per course are documented")
 
 
 class RealRepositoryTests(unittest.TestCase):

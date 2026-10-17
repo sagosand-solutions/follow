@@ -40,12 +40,19 @@ python3 -m venv .venv && . .venv/bin/activate
 python3 -m pip install -r validator/requirements.txt
 python3 -m unittest discover -s validator/tests
 python3 -m unittest discover -s schema/tests
-python3 -m validator public/data/questions/*.json   # static checks
-python3 -m validator export --check                 # derived data is up to date
+python3 -m validator export --check                 # every question against its course's vocabulary; derived data is up to date
 node --test 'web-tests/*.test.mjs'
 ```
 
-CI runs the same checks on every pull request. Question code is checked statically in CI and never executed there. Running snippets locally needs explicit flags and is meant only for code you have read and trust. See [`validator/README.md`](validator/README.md).
+To check one question file while you write it, pass its course vocabulary (the default is Python's):
+
+```sh
+python3 -m validator public/data/questions/<python-question>.json
+python3 -m validator --concept-map schema/concepts/production-v0.json public/data/questions/<production-question>.json
+python3 -m validator --concept-map schema/concepts/sql-v0.json public/data/questions/<sql-question>.json
+```
+
+CI runs the same checks on every pull request (`export --check` is the gate for question data). Question code is checked statically in CI and never executed there. Running snippets locally needs explicit flags and is meant only for code you have read and trust. See [`validator/README.md`](validator/README.md).
 
 ## Licenses
 

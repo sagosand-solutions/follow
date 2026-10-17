@@ -23,6 +23,19 @@ the package's repository, not the working directory. Explicit input paths are
 relative to your working directory. There is no schema downloading or snippet
 execution in default validation. Local schemas must accompany the package.
 
+Checking questions of a course: the CLI validates against ONE concept map, the Python one by default. For another course
+pass its vocabulary, for example:
+
+```sh
+python3 -m validator --concept-map schema/concepts/production-v0.json public/data/questions/prod-timeout-does-not-cancel-the-work.json
+python3 -m validator --concept-map schema/concepts/sql-v0.json public/data/questions/sql-equals-null-matches-nothing.json
+```
+
+CI does not run the CLI over all questions any more: `python -m validator export --check` is the gate. It validates every
+public question against the vocabulary of the course that lists it with the same `validate_question` the CLI calls, and adds
+what the CLI cannot see: the filename, the public licence, duplicate and orphan questions, the course prefix rules and that
+the derived files are up to date. See [EXPORT.md](EXPORT.md).
+
 Static checks cover structure, finite numbers, scoring shape/counts, identifiers,
 references, nonblank prose/source, line ranges and the concept prerequisite DAG.
 Strict JSON loading rejects duplicate keys and NaN/Infinity (including overflowing
