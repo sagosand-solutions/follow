@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Python course structure v0",
+  "title": "Course structure v0",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "title", "language", "levels"],
   "properties": {
-    "id": {"const": "python"},
+    "id": {"enum": ["python", "production", "sql"]},
     "title": {"$ref": "#/$defs/text"},
-    "language": {"const": "python"},
+    "language": {"enum": ["python"], "description": "The language the questions run in; every course is Python-run, so this stays python."},
     "levels": {
       "type": "array", "minItems": 1, "maxItems": 3,
       "items": {"$ref": "#/$defs/level"}

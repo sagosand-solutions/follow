@@ -27,6 +27,7 @@ QUESTION_SCHEMA_PATH = SCHEMA_DIR / "question.schema.json"
 MAP_SCHEMA_PATH = SCHEMA_DIR / "concept-map.schema.json"
 TRACE_SCHEMA_PATH = SCHEMA_DIR / "trace.schema.json"
 TRACE_03_SCHEMA_PATH = SCHEMA_DIR / "trace-0.3.schema.json"
+CATALOG_SCHEMA_PATH = SCHEMA_DIR / "catalog.schema.json"
 COURSE_SCHEMA_PATH = SCHEMA_DIR / "course.schema.json"
 CONCEPTS_PATH = SCHEMA_DIR / "concepts" / "python-v0.json"
 EXAMPLE_PATH = REPO_ROOT / "content" / "examples" / "independent-if.json"
@@ -167,6 +168,50 @@ class TestSchemaSelfValidation(unittest.TestCase):
                 self.assertEqual(list(question_validator.iter_errors(question)), [])
                 question["concepts"] = ["js.reading-queries"]
                 self.assertTrue(list(question_validator.iter_errors(question)))
+
+    def test_catalog_schema_contract(self):
+        validator = build_validator(CATALOG_SCHEMA_PATH)
+        good = {"data_version": 1, "courses": [{"id": "sql", "title": "SQL: reading code", "description": "Read SQL.", "language": "python",
+                "free_questions": 5, "premium": {"status": "coming-soon", "questions": 70}, "start_question": "sql-equals-null-matches-nothing",
+                "concept_map": "schema/concepts/sql-v0.json"}]}
+        self.assertEqual(list(validator.iter_errors(good)), [])
+        def broken(mutate):
+            doc = copy.deepcopy(good)
+            mutate(doc)
+            return list(validator.iter_errors(doc))
+        course = lambda doc: doc["courses"][0]
+        self.assertTrue(broken(lambda d: course(d).update(id="java")), "unknown course id")
+        self.assertTrue(broken(lambda d: course(d).update(language="sql")), "language stays python")
+        self.assertTrue(broken(lambda d: course(d).update(description="x" * 161)), "description is at most 160 characters")
+        self.assertEqual(broken(lambda d: course(d).update(description="x" * 160)), [])
+        self.assertTrue(broken(lambda d: course(d).update(description="")), "description is not blank")
+        self.assertTrue(broken(lambda d: course(d).update(free_questions=0)))
+        self.assertTrue(broken(lambda d: course(d)["premium"].update(status="available")), "no promise beyond coming-soon")
+        self.assertTrue(broken(lambda d: course(d)["premium"].update(price=5)), "no price in the catalog")
+        self.assertTrue(broken(lambda d: course(d).update(concept_map="../x.json")))
+        self.assertTrue(broken(lambda d: course(d).update(start_question="Bad Id")))
+        self.assertTrue(broken(lambda d: course(d).update(extra=1)))
+        self.assertTrue(broken(lambda d: d.update(data_version=2)))
+        self.assertTrue(broken(lambda d: d.update(courses=[])))
+
+    def test_course_schema_accepts_the_three_courses_and_only_python_as_language(self):
+        validator = build_validator(COURSE_SCHEMA_PATH)
+        lesson = {"id": "l1", "title": "L", "builds_on": [], "questions": ["some-question"]}
+        for cid in ("python", "production", "sql"):
+            doc = {"id": cid, "title": "T", "language": "python", "levels": [{"level": "beginner", "title": "B", "lessons": [lesson]}]}
+            self.assertEqual(list(validator.iter_errors(doc)), [], cid)
+        for bad in ({"id": "java"}, {"language": "sql"}, {"id": ""}):
+            doc = {"id": "sql", "title": "T", "language": "python", "levels": [{"level": "beginner", "title": "B", "lessons": [lesson]}]}
+            doc.update(bad)
+            self.assertTrue(list(validator.iter_errors(doc)), bad)
+
+    def test_public_course_vocabularies_are_valid_and_listed(self):
+        validator = build_validator(MAP_SCHEMA_PATH)
+        readme = (SCHEMA_DIR / "README.md").read_text(encoding="utf-8")
+        for name in ("production-v0", "sql-v0"):
+            self.assertEqual(list(validator.iter_errors(load(SCHEMA_DIR / "concepts" / f"{name}.json"))), [], name)
+            self.assertIn(f"concepts/{name}.json", readme)
+        self.assertIn("catalog.schema.json", readme)
 
     def test_schemas_are_self_contained(self):
         def collect_refs(node, found):

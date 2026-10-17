@@ -349,6 +349,19 @@ class TraceTests(unittest.TestCase):
             "stdin": "", "stdin_sha256": hashlib.sha256(b"").hexdigest(), **first}]}
         trace._validate_trace(data, self.root / "schema/trace-0.3.schema.json")
 
+    def test_sqlite3_snippets_trace_like_any_other_code(self):
+        # The sql course runs sqlite3 :memory: snippets; the runner/tracer must not block the import.
+        source = "import sqlite3\nconn = sqlite3.connect(':memory:')\nconn.execute('CREATE TABLE t (n INTEGER)')\nconn.execute('INSERT INTO t VALUES (1), (2)')\nrows = conn.execute('SELECT SUM(n) FROM t').fetchall()\nprint(rows)\n"
+        for tracer in (self.trace_one, self.trace_v3):
+            record = tracer(source)
+            self.assertIsNone(record["exception"])
+            self.assertFalse(record["truncated"])
+            self.assertEqual(record["stdout"], "[(3,)]\n")
+            self.assertGreater(len(record["steps"]), 5)
+        last = self.trace_v3(source)["steps"][-1]
+        self.assertEqual(last["globals"]["rows"], "[(3,)]")
+        self.assertNotIn("sqlite3", last["globals"], "modules are not data values")
+
     def test_check_accepts_0_2_and_0_3_files_and_rejects_unknown_versions(self):
         shutil.copyfile(core.ROOT / "schema/trace-0.3.schema.json", self.root / "schema/trace-0.3.schema.json")
         out = self.root / "public/data/traces/test-question.json"

@@ -1,0 +1,18 @@
+{
+  "courses": [
+    {
+      "concept_map": "schema/concepts/python-v0.json",
+      "description": "Learn to read Python code: predict what it prints, spot what breaks and judge what an AI wrote.",
+      "free_questions": 34,
+      "id": "python",
+      "language": "python",
+      "premium": {
+        "questions": 153,
+        "status": "coming-soon"
+      },
+      "start_question": "m1-assignment-snapshot",
+      "title": "Python: reading code"
+    }
+  ],
+  "data_version": 1
+}

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Course catalog v1",
+  "description": "The public course catalog. free_questions is checked against the course file by the exporter; premium.questions is set by hand (the private repository is not read at export time) and promises nothing about dates or prices.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "data_version",
+    "courses"
+  ],
+  "properties": {
+    "data_version": {
+      "const": 1
+    },
+    "courses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/course"
+      }
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]"
+      }
+    },
+    "questionId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,79}$",
+      "not": {
+        "pattern": "\\s"
+      }
+    },
+    "course": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "description",
+        "language",
+        "free_questions",
+        "premium",
+        "start_question",
+        "concept_map"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "python",
+            "production",
+            "sql"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/text"
+        },
+        "description": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/text"
+            },
+            {
+              "maxLength": 160
+            }
+          ]
+        },
+        "language": {
+          "enum": [
+            "python"
+          ]
+        },
+        "free_questions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "premium": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "questions"
+          ],
+          "properties": {
+            "status": {
+              "const": "coming-soon"
+            },
+            "questions": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "start_question": {
+          "$ref": "#/$defs/questionId"
+        },
+        "concept_map": {
+          "type": "string",
+          "pattern": "^schema/concepts/(python|production|sql)-v0\\.json$"
+        }
+      }
+    }
+  }
+}
