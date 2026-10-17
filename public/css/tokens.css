@@ -128,7 +128,7 @@
 /* Selectable themes. Each block defines every colour and effect token; a test keeps the sets identical to :root.
    Declared after the OS-driven dark block so they win over it (equal specificity, later wins). */
 
-:root[data-theme="paper"] {            
+:root[data-theme="paper"] {
   color-scheme: light;
   --bg: #f6f1e7; --surface: #fffdf8; --surface-2: #ece4d3;
   --ink: #2a2118; --muted: #5d5040; --line: #ddd2bc; --line-strong: #7d6e57;
@@ -147,7 +147,7 @@
   --shadow-stage: none;
 }
 
-:root[data-theme="slate"] {            
+:root[data-theme="slate"] {
   color-scheme: dark;
   --bg: #1b1f27; --surface: #242a35; --surface-2: #2f3744;
   --ink: #e6e9ef; --muted: #a9b2c0; --line: #323a48; --line-strong: #8590a3;
@@ -166,7 +166,7 @@
   --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
-:root[data-theme="contrast"] {         
+:root[data-theme="contrast"] {
   color-scheme: dark;
   --bg: #000000; --surface: #0b0b0b; --surface-2: #1c1c1c;
   --ink: #ffffff; --muted: #e0e0e0; --line: #8a8a8a; --line-strong: #d0d0d0;

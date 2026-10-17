@@ -49,6 +49,18 @@ export function initTheme(storage = defaultStorage()) {
   const mode = readTheme(storage);
   sessionMode = mode;
   applyTheme(mode);
+  // While Auto is chosen, a change of the operating system's colour or contrast setting changes the page, so the
+  // browser chrome colour (meta theme-color) has to follow too.
+  if (globalThis.matchMedia) {
+    for (const query of ['(prefers-color-scheme: dark)', '(prefers-contrast: more)']) {
+      const list = globalThis.matchMedia(query);
+      if (list && list.addEventListener) {
+        list.addEventListener('change', () => {
+          if (readTheme(storage) === 'auto') syncThemeColor(globalThis.document && globalThis.document.documentElement);
+        });
+      }
+    }
+  }
   return mode;
 }
 
