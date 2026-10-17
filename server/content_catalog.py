@@ -18,7 +18,7 @@ from pathlib import Path
 from .models import ContentError, Product
 
 ALLOWED_KINDS = frozenset({"question", "exam", "study"})
-_ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,63}\Z")
+_ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,79}\Z")  # same 80-character limit as the question schema questionId
 _PRODUCT_RE = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _CHAPTER_RE = re.compile(r"C(?:0[1-9]|[1-9][0-9])\Z")
 _HASH_RE = re.compile(r"[0-9a-f]{64}\Z")

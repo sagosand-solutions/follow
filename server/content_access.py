@@ -12,7 +12,7 @@ import re
 from .models import ContentError, EntitlementState
 
 CONTENT_KINDS = frozenset({"question", "exam", "study"})
-_CONTENT_ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,63}\Z")
+_CONTENT_ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,79}\Z")  # keep in step with content_catalog._ID_RE
 
 NO_SESSION = "no-session"
 NOT_FOUND = "not-found"

@@ -67,6 +67,19 @@ class CatalogLoadTests(CatalogTestCase):
                 with self.assertRaises(ContentError):
                     ContentCatalog.load(self.root, self.manifest)
 
+    def test_id_length_limit_is_80_like_the_question_schema(self):
+        ok = "q" + "a" * 79  # 80 characters: the longest questionId the schema allows
+        self.write_file("long.txt")
+        self.write_manifest([self.entry(id=ok, path="long.txt")])
+        catalog = ContentCatalog.load(self.root, self.manifest)
+        self.assertEqual(len(ok), 80)
+        self.assertEqual(catalog.read(catalog.lookup("question", ok)), b"restricted content")
+        for bad in ("q" + "a" * 80, "q" + "a" * 100, "a..b", "..", "a" + "." * 3 + "b"):
+            with self.subTest(length=len(bad)):
+                self.write_manifest([self.entry(id=bad, path="long.txt")])
+                with self.assertRaises(ContentError):
+                    ContentCatalog.load(self.root, self.manifest)
+
     def test_bad_hash_format_is_rejected(self):
         self.write_file("q-1.txt")
         self.write_manifest([self.entry(digest="XYZ")])

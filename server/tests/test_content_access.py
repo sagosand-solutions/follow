@@ -1,6 +1,12 @@
+import hashlib
+import json
+import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
+from server.content_access import ContentAccessError, resolve_content
+from server.content_catalog import ContentCatalog
 from server.db import Database
 from server.repositories import Repositories
 from server.tests.support import build_fixture, call, issue_for
@@ -44,6 +50,27 @@ class ContentAccessTests(unittest.TestCase):
         for bad in ("../secret", "..%2fsecret", "q-1/../x", "Q-1"):
             with self.subTest(bad=bad):
                 self.assertEqual(call(fx.app, "GET", f"/content/question/{bad}", headers=headers)[0], 404)
+
+    def test_content_id_length_gate_matches_the_catalog_and_schema_limit(self):
+        fx = self.make()
+        user = SimpleNamespace(user_id="u1")  # seeded and entitled to python-lifetime
+        ok = "q" + "a" * 79  # 80 characters, the longest schema questionId
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "private"
+            root.mkdir()
+            (root / "long.txt").write_bytes(b'{"ok": 1}')
+            manifest = Path(tmp) / "manifest.json"
+            manifest.write_text(json.dumps({"entries": [{"kind": "question", "id": ok, "product_id": "python-lifetime", "path": "long.txt",
+                                                         "sha256": hashlib.sha256(b'{"ok": 1}').hexdigest()}]}), encoding="utf-8")
+            catalog = ContentCatalog.load(root, manifest)
+            data, _ = resolve_content(catalog, fx.repos, user, "question", ok)
+            self.assertEqual(data, b'{"ok": 1}')
+            for bad in ("q" + "a" * 80, "a..b"):
+                with self.subTest(length=len(bad)), self.assertRaises(ContentAccessError) as caught:
+                    resolve_content(catalog, fx.repos, user, "question", bad)
+                self.assertEqual(caught.exception.code, "not-found")
+        headers = self.session_headers(fx.cookie)
+        self.assertEqual(call(fx.app, "GET", "/content/question/" + "q" + "a" * 80, headers=headers)[0], 404)
 
     def test_revoked_entitlement_denies_immediately(self):
         fx = self.make()
