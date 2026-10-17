@@ -32,6 +32,10 @@ export function createFakeClient({ scenario = 'signed-out', providersOn = { goog
       if (state.scenario === 'pending') return { product_id: PRODUCT.id, state: 'pending' };
       return null;
     },
+    // The fake client has no premium content.
+    async premiumQuestion() {
+      return { ok: false, code: 'not_found' };
+    },
     async startSignIn(provider) {
       if (!state.providersOn[provider]) return { ok: false, code: 'provider_unavailable' };
       state.scenario = 'signed-in';

@@ -13,7 +13,8 @@ export function formatPrice(amountMinor, currency, locale = 'en') {
 
 // What the purchase area may say. Only the server's entitlement ever means "paid".
 export function purchaseStatus({ entitlements = [], purchase = null }, productId) {
-  const own = entitlements.filter((e) => e.product_id === productId);
+  // A failed lookup arrives as an error object, not a list: it proves nothing, so it never counts as paid.
+  const own = (Array.isArray(entitlements) ? entitlements : []).filter((e) => e.product_id === productId);
   if (own.some((e) => e.state === 'active')) return 'active';
   if (own.some((e) => e.state === 'revoked')) return 'revoked';
   if (purchase && purchase.product_id === productId && purchase.state === 'pending') return 'pending';
@@ -37,4 +38,11 @@ export function payBlockedReason({ signedIn, checkoutEnabled, acknowledged }) {
 const NEXT_ALLOWED = new Set(['premium', 'checkout', 'account']);
 export function safeNext(value) {
   return NEXT_ALLOWED.has(value) ? value : 'account';
+}
+
+// The acknowledgements to send with a checkout: exactly the ones the server's checkout policy requires, and only when the
+// reader has ticked the consent box. Never invented on the client.
+export function acknowledgementsFor(policy, checked) {
+  const required = policy && Array.isArray(policy.required_acknowledgements) ? policy.required_acknowledgements : [];
+  return checked && required.every((x) => typeof x === 'string' && x) ? [...required] : [];
 }

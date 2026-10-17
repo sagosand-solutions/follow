@@ -345,5 +345,15 @@
   "theme.name.slate": "Slate",
   "theme.name.contrast": "Contrast",
   "home.map.empty.phone": "Nothing read yet: your answers will fill in the counts.",
-  "home.map.some.phone": "Questions read per level. So far: {summary}."
+  "home.map.some.phone": "Questions read per level. So far: {summary}.",
+  "premium.q.signin.title": "Sign in to open this question",
+  "premium.q.signin.text": "This question is part of the paid course. Sign in, and it opens if your account includes it.",
+  "premium.q.unavailable.title": "This question is not available to you",
+  "premium.q.unavailable.text": "It may not exist, or your account may not include it yet.",
+  "premium.q.network.title": "Could not reach the account service",
+  "premium.q.network.text": "Check your connection and try again.",
+  "premium.q.error.title": "This question could not be opened",
+  "premium.q.error.text": "Something went wrong on our side. Try again later.",
+  "premium.q.retry": "Try again",
+  "premium.q.see": "See the paid course"
 }

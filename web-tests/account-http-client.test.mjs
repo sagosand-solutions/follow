@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHttpClient, mapHttpError } from '../public/js/account/http-client.js';
+import { createHttpClient, mapHttpError, appReturnTo } from '../public/js/account/http-client.js';
 
 function mockFetch(routes) {
   const calls = [];
@@ -41,8 +41,8 @@ test('mutations carry CSRF, method, content type and exact bodies', async () => 
     assert.equal(init.credentials, 'same-origin');
     assert.ok(init.headers['X-CSRF-Token']);
   }
-  assert.deepEqual(JSON.parse(mutations[0].init.body), { intent: 'login', return_to: '/account' });
-  assert.deepEqual(JSON.parse(mutations[1].init.body), { email: 'person@example.test', intent: 'login', return_to: '/account' });
+  assert.deepEqual(JSON.parse(mutations[0].init.body), { intent: 'login', return_to: '/#/account' });
+  assert.deepEqual(JSON.parse(mutations[1].init.body), { email: 'person@example.test', intent: 'login', return_to: '/#/account' });
   assert.deepEqual(JSON.parse(mutations[2].init.body), { product_id: 'p', policy_version: 'v1', acknowledgements: ['ack'] });
   assert.equal(mutations[3].init.body, undefined);
   assert.equal(mutations[4].init.body, undefined);
@@ -131,3 +131,56 @@ test('client never accesses browser storage', async () => {
   const source = await (await import('node:fs/promises')).readFile(new URL('../public/js/account/http-client.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /localStorage|sessionStorage|innerHTML/);
 });
+
+test('return_to is the app\'s own location: base path plus hash route, same origin, never an odd path', async () => {
+  assert.equal(appReturnTo('checkout', { pathname: '/follow/' }), '/follow/#/checkout');
+  assert.equal(appReturnTo('account', { pathname: '/follow/index.html' }), '/follow/index.html#/account');
+  assert.equal(appReturnTo('account', { pathname: '/' }), '/#/account');
+  for (const odd of ['//evil.example/x', 'javascript:alert(1)', '/a b', '/a\\b', '', undefined, null, 5]) assert.equal(appReturnTo('account', { pathname: odd }), '/#/account', String(odd));
+  assert.equal(appReturnTo('account', undefined), '/#/account');
+  // And the sign-in request carries it, following ?next= from the current hash.
+  const saved = globalThis.location;
+  globalThis.location = { pathname: '/follow/', hash: '#/signin?next=checkout' };
+  try {
+    const mock = mockFetch([ok(token), ok({ authorize_url: 'https://id.example/a' })]);
+    const c = createHttpClient({ baseUrl: '/follow/api', fetchImpl: mock.fetchImpl });
+    await c.startSignIn('google');
+    assert.equal(JSON.parse(mock.calls[1].init.body).return_to, '/follow/#/checkout');
+    globalThis.location = { pathname: '/follow/', hash: '#/signin?next=evil' };
+    const mock2 = mockFetch([ok(token), ok({ authorize_url: 'https://id.example/a' })]);
+    await createHttpClient({ baseUrl: '/follow/api', fetchImpl: mock2.fetchImpl }).startSignIn('google');
+    assert.equal(JSON.parse(mock2.calls[1].init.body).return_to, '/follow/#/account');
+  } finally {
+    globalThis.location = saved;
+  }
+});
+
+test('signed out is a state, not an error: no entitlements and no purchase; other failures stay failures', async () => {
+  const mock = mockFetch([{ status: 401, body: { error: { code: 'no-session' } } }, { status: 401, body: { error: { code: 'no-session' } } }, { status: 503, body: { error: { code: 'unavailable' } } }, { status: 503, body: { error: { code: 'unavailable' } } }]);
+  const c = createHttpClient({ baseUrl: '/follow/api', fetchImpl: mock.fetchImpl });
+  assert.deepEqual(await c.entitlements(), []);
+  assert.equal(await c.purchase(), null);
+  assert.equal((await c.entitlements()).code, 'unavailable');
+  assert.equal((await c.purchase()).code, 'unavailable');
+});
+
+test('premiumQuestion reads /content/question/<id> and reports honest states; nothing is stored', async () => {
+  const q = { id: 'prod-x', prompt: 'p' };
+  const mock = mockFetch([ok(q), { status: 401, body: { error: { code: 'no-session' } } }, { status: 404, body: { error: { code: 'not-found' } } }, { status: 200, nonJson: true }]);
+  const c = createHttpClient({ baseUrl: '/follow/api', fetchImpl: mock.fetchImpl });
+  assert.deepEqual(await c.premiumQuestion('prod-x'), { ok: true, question: q });
+  assert.equal((await c.premiumQuestion('prod-x')).code, 'signed_out');
+  assert.equal((await c.premiumQuestion('a b/../c')).code, 'not_found');
+  assert.equal((await c.premiumQuestion('prod-x')).code, 'invalid_response');
+  assert.equal(mock.calls[0].url, '/follow/api/content/question/prod-x');
+  assert.equal(mock.calls[2].url, '/follow/api/content/question/a%20b%2F..%2Fc', 'the id is encoded, never a path');
+  assert.equal(mock.calls[0].init.method, 'GET');
+  const failing = createHttpClient({ baseUrl: '/follow/api', fetchImpl: async () => { throw new TypeError('offline'); } });
+  assert.equal((await failing.premiumQuestion('prod-x')).code, 'network_error');
+  assert.deepEqual(await createFakeClientPremium(), { ok: false, code: 'not_found' });
+});
+
+async function createFakeClientPremium() {
+  const { createFakeClient } = await import('../public/js/account/client.js');
+  return createFakeClient().premiumQuestion('prod-x');
+}
