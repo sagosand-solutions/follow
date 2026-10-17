@@ -58,7 +58,9 @@ export function readingMap(course, nextId) {
         h('div', {}, h('p', { class: 'map__count' }, t('course.lesson.progress', { answered: read, total: ids.length })), h('p', { class: 'visually-hidden' }, summaryText(ids))),
       );
     }
-    return h('div', { class: 'map__row' }, label, h('div', {}, cells(ids, nextId), h('p', { class: 'visually-hidden' }, summaryText(ids))));
+    // On a phone the row shows a count instead of every cell (the cells stay in the lesson cards below).
+    const read = ids.filter((id) => store.latest(id)).length;
+    return h('div', { class: 'map__row' }, label, h('div', {}, cells(ids, nextId), h('p', { class: 'map__count map__count--phone' }, t('course.lesson.progress', { answered: read, total: ids.length })), h('p', { class: 'visually-hidden' }, summaryText(ids))));
   });
   return h('div', { class: 'map' }, ...rows, legend());
 }
