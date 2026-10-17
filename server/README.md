@@ -91,16 +91,21 @@ python -m server.dev [--port 8000] [--content-root DIR --manifest FILE] \
                      [--site-root public] [--api-path /follow/api] [--site-path /follow] [--db PATH]
 ```
 
-Starts Uvicorn on `127.0.0.1` with `APP_ENV=development`, mock adapters and a
+Starts Uvicorn on `127.0.0.1` with `APP_ENV=development`, no adapters and a
 throwaway SQLite database (a temporary file unless `--db` is given). The CSRF and
 session keys are generated at start; the runner never reads a real secret from
 the environment and **refuses to start when `APP_ENV=production`** (exit 2).
 
 The API is mounted under `/follow/api` and the static site (default `public/`)
 under `/follow/` on the same origin, so the Origin and CSRF checks work in a
-browser; `/` redirects to the site. Provider and payment flows stay disabled
-(503) until real adapters exist — this runner makes no external call. Tests:
-`server/tests/test_dev.py` (production refused, mock app answers a GET).
+browser; `/` redirects to the site. Open `http://127.0.0.1:<port>/follow/` — use
+`127.0.0.1`, not `localhost`: the Origin check compares the configured origin
+exactly, so a mutating call from `localhost` gets 403. Provider and payment flows
+are disabled (503) until real adapters exist — this runner makes no external
+call. To point the site at this server, set `accountsApi` in `public/js/config.js`
+to the API path (e.g. `/follow/api`); it is `null` by default (fake client).
+Tests: `server/tests/test_dev.py` (production refused, loopback host, mock app
+answers a GET).
 
 ## Test gates
 

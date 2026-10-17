@@ -33,6 +33,7 @@ from .content_catalog import ContentCatalog
 from .db import Database
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 DEFAULT_API_PATH = "/follow/api"
 DEFAULT_SITE_PATH = "/follow"
@@ -43,7 +44,7 @@ class DevRefused(SystemExit):
 
 
 def dev_environment(port: int, db_path: str) -> dict[str, str]:
-    """Development-only settings: random keys, mock adapters, loopback origin.
+    """Development-only settings: random keys, no adapters, loopback origin.
 
     Only development values are built here. Real secrets are never read from the
     environment, and ``BASE_PATH`` stays at ``/`` because the API is mounted
@@ -138,7 +139,7 @@ def main(argv=None) -> int:
 
         print(f"dev server: {settings.public_origin}{args.site_path}/  "
               f"(api {settings.public_origin}{args.api_path}, mock mode)", flush=True)
-        uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="info")
+        uvicorn.run(app, host=HOST, port=args.port, log_level="info")
     finally:
         if temporary is not None:
             temporary.cleanup()
