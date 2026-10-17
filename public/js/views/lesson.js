@@ -1,6 +1,7 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { loadCourse, loadQuestion, loadConcepts, flattenLessons } from '../data.js';
+import { findCourseOf, loadQuestion, loadConcepts, flattenLessons } from '../data.js';
+import { courseHref, reviewHref } from '../catalog.js';
 import { store } from '../progress.js';
 import { errorNode } from './errors.js';
 import { currentAnswer } from '../answers.js';
@@ -17,14 +18,15 @@ function statusOf(answer) {
 }
 
 export async function lessonView({ id }) {
-  let course;
+  let course = null;
   try {
-    course = await loadCourse();
+    const found = await findCourseOf({ lessonId: id });
+    course = found ? found.course : null;
   } catch (err) {
     console.error(err);
     return { title: t('error.title'), node: errorNode(t('error.course')) };
   }
-  const entry = flattenLessons(course).find((e) => e.lesson.id === id);
+  const entry = course ? flattenLessons(course).find((e) => e.lesson.id === id) : null;
   if (!entry) {
     return { title: t('notfound.title'), node: h('div', { class: 'stack' }, h('h1', {}, t('notfound.title')), h('p', {}, t('notfound.text')), h('p', {}, h('a', { href: '#/course' }, t('notfound.course')))) };
   }
@@ -62,7 +64,7 @@ export async function lessonView({ id }) {
     const unsure = answered.filter((a) => a.outcome === 'unknown').length;
     const again = h('div', {}, h('p', { class: 'muted' }, t('lesson.lookAgainNone')));
     try {
-      const concepts = await loadConcepts().catch(() => null);
+      const concepts = await loadConcepts(course.id).catch(() => null);
       const seen = new Map();
       questions.forEach((q, i) => {
         const cur = currentAnswer(q, store.latest(q.id));
@@ -98,12 +100,12 @@ export async function lessonView({ id }) {
         'section',
         { class: 'lesson-next' },
         next ? h('a', { class: 'button button--primary button--block', href: `#/lesson/${next.id}` }, t('lesson.next', { title: next.title })) : h('p', {}, t('lesson.endOfCourse')),
-        reviewCount > 0 ? h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })) : null,
+        reviewCount > 0 ? h('a', { class: 'button button--secondary button--block', href: reviewHref(course.id) }, t('review.button', { count: reviewCount })) : null,
         buildsOn.length ? h('h3', {}, t('lesson.buildsOnTitle')) : null,
         buildsOn.length ? h('ul', {}, buildsOn.map((l) => h('li', {}, h('a', { href: `#/lesson/${l.id}` }, l.title)))) : null,
       ),
     );
   }
-  parts.push(h('p', {}, h('a', { href: '#/course' }, t('lesson.back'))));
+  parts.push(h('p', {}, h('a', { href: courseHref(course.id) }, t('lesson.back'))));
   return { title: lesson.title, node: h('div', { class: 'stack stack--loose' }, ...parts) };
 }

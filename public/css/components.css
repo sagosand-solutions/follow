@@ -481,3 +481,16 @@
   .map__count--phone { display: block; margin: 0; font-weight: 700; }
   .map .legend { display: none; }
 }
+
+/* Course catalog (home) and the premium note (course page) */
+.catalog { display: grid; gap: var(--s-4); }
+.catalog > h2 { font-size: var(--text-xl); }
+.catalog__list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-4); grid-template-columns: 1fr; }
+.course-card { display: grid; align-content: start; gap: var(--s-3); padding: var(--s-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.course-card__title { font-size: var(--text-lg); }
+.course-card__title a { color: var(--ink); text-decoration-thickness: 2px; }
+.course-card__text { color: var(--muted); }
+.course-card__progress { color: var(--muted); }
+.premium-note { border-inline-start-color: var(--line-strong); }
+@media (min-width: 60rem) { .catalog__list { grid-template-columns: repeat(3, 1fr); } }
+@media (forced-colors: active) { .course-card { border: 1px solid CanvasText; } }

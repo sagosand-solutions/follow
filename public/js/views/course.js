@@ -1,23 +1,29 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { loadCourse } from '../data.js';
+import { loadCourse, loadCatalog } from '../data.js';
+import { reviewHref, DEFAULT_COURSE } from '../catalog.js';
+import { premiumNote } from '../components/catalog-card.js';
 import { store } from '../progress.js';
 import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
+import { notFoundView } from './notfound.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
 import { eyebrow, facts, courseCounts, pluralTemplate } from '../components/ui.js';
 import { nextUp, hasProgress, readState } from '../course-nav.js';
 import { reviewQueue } from '../review.js';
 
-export async function courseView() {
+export async function courseView({ id = DEFAULT_COURSE } = {}) {
   let course;
   try {
-    course = await loadCourse();
+    course = await loadCourse(id);
   } catch (err) {
+    if (err.status === 404) return notFoundView({});
     console.error(err);
     return { title: t('error.title'), node: errorNode(t('error.course')) };
   }
+  const catalog = await loadCatalog();
+  const entry = catalog ? catalog.find((c) => c.id === id) : null;
   const lessonTitles = new Map();
   for (const level of course.levels) for (const l of level.lessons) lessonTitles.set(l.id, l.title);
 
@@ -25,7 +31,7 @@ export async function courseView() {
   const target = hasProgress(course, records) ? nextUp(course, records) : null;
   const reviewCount = reviewQueue(course, records).length;
   const reviewAction = reviewCount > 0
-    ? h('div', { class: 'actions actions--row' }, h('a', { class: 'button button--secondary button--block', href: '#/review' }, t('review.button', { count: reviewCount })))
+    ? h('div', { class: 'actions actions--row' }, h('a', { class: 'button button--secondary button--block', href: reviewHref(id) }, t('review.button', { count: reviewCount })))
     : null;
   const nextId = target ? target.questionId : null;
 
@@ -131,7 +137,7 @@ export async function courseView() {
     : null;
 
   return {
-    title: t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(t('course.eyebrow')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    title: course.title || t('course.title'),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, entry ? premiumNote(entry) : null, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }

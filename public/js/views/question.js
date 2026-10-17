@@ -4,7 +4,8 @@ import { renderText, renderInline } from '../text.js';
 import { seededShuffle, questionSeed } from '../shuffle.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
-import { loadQuestion, loadCourse, loadConcepts, loadTrace, findLessonOf } from '../data.js';
+import { loadQuestion, findCourseOf, loadConcepts, loadTrace, findLessonOf } from '../data.js';
+import { courseHref, reviewHref } from '../catalog.js';
 import { CONFIG } from '../config.js';
 import { navigate, refresh } from '../router.js';
 import { reviewQueue, nextReview } from '../review.js';
@@ -48,13 +49,14 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   let concepts = null;
   if (!course) {
     try {
-      course = await loadCourse();
+      const entry = await findCourseOf({ questionId: id });
+      course = entry ? entry.course : null;
     } catch {
       /* the question works without course context */
     }
   }
   try {
-    concepts = await loadConcepts();
+    concepts = await loadConcepts(course ? course.id : undefined);
   } catch {
     /* misconception titles fall back to ids */
   }
@@ -322,7 +324,7 @@ function navActions(ctx) {
       type: 'button', class: 'button button--primary button--block', 'data-action': 'next',
       onclick: () => {
         const target = nextReview(reviewQueue(ctx.course, store.answers()), q.id, ctx.course);
-        navigate(target ? `/review?question=${encodeURIComponent(target.questionId)}` : '/review');
+        navigate(reviewHref(ctx.course.id, target ? target.questionId : null).slice(1));
       },
     }, t('q.next'));
   } else if (where && where.position + 1 < where.lesson.questions.length) {
@@ -331,7 +333,7 @@ function navActions(ctx) {
   } else if (where) {
     next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate(`/lesson/${where.lesson.id}`) }, t('q.finish'));
   } else {
-    next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate('/course') }, t('q.backToCourse'));
+    next = h('button', { type: 'button', class: 'button button--primary button--block', 'data-action': 'next', onclick: () => navigate(courseHref(ctx.course ? ctx.course.id : undefined).slice(1)) }, t('q.backToCourse'));
   }
   const again = h(
     'button',
