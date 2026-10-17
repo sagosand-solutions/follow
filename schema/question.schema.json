@@ -116,7 +116,7 @@
     },
     "conceptId": {
       "type": "string",
-      "pattern": "^(py|prod)\\.[a-z][a-z0-9-]*$",
+      "pattern": "^(py|prod|sql)\\.[a-z][a-z0-9-]*$",
       "not": {
         "pattern": "\\s"
       }
