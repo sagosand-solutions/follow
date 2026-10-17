@@ -3,7 +3,7 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { store } from '../progress.js';
-import { courseHref, freeTotal } from '../catalog.js';
+import { courseHref } from '../catalog.js';
 import { facts, pluralTemplate, courseCounts } from './ui.js';
 
 // "Premium · coming soon" and what is true about it: more questions are in preparation, no date and no price.
@@ -23,7 +23,6 @@ function progressLine(course) {
 
 // entries: parsed catalog list; courses: Map of id -> parsed course file (a course that failed to load has no entry).
 export function catalogSection(entries, courses) {
-  const total = freeTotal(entries);
   const cards = entries.map((entry) => {
     const course = courses.get(entry.id) || null;
     const free = entry.free !== null ? entry.free : course ? courseCounts(course).questions : null;
@@ -38,5 +37,5 @@ export function catalogSection(entries, courses) {
       h('p', { class: 'course-card__progress small' }, progressLine(course)),
     );
   });
-  return h('section', { class: 'catalog', 'aria-labelledby': 'catalog-title' }, h('h2', { id: 'catalog-title' }, t('catalog.title')), total !== null ? h('p', { class: 'muted' }, t('catalog.lead', { n: total, m: entries.length })) : null, h('ul', { class: 'catalog__list' }, cards));
+  return h('section', { class: 'catalog', 'aria-labelledby': 'catalog-title' }, h('h2', { id: 'catalog-title' }, t('catalog.title')), h('ul', { class: 'catalog__list' }, cards));
 }
