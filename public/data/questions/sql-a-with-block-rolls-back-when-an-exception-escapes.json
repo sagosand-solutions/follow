@@ -1,0 +1,78 @@
+{
+  "schema_version": "0.1",
+  "id": "sql-a-with-block-rolls-back-when-an-exception-escapes",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "advanced",
+  "difficulty": 0.65,
+  "concepts": [
+    "sql.transactions-schema"
+  ],
+  "prompt": "Run this complete script fresh. Python's sqlite3 module is used with its default settings (a transaction is opened before an INSERT, UPDATE or DELETE). A transfer of 30 from Ann to Bo is done inside with conn:, and an exception is raised after the debit and before the credit. The exception is caught outside the block. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "import sqlite3\n\nconn = sqlite3.connect(\":memory:\")\nconn.executescript(\"\"\"\nCREATE TABLE accounts (id INTEGER PRIMARY KEY, owner TEXT, balance INTEGER);\nINSERT INTO accounts VALUES (1, 'Ann', 100), (2, 'Bo', 50);\n\"\"\")\ntry:\n    with conn:\n        conn.execute(\"UPDATE accounts SET balance = balance - 30 WHERE id = 1\")\n        raise ValueError(\"crash before the credit\")\n        conn.execute(\"UPDATE accounts SET balance = balance + 30 WHERE id = 2\")\nexcept ValueError:\n    pass\nprint(conn.execute(\"SELECT id, balance FROM accounts ORDER BY id\").fetchall())\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "debit-stays",
+      "text": "`[(1, 70), (2, 50)]`. The debit was executed and with conn: only commits, so the money is gone from Ann.",
+      "score": 0,
+      "feedback": "with conn: commits when the block ends normally and rolls back when an exception leaves it. The debit is undone.",
+      "misconception": "sql.a-with-block-never-rolls-back"
+    },
+    {
+      "id": "credit-runs",
+      "text": "`[(1, 70), (2, 80)]`. The credit still runs after the exception, so the transfer completes.",
+      "score": 0,
+      "feedback": "The statement after raise is never reached. Neither the credit nor the debit remains.",
+      "misconception": "sql.code-after-a-raise-still-runs"
+    },
+    {
+      "id": "credit-only",
+      "text": "`[(1, 100), (2, 80)]`. The debit is undone but the credit is kept, because it is the last statement.",
+      "score": 0,
+      "feedback": "The credit is not executed at all, because the raise comes first.",
+      "misconception": "sql.only-the-last-statement-survives-the-rollback"
+    },
+    {
+      "id": "never-ran",
+      "text": "`[(1, 100), (2, 50)]`. The debit never ran, because the exception came first and statements are queued.",
+      "score": 0.5,
+      "feedback": "The output is right, but the debit did run: execute() runs a statement at once. It is undone by the rollback of the with block.",
+      "misconception": "sql.statements-in-a-with-block-are-queued-until-the-end",
+      "partial_reason": "Correct: both balances unchanged. Incorrect: that the debit never ran; it ran and was rolled back."
+    },
+    {
+      "id": "atomic",
+      "text": "`[(1, 100), (2, 50)]`. The debit ran, the exception left the block, and the block rolled it back.",
+      "score": 1,
+      "feedback": "Correct. with conn: makes the block atomic: all of it is committed, or none of it.",
+      "misconception": null
+    }
+  ],
+  "explanation": "The debit runs inside the implicit transaction and Ann's balance is 70 for the moment. The ValueError leaves the with block, so the connection rolls the transaction back, and the credit line is never reached. Both balances are as they were: [(1, 100), (2, 50)]. A with conn: block turns a group of statements into one atomic change.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "[(1, 100), (2, 50)]\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (visible seed and ORDER BY on a unique key). A matching output alone cannot separate the correct model from the half option, which is why each half names a falsifier in its feedback.",
+    "limitations": "Only sqlite3 with :memory: and a visible seed (contract Q1-Q9); every result is ordered by a unique key; behaviours shown hold from SQLite 3.35 on; no real time, I/O, randomness, threads or imports (contract Q1-Q7). NULL logic shown here is standard SQL, not a SQLite quirk. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

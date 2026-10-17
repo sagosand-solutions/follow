@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1",
+  "id": "prod-new-key-for-every-attempt",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.65,
+  "concepts": [
+    "prod.backoff-idempotency",
+    "prod.timeouts-retries",
+    "py.lists"
+  ],
+  "prompt": "Run this complete script fresh. A client retries a payment after lost replies. The bank charges once for every distinct key it receives, and a lost reply does not undo the charge. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "charges = []\nscript = [\"lost\", \"lost\", \"ok\"]  # the bank charges every new key, even if the reply is lost\nfor attempt in range(1, 4):\n    key = \"pay-%d\" % attempt  # a new key for every attempt\n    if key not in charges:\n        charges.append(key)\n    if script[attempt - 1] == \"ok\":\n        break\nprint(len(charges), charges)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "one-key-protects",
+      "text": "`1 ['pay-1']`. Any idempotency key protects the retries, so only the first attempt is charged and the rest are ignored.",
+      "score": 0,
+      "feedback": "A key protects retries only if the retries reuse it. Here every attempt makes a new key, so the bank sees three different payments.",
+      "misconception": "prod.any-key-makes-retry-safe"
+    },
+    {
+      "id": "lost-never-charged",
+      "text": "`1 ['pay-3']`. A lost reply means the request never reached the bank, so only the last attempt is charged.",
+      "score": 0,
+      "feedback": "The bank charges on receipt. The first two replies were lost, but the requests arrived, so they are charged.",
+      "misconception": "prod.timed-out-request-never-processed"
+    },
+    {
+      "id": "break-first",
+      "text": "`2 ['pay-1', 'pay-2']`. The loop stops before the successful attempt is recorded, so only two keys are in the list.",
+      "score": 0,
+      "feedback": "The key is added before the outcome is tested, so the third key is recorded and then the loop breaks.",
+      "misconception": "prod.break-before-record"
+    },
+    {
+      "id": "bank-has-no-protection",
+      "text": "`3 ['pay-1', 'pay-2', 'pay-3']`. The bank has no duplicate protection at all, which is why it charges three times.",
+      "score": 0.5,
+      "feedback": "The count is right, but the bank does deduplicate by key. The retries are charged because each has a new key. With one stable key for the payment, the bank would charge once.",
+      "misconception": "prod.no-protection-means-duplicates",
+      "partial_reason": "Correct: the printed line. Incorrect: that the bank does not deduplicate; it does, but the client defeated it with a new key per attempt."
+    },
+    {
+      "id": "fresh-keys",
+      "text": "`3 ['pay-1', 'pay-2', 'pay-3']`. Each attempt has a new key, so the bank treats them as three separate payments.",
+      "score": 1,
+      "feedback": "Correct. The bank dedupes by key, but the client creates pay-1, pay-2 and pay-3. A retry must reuse the key of the first attempt (fixed once per payment) to be recognised as the same payment.",
+      "misconception": null
+    }
+  ],
+  "explanation": "Every attempt builds its own key from the attempt number, so the bank receives pay-1, pay-2 and pay-3. All three are new keys, so all three are charged, even though the first two replies were lost. An idempotency key must identify the payment, not the attempt: it is created once and reused by every retry.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "3 ['pay-1', 'pay-2', 'pay-3']\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (integer simulated time, visible delay and jitter values). A matching output alone cannot separate the correct model from the half-credit model, so that reasoning needs human review.",
+    "limitations": "Simulated time only: plain integer arithmetic on visible schedules and visible jitter values; no real time, I/O, randomness or imports (contract R1-R4). The misconception models are uncalibrated editorial hypotheses, not prevalence claims."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

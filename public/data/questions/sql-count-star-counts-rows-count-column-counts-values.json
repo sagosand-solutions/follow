@@ -1,0 +1,78 @@
+{
+  "schema_version": "0.1",
+  "id": "sql-count-star-counts-rows-count-column-counts-values",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.5,
+  "concepts": [
+    "sql.joining-grouping"
+  ],
+  "prompt": "Run this complete script fresh. Some sales have no amount (NULL). For each region the query counts COUNT(*) and COUNT(amount). What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "import sqlite3\n\nconn = sqlite3.connect(\":memory:\")\nconn.executescript(\"\"\"\nCREATE TABLE sales (id INTEGER PRIMARY KEY, region TEXT, rep TEXT, amount INTEGER);\nINSERT INTO sales VALUES\n  (1, 'N', 'Ann', 10), (2, 'N', 'Bo', NULL), (3, 'S', 'Cy', 20),\n  (4, 'S', 'Di', 30), (5, 'S', 'Ed', NULL), (6, 'E', 'Fay', NULL);\n\"\"\")\nrows = conn.execute(\"\"\"\nSELECT region, COUNT(*), COUNT(amount) FROM sales\nGROUP BY region ORDER BY region\n\"\"\").fetchall()\nprint(rows)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "same",
+      "text": "`[('E', 1, 1), ('N', 2, 2), ('S', 3, 3)]`. COUNT(amount) counts every row of the group, like COUNT(*), NULL or not.",
+      "score": 0,
+      "feedback": "COUNT(column) counts only the rows where the column is not NULL. E has one row but no amount.",
+      "misconception": "sql.count-of-a-column-counts-the-nulls"
+    },
+    {
+      "id": "both-skip",
+      "text": "`[('E', 0, 0), ('N', 1, 1), ('S', 2, 2)]`. Both counts skip the rows with a NULL amount, as a sum would.",
+      "score": 0,
+      "feedback": "COUNT(*) counts rows, whatever their columns hold. Region S has three rows.",
+      "misconception": "sql.count-star-skips-rows-with-a-null-column"
+    },
+    {
+      "id": "swapped",
+      "text": "`[('E', 0, 1), ('N', 1, 2), ('S', 2, 3)]`. COUNT(*) counts the rows with a value, and COUNT(amount) counts all the rows.",
+      "score": 0,
+      "feedback": "It is the other way round: COUNT(*) counts all the rows, COUNT(amount) only those with a value.",
+      "misconception": "sql.count-star-and-count-column-are-swapped"
+    },
+    {
+      "id": "not-zero",
+      "text": "`[('E', 1, 0), ('N', 2, 1), ('S', 3, 2)]`. COUNT(amount) counts the rows where the amount is not zero at all.",
+      "score": 0.5,
+      "feedback": "The output is right, but NULL is not zero, and an amount of 0 would be counted: COUNT(col) skips only NULL.",
+      "misconception": "sql.count-of-a-column-skips-zero",
+      "partial_reason": "Correct: the three triples. Incorrect: that COUNT(col) skips zeros; it skips NULL only."
+    },
+    {
+      "id": "rows-and-values",
+      "text": "`[('E', 1, 0), ('N', 2, 1), ('S', 3, 2)]`. COUNT(*) counts the rows; COUNT(amount) counts those with an amount.",
+      "score": 1,
+      "feedback": "Correct. COUNT(*) counts rows, COUNT(column) counts non-NULL values: they differ when NULLs are present.",
+      "misconception": null
+    }
+  ],
+  "explanation": "GROUP BY region makes three groups. E has one row (Fay, amount NULL): COUNT(*) is 1, COUNT(amount) is 0. N has two rows and one amount (10): 2 and 1. S has three rows and two amounts (20, 30): 3 and 2. The result ordered by region is [('E', 1, 0), ('N', 2, 1), ('S', 3, 2)].",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "[('E', 1, 0), ('N', 2, 1), ('S', 3, 2)]\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (visible seed and ORDER BY on a unique key). A matching output alone cannot separate the correct model from the half option, which is why each half names a falsifier in its feedback.",
+    "limitations": "Only sqlite3 with :memory: and a visible seed (contract Q1-Q9); every result is ordered by a unique key; behaviours shown hold from SQLite 3.35 on; no real time, I/O, randomness, threads or imports (contract Q1-Q7). NULL logic shown here is standard SQL, not a SQLite quirk. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

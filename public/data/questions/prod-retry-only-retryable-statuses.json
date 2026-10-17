@@ -1,0 +1,79 @@
+{
+  "schema_version": "0.1",
+  "id": "prod-retry-only-retryable-statuses",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.6,
+  "concepts": [
+    "prod.timeouts-retries",
+    "py.exceptions"
+  ],
+  "prompt": "Run this complete script fresh. RETRYABLE lists the statuses that are worth retrying. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "class ServiceError(Exception):\n    def __init__(self, status):\n        self.status = status\n\n\nclass FakeClient:\n    def __init__(self, script):\n        self.script = list(script)\n        self.calls = 0\n\n    def call(self):\n        self.calls += 1\n        outcome = self.script.pop(0)\n        if outcome == \"ok\":\n            return \"ok\"\n        raise ServiceError(int(outcome))\n\n\nRETRYABLE = {500, 502, 503}\n\n\ndef fetch(client, attempts):\n    for n in range(1, attempts + 1):\n        try:\n            return client.call()\n        except ServiceError as err:\n            print(\"attempt %d failed with %d\" % (n, err.status))\n            if err.status not in RETRYABLE:\n                return \"stopped\"\n    return \"gave up\"\n\n\nclient = FakeClient([\"503\", \"404\", \"ok\"])\nprint(fetch(client, 4), client.calls)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "retry-everything",
+      "text": "attempt 1 failed with 503 / attempt 2 failed with 404 / ok 3. Every error is retried, so the third call succeeds and its ok is returned.",
+      "score": 0,
+      "feedback": "Only statuses in RETRYABLE are retried. 404 is not in the set, so the function returns stopped at that point.",
+      "misconception": "prod.retry-all-errors"
+    },
+    {
+      "id": "first-error-stops",
+      "text": "attempt 1 failed with 503 / stopped 1. The first failure ends the loop, because a 503 is a server error that is not retried.",
+      "score": 0,
+      "feedback": "503 is in RETRYABLE, so the loop goes on to the second call. It stops only for the 404.",
+      "misconception": "prod.server-error-is-not-retried"
+    },
+    {
+      "id": "falls-through",
+      "text": "attempt 1 failed with 503 / attempt 2 failed with 404 / gave up 2. After the 404 the loop still ends with gave up, since it simply runs out.",
+      "score": 0,
+      "feedback": "A non-retryable status makes the function return stopped at once, so the final return gave up is not reached.",
+      "misconception": "prod.non-retryable-error-falls-through"
+    },
+    {
+      "id": "all-4xx-never",
+      "text": "attempt 1 failed with 503 / attempt 2 failed with 404 / stopped 2. Every 4xx error is the caller's fault and can never succeed on retry.",
+      "score": 0.5,
+      "feedback": "The output is right, but the rule is wrong: some 4xx statuses, such as 429 (too many requests) or 408 (request timeout), are routinely retried. The code stops because 404 is not in RETRYABLE, not because of its class.",
+      "misconception": "prod.all-4xx-never-retryable",
+      "partial_reason": "Correct: the printed lines and the stop at 404. Incorrect: that every 4xx is permanent; the set decides, and some 4xx statuses are retried."
+    },
+    {
+      "id": "set-decides",
+      "text": "attempt 1 failed with 503 / attempt 2 failed with 404 / stopped 2. 503 is retried, 404 is not in RETRYABLE, so it stops after 2 calls.",
+      "score": 1,
+      "feedback": "Correct. The first failure is a 503, which is in the set, so there is a second call. That fails with a 404, which is not in the set, so the function returns stopped. Two calls were made and the ok is never reached.",
+      "misconception": null
+    }
+  ],
+  "explanation": "Call 1 fails with 503, which is printed. 503 is in RETRYABLE, so the loop continues. Call 2 fails with 404, which is printed; 404 is not in RETRYABLE, so fetch returns stopped. client.calls is 2. The ok at the end of the script is never reached. A permanent error such as 404 would fail the same way on every retry, so retrying it only adds load.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "attempt 1 failed with 503\nattempt 2 failed with 404\nstopped 2\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (integer simulated time, visible failure script). A matching output alone cannot separate the correct model from the half-credit model, so that reasoning needs human review.",
+    "limitations": "Simulated only: scripted FakeClient failures and, where time matters, an integer-ms Clock; no real time, I/O, randomness or imports (contract R1-R4). The misconception models are uncalibrated editorial hypotheses, not prevalence claims. A simulation shows the stated model, not a real network."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

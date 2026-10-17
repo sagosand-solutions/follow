@@ -1,0 +1,1464 @@
+{
+  "question_id": "prod-timeout-does-not-cancel-the-work",
+  "schema_version": "0.3",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "5ff6136329d2ab34dfbc6688edaf6f755b0a281eeb6a28ea7f2e8aee2fb97877",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "t=500 created\nt=500 processed=3\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 2,
+          "function": "Clock",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Clock",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Clock",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 2,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Clock",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 2,
+          "function": "Clock",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {
+            "sleep": "<function sleep>"
+          },
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 3,
+          "function": "Timeout",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 3,
+          "function": "Timeout",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 3,
+          "function": "Timeout",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 3,
+          "function": "Timeout",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 4,
+          "function": "FakeService",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 4,
+          "function": "FakeService",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 4,
+          "function": "FakeService",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 14,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 4,
+          "function": "FakeService",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 19,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 4,
+          "function": "FakeService",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 19,
+          "locals": {
+            "call": "<function call>"
+          },
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 29,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 5,
+          "function": "__init__",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 2,
+          "locals": {
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 5,
+          "function": "__init__",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 3,
+          "locals": {
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 5,
+          "function": "__init__",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 3,
+          "locals": {
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 30,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 6,
+          "function": "__init__",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 14,
+          "locals": {
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "script": "[(800, 'created'), (800, 'created'), (100, 'created')]",
+            "self": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 6,
+          "function": "__init__",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 15,
+          "locals": {
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "script": "[(800, 'created'), (800, 'created'), (100, 'created')]",
+            "self": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 6,
+          "function": "__init__",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 16,
+          "locals": {
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "script": "[(800, 'created'), (800, 'created'), (100, 'created')]",
+            "self": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 6,
+          "function": "__init__",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 17,
+          "locals": {
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "script": "[(800, 'created'), (800, 'created'), (100, 'created')]",
+            "self": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 6,
+          "function": "__init__",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 17,
+          "locals": {
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "script": "[(800, 'created'), (800, 'created'), (100, 'created')]",
+            "self": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 31,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 32,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 33,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 19,
+          "locals": {
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 20,
+          "locals": {
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 21,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 22,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 23,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "frame_id": 8,
+          "function": "sleep",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {
+            "ms": "200",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "frame_id": 8,
+          "function": "sleep",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {
+            "ms": "200",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "frame_id": 8,
+          "function": "sleep",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {
+            "ms": "200",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 24,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "exception",
+          "exception": {
+            "line": 24,
+            "message": "",
+            "type": "Timeout"
+          },
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 24,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "unwind",
+          "exception": {
+            "line": 24,
+            "message": "",
+            "type": "Timeout"
+          },
+          "frame_id": 7,
+          "function": "call",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 24,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "exception",
+          "exception": {
+            "line": 33,
+            "message": "",
+            "type": "Timeout"
+          },
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 33,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 36,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 37,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "0",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 31,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 32,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 33,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 19,
+          "locals": {
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 20,
+          "locals": {
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 21,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 22,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 23,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "frame_id": 10,
+          "function": "sleep",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {
+            "ms": "200",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "frame_id": 10,
+          "function": "sleep",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {
+            "ms": "200",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "frame_id": 10,
+          "function": "sleep",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {
+            "ms": "200",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 24,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "exception",
+          "exception": {
+            "line": 24,
+            "message": "",
+            "type": "Timeout"
+          },
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 24,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "unwind",
+          "exception": {
+            "line": 24,
+            "message": "",
+            "type": "Timeout"
+          },
+          "frame_id": 9,
+          "function": "call",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 24,
+          "locals": {
+            "latency": "800",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "exception",
+          "exception": {
+            "line": 33,
+            "message": "",
+            "type": "Timeout"
+          },
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 33,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 36,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 37,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "1",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 31,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 32,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 33,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 19,
+          "locals": {
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 20,
+          "locals": {
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 21,
+          "locals": {
+            "latency": "100",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 22,
+          "locals": {
+            "latency": "100",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 25,
+          "locals": {
+            "latency": "100",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "call",
+          "frame_id": 12,
+          "function": "sleep",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {
+            "ms": "100",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "line",
+          "frame_id": 12,
+          "function": "sleep",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {
+            "ms": "100",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 2,
+          "event": "return",
+          "frame_id": 12,
+          "function": "sleep",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {
+            "ms": "100",
+            "self": "<__main__.Clock object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 26,
+          "locals": {
+            "latency": "100",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 11,
+          "function": "call",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 26,
+          "locals": {
+            "latency": "100",
+            "outcome": "'created'",
+            "self": "<__main__.FakeService object at 0x\u2026>",
+            "timeout": "200"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "'created'"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "result": "'created'",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 34,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "result": "'created'",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 35,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 14
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "result": "'created'",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 38,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 14
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "attempt": "2",
+            "clock": "<__main__.Clock object at 0x\u2026>",
+            "result": "'created'",
+            "svc": "<__main__.FakeService object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 38,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 32,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

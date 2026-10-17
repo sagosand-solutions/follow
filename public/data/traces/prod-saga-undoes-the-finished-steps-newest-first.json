@@ -1,0 +1,435 @@
+{
+  "question_id": "prod-saga-undoes-the-finished-steps-newest-first",
+  "schema_version": "0.3",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "bc060aa0ccfd26fa72afd7d0880d6f8ffe0acc028b8c107b849132a019d2ffc0",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 2,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "log": "[]",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 3,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "[]",
+            "log": "[]",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "[]",
+            "fails": "False",
+            "log": "[]",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "[]",
+            "fails": "False",
+            "log": "[]",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 8,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "[]",
+            "fails": "False",
+            "log": "['do reserve']",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve']",
+            "fails": "False",
+            "log": "['do reserve']",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve']",
+            "fails": "False",
+            "log": "['do reserve']",
+            "name": "'charge'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve']",
+            "fails": "False",
+            "log": "['do reserve']",
+            "name": "'charge'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 8,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve']",
+            "fails": "False",
+            "log": "['do reserve', 'do charge']",
+            "name": "'charge'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "False",
+            "log": "['do reserve', 'do charge']",
+            "name": "'charge'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge']",
+            "name": "'ship'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge']",
+            "name": "'ship'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 6,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship']",
+            "name": "'ship'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 7,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship']",
+            "name": "'ship'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship']",
+            "name": "'charge'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship', 'undo charge']",
+            "name": "'charge'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship', 'undo charge']",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 10,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "done": "['reserve', 'charge']",
+            "fails": "True",
+            "log": "['do reserve', 'do charge', 'fail ship', 'undo charge', 'undo reserve']",
+            "name": "'reserve'",
+            "steps": "[('reserve', False), ('charge', False), ('ship', True), ('notify', False), ('ar\u2026"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 72,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

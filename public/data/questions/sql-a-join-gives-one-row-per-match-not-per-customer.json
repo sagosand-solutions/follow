@@ -1,0 +1,78 @@
+{
+  "schema_version": "0.1",
+  "id": "sql-a-join-gives-one-row-per-match-not-per-customer",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "intermediate",
+  "difficulty": 0.55,
+  "concepts": [
+    "sql.joining-grouping"
+  ],
+  "prompt": "Run this complete script fresh. The script counts the customers and then the rows that LEFT JOIN returns for customers and orders. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "import sqlite3\n\nconn = sqlite3.connect(\":memory:\")\nconn.executescript(\"\"\"\nCREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, cust_id INTEGER, total INTEGER);\nINSERT INTO customers VALUES (1, 'Ann'), (2, 'Bo'), (3, 'Cy');\nINSERT INTO orders VALUES (10, 1, 30), (11, 1, 80), (12, 3, 20);\n\"\"\")\nn_customers = conn.execute(\"SELECT COUNT(*) FROM customers\").fetchone()[0]\nn_joined = conn.execute(\"\"\"\nSELECT COUNT(*) FROM customers c\nLEFT JOIN orders o ON o.cust_id = c.id\n\"\"\").fetchone()[0]\nprint(n_customers, n_joined)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "one-per-customer",
+      "text": "`3 3`. A LEFT JOIN still returns one row per customer, so the count stays at three, like the customers.",
+      "score": 0,
+      "feedback": "A customer with several orders gives several rows. Ann has two, so the join has four rows.",
+      "misconception": "sql.a-left-join-gives-one-row-per-left-row"
+    },
+    {
+      "id": "per-order",
+      "text": "`3 3`. The join returns one row per order, so the count is the number of orders, which is three.",
+      "score": 0,
+      "feedback": "LEFT JOIN also returns the customers without orders: Bo adds a row. The count is 3 orders plus 1.",
+      "misconception": "sql.a-left-join-gives-one-row-per-order"
+    },
+    {
+      "id": "all-pairs",
+      "text": "`3 9`. The join returns every customer with every order, so three times three rows.",
+      "score": 0,
+      "feedback": "Only the pairs that satisfy the ON condition are returned, plus the unmatched customers.",
+      "misconception": "sql.a-join-gives-every-combination"
+    },
+    {
+      "id": "first-twice",
+      "text": "`3 4`. The first customer is counted twice, which adds one row to the count of the join.",
+      "score": 0.5,
+      "feedback": "The count is right, but the extra row comes from Ann's second order, not from her being first. If Cy had two orders, the join would have five rows.",
+      "misconception": "sql.the-first-row-is-counted-twice",
+      "partial_reason": "Correct: 3 and 4. Incorrect: that the first customer is duplicated; any customer with two orders gives two rows."
+    },
+    {
+      "id": "per-match",
+      "text": "`3 4`. Ann has two orders (two rows), Bo has none (one NULL row), and Cy has one: four rows in all.",
+      "score": 1,
+      "feedback": "Correct. A join yields one row per matching pair, plus one row per unmatched left row with LEFT JOIN.",
+      "misconception": null
+    }
+  ],
+  "explanation": "There are three customers. LEFT JOIN returns one row per matching (customer, order) pair, and one row for a customer without a match. Ann gives two rows (orders 10 and 11), Bo gives one row with NULLs, Cy gives one row. The join has four rows although there are three customers. The script prints 3 4. A one-to-many join repeats the left row for each right row.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "3 4\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (visible seed and ORDER BY on a unique key). A matching output alone cannot separate the correct model from the half option, which is why each half names a falsifier in its feedback.",
+    "limitations": "Only sqlite3 with :memory: and a visible seed (contract Q1-Q9); every result is ordered by a unique key; behaviours shown hold from SQLite 3.35 on; no real time, I/O, randomness, threads or imports (contract Q1-Q7). NULL logic shown here is standard SQL, not a SQLite quirk. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

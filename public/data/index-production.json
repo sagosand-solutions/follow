@@ -1,0 +1,57 @@
+{
+  "data_version": 1,
+  "onboarding_question": "prod-timeout-does-not-cancel-the-work",
+  "questions": [
+    {
+      "concepts": [
+        "prod.messaging",
+        "py.lists"
+      ],
+      "difficulty": 0.6,
+      "id": "prod-crash-before-ack-delivers-twice",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "prod.backoff-idempotency",
+        "prod.timeouts-retries",
+        "py.lists"
+      ],
+      "difficulty": 0.65,
+      "id": "prod-new-key-for-every-attempt",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries",
+        "py.exceptions"
+      ],
+      "difficulty": 0.6,
+      "id": "prod-retry-only-retryable-statuses",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "prod.workflows-deploy",
+        "py.lists"
+      ],
+      "difficulty": 0.6,
+      "id": "prod-saga-undoes-the-finished-steps-newest-first",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "prod.timeouts-retries",
+        "py.exceptions"
+      ],
+      "difficulty": 0.6,
+      "id": "prod-timeout-does-not-cancel-the-work",
+      "level": "intermediate",
+      "type": "output"
+    }
+  ]
+}

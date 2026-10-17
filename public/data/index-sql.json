@@ -1,0 +1,51 @@
+{
+  "data_version": 1,
+  "onboarding_question": "sql-equals-null-matches-nothing",
+  "questions": [
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "difficulty": 0.55,
+      "id": "sql-a-join-gives-one-row-per-match-not-per-customer",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "sql.app-access"
+      ],
+      "difficulty": 0.55,
+      "id": "sql-a-loop-of-queries-costs-one-statement-per-row-plus-one",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "sql.transactions-schema"
+      ],
+      "difficulty": 0.65,
+      "id": "sql-a-with-block-rolls-back-when-an-exception-escapes",
+      "level": "advanced",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "sql.joining-grouping"
+      ],
+      "difficulty": 0.5,
+      "id": "sql-count-star-counts-rows-count-column-counts-values",
+      "level": "intermediate",
+      "type": "output"
+    },
+    {
+      "concepts": [
+        "sql.querying"
+      ],
+      "difficulty": 0.45,
+      "id": "sql-equals-null-matches-nothing",
+      "level": "beginner",
+      "type": "output"
+    }
+  ]
+}

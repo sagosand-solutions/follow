@@ -1,0 +1,1074 @@
+{
+  "question_id": "sql-a-loop-of-queries-costs-one-statement-per-row-plus-one",
+  "schema_version": "0.3",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "5ad248a78039fde8e0424b82ff1a671c60a439440bc059a63909a44f885c1b40",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "4 1 True\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 1,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 4,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 5,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 7,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 15,
+          "locals": {
+            "execute": "<function execute>"
+          },
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 2,
+          "function": "Counted",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 15,
+          "locals": {
+            "execute": "<function execute>",
+            "executemany": "<function executemany>"
+          },
+          "locals_omitted": 0,
+          "scope": "class",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {},
+          "globals_omitted": 0,
+          "line": 20,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 21,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 27,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 3,
+          "function": "__init__",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 7,
+          "locals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "self": "<__main__.Counted object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 3,
+          "function": "__init__",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 8,
+          "locals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "self": "<__main__.Counted object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 3,
+          "function": "__init__",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "self": "<__main__.Counted object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 3,
+          "function": "__init__",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 9,
+          "locals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "self": "<__main__.Counted object at 0x\u2026>"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "None"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "db": "<__main__.Counted object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 28,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 4,
+          "function": "execute",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "db": "<__main__.Counted object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM customers ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 4,
+          "function": "execute",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "db": "<__main__.Counted object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM customers ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 4,
+          "function": "execute",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "db": "<__main__.Counted object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM customers ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 4,
+          "function": "execute",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "db": "<__main__.Counted object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM customers ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "<sqlite3.Cursor object at 0x\u2026>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>"
+          },
+          "globals_omitted": 0,
+          "line": 29,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 30,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "1",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 31,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 5,
+          "function": "execute",
+          "globals": {
+            "cid": "1",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {
+            "params": "(1,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 5,
+          "function": "execute",
+          "globals": {
+            "cid": "1",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {
+            "params": "(1,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 5,
+          "function": "execute",
+          "globals": {
+            "cid": "1",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "(1,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 5,
+          "function": "execute",
+          "globals": {
+            "cid": "1",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[]"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "(1,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "<sqlite3.Cursor object at 0x\u2026>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "1",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 30,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "2",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 31,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 6,
+          "function": "execute",
+          "globals": {
+            "cid": "2",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {
+            "params": "(2,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 6,
+          "function": "execute",
+          "globals": {
+            "cid": "2",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {
+            "params": "(2,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 6,
+          "function": "execute",
+          "globals": {
+            "cid": "2",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "(2,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 6,
+          "function": "execute",
+          "globals": {
+            "cid": "2",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "(2,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "<sqlite3.Cursor object at 0x\u2026>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "2",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 30,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 31,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 7,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {
+            "params": "(3,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {
+            "params": "(3,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 7,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "(3,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 7,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,)]"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "(3,)",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT id FROM orders WHERE cust_id = ? ORDER BY id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "<sqlite3.Cursor object at 0x\u2026>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]"
+          },
+          "globals_omitted": 0,
+          "line": 30,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]"
+          },
+          "globals_omitted": 0,
+          "line": 32,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 33,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 34,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 35,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 34,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "call",
+          "frame_id": 8,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 11,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT o.id FROM customers c JOIN orders o ON o.cust_id = c.id ORDER BY o.id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 8,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 12,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT o.id FROM customers c JOIN orders o ON o.cust_id = c.id ORDER BY o.id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "line",
+          "frame_id": 8,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT o.id FROM customers c JOIN orders o ON o.cust_id = c.id ORDER BY o.id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0
+        },
+        {
+          "depth": 1,
+          "event": "return",
+          "frame_id": 8,
+          "function": "execute",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 13,
+          "locals": {
+            "params": "()",
+            "self": "<__main__.Counted object at 0x\u2026>",
+            "sql": "'SELECT o.id FROM customers c JOIN orders o ON o.cust_id = c.id ORDER BY o.id'"
+          },
+          "locals_omitted": 0,
+          "scope": "function",
+          "stdout_len": 0,
+          "value": "<sqlite3.Cursor object at 0x\u2026>"
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 36,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 34,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "joined": "[(10,), (11,), (12,)]",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 37,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "frame_id": 1,
+          "function": "<module>",
+          "globals": {
+            "cid": "3",
+            "conn": "<sqlite3.Connection object at 0x\u2026>",
+            "customers": "[(1,), (2,), (3,)]",
+            "db": "<__main__.Counted object at 0x\u2026>",
+            "joined": "[(10,), (11,), (12,)]",
+            "looped": "[(10,), (11,), (12,)]",
+            "n_loop": "4"
+          },
+          "globals_omitted": 0,
+          "line": 37,
+          "locals": {},
+          "locals_omitted": 0,
+          "scope": "module",
+          "stdout_len": 9,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "id": "sql",
+  "language": "python",
+  "levels": [
+    {
+      "lessons": [
+        {
+          "builds_on": [],
+          "id": "sql-null-logic",
+          "questions": [
+            "sql-equals-null-matches-nothing"
+          ],
+          "title": "NULL"
+        }
+      ],
+      "level": "beginner",
+      "title": "Beginner"
+    },
+    {
+      "lessons": [
+        {
+          "builds_on": [
+            "sql-null-logic"
+          ],
+          "id": "sql-joins",
+          "questions": [
+            "sql-a-join-gives-one-row-per-match-not-per-customer"
+          ],
+          "title": "JOIN"
+        },
+        {
+          "builds_on": [
+            "sql-joins"
+          ],
+          "id": "sql-group-by",
+          "questions": [
+            "sql-count-star-counts-rows-count-column-counts-values"
+          ],
+          "title": "GROUP BY"
+        }
+      ],
+      "level": "intermediate",
+      "title": "Intermediate"
+    },
+    {
+      "lessons": [
+        {
+          "builds_on": [
+            "sql-group-by"
+          ],
+          "id": "sql-transactions",
+          "questions": [
+            "sql-a-with-block-rolls-back-when-an-exception-escapes"
+          ],
+          "title": "Transactions"
+        },
+        {
+          "builds_on": [
+            "sql-transactions"
+          ],
+          "id": "sql-n-plus-one",
+          "questions": [
+            "sql-a-loop-of-queries-costs-one-statement-per-row-plus-one"
+          ],
+          "title": "N+1 queries"
+        }
+      ],
+      "level": "advanced",
+      "title": "Advanced"
+    }
+  ],
+  "title": "SQL: reading code"
+}

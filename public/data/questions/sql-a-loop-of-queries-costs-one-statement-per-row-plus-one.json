@@ -1,0 +1,78 @@
+{
+  "schema_version": "0.1",
+  "id": "sql-a-loop-of-queries-costs-one-statement-per-row-plus-one",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "advanced",
+  "difficulty": 0.55,
+  "concepts": [
+    "sql.app-access"
+  ],
+  "prompt": "Run this complete script fresh. Counted counts the calls the program makes. The first part fetches the customers and then queries the orders of each customer in a loop; the second part gets the same orders with one JOIN. What is printed: the number of calls of the loop, of the join, and whether the order ids are the same?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "import sqlite3\n\n\nclass Counted:\n    \"\"\"Counts the calls the program makes to execute and executemany.\"\"\"\n\n    def __init__(self, conn):\n        self.conn = conn\n        self.calls = 0\n\n    def execute(self, sql, params=()):\n        self.calls += 1\n        return self.conn.execute(sql, params)\n\n    def executemany(self, sql, rows):\n        self.calls += 1\n        return self.conn.executemany(sql, rows)\n\n\nconn = sqlite3.connect(\":memory:\")\nconn.executescript(\"\"\"\nCREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT);\nCREATE TABLE orders (id INTEGER PRIMARY KEY, cust_id INTEGER, total INTEGER);\nINSERT INTO customers VALUES (1, 'Ann'), (2, 'Bo'), (3, 'Cy');\nINSERT INTO orders VALUES (10, 1, 30), (11, 1, 80), (12, 3, 20);\n\"\"\")\ndb = Counted(conn)\ncustomers = db.execute(\"SELECT id FROM customers ORDER BY id\").fetchall()\nlooped = []\nfor (cid,) in customers:\n    looped += db.execute(\"SELECT id FROM orders WHERE cust_id = ? ORDER BY id\", (cid,)).fetchall()\nn_loop = db.calls\ndb.calls = 0\njoined = db.execute(\n    \"SELECT o.id FROM customers c JOIN orders o ON o.cust_id = c.id ORDER BY o.id\"\n).fetchall()\nprint(n_loop, db.calls, looped == joined)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "first-free",
+      "text": "`3 1 True`. The first query does not count, so the loop makes three calls, one per customer.",
+      "score": 0,
+      "feedback": "Every call of db.execute counts, the first query too: 1 + 3 = 4.",
+      "misconception": "sql.the-first-query-of-a-loop-is-not-counted"
+    },
+    {
+      "id": "loop-is-one",
+      "text": "`1 1 True`. A loop of queries counts as one call, just as the join counts as one call.",
+      "score": 0,
+      "feedback": "Each pass through the loop calls db.execute once more: the loop makes 3 calls after the first.",
+      "misconception": "sql.a-loop-of-queries-is-one-statement"
+    },
+    {
+      "id": "different",
+      "text": "`4 1 False`. The join returns different orders from the loop, because it combines two tables.",
+      "score": 0,
+      "feedback": "Both give orders 10, 11 and 12 in id order. The result is the same, only the number of calls differs.",
+      "misconception": "sql.a-join-returns-different-rows-from-a-loop"
+    },
+    {
+      "id": "per-order",
+      "text": "`4 1 True`. The loop makes one call per order plus one for the first query: 3 + 1 calls.",
+      "score": 0.5,
+      "feedback": "The output is right here only because there are as many customers as orders. The loop makes one call per customer: with 3 customers and 5 orders it would still make 4.",
+      "misconception": "sql.the-loop-makes-one-call-per-order",
+      "partial_reason": "Correct: 4, 1 and True. Incorrect: that the loop makes a call per order; it makes one per customer."
+    },
+    {
+      "id": "n-plus-one",
+      "text": "`4 1 True`. The loop makes one call for the customers and one per customer; the join, one.",
+      "score": 1,
+      "feedback": "Correct. This is the N+1 pattern: N queries for the rows plus one for the list, where one JOIN does it in a call.",
+      "misconception": null
+    }
+  ],
+  "explanation": "The first call fetches the three customers. The loop then calls db.execute once for each customer: three more calls, 4 in all. The join fetches the same orders (10, 11, 12) with a single call. The script prints 4 1 True. This is the N+1 pattern: the number of statements grows with the number of rows, while the result could be fetched with one statement. The result is equal; only the number of statements differs.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "4 1 True\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (visible seed and ORDER BY on a unique key). A matching output alone cannot separate the correct model from the half option, which is why each half names a falsifier in its feedback.",
+    "limitations": "Only sqlite3 with :memory: and a visible seed (contract Q1-Q9); every result is ordered by a unique key; behaviours shown hold from SQLite 3.35 on; no real time, I/O, randomness, threads or imports (contract Q1-Q7). NULL logic shown here is standard SQL, not a SQLite quirk. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

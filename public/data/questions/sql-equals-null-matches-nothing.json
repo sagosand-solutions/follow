@@ -1,0 +1,78 @@
+{
+  "schema_version": "0.1",
+  "id": "sql-equals-null-matches-nothing",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.45,
+  "concepts": [
+    "sql.querying"
+  ],
+  "prompt": "Run this complete script fresh. One of the three scores is missing (NULL). One query asks for rows WHERE points = NULL, the other for rows WHERE points IS NULL. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "import sqlite3\n\nconn = sqlite3.connect(\":memory:\")\nconn.executescript(\"\"\"\nCREATE TABLE scores (id INTEGER PRIMARY KEY, name TEXT, points INTEGER);\nINSERT INTO scores VALUES (1, 'Ana', 10), (2, 'Ben', NULL), (3, 'Cy', 0);\n\"\"\")\neq = conn.execute(\"SELECT name FROM scores WHERE points = NULL ORDER BY id\").fetchall()\nis_null = conn.execute(\"SELECT name FROM scores WHERE points IS NULL ORDER BY id\").fetchall()\nprint(eq, is_null)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "equals-works",
+      "text": "`[('Ben',)] [('Ben',)]`. = NULL is just another way to write IS NULL, so both queries find Ben.",
+      "score": 0,
+      "feedback": "A comparison with NULL is never true, not even NULL = NULL. Only IS NULL finds the row.",
+      "misconception": "sql.equals-null-works-like-is-null"
+    },
+    {
+      "id": "nothing-matches",
+      "text": "`[] []`. NULL cannot be matched by any query, so both queries find nothing.",
+      "score": 0,
+      "feedback": "IS NULL is the test that matches a missing value. It finds Ben.",
+      "misconception": "sql.null-can-never-be-matched"
+    },
+    {
+      "id": "null-is-zero",
+      "text": "`[('Ben',), ('Cy',)] [('Ben',)]`. = NULL treats NULL as 0, so it finds Ben and Cy, whose points are missing or zero.",
+      "score": 0,
+      "feedback": "NULL is not 0. The comparison points = NULL is unknown for every row, so no row is selected.",
+      "misconception": "sql.null-compares-equal-to-zero"
+    },
+    {
+      "id": "always-false",
+      "text": "`[] [('Ben',)]`. points = NULL is simply false for every row, so nothing is selected.",
+      "score": 0.5,
+      "feedback": "The output is right, but the comparison is unknown, not false: WHERE NOT (points = NULL) selects nothing either. If it were false, NOT would select every row.",
+      "misconception": "sql.a-comparison-with-null-is-false",
+      "partial_reason": "Correct: the empty list and Ben. Incorrect: that the comparison is false; it is unknown, which a WHERE clause also treats as not selected."
+    },
+    {
+      "id": "is-null",
+      "text": "`[] [('Ben',)]`. points = NULL is unknown for every row so nothing is selected; IS NULL finds Ben.",
+      "score": 1,
+      "feedback": "Correct. Use IS NULL (or IS NOT NULL) to test for a missing value; = and <> never match it.",
+      "misconception": null
+    }
+  ],
+  "explanation": "A comparison with NULL gives neither true nor false but unknown. WHERE keeps only rows for which the condition is true, so points = NULL selects no row at all, even though Ben's points are NULL. IS NULL is the test made for this: it is true for Ben only. The script prints [] [('Ben',)].",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "[] [('Ben',)]\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "The displayed script produces the expected output deterministically (visible seed and ORDER BY on a unique key). A matching output alone cannot separate the correct model from the half option, which is why each half names a falsifier in its feedback.",
+    "limitations": "Only sqlite3 with :memory: and a visible seed (contract Q1-Q9); every result is ordered by a unique key; behaviours shown hold from SQLite 3.35 on; no real time, I/O, randomness, threads or imports (contract Q1-Q7). NULL logic shown here is standard SQL, not a SQLite quirk. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

@@ -1,0 +1,67 @@
+{
+  "id": "production",
+  "language": "python",
+  "levels": [
+    {
+      "lessons": [
+        {
+          "builds_on": [],
+          "id": "prod-timeouts",
+          "questions": [
+            "prod-timeout-does-not-cancel-the-work"
+          ],
+          "title": "Timeouts"
+        },
+        {
+          "builds_on": [
+            "prod-timeouts"
+          ],
+          "id": "prod-retries",
+          "questions": [
+            "prod-retry-only-retryable-statuses"
+          ],
+          "title": "Retries"
+        },
+        {
+          "builds_on": [
+            "prod-retries"
+          ],
+          "id": "prod-idempotency",
+          "questions": [
+            "prod-new-key-for-every-attempt"
+          ],
+          "title": "Idempotency"
+        }
+      ],
+      "level": "intermediate",
+      "title": "Intermediate"
+    },
+    {
+      "lessons": [
+        {
+          "builds_on": [
+            "prod-idempotency"
+          ],
+          "id": "prod-queues",
+          "questions": [
+            "prod-crash-before-ack-delivers-twice"
+          ],
+          "title": "Queues"
+        },
+        {
+          "builds_on": [
+            "prod-queues"
+          ],
+          "id": "prod-sagas",
+          "questions": [
+            "prod-saga-undoes-the-finished-steps-newest-first"
+          ],
+          "title": "Sagas"
+        }
+      ],
+      "level": "advanced",
+      "title": "Advanced"
+    }
+  ],
+  "title": "Production patterns: reading code"
+}
