@@ -132,15 +132,15 @@ class TestSchemaSelfValidation(unittest.TestCase):
         zero_two = build_validator(TRACE_SCHEMA_PATH)
         self.assertTrue(list(zero_two.iter_errors(doc("0.2"))), "0.2 schema rejects 0.3 step fields")
 
-    def test_concept_id_prefixes_py_and_prod_in_all_five_schemas(self):
+    def test_concept_id_prefixes_py_prod_and_sql_in_all_five_schemas(self):
         names = ("question", "concept-map", "study", "study-manifest", "exam")
-        valid = ("py.values", "prod.queries", "prod.a1", "py.slice-stop-is-count", "prod.x-y")
-        invalid = ("sql.select", "prodx.a", "prod", "prod.", "py.", "Py.values", "PROD.queries", "prod.Queries",
-                   "prod.1a", "prod.a b", "prod.a\n", " prod.a", "py:values", "prod..a", "")
+        valid = ("py.values", "prod.queries", "prod.a1", "py.slice-stop-is-count", "prod.x-y", "sql.select", "sql.join-keys", "sql.a1")
+        invalid = ("js.x", "sqlx.a", "sqlite.a", "prodx.a", "prod", "prod.", "py.", "sql", "sql.", "Py.values", "PROD.queries", "SQL.select", "Sql.select",
+                   "prod.Queries", "sql.Select", "prod.1a", "sql.1a", "prod.a b", "sql.a b", "prod.a\n", "sql.a\n", " prod.a", " sql.a", "py:values", "sql:select", "prod..a", "sql..a", "")
         for name in names:
             schema = load(SCHEMA_DIR / f"{name}.schema.json")
             definition = schema["$defs"]["conceptId"]
-            self.assertEqual(definition["pattern"], r"^(py|prod)\.[a-z][a-z0-9-]*$", name)
+            self.assertEqual(definition["pattern"], r"^(py|prod|sql)\.[a-z][a-z0-9-]*$", name)
             validator = Draft202012Validator(definition)
             for value in valid:
                 with self.subTest(schema=name, value=value):
@@ -150,23 +150,23 @@ class TestSchemaSelfValidation(unittest.TestCase):
                     self.assertTrue(list(validator.iter_errors(value)))
             self.assertFalse(list(validator.iter_errors(1)) == [], "non-strings stay invalid")
 
-    def test_concept_map_and_question_accept_prod_ids_and_reject_other_prefixes(self):
-        concept_map = copy.deepcopy(load(CONCEPTS_PATH))
-        concept_map["concepts"].append({"id": "prod.reading-queries", "title": "Reading queries", "level": "beginner", "prerequisites": []})
+    def test_concept_map_and_question_accept_prod_and_sql_ids_and_reject_other_prefixes(self):
         map_validator = build_validator(MAP_SCHEMA_PATH)
-        self.assertEqual(list(map_validator.iter_errors(concept_map)), [])
-        for bad in ("sql.select", "prodx.a", "Prod.a"):
-            broken = copy.deepcopy(concept_map)
-            broken["concepts"][-1]["id"] = bad
-            with self.subTest(prefix=bad):
-                self.assertTrue(list(map_validator.iter_errors(broken)))
-        question = load(EXAMPLE_PATH)
         question_validator = build_validator(QUESTION_SCHEMA_PATH)
-        prod_question = copy.deepcopy(question)
-        prod_question["concepts"] = ["prod.reading-queries"]
-        self.assertEqual(list(question_validator.iter_errors(prod_question)), [])
-        prod_question["concepts"] = ["sql.select"]
-        self.assertTrue(list(question_validator.iter_errors(prod_question)))
+        for prefix in ("prod", "sql"):
+            with self.subTest(prefix=prefix):
+                concept_map = copy.deepcopy(load(CONCEPTS_PATH))
+                concept_map["concepts"].append({"id": f"{prefix}.reading-queries", "title": "Reading queries", "level": "beginner", "prerequisites": []})
+                self.assertEqual(list(map_validator.iter_errors(concept_map)), [])
+                for bad in ("js", "prodx", "sqlx", "Prod", "SQL"):
+                    broken = copy.deepcopy(concept_map)
+                    broken["concepts"][-1]["id"] = f"{bad}.a"
+                    self.assertTrue(list(map_validator.iter_errors(broken)), bad)
+                question = copy.deepcopy(load(EXAMPLE_PATH))
+                question["concepts"] = [f"{prefix}.reading-queries"]
+                self.assertEqual(list(question_validator.iter_errors(question)), [])
+                question["concepts"] = ["js.reading-queries"]
+                self.assertTrue(list(question_validator.iter_errors(question)))
 
     def test_schemas_are_self_contained(self):
         def collect_refs(node, found):
