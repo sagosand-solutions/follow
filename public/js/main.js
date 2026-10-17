@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { initTheme, cycleTheme, readTheme } from './theme.js';
+import { initTheme, setTheme, readTheme, THEMES } from './theme.js';
 import { loadLocale, t } from './i18n.js';
 import { h } from './dom.js';
 import { registerRoute, startRouter, setNotFound } from './router.js';
@@ -36,17 +36,12 @@ async function boot() {
   });
   const header = document.getElementById('site-header');
   const tagline = h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand__mark', 'aria-hidden': 'true' }, h('span'), h('span'), h('span')), h('span', { class: 'brand__text' }, CONFIG.productName ? CONFIG.productName : t('site.brand')));
-  const themeButton = h('button', { type: 'button', class: 'theme-toggle' });
-  const label = () => {
-    const mode = readTheme();
-    themeButton.textContent = t(`theme.${mode}`);
-    themeButton.setAttribute('aria-label', t('theme.label', { mode: t(`theme.${mode}`) }));
-  };
-  themeButton.addEventListener('click', () => {
-    cycleTheme();
-    label();
+  // One native select: keyboard and screen-reader friendly, and it scales to any number of themes.
+  const themeButton = h('select', { class: 'theme-select', 'aria-label': t('theme.label'), name: 'theme' }, THEMES.map((mode) => h('option', { value: mode }, t(`theme.name.${mode}`))));
+  themeButton.value = readTheme();
+  themeButton.addEventListener('change', () => {
+    themeButton.value = setTheme(themeButton.value);
   });
-  label();
   // The Continue link lives in the header and must follow every route change and
   // every answer change without re-rendering the whole header.
   const continueSlot = h('span', { class: 'nav__continue' });

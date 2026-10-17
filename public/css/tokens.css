@@ -124,3 +124,86 @@
   --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
   --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
+
+/* Selectable themes. Each block defines every colour and effect token; a test keeps the sets identical to :root.
+   Declared after the OS-driven dark block so they win over it (equal specificity, later wins). */
+
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #f6f1e7; --surface: #fffdf8; --surface-2: #ece4d3;
+  --ink: #2a2118; --muted: #5d5040; --line: #ddd2bc; --line-strong: #7d6e57;
+  --link: #1f4f8f; --focus: #1f4f8f;
+  --accent-attention: #ffc83d; --accent-attention-hover: #ffd566; --on-accent-attention: #2a2118;
+  --accent-attention-text: #7a4f00; --accent-line: #a87400;
+  --shadow-attention: none; --shadow-sheet: 0 -24px 60px -20px rgba(42, 33, 24, 0.45); --attention-wash: rgba(255, 200, 61, 0.22); --scrim: rgba(42, 33, 24, 0.6);
+  --outcome-right: #1f5a34; --outcome-right-bg: #e4efde;
+  --outcome-partial: #7a4f00; --outcome-partial-bg: #fbeec6;
+  --outcome-wrong: #8a2a45; --outcome-wrong-bg: #f7e2e3;
+  --stage-bg: #1d1914; --stage-bg-raised: #28221b; --stage-line: #3a3228;
+  --stage-ink: #f1e9dc; --stage-muted: #b8ab97; --stage-linenum: #a99c88;
+  --stage-mark: #33291a; --stage-mark-edge: #ffc83d; --stage-focus: #ffc83d; --stage-link: #b9c8ff;
+  --tok-keyword: #ff9ac1; --tok-string: #9be3a8; --tok-number: #ffc07a; --tok-comment: #a99c88; --tok-function: #8fb4ff; --tok-builtin: #7fe0e8; --tok-decorator: #c9a8ff;
+  --mark-none: transparent; --mark-right: #1f5a34; --mark-partial: #a87400; --mark-wrong: #8a2a45; --outcome-unknown: #7d6e57;
+  --shadow-stage: none;
+}
+
+:root[data-theme="slate"] {
+  color-scheme: dark;
+  --bg: #1b1f27; --surface: #242a35; --surface-2: #2f3744;
+  --ink: #e6e9ef; --muted: #a9b2c0; --line: #323a48; --line-strong: #8590a3;
+  --link: #9ec1ff; --focus: #ffc83d;
+  --accent-attention: #ffc83d; --accent-attention-hover: #ffd566; --on-accent-attention: #1b1f27;
+  --accent-attention-text: #ffc83d; --accent-line: #ffc83d;
+  --shadow-attention: none; --shadow-sheet: 0 -24px 60px -20px rgba(0, 0, 0, 0.6); --attention-wash: rgba(255, 200, 61, 0.22); --scrim: rgba(10, 12, 16, 0.65);
+  --outcome-right: #94d7ad; --outcome-right-bg: #1b3126;
+  --outcome-partial: #f0c765; --outcome-partial-bg: #3a2f14;
+  --outcome-wrong: #f4a3bd; --outcome-wrong-bg: #3d1f2c;
+  --stage-bg: #12151b; --stage-bg-raised: #1c212b; --stage-line: #2c3442;
+  --stage-ink: #e6e9ef; --stage-muted: #a9b2c0; --stage-linenum: #8f9ab0;
+  --stage-mark: #2b2a1f; --stage-mark-edge: #ffc83d; --stage-focus: #ffc83d; --stage-link: #aeb6ff;
+  --tok-keyword: #ff9ac1; --tok-string: #9be3a8; --tok-number: #ffc07a; --tok-comment: #8f9ab0; --tok-function: #8fb4ff; --tok-builtin: #7fe0e8; --tok-decorator: #c9a8ff;
+  --mark-none: transparent; --mark-right: #94d7ad; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #8590a3;
+  --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+:root[data-theme="contrast"] {
+  color-scheme: dark;
+  --bg: #000000; --surface: #0b0b0b; --surface-2: #1c1c1c;
+  --ink: #ffffff; --muted: #e0e0e0; --line: #8a8a8a; --line-strong: #d0d0d0;
+  --link: #9dc4ff; --focus: #ffe600;
+  --accent-attention: #ffd84d; --accent-attention-hover: #ffe58a; --on-accent-attention: #000000;
+  --accent-attention-text: #ffd84d; --accent-line: #ffd84d;
+  --shadow-attention: none; --shadow-sheet: 0 -24px 60px -20px rgba(0, 0, 0, 0.9); --attention-wash: rgba(255, 216, 77, 0.3); --scrim: rgba(0, 0, 0, 0.8);
+  --outcome-right: #9be7b4; --outcome-right-bg: #05200f;
+  --outcome-partial: #ffd84d; --outcome-partial-bg: #2a2000;
+  --outcome-wrong: #ffb3c8; --outcome-wrong-bg: #2f0613;
+  --stage-bg: #000000; --stage-bg-raised: #141414; --stage-line: #8a8a8a;
+  --stage-ink: #ffffff; --stage-muted: #e0e0e0; --stage-linenum: #d0d0d0;
+  --stage-mark: #2a2200; --stage-mark-edge: #ffd84d; --stage-focus: #ffe600; --stage-link: #b3c3ff;
+  --tok-keyword: #ffb3d9; --tok-string: #b6f0c3; --tok-number: #ffd29a; --tok-comment: #d0d0d0; --tok-function: #b3ccff; --tok-builtin: #9ff0f7; --tok-decorator: #dcc3ff;
+  --mark-none: transparent; --mark-right: #9be7b4; --mark-partial: #ffd84d; --mark-wrong: #ffb3c8; --outcome-unknown: #d0d0d0;
+  --shadow-stage: 0 0 0 1px #8a8a8a inset;
+}
+
+/* Auto follows the operating system's contrast preference: the same values as the Contrast theme (a test keeps them identical). */
+@media (prefers-contrast: more) {
+  :root:not([data-theme]) {
+    /* high contrast, aims at WCAG AAA (7:1) for text */
+    color-scheme: dark;
+    --bg: #000000; --surface: #0b0b0b; --surface-2: #1c1c1c;
+    --ink: #ffffff; --muted: #e0e0e0; --line: #8a8a8a; --line-strong: #d0d0d0;
+    --link: #9dc4ff; --focus: #ffe600;
+    --accent-attention: #ffd84d; --accent-attention-hover: #ffe58a; --on-accent-attention: #000000;
+    --accent-attention-text: #ffd84d; --accent-line: #ffd84d;
+    --shadow-attention: none; --shadow-sheet: 0 -24px 60px -20px rgba(0, 0, 0, 0.9); --attention-wash: rgba(255, 216, 77, 0.3); --scrim: rgba(0, 0, 0, 0.8);
+    --outcome-right: #9be7b4; --outcome-right-bg: #05200f;
+    --outcome-partial: #ffd84d; --outcome-partial-bg: #2a2000;
+    --outcome-wrong: #ffb3c8; --outcome-wrong-bg: #2f0613;
+    --stage-bg: #000000; --stage-bg-raised: #141414; --stage-line: #8a8a8a;
+    --stage-ink: #ffffff; --stage-muted: #e0e0e0; --stage-linenum: #d0d0d0;
+    --stage-mark: #2a2200; --stage-mark-edge: #ffd84d; --stage-focus: #ffe600; --stage-link: #b3c3ff;
+    --tok-keyword: #ffb3d9; --tok-string: #b6f0c3; --tok-number: #ffd29a; --tok-comment: #d0d0d0; --tok-function: #b3ccff; --tok-builtin: #9ff0f7; --tok-decorator: #dcc3ff;
+    --mark-none: transparent; --mark-right: #9be7b4; --mark-partial: #ffd84d; --mark-wrong: #ffb3c8; --outcome-unknown: #d0d0d0;
+    --shadow-stage: 0 0 0 1px #8a8a8a inset;
+  }
+}

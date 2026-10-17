@@ -49,10 +49,7 @@
   "nav.label": "Main",
   "nav.course": "Course",
   "nav.about": "About",
-  "theme.label": "Colour theme: {mode}",
-  "theme.auto": "auto",
-  "theme.light": "light",
-  "theme.dark": "dark",
+  "theme.label": "Theme",
   "footer.license": "Platform: AGPL-3.0. Question schema and validator: MIT. Questions and course content: CC BY-SA 4.0.",
   "footer.draft": "Early draft. Expect rough edges.",
   "loading": "Loading…",
@@ -340,5 +337,11 @@
   "moment.revisited.last": "The most recent one is in:",
   "moment.readingAt": "You were reading {lesson}, question {n}.",
   "moment.firstRun": "This is how the computer read it.",
-  "moment.firstRun.skip": "Skip"
+  "moment.firstRun.skip": "Skip",
+  "theme.name.auto": "Auto",
+  "theme.name.light": "Light",
+  "theme.name.dark": "Night",
+  "theme.name.paper": "Paper",
+  "theme.name.slate": "Slate",
+  "theme.name.contrast": "Contrast"
 }
