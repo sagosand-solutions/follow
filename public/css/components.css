@@ -494,3 +494,13 @@
 .premium-note { border-inline-start-color: var(--line-strong); }
 @media (min-width: 60rem) { .catalog__list { grid-template-columns: repeat(3, 1fr); } }
 @media (forced-colors: active) { .course-card { border: 1px solid CanvasText; } }
+
+/* Phone: the course cards come right after the first buttons; the code stage follows them. */
+@media (max-width: 59.99rem) {
+  .home > .hero { display: contents; }
+  .home .hero__text { order: 1; }
+  .home > .catalog { order: 2; }
+  .home .hero-stage { order: 3; }
+  .home > .home-notes { order: 4; }
+  .home > .map-card { order: 5; }
+}

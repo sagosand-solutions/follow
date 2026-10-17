@@ -10,7 +10,7 @@ import { notFoundView } from './notfound.js';
 import { cells, readingMap, summaryText } from '../components/map.js';
 import { summaryNode } from '../components/summary.js';
 import { eyebrow, facts, courseCounts, pluralTemplate } from '../components/ui.js';
-import { nextUp, hasProgress, readState } from '../course-nav.js';
+import { nextUp, hasProgress, readState, homeShortcuts } from '../course-nav.js';
 import { reviewQueue } from '../review.js';
 
 export async function courseView({ id = DEFAULT_COURSE } = {}) {
@@ -125,6 +125,11 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
     dialog,
   );
 
+  // Python-only start points for readers who already know some Python; shown until something is answered.
+  const picks = id === DEFAULT_COURSE && !hasProgress(course, records) ? homeShortcuts(course) : [];
+  const shortcuts = picks.length
+    ? h('details', { class: 'hero__shortcuts' }, h('summary', {}, t('home.shortcuts.lead')), h('div', { class: 'hero__shortcut-links' }, ...picks.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title })))))
+    : null;
   const continueText = target ? t('course.continue.text', { lesson: target.lessonTitle, n: target.position, total: target.total }) : null;
   const continueCard = target
     ? h(
@@ -138,6 +143,6 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
 
   return {
     title: course.title || t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, entry ? premiumNote(entry) : null, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }

@@ -359,11 +359,12 @@
   "nav.courses": "Courses",
   "course.eyebrow.other": "Course",
   "catalog.title": "Courses",
-  "catalog.lead": "Free questions you can read now: {n} across {m} courses.",
   "catalog.free": "{b} free questions",
   "catalog.free.one": "{b} free question",
   "catalog.premium": "Premium · coming soon",
   "catalog.premium.count": "{n} more questions are in preparation. No date or price has been set.",
   "catalog.premium.nocount": "More questions are in preparation. No date or price has been set.",
-  "about.catalog": "The course catalog lists {n} free questions across {m} courses."
+  "about.catalog": "The course catalog lists {n} free questions across {m} courses.",
+  "home.eyebrow.platform": "Reading code · {n} courses",
+  "facts.courses": "{b} courses"
 }
