@@ -17,14 +17,14 @@
   "options": [
     {
       "id": "lookup-shadow-receiver",
-      "text": "['own', 'z'] ['x', 'y'] ['x', 'y']. Initially both instances find the class list. The assignment creates left's own labels attribute, and each later method call uses its receiving instance.",
+      "text": "`['own', 'z'] ['x', 'y'] ['x', 'y']`. Initially both instances find the class list. The assignment creates left's own labels attribute, and each later method call uses its receiving instance.",
       "score": 1,
       "feedback": "Correct. The first add changes the shared class list to ['x']. left.labels then shadows that class attribute with another list. left.add changes the new list; right.add still finds and changes the class list.",
       "misconception": null
     },
     {
       "id": "construction-reference-snapshot",
-      "text": "['own', 'z'] ['x', 'y'] ['x', 'y']. Construction automatically stores references to all class data attributes in every instance. Those saved references never follow later class-attribute rebinding; left then replaces its saved labels reference.",
+      "text": "`['own', 'z'] ['x', 'y'] ['x', 'y']`. Construction automatically stores references to all class data attributes in every instance. Those saved references never follow later class-attribute rebinding; left then replaces its saved labels reference.",
       "score": 0.5,
       "feedback": "All three lists and the shared-list effects are right. The construction rule is not: an ordinary instance does not automatically save every class data binding. Without its own labels attribute, it looks up the class attribute when read. A later class-level rebinding could therefore affect right.",
       "misconception": "py.class-bindings-snapshotted-at-construction",
@@ -32,21 +32,21 @@
     },
     {
       "id": "fresh-class-defaults-per-instance",
-      "text": "['own', 'z'] ['y'] []. Each instance starts with its own independent copy of the class list, so instance method calls never change LabelBox.labels.",
+      "text": "`['own', 'z'] ['y'] []`. Each instance starts with its own independent copy of the class list, so instance method calls never change LabelBox.labels.",
       "score": 0,
       "feedback": "A list in the class body is not automatically copied into each instance. Until shadowed, both instances access the same class list. The initial x and right's later y therefore remain visible through LabelBox.labels.",
       "misconception": "py.class-mutable-data-copied-per-instance"
     },
     {
       "id": "instance-write-updates-class",
-      "text": "['own', 'z', 'y'] ['own', 'z', 'y'] ['own', 'z', 'y']. Because labels started in the class, assigning left.labels replaces that class attribute for all instances.",
+      "text": "`['own', 'z', 'y'] ['own', 'z', 'y'] ['own', 'z', 'y']`. Because labels started in the class, assigning left.labels replaces that class attribute for all instances.",
       "score": 0,
       "feedback": "In this ordinary class, assigning left.labels creates an instance attribute; it does not assign LabelBox.labels. Only left sees ['own', 'z']. right and the class continue to share the earlier list.",
       "misconception": "py.instance-assignment-writes-class"
     },
     {
       "id": "method-self-is-class",
-      "text": "['own'] ['x', 'z', 'y'] ['x', 'z', 'y']. A method's self always denotes the defining class, so every add appends to the class list, even after left gets its own attribute.",
+      "text": "`['own'] ['x', 'z', 'y'] ['x', 'z', 'y']`. A method's self always denotes the defining class, so every add appends to the class list, even after left gets its own attribute.",
       "score": 0,
       "feedback": "For these ordinary instance methods, self is the receiving instance, not the class. left.add('z') therefore finds left's own list and appends z there. right.add('y') finds the class list because right has no labels attribute of its own.",
       "misconception": "py.instance-method-self-is-class"

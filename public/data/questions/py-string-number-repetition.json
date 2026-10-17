@@ -14,28 +14,28 @@
   "options": [
     {
       "id": "parse-numeric-string",
-      "text": "6. Multiplication automatically parses a numeric-looking string as a number before calculating.",
+      "text": "`6`. Multiplication automatically parses a numeric-looking string as a number before calculating.",
       "score": 0,
       "feedback": "Python does not automatically parse this string as a number. A string multiplied by an integer is repeated, so two copies of the string 3 produce the printed text 33.",
       "misconception": "py.numeric-strings-auto-coerce"
     },
     {
       "id": "repeat-string-not-numeric-digits",
-      "text": "33. String times integer repeats the string; integer times integer instead performs numeric multiplication.",
+      "text": "`33`. String times integer repeats the string; integer times integer instead performs numeric multiplication.",
       "score": 1,
       "feedback": "Correct. The left value is the string 3, so * 2 repeats it twice. An unquoted integer 3 multiplied by 2 would instead give the number 6.",
       "misconception": null
     },
     {
       "id": "concatenate-both-operands-once",
-      "text": "32. Multiplication joins the string 3 to the spelling of the right operand 2 once.",
+      "text": "`32`. Multiplication joins the string 3 to the spelling of the right operand 2 once.",
       "score": 0,
       "feedback": "The integer operand is a repeat count, not text to append once. The program repeats the string 3 twice and prints 33, not 32.",
       "misconception": "py.star-concatenates-operands"
     },
     {
       "id": "repeat-every-written-number",
-      "text": "33. Multiplication always repeats the left operand's written digits; the unquoted integer expression 3 * 2 would also produce 33.",
+      "text": "`33`. Multiplication always repeats the left operand's written digits; the unquoted integer expression 3 * 2 would also produce 33.",
       "score": 0.5,
       "feedback": "The shown output is right, but the type-independent rule is false. Strings support repetition; two numeric operands perform arithmetic. Unquoted 3 * 2 is 6, not 33.",
       "misconception": "py.multiplication-repeats-all-types",

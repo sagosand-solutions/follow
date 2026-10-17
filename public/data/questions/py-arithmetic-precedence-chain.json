@@ -14,28 +14,28 @@
   "options": [
     {
       "id": "multiply-before-power",
-      "text": "146. Multiplication groups before exponentiation, so the expression is 2 + (3 * 4) ** 2.",
+      "text": "`146`. Multiplication groups before exponentiation, so the expression is 2 + (3 * 4) ** 2.",
       "score": 0,
       "feedback": "Exponentiation groups before multiplication. Compute 4 ** 2 = 16, then 3 * 16 = 48, then add 2 to get 50.",
       "misconception": "py.multiplication-before-power"
     },
     {
       "id": "power-then-product-then-sum",
-      "text": "50. Without grouping parentheses, exponentiation groups before multiplication, which groups before addition. Parentheses can request a different grouping.",
+      "text": "`50`. Without grouping parentheses, exponentiation groups before multiplication, which groups before addition. Parentheses can request a different grouping.",
       "score": 1,
       "feedback": "Correct. The grouping is 2 + (3 * (4 ** 2)), so the program prints 50. Explicit parentheses could override that grouping.",
       "misconception": null
     },
     {
       "id": "power-first-add-before-multiply",
-      "text": "80. Exponentiation groups first, but addition then groups before multiplication: (2 + 3) * (4 ** 2).",
+      "text": "`80`. Exponentiation groups first, but addition then groups before multiplication: (2 + 3) * (4 ** 2).",
       "score": 0,
       "feedback": "The power is evaluated correctly, but multiplication has higher precedence than addition. The expression is 2 + 3 * 16, giving 50 rather than 80.",
       "misconception": "py.addition-before-multiplication"
     },
     {
       "id": "precedence-even-through-parentheses",
-      "text": "50. Exponentiation groups before multiplication and addition, and this normal precedence still wins even if parentheses request a different grouping.",
+      "text": "`50`. Exponentiation groups before multiplication and addition, and this normal precedence still wins even if parentheses request a different grouping.",
       "score": 0.5,
       "feedback": "The result and ordinary precedence are right for this expression. The claim about parentheses is false: parentheses can change the grouping. This expression has no grouping parentheses inside print's argument.",
       "misconception": "py.parentheses-do-not-override-precedence",
@@ -43,7 +43,7 @@
     },
     {
       "id": "strict-left-to-right",
-      "text": "400. All arithmetic operators group strictly from left to right: ((2 + 3) * 4) ** 2.",
+      "text": "`400`. All arithmetic operators group strictly from left to right: ((2 + 3) * 4) ** 2.",
       "score": 0,
       "feedback": "Arithmetic is not grouped strictly left to right. The power binds first, then multiplication, then addition, so the output is 50 rather than 400.",
       "misconception": "py.precedence-left-to-right"
