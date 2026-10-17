@@ -84,6 +84,24 @@ non-matching ids, absolute or `..`/symlink/outside-root paths and bad hashes.
 containment and the SHA-256 before returning bytes (fail closed). Serving it to a
 user is 020's job, behind an entitlement check on every request.
 
+## Local development runner (mock mode)
+
+```sh
+python -m server.dev [--port 8000] [--content-root DIR --manifest FILE] \
+                     [--site-root public] [--api-path /follow/api] [--site-path /follow] [--db PATH]
+```
+
+Starts Uvicorn on `127.0.0.1` with `APP_ENV=development`, mock adapters and a
+throwaway SQLite database (a temporary file unless `--db` is given). The CSRF and
+session keys are generated at start; the runner never reads a real secret from
+the environment and **refuses to start when `APP_ENV=production`** (exit 2).
+
+The API is mounted under `/follow/api` and the static site (default `public/`)
+under `/follow/` on the same origin, so the Origin and CSRF checks work in a
+browser; `/` redirects to the site. Provider and payment flows stay disabled
+(503) until real adapters exist — this runner makes no external call. Tests:
+`server/tests/test_dev.py` (production refused, mock app answers a GET).
+
 ## Test gates
 
 ```sh
