@@ -26,6 +26,28 @@ class ClientIpTests(unittest.TestCase):
                                     headers={"x-forwarded-for": "203.0.113.3"})
         self.assertEqual(_client_ip(untrusted, settings), "198.51.100.9")
 
+    def test_ipv4_mapped_peer_is_canonical_before_the_trusted_proxy_check(self):
+        from server.app import _client_ip
+        settings = SimpleNamespace(trusted_proxies=("10.0.0.0/8",))
+        # A trusted proxy that reaches us over a dual-stack socket is still a trusted proxy.
+        proxy = SimpleNamespace(client=SimpleNamespace(host="::ffff:10.0.0.1"),
+                                headers={"x-forwarded-for": "198.51.100.7"})
+        self.assertEqual(_client_ip(proxy, settings), "198.51.100.7")
+        proxy_hex = SimpleNamespace(client=SimpleNamespace(host="::ffff:0a00:0001"),
+                                    headers={"x-forwarded-for": "198.51.100.8, 10.0.0.2"})
+        self.assertEqual(_client_ip(proxy_hex, settings), "198.51.100.8")
+        # An untrusted mapped peer is reported as its IPv4 address and cannot spoof X-Forwarded-For.
+        client = SimpleNamespace(client=SimpleNamespace(host="::ffff:198.51.100.9"),
+                                 headers={"x-forwarded-for": "203.0.113.3"})
+        self.assertEqual(_client_ip(client, settings), "198.51.100.9")
+        # Mapped entries inside the chain are canonical too (proxy hop and client).
+        chain = SimpleNamespace(client=SimpleNamespace(host="10.0.0.1"),
+                                headers={"x-forwarded-for": "::ffff:198.51.100.7, ::ffff:10.0.0.2"})
+        self.assertEqual(_client_ip(chain, settings), "198.51.100.7")
+        # Plain IPv6 is untouched.
+        v6 = SimpleNamespace(client=SimpleNamespace(host="2001:db8::5"), headers={})
+        self.assertEqual(_client_ip(v6, settings), "2001:db8::5")
+
 
 class CsrfAndSessionTests(HttpTestCase):
     def test_csrf_issues_preauth_cookie(self):

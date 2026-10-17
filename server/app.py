@@ -139,10 +139,17 @@ def _check_preauth_csrf(request: Request) -> bool:
         cookie, request.headers.get("x-csrf-token"), purpose="preauth")
 
 
+def _canonical_ip(address):
+    """An IPv4-mapped IPv6 address (::ffff:a.b.c.d, as a dual-stack listener reports it) is the IPv4 address."""
+    if address.version == 6 and address.ipv4_mapped is not None:
+        return address.ipv4_mapped
+    return address
+
+
 def _client_ip(request: Request, settings) -> str:
     peer = request.client.host if request.client else "unknown"
     try:
-        peer_ip = ipaddress.ip_address(peer)
+        peer_ip = _canonical_ip(ipaddress.ip_address(peer))
     except ValueError:
         return peer
     networks = []
@@ -151,6 +158,7 @@ def _client_ip(request: Request, settings) -> str:
             networks.append(ipaddress.ip_network(value, strict=False))
         except ValueError:
             continue
+    # The trusted-proxy check sees the canonical peer, so a proxy reached over a dual-stack socket is still recognised.
     if not any(peer_ip in network for network in networks):
         return peer_ip.compressed
     forwarded = request.headers.get("x-forwarded-for", "")
@@ -160,7 +168,7 @@ def _client_ip(request: Request, settings) -> str:
     if len(parts) > 16:
         return peer_ip.compressed
     try:
-        chain = [ipaddress.ip_address(part.strip()) for part in parts]
+        chain = [_canonical_ip(ipaddress.ip_address(part.strip())) for part in parts]
     except ValueError:
         return peer_ip.compressed
     for candidate in reversed(chain):
