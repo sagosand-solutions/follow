@@ -50,7 +50,7 @@
   "nav.course": "Course",
   "nav.about": "About",
   "theme.label": "Theme",
-  "footer.license": "Platform: AGPL-3.0. Question schema and validator: MIT. Free questions and course content: CC BY-SA 4.0. Each item states its own licence.",
+  "footer.license": "Platform: AGPL-3.0. Question schema and validator: MIT. Free questions and course content: CC BY-SA 4.0. Each question and study note states its own licence.",
   "footer.draft": "Early draft. Expect rough edges.",
   "loading": "Loading…",
   "error.title": "Something went wrong",
@@ -172,7 +172,7 @@
   "about.privacy.title": "Privacy",
   "about.privacy.text": "This site uses no cookies, analytics, tracking or external fonts. Your answers, your colour theme choice and one small setting (whether you have seen the first step-through introduction) stay in your browser's local storage and are not sent anywhere. The site is delivered through a hosting provider and a content delivery network, which process ordinary web requests (such as your IP address) to serve the pages.",
   "about.license.title": "Licenses",
-  "about.license.text": "The platform is AGPL-3.0, the question schema and validator are MIT, and the free questions are CC BY-SA 4.0. Other course content carries its own licence, which is always stated on the item.",
+  "about.license.text": "The platform is AGPL-3.0, the question schema and validator are MIT, and the free questions are CC BY-SA 4.0. Other course content carries its own licence, which is stated on each question and study note.",
   "about.source": "Source code",
   "step.varsCaptionEvent": "Variables at this event",
   "step.input": "One recorded run is replayed. Input: “{stdin}”.",
@@ -343,5 +343,7 @@
   "theme.name.dark": "Night",
   "theme.name.paper": "Paper",
   "theme.name.slate": "Slate",
-  "theme.name.contrast": "Contrast"
+  "theme.name.contrast": "Contrast",
+  "home.map.empty.phone": "Nothing read yet: your answers will fill in the counts.",
+  "home.map.some.phone": "Questions read per level. So far: {summary}."
 }

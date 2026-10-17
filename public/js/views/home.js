@@ -101,7 +101,9 @@ export async function homeView() {
         'section',
         { class: 'map-card', 'aria-labelledby': 'map-title' },
         h('h2', { id: 'map-title' }, t('home.map.title')),
-        h('p', { class: 'muted' }, answeredCount ? t('home.map.some', { summary: summaryText(ids) }) : t('home.map.empty')),
+        h('p', { class: 'muted map-intro map-intro--wide' }, answeredCount ? t('home.map.some', { summary: summaryText(ids) }) : t('home.map.empty')),
+        // The phone map shows counts, not squares, so it gets a sentence that does not mention squares.
+        h('p', { class: 'muted map-intro map-intro--phone' }, answeredCount ? t('home.map.some.phone', { summary: summaryText(ids) }) : t('home.map.empty.phone')),
         readingMap(course, nextId),
       ),
     );

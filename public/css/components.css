@@ -473,8 +473,10 @@
 .review-empty p { margin: 0; }
 
 /* === course map on phones: counts, not every cell === */
-.map__count--phone { display: none; }
+.map__count--phone, .map-intro--phone { display: none; }
 @media (max-width: 37.49rem) {
+  .map-intro--wide { display: none; }
+  .map-intro--phone { display: block; }
   .map__row:not(.map--compact) .map__cells { display: none; }
   .map__count--phone { display: block; margin: 0; font-weight: 700; }
   .map .legend { display: none; }

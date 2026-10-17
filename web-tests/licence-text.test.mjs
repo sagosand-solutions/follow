@@ -22,6 +22,15 @@ test('study notes show their own licence through licenceInfo, never the raw fiel
 
 test('the phone map shows counts: cells are hidden only on narrow screens', () => {
   const css = readFileSync(`${root}css/components.css`, 'utf8');
-  assert.match(css, /@media \(max-width: 37\.49rem\) \{\s*\.map__row:not\(\.map--compact\) \.map__cells \{ display: none; \}/);
-  assert.match(css, /\.map__count--phone \{ display: none; \}/);
+  const phone = css.slice(css.indexOf('/* === course map on phones'));
+  const media = phone.slice(phone.indexOf('@media (max-width: 37.49rem)'));
+  assert.match(media, /\.map__row:not\(\.map--compact\) \.map__cells \{ display: none; \}/, 'cells are hidden inside the narrow-screen media block');
+  assert.ok(phone.indexOf('.map__row:not(.map--compact) .map__cells') > phone.indexOf('@media (max-width: 37.49rem)'));
+  assert.match(css, /\.map__count--phone, \.map-intro--phone \{ display: none; \}/);
+  assert.match(css, /\.map-intro--wide \{ display: none; \}/);
+});
+
+test('the phone map sentence does not mention squares', () => {
+  for (const key of ['home.map.empty.phone', 'home.map.some.phone']) assert.doesNotMatch(strings[key], /square|cell/i, key);
+  assert.match(strings['home.map.empty'], /square/i, 'the wide sentence still describes the squares');
 });
