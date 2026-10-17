@@ -14,14 +14,14 @@
   "options": [
     {
       "id": "condition-values-as-list",
-      "text": "[False, True, True]. The trailing if supplies one Boolean list entry for each input instead of selecting inputs for the result expression.",
+      "text": "`[False, True, True]`. The trailing if supplies one Boolean list entry for each input instead of selecting inputs for the result expression.",
       "score": 0,
       "feedback": "The condition selects candidates; it is not the list's element expression. Zero is rejected, and 6 // number is evaluated for 1 and 2, producing [6, 3].",
       "misconception": "py.comprehension-filter-becomes-result"
     },
     {
       "id": "whole-filter-pass-then-results",
-      "text": "[6, 3]. The comprehension first tests the entire input to build a complete filtered sequence, then starts evaluating any result expressions.",
+      "text": "`[6, 3]`. The comprehension first tests the entire input to build a complete filtered sequence, then starts evaluating any result expressions.",
       "score": 0.5,
       "feedback": "The complete result is right, but the general ordering rule is wrong. Python handles one candidate at a time: test it, produce its result if accepted, then advance. It does not require a separate full-input filtering pass first.",
       "misconception": "py.comprehension-filters-all-before-mapping",
@@ -36,14 +36,14 @@
     },
     {
       "id": "filter-then-result-per-candidate",
-      "text": "[6, 3]. Each candidate is tested first; an accepted candidate immediately supplies 6 // number before the comprehension advances to the next candidate.",
+      "text": "`[6, 3]`. Each candidate is tested first; an accepted candidate immediately supplies 6 // number before the comprehension advances to the next candidate.",
       "score": 1,
       "feedback": "Correct. Zero is rejected without division. Candidate 1 is accepted and produces 6; then candidate 2 is accepted and produces 3.",
       "misconception": null
     },
     {
       "id": "accepted-inputs-not-results",
-      "text": "[1, 2]. The condition removes zero, and a filtered comprehension keeps the accepted input values unchanged rather than applying its element expression.",
+      "text": "`[1, 2]`. The condition removes zero, and a filtered comprehension keeps the accepted input values unchanged rather than applying its element expression.",
       "score": 0,
       "feedback": "Accepted values feed the element expression; they are not necessarily the output elements themselves. Here 1 produces 6 and 2 produces 3, so the list is [6, 3].",
       "misconception": "py.comprehension-ignores-element-expression"

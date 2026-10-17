@@ -17,21 +17,21 @@
   "options": [
     {
       "id": "linked-expression",
-      "text": "8 10. The assignment y = x + 2 keeps y linked to x, so changing x updates y.",
+      "text": "`8 10`. The assignment y = x + 2 keeps y linked to x, so changing x updates y.",
       "score": 0,
       "feedback": "The right-hand side x + 2 is evaluated when the assignment runs, giving 5. It is not saved as a formula to run again when x changes. The output is 8 5.",
       "misconception": "py.assignment-is-equation"
     },
     {
       "id": "evaluated-now",
-      "text": "8 5. The assignment to y evaluates x + 2 immediately; assigning 8 to x later does not recalculate y.",
+      "text": "`8 5`. The assignment to y evaluates x + 2 immediately; assigning 8 to x later does not recalculate y.",
       "score": 1,
       "feedback": "Yes. When y = x + 2 runs, x is 3, so y becomes 5. The next assignment binds x to 8 and leaves y bound to 5.",
       "misconception": null
     },
     {
       "id": "universal-copy",
-      "text": "8 5. Every assignment makes an independent copy of its object, so two names can never share one list.",
+      "text": "`8 5`. Every assignment makes an independent copy of its object, so two names can never share one list.",
       "score": 0.5,
       "feedback": "The output 8 5 is right, but the copying rule is wrong. Assignment binds a name to an object; it does not generally copy it. Two names can refer to the same list. Here x is rebound, and y remains 5.",
       "misconception": "py.assignment-copies-value",
@@ -39,14 +39,14 @@
     },
     {
       "id": "first-value-fixed",
-      "text": "3 1. Each name keeps its first assigned value, so both y = x + 2 and x = 8 are ignored.",
+      "text": "`3 1`. Each name keeps its first assigned value, so both y = x + 2 and x = 8 are ignored.",
       "score": 0,
       "feedback": "Ordinary names are not fixed constants. y = x + 2 replaces y's initial 1 with 5, and x = 8 replaces x's initial 3 with 8. Both rebindings take effect, so the output is 8 5.",
       "misconception": "py.first-binding-is-permanent"
     },
     {
       "id": "implicit-addition",
-      "text": "11 6. After a name is initialized, = adds the right-hand-side result to its old value, so both later assignments accumulate.",
+      "text": "`11 6`. After a name is initialized, = adds the right-hand-side result to its old value, so both later assignments accumulate.",
       "score": 0,
       "feedback": "Ordinary = replaces a binding; it does not accumulate. y becomes 3 + 2, which is 5, rather than 1 + 3 + 2. x then becomes 8, rather than 3 + 8. The output is 8 5.",
       "misconception": "py.assignment-accumulates"

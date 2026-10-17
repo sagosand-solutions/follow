@@ -14,14 +14,14 @@
   "options": [
     {
       "id": "truncate-toward-zero",
-      "text": "-2. The // operator discards the fractional part by moving toward zero.",
+      "text": "`-2`. The // operator discards the fractional part by moving toward zero.",
       "score": 0,
       "feedback": "Moving toward zero would give -2, but floor division moves toward negative infinity. The greatest integer no larger than about -2.67 is -3.",
       "misconception": "py.floor-is-truncate"
     },
     {
       "id": "nearest-integer",
-      "text": "-3. The // operator rounds to the nearest integer, so a quotient of about -2.67 becomes -3.",
+      "text": "`-3`. The // operator rounds to the nearest integer, so a quotient of about -2.67 becomes -3.",
       "score": 0.5,
       "feedback": "The result is right for this quotient, but the rounding rule is wrong. // takes the floor, not the nearest integer. For example, -7 // 3 is also -3 even though its nearest integer quotient is -2.",
       "misconception": "py.floor-rounds-nearest",
@@ -29,7 +29,7 @@
     },
     {
       "id": "floor-toward-negative-infinity",
-      "text": "-3. The // operator takes the floor: the greatest integer no larger than the mathematical quotient.",
+      "text": "`-3`. The // operator takes the floor: the greatest integer no larger than the mathematical quotient.",
       "score": 1,
       "feedback": "Correct. Since -3 is below about -2.67 and -2 is above it, floor division gives -3. For integer operands, this result is an integer.",
       "misconception": null
@@ -43,7 +43,7 @@
     },
     {
       "id": "discard-negative-sign",
-      "text": "2. The // operator first ignores the numerator's negative sign, then divides 8 by 3 and takes the floor.",
+      "text": "`2`. The // operator first ignores the numerator's negative sign, then divides 8 by 3 and takes the floor.",
       "score": 0,
       "feedback": "Floor division does not replace a negative numerator with its magnitude. It uses -8 divided by 3 and takes the floor, giving -3 rather than 2.",
       "misconception": "py.floor-ignores-negative-sign"

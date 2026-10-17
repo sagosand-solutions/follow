@@ -17,14 +17,14 @@
   "options": [
     {
       "id": "ignore-condition",
-      "text": "10. The loop visits 1, 2, 3, and 4 and adds every visited number to total.",
+      "text": "`10`. The loop visits 1, 2, 3, and 4 and adds every visited number to total.",
       "score": 0,
       "feedback": "The range is right, but the if condition allows only even numbers through. Neither 1 nor 3 is added. The total is 2 + 4, or 6.",
       "misconception": "py.if-body-unconditional"
     },
     {
       "id": "inclusive-stop",
-      "text": "6. The loop visits 1, 2, 3, 4, and 5, but only 2 and 4 pass the condition and get added.",
+      "text": "`6`. The loop visits 1, 2, 3, 4, and 5, but only 2 and 4 pass the condition and get added.",
       "score": 0.5,
       "feedback": "The output and selected even numbers are right, but range(1, 5) does not visit 5: the stop is excluded. That error happens not to change the total here because 5 is odd.",
       "misconception": "py.range-stop-inclusive",
@@ -32,21 +32,21 @@
     },
     {
       "id": "odd-remainders",
-      "text": "4. The condition n % 2 == 0 selects the odd numbers 1 and 3, which are added together.",
+      "text": "`4`. The condition n % 2 == 0 selects the odd numbers 1 and 3, which are added together.",
       "score": 0,
       "feedback": "Remainder zero means an integer divides evenly by 2, so the condition selects even numbers, not odd numbers. The program adds 2 and 4, giving 6.",
       "misconception": "py.modulo-parity-reversed"
     },
     {
       "id": "exclusive-stop-filter",
-      "text": "6. The loop visits 1, 2, 3, and 4; the condition selects 2 and 4, and total accumulates their sum.",
+      "text": "`6`. The loop visits 1, 2, 3, and 4; the condition selects 2 and 4, and total accumulates their sum.",
       "score": 1,
       "feedback": "Yes. range excludes 5. The total changes from 0 to 2 when n is 2, then to 6 when n is 4. The print is outside the loop, so it prints 6 once.",
       "misconception": null
     },
     {
       "id": "keep-last-even",
-      "text": "4. The loop visits 1, 2, 3, and 4, and total keeps only the last even number, 4.",
+      "text": "`4`. The loop visits 1, 2, 3, and 4, and total keeps only the last even number, 4.",
       "score": 0,
       "feedback": "The statement is total = total + n, not total = n. It retains the earlier 2 and adds 4, so the final total is 6.",
       "misconception": "py.accumulator-overwrites"
