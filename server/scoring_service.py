@@ -102,26 +102,30 @@ def attempt_dto(a: Attempt) -> dict:
             "catalog_version": a.catalog_version}
 
 
-def check_scoring_profile(data: dict) -> None:
+def check_scoring_profile(data) -> None:
     """Only standard-profile questions may be scored on the server.
 
     A question is eligible when it is a legacy 0.1 document (which has no ``answer_profile``) or a 0.2 document
-    that says ``standard``, and it has 5-8 options with exactly one full, one half and at least three zero-credit scores and unique option ids. Anything else (the four-option beginner-practice profile, an
-    unknown version or profile, a profile on 0.1, a missing profile on 0.2) is refused: never inferred, never a
-    silent fallback. The check reads the hash-bound question itself, so a hand-built or stale artifact cannot
-    smuggle a practice question into the competition pool.
+    that says ``standard``, and it has 5-8 option objects, each with a non-empty string id (unique) and a score that
+    is exactly 0, 0.5 or 1 (booleans are never scores), with exactly one full, one half and at least three zero-credit
+    options. Anything else (the four-option beginner-practice profile, an unknown version or profile, a profile on
+    0.1, a missing profile on 0.2, malformed options, a non-object) is refused: never inferred, never a silent
+    fallback, always ContentError. The check reads the hash-bound question itself, so a hand-built or stale artifact
+    cannot smuggle a practice question into the competition pool.
     """
+    if not isinstance(data, dict):
+        raise ContentError("question is not eligible for server scoring")
     version = data.get("schema_version")
     has_profile = "answer_profile" in data
     ok = (version == "0.1" and not has_profile) or (version == "0.2" and data.get("answer_profile") == "standard")
     options = data.get("options")
-    if not ok or not isinstance(options, list) or not 5 <= len(options) <= 8:
+    if not ok or not isinstance(options, list) or not 5 <= len(options) <= 8 or not all(isinstance(o, dict) for o in options):
         raise ContentError("question is not eligible for server scoring")
-    scores = [option.get("score") if isinstance(option, dict) else None for option in options]
-    # Exactly one full, one half and at least three zero-credit options; booleans are never scores.
-    if (any(isinstance(score, bool) or not isinstance(score, (int, float)) for score in scores)
-            or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) < 3
-            or len({option.get("id") for option in options}) != len(options)):
+    ids = [option.get("id") for option in options]
+    scores = [option.get("score") for option in options]
+    if (not all(isinstance(i, str) and i for i in ids) or len(set(ids)) != len(ids)
+            or any(isinstance(score, bool) or not isinstance(score, (int, float)) or score not in (0, 0.5, 1) for score in scores)
+            or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) < len(scores) - 2 or scores.count(0) < 3):
         raise ContentError("question is not eligible for server scoring")
 
 
@@ -346,6 +350,9 @@ class ScoringService:
                 attempt = self.repo.attempt(principal.id, issue.question_id)
                 if attempt is None:
                     raise ScoringError("unavailable")
+                # A successful replay re-validates the question inside the rollback scope: an ineligible
+                # question answers 503 and leaves no touch, attempt or receipt change behind.
+                self._read_question(issue.family, pq)
                 replayed = True
             else:
                 existing = self.repo.attempt(principal.id, issue.question_id)
