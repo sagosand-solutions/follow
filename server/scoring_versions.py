@@ -60,6 +60,14 @@ def points(numerator: int, denominator: int) -> Fraction:
     return Fraction(500 * numerator, denominator)
 
 
+def score_display(numerator: int, denominator: int) -> str:
+    """500 * numerator / denominator as an exact two-decimal string: nearest centipoint, ties away from zero, never "-0.00"."""
+    centi = Fraction(50000 * numerator, denominator)
+    magnitude = int(abs(centi) + Fraction(1, 2))              # int() floors a positive Fraction: round half away from zero
+    sign = "-" if centi < 0 and magnitude else ""
+    return f"{sign}{magnitude // 100}.{magnitude % 100:02d}"
+
+
 def window_key(window: str, week_start: float | None = None) -> str:
     """'all', or the UTC Monday 00:00 of the ISO week as a whole number of seconds."""
     if window == "all":

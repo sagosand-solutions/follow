@@ -270,9 +270,11 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
             return blocked
         with hooks.uow() as (repositories, sessions):
             service = make_service(repositories)
+            viewer = sessions.authenticate(hooks.session_cookie(request))        # only to mark the reader's own row
             try:
                 result = service.leaderboard(params.get("family", ""), params.get("scope", "total"),
-                                             params.get("window", "all"), int(limit_text), params.get("cursor"))
+                                             params.get("window", "all"), int(limit_text), params.get("cursor"),
+                                             viewer.user_id if viewer is not None else None)
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
             except (StorageError, sqlite3.Error):

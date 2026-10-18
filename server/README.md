@@ -149,6 +149,14 @@ only feeds a private aggregate used for a hypothetical placement, and exposed, l
 changes nothing, and a failure writing standings rolls the whole answer back. A board's revision rises on every change a reader can
 see (a published reader's answer, publishing, unpublishing, renaming, deletion, a rebuild, a freeze), which makes older cursors stale.
 
+Reads (`/scoring/me`, `/leaderboards`) run in one read snapshot and add, never replace, fields: `board_revision` (text), `score_display` (exact
+two-decimal string, ties away from zero), `scope_score` (null when the scope holds no attempt), `moderation`, and per attempt
+`rank_eligible` (true only for an account's attempt that is a member of this version). The published list is filtered before ranking
+and paging; equal scores share a rank and ties are ordered by fewer answers, then earlier last answer, then an internal id that never
+leaves the server. A placement is `actual` for a published account, `hypothetical` for anyone else and only when a comparable
+published pool exists, otherwise `none`. A cursor is `offset.revision.signature`, bound to family, version, scope and window; a
+cursor from an older board revision answers `409 stale_cursor`, a bad or foreign one `400 invalid`.
+
 `python -m server.pool` changes the pool, always in one transaction with an append-only audit row, and never goes backwards:
 
 - `freeze --version V --reason CODE`: a ranking version stops for good; its open issues are withdrawn and its boards move to a new revision.

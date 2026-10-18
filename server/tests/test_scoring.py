@@ -864,7 +864,7 @@ class ListAndPreferenceTests(Base):
         self.assertEqual([e["rank"] for e in board["entries"]], [1, 1, 3])
         self.assertEqual(board["participants"], 3)
         entry = board["entries"][0]
-        self.assertEqual(set(entry), {"rank", "alias", "points", "answered", "pool"})
+        self.assertEqual(set(entry), {"rank", "alias", "points", "score_display", "answered", "pool"})
         self.assertEqual((entry["points"], entry["answered"], entry["pool"]), (500 * 2 / 3, 1, 3))
         self.assertEqual(board["entries"][2]["points"], 500 * -1 / 3)  # negatives rank last and are kept
         raw = json.dumps(board)
@@ -973,8 +973,10 @@ class AnonymousAndClaimTests(Base):
         self.assertEqual(by_q["py-free-f01"]["outcome"], "partial")  # the account's own lock wins the overlap
         self.assertEqual(by_q["py-free-f00"]["accepted_at"], dict(original)["py-free-f00"])
         me = json_body(self.fx.get("/scoring/me", query=b"family=free"))
-        self.assertEqual(me["total"]["answered"], 2)  # no double counting
-        self.assertAlmostEqual(me["total"]["points"], 500 * (2 + 1) / 3)
+        # Claimed anonymous practice stays in the history but never scores: only the account's own half-credit counts.
+        self.assertEqual(me["total"]["answered"], 1)
+        self.assertAlmostEqual(me["total"]["points"], 500 * 1 / 3)
+        self.assertEqual({a["question_id"]: a["rank_eligible"] for a in me["attempts"]}, {"py-free-f00": False, "py-free-f01": True})
         # The source is dead: cookie answers nothing and cannot be claimed again, by anyone.
         self.assertEqual(self.fx.anon_post("/scoring/questions/py-free-f02/issue", {}, anon)[0], 401)
         again = call(self.fx.app, "POST", "/scoring/claim", headers=self.claim_headers("u2", anon), body=b"{}")

@@ -101,6 +101,11 @@ class SyncTests(Base):
             self.assertEqual(ScoringRepository(db).sync_pool(entries, self.now + 1, "rel-9"), 0, "a second start-up registers nothing new")
         self.assertEqual(self.rows("SELECT COUNT(*) FROM pool_lifecycle_events"), [(0,)])
 
+    def test_each_family_is_registered_under_its_own_catalog_version(self):
+        for family, catalog in self.fx.catalogs.items():
+            self.assertEqual(self.rows("SELECT DISTINCT release_id FROM pool_questions WHERE family = ?", (family,)), [(catalog.catalog_version,)])
+        self.assertNotEqual(self.fx.catalogs["free"].catalog_version, self.fx.catalogs["official"].catalog_version)
+
     def test_a_changed_or_cloned_question_stops_start_up_without_leaking_hashes(self):
         db = self.db()
         repo = ScoringRepository(db)
