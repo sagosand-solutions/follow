@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import logging
 import secrets
 import sqlite3
 import time
@@ -48,6 +49,8 @@ from .rate_limit import EmailStartLimiter
 from .sessions import AuthenticatedPrincipal, SessionService
 
 PADDLE_PROVIDERS = frozenset({"paddle-sandbox", "paddle-live"})   # exact names; nothing parses substrings
+
+_logger = logging.getLogger("follow.server")     # structured, fixed fields only: never a payload, address or token
 
 
 @dataclass
@@ -417,8 +420,11 @@ def create_app(settings, services: Services) -> Starlette:
             adapter.start(intent="login", return_to=return_to, email=normalized_email,
                           transaction_token_hash=transaction_hash, callback_url=callback_url)
         except Exception:
-            # Do not reveal account or delivery state; never serialize provider failures.
-            pass
+            # Do not reveal account or delivery state; never serialize provider failures. A fixed event and code plus
+            # the server-generated request id is enough to correlate, with no exception text, payload, address or token.
+            _logger.warning("provider start failed",
+                            extra={"event": "provider_start_failed", "code": "provider_error",
+                                   "request_id": _request_id(request)})
         return http.json_response({"ok": True}, status_code=202, request_id=_request_id(request))
 
     async def provider_start(request: Request):

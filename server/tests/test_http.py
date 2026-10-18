@@ -389,6 +389,40 @@ class EmailStartTests(HttpTestCase):
             body=json.dumps({"email": email, "return_to": return_to, "intent": "login"}).encode())
         return status, response_headers, response_body, cookie
 
+    def test_a_swallowed_adapter_failure_logs_only_fixed_fields_and_stays_202(self):
+        import logging
+        sentinel = "SENTINEL-SECRET-9f3a"
+
+        class Boom(self.FakeEmail):
+            def start(self, **kwargs):
+                raise RuntimeError(f"adapter failed token={sentinel} for {kwargs.get('email')}")
+
+        fx = self.make(providers={"email": Boom()})
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        csrf = json_body((status, headers, body))["csrf_token"]
+        cookie = headers["set-cookie"].split(";", 1)[0]
+        logger = logging.getLogger("follow.server")
+        records = []
+        handler = logging.Handler()
+        handler.emit = records.append
+        logger.addHandler(handler)
+        self.addCleanup(logger.removeHandler, handler)
+        previous, logger.propagate = logger.propagate, False
+        self.addCleanup(setattr, logger, "propagate", previous)
+        status, response_headers, raw = call(
+            fx.app, "POST", "/auth/email/start",
+            headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
+            body=json.dumps({"email": "known@example.test", "return_to": "/account", "intent": "login"}).encode())
+        self.assertEqual((status, json_body((status, response_headers, raw))), (202, {"ok": True}))
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual((record.event, record.code), ("provider_start_failed", "provider_error"))
+        self.assertEqual(record.request_id, response_headers["x-request-id"])
+        text = record.getMessage() + " " + json.dumps(record.__dict__, default=str)
+        self.assertNotIn(sentinel, text)
+        self.assertNotIn("known@example.test", text)
+        self.assertNotIn("token=", text)
+
     def test_known_and_unknown_addresses_receive_identical_202_and_outbox(self):
         known = self.start("known@EXAMPLE.TEST")
         unknown = self.start("unknown@example.test")
