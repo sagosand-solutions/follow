@@ -105,9 +105,14 @@ def _normalise_transaction(data: dict) -> dict:
     txn = data.get("id")
     if not isinstance(txn, str) or not _TXN_RE.fullmatch(txn):
         raise PaddleMalformed("transaction id missing")
+    raw_items = data.get("items")
+    if raw_items is None:
+        raw_items = []
+    if not isinstance(raw_items, list):
+        raise PaddleMalformed("transaction items are not a list")
     items = []
-    for item in data.get("items") or []:
-        price = (item or {}).get("price") or {}
+    for item in raw_items:
+        price = item.get("price") if isinstance(item, dict) else None
         price_id = price.get("id") if isinstance(price, dict) else None
         quantity = item.get("quantity") if isinstance(item, dict) else None
         if not isinstance(price_id, str) or not _PRICE_RE.fullmatch(price_id) or isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1:

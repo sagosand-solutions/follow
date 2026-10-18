@@ -149,6 +149,12 @@ class WebhookTests(unittest.TestCase):
             "float_total": envelope(data={"id": TXN, "status": "completed", "details": {"totals": {"total": 10.5}}}),
             "bad_currency": envelope(data={"id": TXN, "status": "completed", "currency_code": "usd"}),
             "bad_adjustment": envelope("adjustment.created", {"id": ADJ, "transaction_id": "x"}),
+            "items_is_a_dict": envelope(data={"id": TXN, "status": "completed", "items": {"price": {"id": PRICE}}}),
+            "items_is_a_string": envelope(data={"id": TXN, "status": "completed", "items": "x"}),
+            "item_is_a_string": envelope(data={"id": TXN, "status": "completed", "items": ["x"]}),
+            "item_is_null": envelope(data={"id": TXN, "status": "completed", "items": [None]}),
+            "price_is_a_string": envelope(data={"id": TXN, "status": "completed", "items": [{"price": "pri_x", "quantity": 1}]}),
+            "price_is_null": envelope(data={"id": TXN, "status": "completed", "items": [{"price": None, "quantity": 1}]}),
         }
         for name, raw in cases.items():
             with self.subTest(name), self.assertRaises(PaddleMalformed):
