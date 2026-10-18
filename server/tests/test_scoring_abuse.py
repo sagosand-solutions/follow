@@ -541,6 +541,19 @@ class ContentIntegrityTests(AbuseBase):
         finally:
             db.close()
 
+    def test_create_app_requires_a_bound_official_snapshot(self):
+        from server.app import Services, create_app
+        from server.db import Database
+        from server.models import SetupError
+        from server.scoring_service import ManifestQuestionSource, ScoringServices
+
+        scoring = ScoringServices({"free": self.fx.catalogs["free"]},
+                                  ManifestQuestionSource(self.fx.content_catalog, {}))
+        services = Services(open_database=lambda: Database(self.fx.path, clock=lambda: self.fx.clock[0]),
+                            catalog=self.fx.content_catalog, scoring=scoring, clock=lambda: self.fx.clock[0])
+        with self.assertRaises(SetupError):
+            create_app(self.fx.settings, services)
+
 
 class MeAndCursorTests(AbuseBase):
     def test_me_course_scope_is_supported_and_private(self):
