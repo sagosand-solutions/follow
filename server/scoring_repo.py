@@ -135,7 +135,10 @@ class ScoringRepository:
             for pid in principal_ids:
                 conn.execute("UPDATE scoring_principals SET claimed_to = NULL WHERE claimed_to = ?", (pid,))
                 conn.execute("UPDATE scoring_principals SET claim_source_id = NULL WHERE claim_source_id = ?", (pid,))
-                for table in ("first_attempts", "question_issues", "submission_receipts", "leaderboard_preferences"):
+                # Phase 1 tables first (set_attempts references question_issues); exposure rows need the purge gate.
+                for table in ("set_attempts", "set_participants", "standings", "course_units", "anonymous_units",
+                              "question_exposure", "first_attempts", "question_issues", "submission_receipts",
+                              "leaderboard_preferences"):
                     conn.execute(f"DELETE FROM {table} WHERE principal_id = ?", (pid,))
                 conn.execute("DELETE FROM scoring_principals WHERE id = ?", (pid,))
         finally:
