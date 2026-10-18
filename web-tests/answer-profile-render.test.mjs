@@ -141,66 +141,6 @@ test('reopening an answered practice question keeps the practice presentation (r
 });
 
 
-// ---- the local profile page over a mixed bank (standard + practice), fresh progress and a reload
-const lessonCourse = (id, title, ...questions) => ({ id, title, levels: [{ level: 'beginner', title: 'L', lessons: [{ id: `${id}-lesson`, title: 'T', builds_on: [], questions }] }] });
-const indexOf = (version, entries) => ({ data_version: version, onboarding_question: entries[0].id, questions: entries.map(([id, answer_profile]) => ({ id, type: 'output', level: 'beginner', difficulty: 0.2, concepts: ['py.assignment'], ...(answer_profile ? { answer_profile } : {}) })) });
-
-function serveBank({ practiceIndex = indexOf(2, [['synthetic-practice-question', 'beginner-practice']]) } = {}) {
-  Object.assign(served, {
-    'catalog.json': { data_version: 1, courses: [{ id: 'python', title: 'Python', description: 'd', free_questions: 1 }, { id: 'practice', title: 'Practice course', description: 'd', free_questions: 1 }] },
-    'courses/python.json': lessonCourse('python', 'Python', 'synthetic-standard-question'),
-    'courses/practice.json': lessonCourse('practice', 'Practice course', 'synthetic-practice-question'),
-    'index.json': indexOf(2, [['synthetic-standard-question', 'standard']]),
-    'index-practice.json': practiceIndex,
-  });
-}
-const { clearDataCache } = await import('../public/js/data.js');
-const { profileView } = await import('../public/js/views/profile.js');
-const totalText = (node) => node.all((n) => n.className.includes('score-big__value'))[0].text();
-const rowOf = (node, title) => node.all((n) => n.tag === 'tr' && n.text().includes(title))[0];
-
-test('the profile page: fresh progress, a mixed bank and a reload; practice never counts and unknown profiles give no points', async () => {
-  CONFIG.scoringUi = false;
-  serveBank();
-  clearDataCache();
-  store.reset();
-  const fresh = (await profileView()).node;
-  assert.equal(totalText(fresh), '0', 'fresh progress: the standard course alone makes the total (0), the practice-only course is not averaged in');
-  assert.match(rowOf(fresh, 'Practice course').text(), /–/, 'a practice-only course shows no points');
-
-  store.recordAnswer({ questionId: 'synthetic-practice-question', optionId: 'opt-0', score: 1 });
-  store.recordAnswer({ questionId: 'synthetic-standard-question', optionId: 'opt-0', score: 1 });
-  const answered = (await profileView()).node;
-  assert.equal(totalText(answered), '1000', 'only the standard answer counts');
-  clearDataCache();
-  assert.equal(totalText((await profileView()).node), '1000', 'a reload gives the same result');
-
-  serveBank({ practiceIndex: indexOf(1, [['synthetic-practice-question']]) });          // an old/stale index: profiles unknown
-  clearDataCache();
-  const unknown = (await profileView()).node;
-  assert.equal(totalText(unknown), '–', 'unknown profiles: no total, never a guess');
-  assert.match(rowOf(unknown, 'Practice course').text(), /–/);
-  serveBank({ practiceIndex: indexOf(2, [['synthetic-practice-question']]) });         // current index but no profile on the entry
-  clearDataCache();
-  assert.equal(totalText((await profileView()).node), '–', 'an entry without a profile is refused, not read as standard');
-  store.reset();
-});
-
-test('the local free list counts only standard answers, and shows nothing when the profiles are unknown', async () => {
-  CONFIG.scoringUi = false;
-  const { leaderboardView } = await import('../public/js/views/leaderboard.js');
-  globalThis.location.hash = '#/leaderboard?list=free&period=all&course=all';
-  const line = (node) => node.all((n) => n.tag === 'p' && n.attrs.role === 'status')[0].text();
-  serveBank();
-  clearDataCache();
-  store.reset();
-  store.recordAnswer({ questionId: 'synthetic-practice-question', optionId: 'opt-0', score: 1 });
-  assert.equal(line((await leaderboardView()).node), strings['board.free.none'], 'a practice answer alone gives no local points');
-  store.recordAnswer({ questionId: 'synthetic-standard-question', optionId: 'opt-0', score: 1 });
-  assert.match(line((await leaderboardView()).node), /1000/, 'the standard answer counts, the practice one does not');
-  serveBank({ practiceIndex: indexOf(1, [['synthetic-practice-question']]) });
-  clearDataCache();
-  assert.equal(line((await leaderboardView()).node), strings['board.free.none'], 'unknown profiles: no local points');
-  store.reset();
-  globalThis.location.hash = '';
-});
+// The scoring profile and free leaderboard views are registered only with CONFIG.scoringUi on and are server-only; the
+// local/mock branches were removed. The 027 isolation (practice excluded, unknown profiles unavailable) is enforced and
+// tested in the scoring model: web-tests/answer-profile.test.mjs and web-tests/scoring.test.mjs.

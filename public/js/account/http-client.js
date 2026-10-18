@@ -29,6 +29,12 @@ const PURCHASE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 const fullMatch = (re, value) => typeof value === 'string' && re.test(value) && re.exec(value)[0].length === value.length;
 const exactKeys = (value, keys) => !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join() === keys.join();
 
+// The ONLY scoring scopes the server contract accepts: exactly `total`, or a full `course:<id>` where the id starts with a
+// lowercase letter and is 1..64 characters of [a-z0-9-]. `fullMatch` also checks the matched length as defence in depth
+// (JS `$` without the m flag already matches only at the very end). Shared by scoringMe and scoringLeaderboards.
+const COURSE_SCOPE = /^course:[a-z][a-z0-9-]{0,63}$/;
+export const validScope = (scope) => scope === 'total' || fullMatch(COURSE_SCOPE, scope);
+
 export function parseOverlayCheckout(data) {
   if (!exactKeys(data, OVERLAY_TOP) || data.state !== 'pending' || data.provider !== 'paddle' || !fullMatch(PURCHASE_ID, data.purchase_id)) return null;
   const inner = data.checkout;
@@ -177,13 +183,15 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       const r = await request('/scoring/answers', { method: 'POST', csrf: true, body: { issue_id, outcome, option_id, idempotency_key } });
       return r.ok ? { ok: true, ...r.data } : r;
     },
-    async scoringMe({ family, window = 'all' }) {
-      if (!['official', 'free'].includes(family) || !['all', 'week'].includes(window)) return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
-      const r = await request(`/scoring/me?family=${encodeURIComponent(family)}&window=${encodeURIComponent(window)}`);
+    async scoringMe({ family, window = 'all', scope = 'total' } = {}) {
+      if (!['official', 'free'].includes(family) || !['all', 'week'].includes(window) || !validScope(scope)) {
+        return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
+      }
+      const r = await request(`/scoring/me?${new URLSearchParams({ family, scope, window })}`);
       return r.ok ? { ok: true, ...r.data } : r;
     },
     async scoringLeaderboards({ family, scope = 'total', window = 'all', limit = 50, cursor = null }) {
-      if (!['official', 'free'].includes(family) || !['all', 'week'].includes(window) || !Number.isInteger(limit) || limit < 1 || limit > 50 || (scope !== 'total' && !/^course:[a-z0-9._-]{1,80}$/.test(scope))) {
+      if (!['official', 'free'].includes(family) || !['all', 'week'].includes(window) || !Number.isInteger(limit) || limit < 1 || limit > 50 || !validScope(scope)) {
         return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
       }
       const query = new URLSearchParams({ family, scope, window, limit: String(limit) });

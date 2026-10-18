@@ -8,7 +8,7 @@ export const CONFIG = {
   // The study layer ships once its notes are reviewed and listed in a manifest (no probing for missing files).
   studyLayer: false,
   // Account screens (sign-in, premium, checkout) run on a fake client in test mode until the server exists.
-  // Profile, leaderboards and first-try points, on test data until the scoring API exists.
+  // Profile and leaderboards are server-only; this flag registers their routes (there is no local or sample fallback).
   scoringUi: false,
   accountsUi: false,
   accountsApi: null,

@@ -1,12 +1,12 @@
-# Intern dokumentation: teamets resonemang, uppgifter och beslut publiceras aldrig
+# Internal documentation: the team's reasoning, tasks and decisions are never published
 /team/
 
-# Hemligheter och lokal konfiguration
+# Secrets and local configuration
 .env
 .env.*
 !.env.example
 
-# Agentverktygens lokala filer
+# Local agent-tool files
 .claude/
 .pi/
 .opencode/

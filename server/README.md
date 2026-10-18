@@ -6,8 +6,8 @@ no external calls, needs no real provider key and must not be treated as proof o
 authentication or payment correctness.
 
 Server code is AGPL-3.0-or-later; the validator and schema packages stay MIT.
-Starlette/Uvicorn are declared for the later HTTP layer (019/020); nothing in
-this task imports them, so the 018 tests run with the standard library alone.
+Starlette and Uvicorn power the HTTP layer (`server/app.py` and the JSON API);
+the storage, repository and domain tests run with the standard library alone.
 
 ## Interfaces (frozen before implementation, for 019/020)
 

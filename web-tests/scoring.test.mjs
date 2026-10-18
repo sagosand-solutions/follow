@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { RULES, firstTries, courseScore, coursePoints, totalPoints, formatPoints, formatDelta, sharedRanks, boardWindow, weekStart, recentWeeks, pointsFor } from '../public/js/scoring/model.js';
-import { mockBoard } from '../public/js/scoring/mock.js';
+import { mockBoard } from './fixtures/mock-board.mjs';
 import { courseForServerId, courseBackHref } from '../public/js/scoring/challenge.js';
 
 const course = (...qs) => ({ levels: [{ lessons: [{ id: 'l', questions: qs }] }] });

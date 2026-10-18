@@ -1,4 +1,4 @@
-// Made-up leaderboard data for the scoring views while the server API does not exist (CONFIG.scoringUi, test mode).
+// Test fixture (moved out of production): made-up leaderboard rows for the model tests. Never imported by the app.
 // Deterministic: the same list, period and course always give the same rows. Every page that uses it says so.
 
 const NAMES = ['quiet_lambda', 'Mira K', 'pyreader', 'tab_and_space', 'nullable', 'off_by_one', 'Reader 4821', 'lazy_eval', 'Sam R', 'join_on_me', 'idempotent', 'yield_from', 'Noor', 'backoff', 'slice_of_pi', 'Reader 1077', 'mutable_default', 'T. Okafor', 'early_return', 'rowcount'];
