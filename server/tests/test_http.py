@@ -3,6 +3,7 @@ import json
 import unittest
 from types import SimpleNamespace
 
+from server.config import AppEnv
 from server.db import Database
 from server.repositories import Repositories
 from server.tests.support import CORE_ACK, FakePayments, build_fixture, call, json_body
@@ -13,6 +14,51 @@ class HttpTestCase(unittest.TestCase):
         fixture, tmp = build_fixture(**kwargs)
         self.addCleanup(tmp.cleanup)
         return fixture
+
+
+class RedirectAllowlistTests(unittest.TestCase):
+    def redirect(self, url, *, hosts=frozenset({"pay.example"}), app_env=AppEnv.TEST):
+        from server.app import _allowlisted_redirect
+        return _allowlisted_redirect(url, SimpleNamespace(payment_redirect_hosts=hosts), app_env=app_env)
+
+    def test_allowed_https_requires_nonempty_exact_hostname_allowlist(self):
+        url = "https://pay.example/checkout/1"
+        self.assertEqual(self.redirect(url, app_env=AppEnv.PRODUCTION), url)
+        self.assertIsNone(self.redirect(url, hosts=frozenset(), app_env=AppEnv.TEST))
+        self.assertIsNone(self.redirect("http://pay.example/checkout/1", hosts=frozenset(), app_env=AppEnv.TEST))
+
+    def test_http_is_allowed_only_in_explicit_test_environment(self):
+        url = "http://pay.example/checkout/1"
+        self.assertEqual(self.redirect(url, app_env=AppEnv.TEST), url)
+        self.assertIsNone(self.redirect(url, app_env=AppEnv.DEVELOPMENT))
+        self.assertIsNone(self.redirect(url, app_env=AppEnv.PRODUCTION))
+
+    def test_host_matching_rejects_suffix_and_userinfo_lookalikes(self):
+        for url in (
+            "https://pay.example.evil.test/checkout",
+            "https://evilpay.example/checkout",
+            "https://evil.example@pay.example/checkout",
+            "https://pay.example@evil.example/checkout",
+        ):
+            with self.subTest(url=url):
+                self.assertIsNone(self.redirect(url, app_env=AppEnv.PRODUCTION))
+
+    def test_malformed_or_unsafe_urls_fail_closed(self):
+        for url in (
+            None, 7, "", " /relative", "/relative", "//pay.example/checkout", "https:///missing-host",
+            "ftp://pay.example/file", "javascript:alert(1)", "https://[::1/", "https://pay.example:99999/",
+            "https://pay.example:abc/", "https://pay.example/\r\nHeader: value", "https://pay.example/\tpath",
+            "https://pay.example/\x80path",
+            "https:// pay.example/path", "https://pay.example /path",
+        ):
+            with self.subTest(url=url):
+                self.assertIsNone(self.redirect(url, app_env=AppEnv.TEST))
+
+    def test_host_allowlist_keeps_existing_hostname_only_port_semantics(self):
+        # The allowlist is host-only, as before: URL ports are parsed but not part of the host match.
+        url = "https://pay.example:9443/checkout"
+        self.assertEqual(self.redirect(url, app_env=AppEnv.PRODUCTION), url)
+        self.assertIsNone(self.redirect("https://pay.example.evil.test:9443/checkout", app_env=AppEnv.TEST))
 
 
 class ClientIpTests(unittest.TestCase):
@@ -425,6 +471,15 @@ class CheckoutTests(HttpTestCase):
         self.assertEqual(payload["redirect_url"], "https://pay.example/checkout/1")
         self.assertEqual(payload["purchase_id"], payments.calls[0][0])
         self.assertTrue(payments.calls)
+
+    def test_checkout_rejects_unsafe_redirect_without_echoing_provider_url(self):
+        redirect = "https://pay.example.evil.test/secret?token=do-not-echo"
+        fx = self.make(payments=FakePayments(redirect=redirect))
+        status, _, body = call(fx.app, "POST", "/checkout", headers=fx.headers(csrf=True), body=self.payload())
+        self.assertEqual(status, 500)
+        self.assertNotIn(redirect.encode(), body)
+        self.assertNotIn(b"do-not-echo", body)
+        self.assertIn(b'"code":"server-error"', body)
 
     def test_checkout_unavailable_without_payments(self):
         fx = self.make()

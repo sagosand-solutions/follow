@@ -15,6 +15,7 @@ import json
 import secrets
 import sqlite3
 import time
+import unicodedata
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Callable, Mapping
@@ -584,7 +585,8 @@ def create_app(settings, services: Services) -> Starlette:
         except ServerError:
             return http.error_response("unavailable", _request_id(request))
         redirect = _allowlisted_redirect(result.get("redirect_url") if isinstance(result, dict)
-                                        else getattr(result, "redirect_url", None), services)
+                                        else getattr(result, "redirect_url", None), services,
+                                        app_env=settings.app_env)
         if redirect is None:
             return http.error_response("server-error", _request_id(request))
         return http.json_response({"state": "pending", "redirect_url": redirect, "purchase_id": purchase.id},
@@ -681,14 +683,31 @@ def create_app(settings, services: Services) -> Starlette:
     return _BodyLimitMiddleware(app, settings)
 
 
-def _allowlisted_redirect(url, services: Services):
-    if not isinstance(url, str):
+def _allowlisted_redirect(url, services: Services, *, app_env: AppEnv):
+    """Return a safe configured redirect, or None without exposing/parsing errors to clients.
+
+    The allowlist has always matched hostnames only; URL ports are validated but intentionally
+    are not part of the allowlist comparison.
+    """
+    if (not isinstance(url, str) or not url or not services.payment_redirect_hosts
+            or any(char.isspace() or unicodedata.category(char) == "Cc" for char in url)):
         return None
     from urllib.parse import urlsplit
-    parts = urlsplit(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
+    try:
+        parts = urlsplit(url)
+        hostname = parts.hostname
+        parts.port  # Validate malformed/out-of-range ports even though the allowlist is host-only.
+    except ValueError:
         return None
-    if services.payment_redirect_hosts and parts.hostname not in services.payment_redirect_hosts:
+    scheme = parts.scheme.lower()
+    if (scheme not in ("http", "https") or not hostname or not parts.netloc
+            or parts.username is not None or parts.password is not None):
+        return None
+    if scheme != "https" and app_env is not AppEnv.TEST:
+        return None
+    allowed_hosts = {host.lower() for host in services.payment_redirect_hosts
+                     if isinstance(host, str) and host}
+    if hostname.lower() not in allowed_hosts:
         return None
     return url
 
