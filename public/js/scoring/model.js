@@ -1,4 +1,4 @@
-// Pure scoring rules for the profile and leaderboard views (design/profile-leaderboard-v1, scoring contract v1).
+// Pure scoring rules for the profile and leaderboard views (rules version r2).
 // No DOM, storage, network or clock: callers pass parsed courses, answer records and `now`.
 
 // Points per first try. The challenge counts the FIRST try only; later tries are practice.

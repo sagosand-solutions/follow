@@ -1,4 +1,4 @@
-// The result moment when every question of a course has a first try (design/profile-leaderboard-v1 §3).
+// The result moment when every question of a course has a first try.
 // Score and learning side by side, then an honest invitation; no rank, because nothing leaves this browser.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
