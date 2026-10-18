@@ -63,6 +63,9 @@ main { padding-block: var(--s-5) var(--s-8); }
 .nav a[aria-current="page"] { background: var(--surface-2); }
 .theme-select { border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); cursor: pointer; margin-inline-start: var(--s-2); padding-inline: var(--s-3); }
 .theme-select:hover { background: var(--surface-2); }
+/* Menu button and list wrappers: invisible on wide screens, where the header stays exactly as it was. */
+.nav__toggle, .nav__theme-label { display: none; }
+.nav__list, .nav__theme { display: contents; }
 
 .site-footer { color: var(--muted); font-size: var(--text-sm); }
 .site-footer .shell { padding-block: var(--s-6); display: grid; gap: var(--s-1); border-top: 1px solid var(--line); }
@@ -120,13 +123,34 @@ button.chip:hover { background: var(--surface-2); }
   /* :root outranks the components' own disabled looks (for example sign-in providers), which would otherwise show theme colours here. */
   :root .button[aria-disabled="true"], :root .button--primary:disabled { forced-color-adjust: none; background: Canvas; color: GrayText; border-color: GrayText; }
   .brand__mark span { background: CanvasText; }
+  .nav__toggle { border: 1px solid ButtonText; }
+  .nav__list { border-top-color: CanvasText; }
 }
 
 @media (max-width: 37.49rem) {
-  .site-header .shell { flex-wrap: wrap; padding-block: var(--s-1); }
-  .nav { flex-wrap: wrap; justify-content: flex-end; }
-  .brand { padding-block: var(--s-1); }
+  /* One row: brand mark · Continue · Menu. The list opens below and pushes the page down (no overlay). */
+  .site-header .shell { flex-wrap: nowrap; padding-block: var(--s-1); }
+  .nav { flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-2); }
+  /* The mark stays in the top row when the list is open (the row would otherwise centre it against the list). */
+  .brand { padding-block: 0; min-height: var(--tap); align-self: flex-start; }
   .brand__text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .nav a, .theme-select { padding-inline: var(--s-2); font-size: 0.875rem; }
   .theme-select { margin-inline-start: 0; }
+  .nav__toggle {
+    display: inline-flex; align-items: center; gap: var(--s-2); min-height: var(--tap); padding-inline: var(--s-3);
+    border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--ink);
+    font: inherit; font-weight: 700; font-size: 0.9375rem; cursor: pointer;
+  }
+  .nav__toggle:hover { background: var(--surface-2); }
+  .nav__toggle::after { content: "\25BE" / ""; font-size: 0.75em; }
+  .nav__toggle[aria-expanded="true"]::after { content: "\25B4" / ""; }
+  /* The open list spans the whole row: it reaches back under the brand mark (1.5rem) and the header's column gap. */
+  .nav__list {
+    display: grid; flex-basis: calc(100% + 1.5rem + var(--s-4)); margin-inline-start: calc(-1 * (1.5rem + var(--s-4)));
+    padding-block: var(--s-2); border-top: 1px solid var(--line);
+  }
+  .nav[data-collapsible][data-open="false"] .nav__list { display: none; }
+  .nav__list a { display: flex; font-size: var(--text-base); border-radius: var(--radius-sm); }
+  .nav__theme { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: var(--tap); padding-inline: var(--s-2); }
+  .nav__theme-label { display: inline; font-weight: 600; }
 }
