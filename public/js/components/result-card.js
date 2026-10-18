@@ -11,8 +11,8 @@ export function courseFinished(course, records) {
   return s.pool > 0 && s.answered === s.pool;
 }
 
-export function resultCard(course, records) {
-  const s = courseScore(course, records);
+export function resultCard(course, records, isRightNow = null) {
+  const s = courseScore(course, records, undefined, isRightNow);
   const half = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
   return h(
     'section',
@@ -21,7 +21,7 @@ export function resultCard(course, records) {
     h('h2', { id: 'result-title' }, t('result.points', { points: formatPoints(s.points) })),
     h('p', {}, t('result.raw', { sum: half(s.sum), pool: s.pool })),
     facts([{ template: t('profile.pill.right'), bold: s.counts.right }, { template: t('profile.pill.partial'), bold: s.counts.partial }, { template: t('profile.pill.unsure'), bold: s.counts.unsure }, { template: t('profile.pill.wrong'), bold: s.counts.wrong }], t('result.kicker', { course: course.title })),
-    h('p', { class: 'muted' }, t('result.learned', { n: s.learned, pool: s.pool })),
+    isRightNow ? h('p', { class: 'muted' }, t('result.learned', { n: s.learned, pool: s.pool })) : null,
     h(
       'div',
       { class: 'banner result-card__invite' },

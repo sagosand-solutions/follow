@@ -97,7 +97,19 @@ export async function lessonView({ id }) {
     // End of a finished lesson: where to go next and what builds on this lesson.
     const { next, buildsOn } = lessonEnding(course, lesson.id);
     // The result moment sits at the end of the course's last lesson once every question has a first try.
-    if (CONFIG.scoringUi && !next && courseFinished(course, store.answers())) parts.push(resultCard(course, store.answers()));
+    if (CONFIG.scoringUi && !next && courseFinished(course, store.answers())) {
+      // "Right now" is checked against every question of the course as it is today (null when one cannot load).
+      const all = flattenLessons(course).flatMap((e) => e.lesson.questions);
+      const loaded = await Promise.all(all.map((qid) => loadQuestion(qid).catch(() => null)));
+      const byId = new Map(all.map((qid, i) => [qid, loaded[i]]));
+      const isRightNow = loaded.every(Boolean)
+        ? (r) => {
+            const cur = currentAnswer(byId.get(r.question_id), r);
+            return !!cur && cur.outcome === 'answered' && cur.score === 1;
+          }
+        : null;
+      parts.push(resultCard(course, store.answers(), isRightNow));
+    }
     const reviewCount = reviewQueue(course, store.answers()).length;
     parts.push(
       h(

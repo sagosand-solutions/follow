@@ -52,7 +52,9 @@ export function coursePoints(sum, pool) {
   return Number.isInteger(pool) && pool > 0 ? (1000 * sum) / pool : null;
 }
 
-export function courseScore(course, records, rules = RULES) {
+// `isRightNow(record)` decides whether the newest try is right against the question as it is NOW (the lesson page's
+// validity rule). Without it, "learned" falls back to the stored score, which callers must not call "right now".
+export function courseScore(course, records, rules = RULES, isRightNow = null) {
   const ids = questionIds(course);
   const first = firstTries(records);
   const latest = latestTries(records);
@@ -67,7 +69,7 @@ export function courseScore(course, records, rules = RULES) {
       sum += pointsFor(r, rules);
     }
     const last = latest.get(id);
-    if (last && outcomeOf(last) === 'right') {
+    if (last && (isRightNow ? isRightNow(last) : outcomeOf(last) === 'right')) {
       learned += 1;
       if (r && outcomeOf(r) !== 'right') improved += 1;
     }

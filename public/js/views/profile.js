@@ -2,11 +2,12 @@
 // per course, and a calm week-by-week history. Shown only when CONFIG.scoringUi is on. Data: this browser only.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { loadCourses } from '../data.js';
+import { loadCourses, loadQuestion } from '../data.js';
+import { currentAnswer } from '../answers.js';
 import { store } from '../progress.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { reviewQueue } from '../review.js';
-import { courseScore, totalPoints, formatPoints, recentWeeks } from '../scoring/model.js';
+import { RULES, courseScore, totalPoints, formatPoints, recentWeeks } from '../scoring/model.js';
 import { eyebrow, facts } from '../components/ui.js';
 import { bigNumber } from '../components/score-ui.js';
 import { errorNode } from './errors.js';
@@ -23,7 +24,15 @@ export async function profileView() {
   }
   if (!entries.length) return { title: t('error.title'), node: errorNode(t('error.course')) };
   const records = store.answers();
-  const scores = entries.map((e) => ({ id: e.id, title: e.course.title, course: e.course, ...courseScore(e.course, records) }));
+  // "Right now" is checked against each question as it is today; a question that changed or failed to load does not count.
+  const ids = [...new Set(records.map((r) => r.question_id))];
+  const questions = new Map((await Promise.all(ids.map((id) => loadQuestion(id).then((q) => [id, q], () => null)))).filter(Boolean));
+  const isRightNow = (r) => {
+    const q = questions.get(r.question_id);
+    const cur = q ? currentAnswer(q, r) : null;
+    return !!cur && cur.outcome === 'answered' && cur.score === 1;
+  };
+  const scores = entries.map((e) => ({ id: e.id, title: e.course.title, course: e.course, ...courseScore(e.course, records, RULES, isRightNow) }));
   const total = totalPoints(scores);
   const sum = (key) => scores.reduce((a, s) => a + s.counts[key], 0);
   const answered = scores.reduce((a, s) => a + s.answered, 0);

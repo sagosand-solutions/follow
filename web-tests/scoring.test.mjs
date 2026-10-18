@@ -91,3 +91,13 @@ test('no casino words in the scoring copy', async () => {
   const text = Object.entries(en).filter(([k]) => /^(score|profile|board|result)\./.test(k)).map(([, v]) => v).join(' ').toLowerCase();
   for (const word of ['nobody can', 'never lose', 'streak', 'penalty', 'lost', 'hurry', 'only today', 'limited', 'jackpot', 'win big']) assert.ok(!text.includes(word), word);
 });
+
+test('learned counts only answers that are right against the question as it is now', () => {
+  const c = course('a', 'b');
+  const records = [right('a', 1, 1), right('b', 1, 2)];
+  assert.equal(courseScore(c, records).learned, 2);
+  // b changed: its stored option is no longer right (or no longer exists)
+  const now = courseScore(c, records, RULES, (r) => r.question_id === 'a');
+  assert.equal(now.learned, 1);
+  assert.equal(now.points, 1000, 'first-try points stay as recorded');
+});
