@@ -51,9 +51,17 @@ def api_url(environment: str, path: str) -> str:
     return f"https://{API_HOSTS[environment]}{path}"
 
 
-def check_response_url(environment: str, url: str) -> None:
-    """A transport must call back only the constant host over TLS; redirects to anywhere are refused upstream."""
-    parts = urlsplit(url)
-    if (parts.scheme != "https" or parts.hostname != API_HOSTS.get(environment) or parts.username or parts.password
-            or parts.port not in (None, 443)):
+def check_response_url(environment: str, url) -> None:
+    """A transport must call back only the constant host over TLS. Any parser failure is a typed rejection."""
+    if environment not in API_HOSTS:
+        raise PaddleConfigError("unknown environment")
+    if (not isinstance(url, str) or not url.isascii() or len(url) > 2048 or "\\" in url
+            or any(ord(c) <= 32 or ord(c) == 127 for c in url)):
+        raise PaddleTransportRejected("host not allowed")
+    try:
+        parts = urlsplit(url)
+        host, port, user, password = parts.hostname, parts.port, parts.username, parts.password
+    except ValueError:
+        raise PaddleTransportRejected("host not allowed") from None
+    if parts.scheme != "https" or host != API_HOSTS[environment] or user or password or port not in (None, 443):
         raise PaddleTransportRejected("host not allowed")

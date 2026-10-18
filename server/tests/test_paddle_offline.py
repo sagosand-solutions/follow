@@ -177,6 +177,75 @@ class WebhookTests(unittest.TestCase):
         self.assertEqual(signature.classify_dedup(ea.payload_digest, eb.payload_digest), "conflict")
 
 
+class StrictInputTests(unittest.TestCase):
+    """Signed-but-malformed payloads, non-canonical timestamps, bad tolerances and URL parser errors (engineer return)."""
+
+    def verify(self, raw, **kw):
+        return signature.verify_webhook(raw, {"Paddle-Signature": sign(raw)}, NOW, secret=SECRET, environment="sandbox", **kw)
+
+    def test_signed_malformed_bodies_are_typed_errors_not_raw_exceptions(self):
+        good = envelope()
+        txn = '{"id":"%s","status":"completed"%%s}' % TXN
+        def body(data_fragment):
+            return ('{"event_id":"evt_01abcdefghjkmnpqrstvwxyz01","event_type":"transaction.completed",'
+                    '"occurred_at":"2026-10-19T01:02:03Z","notification_id":"ntf_01abcdefghjkmnpqrstvwxyz01","data":%s}' % data_fragment).encode()
+        cases = {
+            "items_integer": body(txn % ',"items":1'), "items_list_of_int": body(txn % ',"items":[1]'),
+            "items_list_of_list": body(txn % ',"items":[[]]'), "items_null_item": body(txn % ',"items":[null]'),
+            "details_not_object": body(txn % ',"details":[]'), "totals_not_object": body(txn % ',"details":{"totals":5}'),
+            "duplicate_keys": good.replace(b'"status":"completed"', b'"status":"completed","status":"paid"'),
+            "nan": body(txn % ',"x":NaN'), "infinity": body(txn % ',"x":Infinity'), "minus_infinity": body(txn % ',"x":-Infinity'),
+            "overflowing_number": body(txn % ',"x":1e999'),
+            "deep_nesting": b"[" * 100_000 + b"]" * 100_000,
+            "deep_object": b'{"a":' * 50_000 + b"1" + b"}" * 50_000,
+            "bad_utf8": b'{"event_id":"\xff"}'.replace(b"\\xff", b"\xff"), "empty": b"", "top_level_string": b'"x"',
+        }
+        for name, raw in cases.items():
+            with self.subTest(name), self.assertRaises(PaddleMalformed):
+                self.verify(raw)
+
+    def test_occurred_at_must_be_a_full_rfc3339_timestamp_with_a_zone(self):
+        for bad in ("2026-10-19", "2026-10-19T01:02:03", "2026-10-19 01:02:03Z", "2026-10-19T01:02Z", "2026-10-19T25:00:00Z",
+                    "2026-13-01T00:00:00Z", "2026-10-19T01:02:03+0100", "2026-10-19T01:02:03.Z", "20261019T010203Z", ""):
+            with self.subTest(bad=bad), self.assertRaises(PaddleMalformed):
+                self.verify(envelope(occurred_at=bad))
+        for good in ("2026-10-19T01:02:03Z", "2026-10-19T01:02:03.456789123Z", "2026-10-19T01:02:03+02:00", "2026-10-19t01:02:03z"):
+            with self.subTest(good=good):
+                self.assertEqual(self.verify(envelope(occurred_at=good)).occurred_at, good)
+
+    def test_timestamp_must_be_canonical_and_the_signed_bytes_are_exactly_the_header_string(self):
+        raw = envelope()
+        for ts in ("0001700000000", "00", "01", "+1700000000", " 1700000000"):
+            h1 = hmac.new(SECRET.encode(), f"{int(ts) if ts.strip('+ ').isdigit() else 0}:".encode() + raw, hashlib.sha256).hexdigest()
+            with self.subTest(ts=ts), self.assertRaises(PaddleMalformed):
+                signature.verify_signature(raw, f"ts={ts};h1={h1}", SECRET, NOW)
+        exact = hmac.new(SECRET.encode(), f"{int(NOW)}:".encode() + raw, hashlib.sha256).hexdigest()
+        self.assertEqual(signature.verify_signature(raw, f"ts={int(NOW)};h1={exact}", SECRET, NOW), int(NOW))
+        self.assertEqual(signature.parse_signature_header("ts=0;h1=" + "a" * 64)[0], 0)
+
+    def test_tolerance_must_be_a_finite_non_negative_number(self):
+        raw = envelope()
+        for bad in (float("nan"), float("inf"), float("-inf"), -1, "5", None, True, False, [5]):
+            with self.subTest(tolerance=repr(bad)), self.assertRaises(PaddleConfigError):
+                signature.verify_signature(raw, sign(raw), SECRET, NOW, tolerance=bad)
+        with self.assertRaises(PaddleStaleTimestamp):  # an old timestamp is NOT waved through by a bad tolerance
+            signature.verify_signature(raw, sign(raw, int(NOW) - 3600), SECRET, NOW, tolerance=5)
+        with self.assertRaises(PaddleStaleTimestamp):
+            signature.verify_signature(raw, sign(raw, int(NOW) + 3600), SECRET, NOW, tolerance=0)
+        signature.verify_signature(raw, sign(raw, int(NOW) - 3600), SECRET, NOW, tolerance=3600)
+        signature.verify_signature(raw, sign(raw), SECRET, NOW, tolerance=0)
+
+    def test_url_parser_errors_become_typed_rejections(self):
+        for url in ("https://api.paddle.com:abc/x", "https://api.paddle.com:99999999/x", "https://[::1/x", "https://[api.paddle.com]/x",
+                    "https://api.paddle.com\n/x", "https://api.paddle.com/x\t", "https://api.paddle.com/ x", "https://api.paddle.com\\@evil.example/",
+                    "https://api.pad\u00e4le.com/x", "https://api.paddle.com/" + "a" * 3000, "", None, 5, b"https://api.paddle.com/"):
+            with self.subTest(url=repr(url)[:40]), self.assertRaises(PaddleTransportRejected):
+                policy.check_response_url("live", url)
+        for env in ("staging", None, "", 5):
+            with self.subTest(env=env), self.assertRaises(PaddleConfigError):
+                policy.check_response_url(env, "https://api.paddle.com/x")
+
+
 class PolicyTests(unittest.TestCase):
     KEY_S, KEY_L = "pdl_sdbx_apikey_" + "a" * 30, "pdl_live_apikey_" + "b" * 30
 
@@ -297,6 +366,33 @@ class MappingTests(unittest.TestCase):
                   adj("credit", "approved"), adj("chargeback_warning", "approved")):
             with self.subTest(action=a.action, status=a.status, type=a.type):
                 self.assertEqual(self.decide("pending", snapshot(adjustments=[a])).action, "paid")
+
+    def test_unknown_domains_never_grant_even_after_a_benign_or_full_refund_element(self):
+        unknown = [adj("refund", "weird", "partial"), adj("credit", "approved", "weird"), adj("refund", "approved", "weird"),
+                   adj("credit", "weird", "full"), adj("", "approved", "full"), adj(None, "approved", "full")]
+        for a in unknown:
+            for before in ("pending", "paid"):
+                for prefix in ([], [adj("credit", "approved", "full", i=7)], [adj()]):
+                    with self.subTest(action=a.action, status=a.status, type=a.type, before=before, prefix=len(prefix)):
+                        d = self.decide(before, snapshot(adjustments=prefix + [a]))
+                        self.assertEqual((d.action, d.grants), ("reconcile", False))
+
+    def test_unknown_transaction_status_is_reconciled_not_ignored(self):
+        for status in ("weird", "", None, "Completed", "refunded"):
+            with self.subTest(status=status):
+                self.assertEqual(self.decide("pending", snapshot(status)).action, "reconcile")
+                self.assertEqual(self.decide("pending", snapshot(status, [adj()])).action, "reconcile")
+                self.assertEqual(self.decide("pending", snapshot(status, [adj("credit", "approved", "full")])).action, "reconcile")
+
+    def test_numeric_proof_values_must_be_real_integers_not_booleans(self):
+        # True == 1 in Python: a bool must never satisfy a quantity or an amount.
+        self.assertEqual(self.decide("pending", snapshot(items=(Item(PRICE, True),))).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, True, "USD", total_minor=1000)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(totals={"grand_total": True}), Expected("sandbox", PRICE, 1, "USD", total_minor=1)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, 1, "USD", total_minor=True)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(totals={"grand_total": 1000.0})).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(items=(Item(PRICE, 1.0),))).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot()).action, "paid")
 
     def test_every_adjustment_is_validated_before_a_grant(self):
         d = self.decide("pending", snapshot(adjustments=[adj("credit", "approved", i=1), adj("mystery", "approved", i=2)]))

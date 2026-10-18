@@ -16,14 +16,15 @@ import re
 from datetime import datetime
 from typing import Mapping
 
-from .types import (PaddleMalformed, PaddleSignatureInvalid, PaddleStaleTimestamp, VerifiedEvent)
+from .types import (PaddleConfigError, PaddleMalformed, PaddleSignatureInvalid, PaddleStaleTimestamp, VerifiedEvent)
 
 MAX_HEADER_BYTES = 1024
 MAX_H1 = 4
 DEFAULT_TOLERANCE_SECONDS = 5
 MAX_BODY_BYTES = 256 * 1024
 _H1_RE = re.compile(r"[0-9a-f]{64}\Z")
-_TS_RE = re.compile(r"[0-9]{1,12}\Z")
+_TS_RE = re.compile(r"(?:0|[1-9][0-9]{0,11})\Z")  # canonical: no leading zeros, so the signed bytes equal int(ts)
+_RFC3339_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,9})?([Zz]|[+-][0-9]{2}:[0-9]{2})\Z")
 _EVENT_ID_RE = re.compile(r"evt_[a-z0-9]{10,40}\Z")
 _NOTIFICATION_RE = re.compile(r"ntf_[a-z0-9]{10,40}\Z")
 _TXN_RE = re.compile(r"txn_[a-z0-9]{10,40}\Z")
@@ -65,6 +66,8 @@ def verify_signature(raw_body: bytes, header, secret, now: float, *, tolerance: 
         raise PaddleMalformed("body missing or too large")
     if not isinstance(now, (int, float)) or isinstance(now, bool) or not math.isfinite(now):
         raise PaddleMalformed("server clock unavailable")
+    if isinstance(tolerance, bool) or not isinstance(tolerance, (int, float)) or not math.isfinite(tolerance) or tolerance < 0:
+        raise PaddleConfigError("tolerance must be a finite, non-negative number")
     ts, candidates = parse_signature_header(header)
     expected = hmac.new(_secret_bytes(secret), f"{ts}:".encode("ascii") + bytes(raw_body), hashlib.sha256).hexdigest()
     matched = False
@@ -92,13 +95,47 @@ def _minor(value, label: str) -> int:
 
 
 def _rfc3339(value) -> str:
+    """A full RFC 3339 timestamp WITH a zone (date-only or naive times are refused)."""
     if not isinstance(value, str) or len(value) > 40:
         raise PaddleMalformed("occurred_at is not RFC 3339")
+    match = _RFC3339_RE.fullmatch(value)
+    if match is None:
+        raise PaddleMalformed("occurred_at is not RFC 3339")
+    normalised = value.replace("z", "Z").replace("t", "T")
+    if match.group(1):
+        normalised = normalised.replace(match.group(1), match.group(1)[:7])  # validate with microsecond precision
     try:
-        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        datetime.fromisoformat(normalised.replace("Z", "+00:00"))
     except ValueError as exc:
         raise PaddleMalformed("occurred_at is not RFC 3339") from exc
     return value
+
+
+def _no_duplicates(pairs):
+    keys = [k for k, _ in pairs]
+    if len(set(keys)) != len(keys):
+        raise ValueError("duplicate key")
+    return dict(pairs)
+
+
+def _reject_constant(_name):
+    raise ValueError("non-finite number")
+
+
+def _finite_float(text):
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError("non-finite number")
+    return value
+
+
+def _strict_json(raw: bytes):
+    """JSON with duplicate keys, NaN/Infinity and overflowing numbers refused; parser failures are PaddleMalformed."""
+    try:
+        return json.loads(bytes(raw).decode("utf-8"), object_pairs_hook=_no_duplicates,
+                          parse_constant=_reject_constant, parse_float=_finite_float)
+    except (ValueError, UnicodeDecodeError, RecursionError) as exc:
+        raise PaddleMalformed("body is not valid strict JSON") from exc
 
 
 def _normalise_transaction(data: dict) -> dict:
@@ -123,8 +160,13 @@ def _normalise_transaction(data: dict) -> dict:
     if not isinstance(status, str) or len(status) > 20 or (currency is not None and not (isinstance(currency, str) and _CURRENCY_RE.fullmatch(currency))):
         raise PaddleMalformed("transaction status/currency is malformed")
     totals = {}
-    raw_totals = (data.get("details") or {}).get("totals") if isinstance(data.get("details"), dict) else None
-    if isinstance(raw_totals, dict):
+    details = data.get("details")
+    if details is not None and not isinstance(details, dict):
+        raise PaddleMalformed("transaction details are not an object")
+    raw_totals = details.get("totals") if details else None
+    if raw_totals is not None and not isinstance(raw_totals, dict):
+        raise PaddleMalformed("transaction totals are not an object")
+    if raw_totals:
         for name in ("subtotal", "tax", "total", "grand_total"):
             if name in raw_totals:
                 totals[name] = _minor(raw_totals[name], f"totals.{name}")
@@ -137,7 +179,11 @@ def _normalise_adjustment(data: dict) -> dict:
     if (not isinstance(adj, str) or not _ADJ_RE.fullmatch(adj) or not isinstance(txn, str) or not _TXN_RE.fullmatch(txn)
             or not all(isinstance(v, str) and 0 < len(v) <= 40 for v in (action, status, kind))):
         raise PaddleMalformed("adjustment is malformed")
-    totals = data.get("totals") if isinstance(data.get("totals"), dict) else {}
+    totals = data.get("totals")
+    if totals is None:
+        totals = {}
+    if not isinstance(totals, dict):
+        raise PaddleMalformed("adjustment totals are not an object")
     return {"adjustment_id": adj, "transaction_id": txn, "action": action, "status": status, "type": kind,
             "total_minor": _minor(totals["total"], "totals.total") if "total" in totals else None,
             "currency_code": totals.get("currency_code") if isinstance(totals.get("currency_code"), str) else None}
@@ -153,10 +199,7 @@ def verify_webhook(raw_body: bytes, headers: Mapping, now: float, *, secret, env
     if environment not in ("sandbox", "live"):
         raise PaddleMalformed("environment is not configured")
     verify_signature(raw_body, _single_header(headers, "paddle-signature"), secret, now, tolerance=tolerance)
-    try:
-        envelope = json.loads(bytes(raw_body).decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as exc:
-        raise PaddleMalformed("body is not valid JSON") from exc
+    envelope = _strict_json(raw_body)
     if not isinstance(envelope, dict) or not isinstance(envelope.get("data"), dict):
         raise PaddleMalformed("envelope is malformed")
     event_id, event_type, notification_id = envelope.get("event_id"), envelope.get("event_type"), envelope.get("notification_id")

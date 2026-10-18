@@ -18,13 +18,11 @@ INFORMATIONAL_EVENTS = frozenset({
     "transaction.payment_failed", "transaction.past_due",
 })
 LOOK_EVENTS = frozenset({"transaction.completed", "transaction.canceled", "adjustment.created", "adjustment.updated"})
-_BENIGN = {                         # action -> statuses that never change our state
-    "credit": {"approved", "rejected", "reversed", "pending_approval"},
-    "credit_reverse": {"approved", "rejected", "reversed", "pending_approval"},
-    "refund": {"pending_approval", "rejected", "reversed"},
-    "chargeback_warning": {"approved", "rejected", "reversed", "pending_approval"},
-    "chargeback_warning_reverse": {"approved", "rejected", "reversed", "pending_approval"},
-}
+ADJUSTMENT_ACTIONS = frozenset({"credit", "refund", "chargeback", "chargeback_warning", "chargeback_reverse",
+                                "chargeback_warning_reverse", "credit_reverse"})
+ADJUSTMENT_STATUSES = frozenset({"pending_approval", "approved", "rejected", "reversed"})
+ADJUSTMENT_TYPES = frozenset({"full", "partial"})
+TRANSACTION_STATUSES = frozenset({"draft", "ready", "billed", "paid", "completed", "canceled", "past_due"})
 
 
 def should_look(event: VerifiedEvent) -> bool:
@@ -32,9 +30,15 @@ def should_look(event: VerifiedEvent) -> bool:
     return event.event_type in LOOK_EVENTS
 
 
+def _is_int(value) -> bool:
+    return type(value) is int      # bool is an int subclass and True == 1: never a proof value
+
+
 def _proof_failures(state: AuthoritativeState, expected: Expected) -> str | None:
     if state.environment != expected.environment:
         return "environment differs"
+    if not all(isinstance(i.price_id, str) and _is_int(i.quantity) for i in state.items) or not _is_int(expected.quantity):
+        return "item shape differs"
     items = [(i.price_id, i.quantity) for i in state.items]
     if items != [(expected.price_id, expected.quantity)]:
         return "price or quantity differs"
@@ -42,7 +46,8 @@ def _proof_failures(state: AuthoritativeState, expected: Expected) -> str | None
         return "currency differs"
     if expected.total_minor is None:
         return "amount policy is not decided"
-    if state.totals.get(expected.total_field) != expected.total_minor:
+    actual = state.totals.get(expected.total_field)
+    if not _is_int(expected.total_minor) or not _is_int(actual) or actual != expected.total_minor:
         return "amount differs"
     return None
 
@@ -53,17 +58,22 @@ def decide(state_before: str, snapshot: AuthoritativeState, expected: Expected) 
         return Decision("none", "already terminal")
     if state_before not in ("pending", "paid"):
         return Decision("reconcile", "unknown current state")
+    # 1. Validate EVERY adjustment against the documented domains before any rule can skip or accept it.
+    for adjustment in snapshot.adjustments:
+        if (adjustment.action not in ADJUSTMENT_ACTIONS or adjustment.status not in ADJUSTMENT_STATUSES
+                or adjustment.type not in ADJUSTMENT_TYPES):
+            return Decision("reconcile", "unknown or unvalidated adjustment")
+    if snapshot.status not in TRANSACTION_STATUSES:
+        return Decision("reconcile", "unknown transaction status")
+    # 2. Terminal adjustments.
     full_refund = False
     for adjustment in snapshot.adjustments:
-        if adjustment.action == "chargeback" or adjustment.action == "chargeback_reverse":
+        if adjustment.action in ("chargeback", "chargeback_reverse"):
             return Decision("reconcile", "chargeback status is undocumented; manual reconciliation")
         if adjustment.action == "refund" and adjustment.type == "full" and adjustment.status == "approved":
             full_refund = True
-            continue
-        if adjustment.action == "refund" and adjustment.type == "partial":
-            continue                    # partial refund: no state change by policy (P2 open), never a grant reason
-        if adjustment.status not in _BENIGN.get(adjustment.action, set()):
-            return Decision("reconcile", "unknown or unvalidated adjustment")
+        # every other in-domain combination (credit, partial refund, pending/rejected refund, warnings, reversals of
+        # those) changes no state by policy (P2 open) and is never a reason to grant
     if full_refund:
         if snapshot.status in ("completed", "paid"):
             return Decision("refunded", "full approved refund")   # no grant, even from pending
