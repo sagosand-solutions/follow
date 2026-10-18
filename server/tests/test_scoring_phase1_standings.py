@@ -4,16 +4,14 @@
 Negative first: an anonymous, exposed, replayed or post-freeze attempt never moves a ranked row, and a failure while writing
 standings leaves no attempt behind. All data is synthetic.
 """
-import io
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from server import pool
 from server.scoring_standings import StandingsWriter, rebuild
 from server.scoring_versions import iso_week
 from server.tests.scoring_support import build_scoring_fixture
-from server.tests.support import call, json_body
+from server.tests.support import call, json_body, run_cli_captured
 
 TABLES = ("course_units", "standings", "anonymous_units")
 
@@ -308,7 +306,9 @@ class RebuildTests(Base):
         self.rebuilt("free")
         after = boards()
         self.assertEqual({k: after[k] - before[k] for k in before}, {k: 1 for k in before}, (before, after))
-        pool.freeze(self.fx.db(), self.version("free"), reason_code="season-end", now=self.fx.clock[0])
+        db = self.fx.db()
+        self.addCleanup(db.close)
+        pool.freeze(db, self.version("free"), reason_code="season-end", now=self.fx.clock[0])
         frozen = self.snapshot()
         with self.assertRaises(ValueError):
             self.rebuilt("free")
@@ -317,15 +317,11 @@ class RebuildTests(Base):
     def test_the_command_line_rebuild(self):
         self.populate()
         before = self.snapshot()
-        out, err = io.StringIO(), io.StringIO()
-        with redirect_stdout(out), redirect_stderr(err):
-            code = pool.main(["--db", self.fx.path, "rebuild", "--version", self.version("free")])
-        self.assertEqual(code, 0, err.getvalue())
-        self.assertNotIn("refused", err.getvalue())
-        self.assertIn("rebuilt", out.getvalue())
+        code, out, err = run_cli_captured(pool.main, ["--db", self.fx.path, "rebuild", "--version", self.version("free")])
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn("rebuilt", out)
         self.assertEqual(self.snapshot(), before)
-        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            self.assertEqual(pool.main(["--db", self.fx.path, "rebuild", "--version", "nope"]), 2)
+        self.assertEqual(run_cli_captured(pool.main, ["--db", self.fx.path, "rebuild", "--version", "nope"])[0], 2)
 
 
 if __name__ == "__main__":

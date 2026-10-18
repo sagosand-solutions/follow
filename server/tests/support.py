@@ -4,10 +4,13 @@ fixtures built on temporary databases and synthetic private content."""
 from __future__ import annotations
 
 import asyncio
+import gc
 import hashlib
+import io
 import json
 import os
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -53,6 +56,19 @@ def call(app, method, path, *, headers=None, body=b"", query=b""):
         return status, response_headers, payload
 
     return asyncio.run(run())
+
+
+def run_cli_captured(main, argv, **kwargs):
+    """Run a command-line ``main`` with stdout and stderr captured; returns (exit code, stdout, stderr).
+
+    Garbage left by EARLIER tests (for example a database connection that was never closed) is finalised by ``gc.collect()``
+    BEFORE the capture starts, so its ResourceWarning is never written into the stderr this call returns. Warnings raised by
+    the command itself are still captured; nothing is filtered."""
+    gc.collect()
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = main(argv, **kwargs)
+    return code, out.getvalue(), err.getvalue()
 
 
 def json_body(response):
