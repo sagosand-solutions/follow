@@ -605,6 +605,18 @@ class ProfileGateTests(Base):
             q["answer_profile"] = profile
         return q
 
+    def question_with_scores(self, scores):
+        q = self.question("0.2", "standard", len(scores))
+        for option, score in zip(q["options"], scores):
+            option["score"] = score
+        return q
+
+    def question_with_ids(self, ids):
+        q = self.question("0.2", "standard", len(ids))
+        for option, option_id in zip(q["options"], ids):
+            option["id"] = option_id
+        return q
+
     def test_eligibility_matrix(self):
         from server.scoring_service import check_scoring_profile
         ok = [self.question(), self.question(options=8), self.question("0.2", "standard"), self.question("0.2", "standard", 6)]
@@ -622,6 +634,11 @@ class ProfileGateTests(Base):
             "nine_options": self.question("0.2", "standard", 9),
             "three_options": self.question("0.1", None, 3),
             "profile_is_not_a_string": self.question("0.2", ["standard"]),
+            "lying_standard_with_two_full": self.question_with_scores([1, 1, 0.5, 0, 0]),
+            "no_half": self.question_with_scores([1, 0, 0, 0, 0]),
+            "too_few_zero": self.question_with_scores([1, 0.5, 0, 0, 0.5]),
+            "boolean_score": self.question_with_scores([True, 0.5, 0, 0, 0]),
+            "duplicate_option_id": self.question_with_ids(["a", "a", "b", "c", "d"]),
         }
         for name, q in bad.items():
             with self.subTest(name), self.assertRaises(ContentError):

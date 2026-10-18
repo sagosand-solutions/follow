@@ -106,7 +106,7 @@ def check_scoring_profile(data: dict) -> None:
     """Only standard-profile questions may be scored on the server.
 
     A question is eligible when it is a legacy 0.1 document (which has no ``answer_profile``) or a 0.2 document
-    that says ``standard``, and it has 5-8 options. Anything else (the four-option beginner-practice profile, an
+    that says ``standard``, and it has 5-8 options with exactly one full, one half and at least three zero-credit scores and unique option ids. Anything else (the four-option beginner-practice profile, an
     unknown version or profile, a profile on 0.1, a missing profile on 0.2) is refused: never inferred, never a
     silent fallback. The check reads the hash-bound question itself, so a hand-built or stale artifact cannot
     smuggle a practice question into the competition pool.
@@ -116,6 +116,12 @@ def check_scoring_profile(data: dict) -> None:
     ok = (version == "0.1" and not has_profile) or (version == "0.2" and data.get("answer_profile") == "standard")
     options = data.get("options")
     if not ok or not isinstance(options, list) or not 5 <= len(options) <= 8:
+        raise ContentError("question is not eligible for server scoring")
+    scores = [option.get("score") if isinstance(option, dict) else None for option in options]
+    # Exactly one full, one half and at least three zero-credit options; booleans are never scores.
+    if (any(isinstance(score, bool) or not isinstance(score, (int, float)) for score in scores)
+            or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) < 3
+            or len({option.get("id") for option in options}) != len(options)):
         raise ContentError("question is not eligible for server scoring")
 
 
