@@ -16,8 +16,8 @@ from pathlib import Path
 from .models import ContentError
 
 FAMILIES = ("official", "free")
-RULES_VERSION = "r1"
-SCORE_UNITS = {"correct": 4, "partial": 2, "not_sure": 0, "wrong": -1}
+RULES_VERSION = "r2"  # +2/+1/0/-1 units, 1000*sum/(2*N_c); r1 (quarter points) is never reinterpreted
+SCORE_UNITS = {"correct": 2, "partial": 1, "not_sure": 0, "wrong": -1}
 EXPOSURE_KINDS = frozenset({"question", "exam", "study"})
 _ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,79}\Z")
 _COURSE_RE = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")

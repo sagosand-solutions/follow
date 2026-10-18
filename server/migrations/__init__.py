@@ -168,6 +168,7 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
                 user_id TEXT UNIQUE REFERENCES users(id),
                 anon_cookie_hash TEXT UNIQUE,
                 created_at REAL NOT NULL,
+                last_activity REAL NOT NULL,
                 expires_at REAL,
                 claimed_to TEXT REFERENCES scoring_principals(id),
                 claim_source_id TEXT UNIQUE REFERENCES scoring_principals(id),
@@ -201,14 +202,16 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
                 revision TEXT NOT NULL,
                 option_id TEXT,
                 outcome TEXT NOT NULL CHECK (outcome IN ('correct', 'partial', 'not_sure', 'wrong')),
-                score_units INTEGER NOT NULL CHECK (score_units IN (4, 2, 0, -1)),
+                score_units INTEGER NOT NULL CHECK (score_units IN (2, 1, 0, -1)),
                 accepted_at REAL NOT NULL,
                 PRIMARY KEY (principal_id, question_id)
             )
             """,
             "CREATE INDEX idx_first_attempts_family ON first_attempts (family, course_id, accepted_at)",
+            "CREATE TABLE scoring_purge_gate (open INTEGER PRIMARY KEY CHECK (open = 1))",
             """
             CREATE TRIGGER first_attempts_no_delete BEFORE DELETE ON first_attempts
+            WHEN NOT EXISTS (SELECT 1 FROM scoring_purge_gate)
             BEGIN
                 SELECT RAISE(ABORT, 'first_attempts is immutable');
             END

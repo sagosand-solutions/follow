@@ -21,6 +21,7 @@ class Principal:
     user_id: str | None
     anon_cookie_hash: str | None
     created_at: float
+    last_activity: float
     expires_at: float | None
     claimed_to: str | None
     claim_source_id: str | None
@@ -67,8 +68,8 @@ class Preference:
 
 
 def _p(row) -> Principal:
-    return Principal(*(row[k] for k in ("id", "user_id", "anon_cookie_hash", "created_at", "expires_at",
-                                          "claimed_to", "claim_source_id", "state")))
+    return Principal(*(row[k] for k in ("id", "user_id", "anon_cookie_hash", "created_at", "last_activity",
+                                          "expires_at", "claimed_to", "claim_source_id", "state")))
 
 
 def _issue(row) -> Issue:
@@ -104,8 +105,8 @@ class ScoringRepository:
         if existing is not None:
             return existing
         pid = new_id("p")
-        self._c().execute("INSERT INTO scoring_principals (id, user_id, created_at, state) VALUES (?, ?, ?, 'active')",
-                          (pid, user_id, now))
+        self._c().execute("INSERT INTO scoring_principals (id, user_id, created_at, last_activity, state) "
+                          "VALUES (?, ?, ?, ?, 'active')", (pid, user_id, now, now))
         return self.principal(pid)
 
     def principal_by_anon_hash(self, cookie_hash: str) -> Principal | None:
@@ -115,9 +116,35 @@ class ScoringRepository:
 
     def create_anonymous(self, cookie_hash: str, now: float, expires_at: float) -> Principal:
         pid = new_id("p")
-        self._c().execute("INSERT INTO scoring_principals (id, anon_cookie_hash, created_at, expires_at, state) "
-                          "VALUES (?, ?, ?, ?, 'active')", (pid, cookie_hash, now, expires_at))
+        self._c().execute("INSERT INTO scoring_principals (id, anon_cookie_hash, created_at, last_activity, expires_at, state) "
+                          "VALUES (?, ?, ?, ?, ?, 'active')", (pid, cookie_hash, now, now, expires_at))
         return self.principal(pid)
+
+    def touch(self, principal_id: str, now: float) -> None:
+        self._c().execute("UPDATE scoring_principals SET last_activity = ? WHERE id = ? AND last_activity < ?",
+                          (now, principal_id, now))
+
+    def purge_principals(self, principal_ids: list) -> None:
+        """Hard-delete scoring data of these principals (retention / account deletion). Opens the purge gate for
+        this transaction only; callers run it inside ``transaction(immediate=True)``."""
+        conn = self._c()
+        conn.execute("INSERT OR IGNORE INTO scoring_purge_gate (open) VALUES (1)")
+        try:
+            for pid in principal_ids:
+                conn.execute("UPDATE scoring_principals SET claimed_to = NULL WHERE claimed_to = ?", (pid,))
+                conn.execute("UPDATE scoring_principals SET claim_source_id = NULL WHERE claim_source_id = ?", (pid,))
+                for table in ("first_attempts", "question_issues", "submission_receipts", "leaderboard_preferences"):
+                    conn.execute(f"DELETE FROM {table} WHERE principal_id = ?", (pid,))
+                conn.execute("DELETE FROM scoring_principals WHERE id = ?", (pid,))
+        finally:
+            conn.execute("DELETE FROM scoring_purge_gate")
+
+    def sources_claimed_to(self, principal_id: str) -> list:
+        return [r[0] for r in self._c().execute("SELECT id FROM scoring_principals WHERE claimed_to = ?", (principal_id,))]
+
+    def inactive_anonymous(self, cutoff: float, limit: int = 500) -> list:
+        return [r[0] for r in self._c().execute(
+            "SELECT id FROM scoring_principals WHERE user_id IS NULL AND last_activity < ? LIMIT ?", (cutoff, limit))]
 
     def count_active_anonymous(self, now: float) -> int:
         return self._c().execute("SELECT COUNT(*) FROM scoring_principals WHERE anon_cookie_hash IS NOT NULL "

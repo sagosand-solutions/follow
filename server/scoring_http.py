@@ -184,7 +184,8 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
             return blocked
         family = request.query_params.get("family", "")
         window = request.query_params.get("window", "all")
-        if window not in WINDOWS or set(request.query_params) - {"family", "window"}:
+        scope = request.query_params.get("scope", "total")
+        if window not in WINDOWS or set(request.query_params) - {"family", "window", "scope"}:
             return http.error_response("invalid", hooks.request_id(request))
         with hooks.uow() as (repositories, sessions):
             service = make_service(repositories)
@@ -192,7 +193,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
             if error is not None:
                 return error
             try:
-                return http.json_response(service.me(actor, family, window), request_id=hooks.request_id(request))
+                return http.json_response(service.me(actor, family, window, scope), request_id=hooks.request_id(request))
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
             except (StorageError, sqlite3.Error):

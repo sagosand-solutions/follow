@@ -124,7 +124,7 @@ Routes (`/scoring/anonymous`, `/scoring/questions/{id}/issue`, `/scoring/answers
 the exact Origin and the CSRF token of the caller's own cookie. The first accepted answer
 per principal and question is written with the consumed issue and the receipt in ONE
 `BEGIN IMMEDIATE` transaction and can never be replaced (UNIQUE key plus triggers). Points
-are exact fractions: +4/+2/0/-1 units, course = 250 x units / N_c, total = mean over all K
+are exact fractions: +2/+1/0/-1 units (rules r2), course = 500 x units / N_c (r2: +2/+1/0/-1), total = mean over all K
 catalog courses. A solution is returned only after commit and only when every question the
 exposure map ties to that material is locked; the old `/content/{kind}/{id}` route uses the
 same gate, and material with no reviewed exposure row is blocked, not assumed harmless.

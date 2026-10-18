@@ -41,9 +41,10 @@ def delete_account(repositories, user_id: str) -> bool:
         conn.execute("DELETE FROM identities WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM auth_transactions WHERE user_id = ? AND consumed_at IS NULL", (user_id,))
         repositories.users.mark_deleted(user_id)
-        # Scoring: unpublish at once; the principal row and first-attempt locks stay (specs: lifetime lock).
+        # Scoring data goes with the account: no tombstone, no re-registration guard (decision 2026-10-18 16:56).
         from .scoring_repo import ScoringRepository
         principal = ScoringRepository(repositories.database).principal_for_user(user_id)
         if principal is not None:
-            ScoringRepository(repositories.database).unpublish_all(principal.id)
+            ScoringRepository(repositories.database).purge_principals(
+                ScoringRepository(repositories.database).sources_claimed_to(principal.id) + [principal.id])
     return True

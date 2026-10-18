@@ -40,7 +40,7 @@ class Base(unittest.TestCase):
 class CatalogTests(unittest.TestCase):
     def good(self):
         q = {"question_id": "a-1", "product_id": "p", "content_sha256": "1" * 64}
-        return {"schema_version": 1, "catalog_version": "v1", "rules_version": "r1", "family": "official",
+        return {"schema_version": 1, "catalog_version": "v1", "rules_version": "r2", "family": "official",
                 "courses": [{"course_id": "c", "N_c": 1, "questions": [q]}],
                 "exposures": [{"kind": "question", "id": "a-1", "content_sha256": "1" * 64, "affected_question_ids": ["a-1"]}]}
 
@@ -49,7 +49,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual((catalog.course_count, catalog.pool_sizes), (1, {"c": 1}))
         mutations = {
             "n_c": lambda d: d["courses"][0].update(N_c=2),
-            "rules": lambda d: d.update(rules_version="r2"),
+            "rules": lambda d: d.update(rules_version="r1"),
             "extra_key": lambda d: d.update(note="x"),
             "family": lambda d: d.update(family="other"),
             "no_self_exposure": lambda d: d["exposures"].clear(),
@@ -79,17 +79,18 @@ class CatalogTests(unittest.TestCase):
 
 class PointsTests(unittest.TestCase):
     def test_spec_example_and_total(self):
-        # 1 right, 1 half, 1 wrong, 1 not sure in a pool of 10: (4+2-1+0)*250/10 = 125.
-        self.assertEqual(course_points(4 + 2 - 1 + 0, 10), Fraction(125))
-        cat = parse_catalog({"schema_version": 1, "catalog_version": "v", "rules_version": "r1", "family": "free",
+        # r2: 1 right, 1 half, 1 wrong, 1 not sure in a pool of 10: (2+1-1+0)*500/10 = 100.
+        self.assertEqual(course_points(2 + 1 - 1 + 0, 10), Fraction(100))
+        cat = parse_catalog({"schema_version": 1, "catalog_version": "v", "rules_version": "r2", "family": "free",
                              "courses": [{"course_id": c, "N_c": 1, "questions": [
                                  {"question_id": f"{c}-1", "product_id": None, "content_sha256": "1" * 64}]} for c in "abc"],
                              "exposures": [{"kind": "question", "id": f"{c}-1", "content_sha256": "1" * 64,
                                             "affected_question_ids": [f"{c}-1"]} for c in "abc"]})
-        self.assertEqual(float(Fraction(375, 3)), 125.0)
-        self.assertEqual(total_points({"a": 4}, cat), Fraction(1000, 3))
+        self.assertEqual(total_points({"a": 2}, cat), Fraction(1000, 3))
+        self.assertEqual(total_points({"a": 2, "b": 2, "c": 2}, cat), Fraction(1000))
         self.assertEqual(total_points({}, cat), 0)
-        self.assertEqual(course_points(-1, 4), Fraction(-250, 4))  # negatives are not clipped
+        self.assertEqual(course_points(-1, 4), Fraction(-125))
+        self.assertEqual(course_points(-4, 4), Fraction(-500))  # range floor -500  # negatives are not clipped
 
     def test_iso_week_is_monday_utc(self):
         start, end = iso_week(1_700_000_000.0)  # Tue 2023-11-14 22:13 UTC
@@ -140,7 +141,7 @@ class FlagTests(unittest.TestCase):
 
 class IssueAnswerTests(Base):
     def test_outcomes_and_units(self):
-        for qid, marker, outcome, units in (("py-q00", "Right", "correct", 4), ("py-q01", "Half", "partial", 2),
+        for qid, marker, outcome, units in (("py-q00", "Right", "correct", 2), ("py-q01", "Half", "partial", 1),
                                             ("py-q02", "Wrong", "wrong", -1)):
             _, issue = self.fx.issue(qid)
             response = self.fx.answer(issue, marker, key=f"{qid}-key-0123456")
@@ -152,8 +153,8 @@ class IssueAnswerTests(Base):
         self.assertEqual(json_body(response)["attempt"]["score_units"], 0)
         me = json_body(self.fx.get("/scoring/me", query=b"family=official"))
         py = next(c for c in me["courses"] if c["course_id"] == "py")
-        self.assertEqual(py["points"], 250 * (4 + 2 - 1 + 0) / 10)
-        self.assertAlmostEqual(me["total"]["points"], 250 * 5 / 10 / 3)
+        self.assertEqual(py["points"], 500 * (2 + 1 - 1 + 0) / 10)
+        self.assertAlmostEqual(me["total"]["points"], 500 * 2 / 10 / 3)
         self.assertEqual((me["total"]["answered"], me["total"]["pool"]), (4, 18))
 
     def test_issue_dto_is_an_allowlist_with_no_facit(self):
@@ -272,7 +273,7 @@ class IssueAnswerTests(Base):
     def test_revoked_entitlement_and_deleted_account_between_issue_and_answer(self):
         _, issue = self.fx.issue("py-q00")
         db = self.fx.db()
-        pid = db.connect().execute("SELECT id FROM purchases WHERE user_id = 'u1'").fetchone()[0]
+        pid = db.connect().execute("SELECT id FROM purchases WHERE user_id = 'u1' AND product_id = 'python-lifetime'").fetchone()[0]
         from server.repositories import Repositories
         Repositories(db).entitlements.revoke(pid, "python-lifetime")
         db.close()
@@ -285,7 +286,7 @@ class IssueAnswerTests(Base):
         _, issue = self.fx.issue("py-q00")
         self.assertEqual(self.fx.answer(issue, "Right", key="r" * 16)[0], 200)
         db = self.fx.db()
-        pid = db.connect().execute("SELECT id FROM purchases WHERE user_id = 'u1'").fetchone()[0]
+        pid = db.connect().execute("SELECT id FROM purchases WHERE user_id = 'u1' AND product_id = 'python-lifetime'").fetchone()[0]
         from server.repositories import Repositories
         Repositories(db).entitlements.revoke(pid, "python-lifetime")
         db.close()
@@ -390,6 +391,102 @@ class HardeningTests(Base):
         self.assertTrue(first[0].startswith("scoring_anon="))
 
 
+class RetentionAndScopeTests(Base):
+    users = ("u1", "u2", "u3")
+
+    def service(self, db):
+        from server.repositories import Repositories
+        from server.scoring_service import ScoringService
+        return ScoringService(Repositories(db), self.fx.settings, self.fx.scoring, clock=lambda: self.fx.clock[0])
+
+    def anon_answer(self, anon, qid, marker, key):
+        issue = json_body(self.fx.anon_post(f"/scoring/questions/{qid}/issue", {}, anon))
+        option = next(o for o in issue["question"]["options"] if o["text"].startswith(marker))
+        return self.fx.anon_post("/scoring/answers", {"issue_id": issue["issue_id"], "outcome": "answer",
+                                 "option_id": option["option_id"], "idempotency_key": key}, anon)
+
+    def test_inactive_anonymous_profiles_are_purged_after_30_days_but_activity_keeps_them(self):
+        idle, active = self.fx.anonymous(), self.fx.anonymous()
+        self.anon_answer(idle, "py-free-f00", "Right", "a" * 16)
+        self.fx.clock[0] += 20 * 86400
+        self.anon_answer(active, "py-free-f01", "Right", "b" * 16)
+        self.fx.clock[0] += 11 * 86400
+        db = self.fx.db()
+        try:
+            self.assertEqual(self.service(db).purge_inactive(), 1)
+        finally:
+            db.close()
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM scoring_principals WHERE anon_cookie_hash IS NOT NULL"), [(1,)])
+        self.assertEqual(self.rows("SELECT question_id FROM first_attempts"), [("py-free-f01",)])
+        self.assertEqual(self.fx.anon_post("/scoring/questions/py-free-f02/issue", {}, idle)[0], 401)
+
+    def test_claim_of_a_purged_source_is_a_conflict_not_a_resurrection(self):
+        anon = self.fx.anonymous()
+        self.anon_answer(anon, "py-free-f00", "Right", "a" * 16)
+        self.fx.clock[0] += 31 * 86400
+        db = self.fx.db()
+        try:
+            self.service(db).purge_inactive()
+        finally:
+            db.close()
+        headers = self.fx.headers("u1")
+        headers["cookie"] += "; " + anon[0]
+        response = call(self.fx.app, "POST", "/scoring/claim", headers=headers, body=b"{}")
+        self.assertEqual((response[0], json_body(response)["error"]["code"]), (409, "claim_conflict"))
+
+    def test_account_delete_also_removes_the_claimed_source(self):
+        anon = self.fx.anonymous()
+        self.anon_answer(anon, "py-free-f00", "Right", "a" * 16)
+        headers = self.fx.headers("u1")
+        headers["cookie"] += "; " + anon[0]
+        self.assertEqual(call(self.fx.app, "POST", "/scoring/claim", headers=headers, body=b"{}")[0], 200)
+        self.assertEqual(call(self.fx.app, "POST", "/account/delete", headers=self.fx.headers("u1"), body=b"{}")[0], 200)
+        for table in ("first_attempts", "scoring_principals"):
+            self.assertEqual(self.rows(f"SELECT COUNT(*) FROM {table}"), [(0,)], table)
+
+    def test_me_scope_and_private_own_cursor_point_into_the_public_list(self):
+        for i, user in enumerate(self.users):
+            _, issue = self.fx.issue("py-free-f00", user=user)
+            self.fx.answer(issue, "Right" if i < 2 else "Wrong", user=user, key=f"{i}" * 16)
+            self.fx.post("/scoring/preferences", {"family": "free", "opt_in": True}, user)
+        me = json_body(self.fx.get("/scoring/me", user="u3", query=b"family=free&scope=course:py-free"))
+        self.assertEqual((me["scope"], me["rank"]["kind"], me["rank"]["value"], me["rank"]["participants"]), ("course:py-free", "actual", 3, 3))
+        cursor = me["own_cursor"]
+        listing = self.fx.get("/leaderboards", user=None, query=f"family=free&scope=course:py-free&cursor={cursor}".encode())
+        self.assertEqual(listing[0], 200)
+        self.assertEqual(json_body(listing)["entries"][-1]["rank"], 3)
+        for text in (cursor, json.dumps(me["own_cursor"])):
+            self.assertNotIn("u3", text)
+        # The cursor is bound to scope/window: it does not open another list.
+        other = self.fx.get("/leaderboards", user=None, query=f"family=free&scope=total&cursor={cursor}".encode())
+        self.assertEqual(other[0], 400)
+        self.assertEqual(self.fx.get("/scoring/me", user="u3", query=b"family=free&scope=bogus")[0], 400)
+
+    def test_attribution_is_allowlisted_and_license_must_be_a_string(self):
+        from server.scoring_service import ScoringService
+        self.assertEqual(ScoringService._author({"name": "Ada", "url": "http://x", "email": "a@b"}), {"name": "Ada"})
+        self.assertIsNone(ScoringService._author({"name": "bad\u202e"}))
+        self.assertIsNone(ScoringService._author({"nick": "x"}))
+        self.assertIsNone(ScoringService._author(["Ada"]))
+        _, issue = self.fx.issue("py-q00")
+        self.assertEqual(issue["question"]["license"], "CC-BY-SA-4.0")
+        self.assertEqual(issue["question"]["author"], {"name": "Anonymous contributor"})
+
+    def test_flag_off_is_503_even_without_scoring_services(self):
+        from server.app import Services, create_app
+        from server.config import load_config
+        from server.db import Database
+        settings = load_config({"APP_ENV": "test", "PUBLIC_ORIGIN": ORIGIN, "DB_PATH": self.fx.path,
+                                "CSRF_SECRET_KEY": "a1" * 32, "SESSION_SECRET_KEY": "b2" * 32})
+        app = create_app(settings, Services(open_database=lambda: Database(self.fx.path), clock=lambda: self.fx.clock[0]))
+        self.assertEqual(call(app, "GET", "/scoring/me", headers=self.fx.headers("u1"))[0], 503)
+        self.assertEqual(call(app, "GET", "/leaderboards")[0], 503)
+        with self.assertRaises(SetupError):
+            create_app(load_config({"APP_ENV": "test", "PUBLIC_ORIGIN": ORIGIN, "DB_PATH": self.fx.path,
+                                    "CSRF_SECRET_KEY": "a1" * 32, "SESSION_SECRET_KEY": "b2" * 32,
+                                    "SCORING_ENABLED": "true"}), Services(open_database=lambda: Database(self.fx.path)))
+
+
 class GateTests(Base):
     def content(self, kind, cid, user="u1"):
         return call(self.fx.app, "GET", f"/content/{kind}/{cid}", headers=self.fx.headers(user, csrf=False, origin=False))
@@ -415,6 +512,9 @@ class GateTests(Base):
         self.assertEqual(self.content("exam", "exam-ok")[0], 200)
         self.assertEqual(self.content("exam", "exam-unreviewed")[0], 404)
         self.assertEqual(self.content("exam", "exam-ok", user=None)[0], 401)
+
+    def test_material_of_another_product_without_an_exposure_row_is_denied(self):
+        self.assertEqual(self.content("exam", "other-exam")[0], 404)  # entitled, but never reviewed: default-deny
 
     def test_head_and_conditional_requests_do_not_bypass(self):
         response = call(self.fx.app, "HEAD", "/content/question/py-q05", headers=self.fx.headers("u1", csrf=False, origin=False))
@@ -463,8 +563,8 @@ class ListAndPreferenceTests(Base):
         self.assertEqual(board["participants"], 3)
         entry = board["entries"][0]
         self.assertEqual(set(entry), {"rank", "alias", "points", "answered", "pool"})
-        self.assertEqual((entry["points"], entry["answered"], entry["pool"]), (250 * 4 / 3, 1, 3))
-        self.assertEqual(board["entries"][2]["points"], 250 * -1 / 3)  # negatives rank last and are kept
+        self.assertEqual((entry["points"], entry["answered"], entry["pool"]), (500 * 2 / 3, 1, 3))
+        self.assertEqual(board["entries"][2]["points"], 500 * -1 / 3)  # negatives rank last and are kept
         raw = json.dumps(board)
         for private in ("u1", "u2", "u3", "user", "accepted_at", "principal"):
             self.assertNotIn(private, raw)
@@ -517,14 +617,15 @@ class ListAndPreferenceTests(Base):
         anon = self.fx.anonymous()
         self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "official", "opt_in": True}, anon)[0], 404)
 
-    def test_account_delete_unpublishes_and_keeps_the_lock(self):
+    def test_account_delete_removes_all_scoring_data_with_no_tombstone(self):
         self.free_answer("u1", "py-free-f00", "Right", "a" * 16)
         self.publish("u1")
         self.assertEqual(self.board()["participants"], 1)
         response = call(self.fx.app, "POST", "/account/delete", headers=self.fx.headers("u1"), body=b"{}")
         self.assertEqual(response[0], 200)
         self.assertEqual(self.board()["participants"], 0)
-        self.assertEqual(self.rows("SELECT COUNT(*) FROM first_attempts"), [(1,)])
+        for table in ("first_attempts", "scoring_principals", "question_issues", "submission_receipts", "leaderboard_preferences"):
+            self.assertEqual(self.rows(f"SELECT COUNT(*) FROM {table}"), [(0,)], table)
 
 
 class AnonymousAndClaimTests(Base):
@@ -570,7 +671,7 @@ class AnonymousAndClaimTests(Base):
         self.assertEqual(by_q["py-free-f00"]["accepted_at"], dict(original)["py-free-f00"])
         me = json_body(self.fx.get("/scoring/me", query=b"family=free"))
         self.assertEqual(me["total"]["answered"], 2)  # no double counting
-        self.assertAlmostEqual(me["total"]["points"], 250 * (4 + 2) / 3)
+        self.assertAlmostEqual(me["total"]["points"], 500 * (2 + 1) / 3)
         # The source is dead: cookie answers nothing and cannot be claimed again, by anyone.
         self.assertEqual(self.fx.anon_post("/scoring/questions/py-free-f02/issue", {}, anon)[0], 401)
         again = call(self.fx.app, "POST", "/scoring/claim", headers=self.claim_headers("u2", anon), body=b"{}")
