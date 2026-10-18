@@ -345,4 +345,39 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             "CREATE INDEX idx_purchase_transitions_purchase ON purchase_transitions (purchase_id, created_at)",
         ),
     ),
+    (
+        6,
+        (
+            """
+            CREATE TABLE paddle_checkout_context (
+                operation_id TEXT PRIMARY KEY REFERENCES paddle_operations(id) ON DELETE CASCADE,
+                purchase_id TEXT NOT NULL UNIQUE REFERENCES purchases(id),
+                environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'live')),
+                user_id TEXT NOT NULL,
+                product_id TEXT NOT NULL,
+                policy_bundle_id TEXT NOT NULL,
+                bundle_digest TEXT NOT NULL,
+                ack_set TEXT NOT NULL,
+                access_scope TEXT NOT NULL,
+                amount_minor INTEGER NOT NULL CHECK (amount_minor >= 0),
+                product_currency TEXT NOT NULL,
+                price_id TEXT NOT NULL,
+                quantity INTEGER NOT NULL CHECK (quantity >= 1),
+                currency_code TEXT NOT NULL,
+                total_minor INTEGER,
+                total_field TEXT NOT NULL CHECK (total_field IN ('total', 'grand_total', 'subtotal')),
+                context_digest TEXT NOT NULL CHECK (length(context_digest) = 64),
+                created_at REAL NOT NULL
+            )
+            """,
+            "CREATE INDEX idx_paddle_checkout_context_key ON paddle_checkout_context (user_id, product_id, environment)",
+            "CREATE INDEX idx_purchases_quota ON purchases (user_id, product_id, provider, state)",
+            """
+            CREATE TRIGGER paddle_checkout_context_is_immutable BEFORE UPDATE ON paddle_checkout_context
+            BEGIN
+                SELECT RAISE(ABORT, 'paddle_checkout_context is immutable');
+            END
+            """,
+        ),
+    ),
 )

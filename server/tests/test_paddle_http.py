@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 from server import paddle_repo
+from server import paddle_checkout
 from server.app import Services, create_app
 from server.config import load_config
 from server.db import Database
@@ -428,14 +429,21 @@ class CheckoutTests(Base):
         self.assertEqual(self.transport.create_calls, [])
 
     def test_every_failure_after_the_send_is_a_503_without_provider_ids_and_never_retried(self):
+        # This exercises the per-failure send contract, not the checkout cap, so raise the cap for the run: without it a
+        # fourth open checkout for the same user would correctly be a 429 (covered by the cap tests).
         failures = [PaddleOutcomeUnknown("timeout"), RuntimeError("secret=abc"), "not-a-txn", None]
-        for index, failure in enumerate(failures, start=1):
-            with self.subTest(failure=repr(failure)[:20]):
-                self.transport.create_results.append(failure)
-                status, _, body = self.checkout()
-                self.assertEqual(status, 503)
-                self.assertNotIn(b"txn_", body)
-                self.assertEqual(len(self.transport.create_calls), index)                     # one call per user-started purchase
+        saved_cap = paddle_checkout.MAX_OPEN_CHECKOUTS
+        paddle_checkout.MAX_OPEN_CHECKOUTS = len(failures) + 1
+        try:
+            for index, failure in enumerate(failures, start=1):
+                with self.subTest(failure=repr(failure)[:20]):
+                    self.transport.create_results.append(failure)
+                    status, _, body = self.checkout()
+                    self.assertEqual(status, 503)
+                    self.assertNotIn(b"txn_", body)
+                    self.assertEqual(len(self.transport.create_calls), index)                 # one call per user-started purchase
+        finally:
+            paddle_checkout.MAX_OPEN_CHECKOUTS = saved_cap
         self.assertEqual(self.rows("SELECT state FROM paddle_operations"), [("unknown",)] * len(failures))
         self.assertEqual(self.rows("SELECT state FROM purchases"), [("pending",)] * len(failures))
         self.assertEqual(self.rows("SELECT COUNT(*) FROM purchase_consents"), [(len(failures),)])   # a new start = a new consent

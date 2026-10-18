@@ -19,6 +19,7 @@ from typing import Protocol
 from .models import PurchaseState
 from .paddle import mapping
 from .paddle.digest import snapshot_digest
+from .paddle_checkout import build_checkout_context
 from .paddle.types import (AuthoritativeState, Expected, PaddleMalformed, PaddleOutcomeUnknown, PaddleTransportRejected,
                            VerifiedEvent)
 from .payment_apply import apply_reconciled
@@ -86,6 +87,26 @@ class PaddleService:
         if self.db.connect().in_transaction:
             raise RuntimeError("Paddle operations must not run inside an open database transaction")
 
+    def _context_matches(self, purchase, paddle_product, stored) -> bool:
+        """Rebuild the WHOLE server checkout context and compare it to the stored digest before any send.
+
+        Everything the create depends on is covered: environment, owner, product, price/quantity, currencies, the
+        amount (None != 0), the total field, the policy bundle and the acknowledgement set. A legacy operation with
+        no stored context never reaches here. A missing consent, bundle or inactive product is a mismatch.
+        """
+        consent = self.repositories.consents.get_for_purchase(purchase.id)
+        bundle = self.repositories.policies.get(consent.policy_bundle_id) if consent else None
+        product = self.repositories.products.get(purchase.product_id)
+        if consent is None or bundle is None or product is None or product.active is not True:
+            return False
+        try:
+            rebuilt = build_checkout_context(environment=self.environment, user_id=purchase.user_id, product=product,
+                                             bundle=bundle, acknowledgements=consent.acknowledgements,
+                                             paddle_product=paddle_product)
+        except ValueError:                     # a corrupt row is a mismatch, never a stray exception
+            return False
+        return rebuilt.digest() == stored["context_digest"]
+
     # ---- checkout creation: planned -> request_sent (committed) -> remote call -> bound ----------------------
     def start_checkout(self, purchase) -> dict:
         """Create the remote transaction for a purchase that already has a ``planned`` operation.
@@ -104,6 +125,13 @@ class PaddleService:
             if op["state"] == "planned":
                 self.paddle.abandon(op["id"])                       # local failure before send
             return {"result": "abandoned" if op["state"] == "planned" else "not_sent", "transaction_id": None}
+        stored = self.paddle.checkout_context(purchase.id)
+        if stored is not None and not self._context_matches(purchase, product, stored):
+            # The stored context no longer describes what create would send: fail closed locally. The abandon is a
+            # CAS on `planned` -> `abandoned`, so a concurrent send (request_sent) can never be released here.
+            if not self.paddle.abandon(op["id"]):
+                return {"result": "not_sent", "transaction_id": None}
+            return {"result": "abandoned", "transaction_id": None}
         if not self.paddle.mark_request_sent(op["id"], self.clock()):   # committed BEFORE the call; False => do not call
             return {"result": "not_sent", "transaction_id": None}
         try:
