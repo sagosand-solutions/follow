@@ -307,7 +307,7 @@ class SignatureVerificationTests(unittest.TestCase):
         header = header_for(body)
         for now in (True, float("nan"), float("inf"), float("-inf"), "100", None):
             with self.subTest(now=now):
-                with self.assertRaises(PaddleMalformed):
+                with self.assertRaises(PaddleConfigError):
                     verify_signature(body, header, SECRET, now)
 
     def test_rejects_missing_or_weak_secret(self):
@@ -315,7 +315,7 @@ class SignatureVerificationTests(unittest.TestCase):
         header = header_for(body)
         for secret in ("", "short", "x" * 15, None, 123):
             with self.subTest(secret=secret):
-                with self.assertRaises(PaddleMalformed):
+                with self.assertRaises(PaddleConfigError):
                     verify_signature(body, header, secret, NOW)
 
     def test_accepts_byte_secret_of_sufficient_length(self):
@@ -357,7 +357,7 @@ class WebhookHeaderTests(unittest.TestCase):
         header = header_for(body)
         for environment in ("production", "", None, "SANDBOX"):
             with self.subTest(environment=environment):
-                with self.assertRaises(PaddleMalformed):
+                with self.assertRaises(PaddleConfigError):
                     verify_webhook(body, {"Paddle-Signature": header}, NOW, secret=SECRET, environment=environment)
         # A body that pretends to be another environment cannot change the configured one.
         lying = encode(envelope("transaction.completed", transaction_data(), environment="live"))
@@ -596,24 +596,20 @@ class DecisionTests(unittest.TestCase):
         self.assertFalse(decision.grants)
 
     def test_chargebacks_and_unknown_adjustments_never_grant(self):
-        cases = (
-            adjustment(action="chargeback"),
-            adjustment(action="chargeback_reverse"),
-            adjustment(action="refund", status="reversed"),
-            adjustment(action="refund", status="rejected"),
-            adjustment(action="unknown_action"),
-            adjustment(action="refund", status="made_up"),
-            adjustment(action="refund", kind="other"),
-        )
-        for adj in cases:
+        # Nothing in this group may grant access; each is refused as unknown/undocumented.
+        for adj in (adjustment(action="chargeback"), adjustment(action="chargeback_reverse"),
+                    adjustment(action="unknown_action"), adjustment(action="refund", status="made_up"),
+                    adjustment(action="refund", kind="other")):
             with self.subTest(adj=adj):
-                # chargeback/unknown must reconcile; reversed/rejected refunds are simply not terminal
+                decision = self.decide(snap=snapshot(adjustments=(adj,)))
+                self.assertFalse(decision.grants)
+                self.assertEqual(decision.action, "reconcile")
+        # A reversed or rejected refund is not terminal evidence: it may not block a valid
+        # grant, but it must never turn the purchase into refunded or cancelled.
+        for adj in (adjustment(action="refund", status="reversed"), adjustment(action="refund", status="rejected")):
+            with self.subTest(non_terminal=adj):
                 decision = self.decide(snap=snapshot(adjustments=(adj,)))
                 self.assertFalse(decision.action in ("refunded", "cancelled"))
-        for adj in (adjustment(action="chargeback"), adjustment(action="unknown_action"),
-                    adjustment(action="refund", status="made_up")):
-            with self.subTest(unknown=adj):
-                self.assertEqual(self.decide(snap=snapshot(adjustments=(adj,))).action, "reconcile")
 
     def test_non_terminal_adjustments_do_not_block_a_valid_grant_but_never_refund(self):
         for adj in (adjustment(action="credit"), adjustment(action="refund", kind="partial"),
