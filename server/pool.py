@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Operator tool for the scoring question pool: ``python -m server.pool freeze|retire|free|check-static``.
+"""Operator tool for the scoring question pool: ``python -m server.pool freeze|retire|free|rebuild|check-static``.
 
 One way only: a ranked question can be retired, a retired one can be released as free, nothing moves back. Every change is
 one transaction with an append-only audit row; a version is frozen before any of its questions is retired. Operator and
@@ -51,6 +51,16 @@ def freeze(db: Database, version_id: str, *, reason_code: str, now: float) -> in
                                  (now, row["family"], row["catalog_version"])).rowcount
         conn.execute("UPDATE board_revisions SET revision = revision + 1 WHERE version_id = ?", (version_id,))
     return withdrawn
+
+
+def rebuild_standings(db: Database, version_id: str) -> dict:
+    """Recompute an open version's course units, standings and anonymous aggregate from first attempts; boards move to a new revision."""
+    from .scoring_standings import rebuild
+    with db.transaction(immediate=True) as conn:
+        try:
+            return rebuild(conn, version_id)
+        except ValueError as exc:
+            raise PoolError(str(exc)) from None
 
 
 def _open_versions_with(conn, question_id: str) -> list:
@@ -167,6 +177,8 @@ def _parser() -> argparse.ArgumentParser:
         if name == "free":
             p.add_argument("--license-ok", required=True)
             p.add_argument("--exposure-audit", required=True)
+    r = sub.add_parser("rebuild", help="recompute the standings of an open ranking version from first attempts")
+    r.add_argument("--version", required=True)
     c = sub.add_parser("check-static", help="fail if a ranked or retired question appears in static files")
     c.add_argument("--public-root", required=True)
     return parser
@@ -181,6 +193,9 @@ def main(argv=None, *, clock=time.time) -> int:
             if args.command == "freeze":
                 withdrawn = freeze(db, args.version, reason_code=args.reason, now=now)
                 print(f"frozen {args.version}; {withdrawn} open issue(s) withdrawn")
+            elif args.command == "rebuild":
+                counts = rebuild_standings(db, args.version)
+                print(f"rebuilt {args.version}: {counts['attempts']} attempt(s), {counts['principals']} ranked principal(s)")
             elif args.command == "retire":
                 withdrawn = retire(db, args.question, release_id=args.release, reason_code=args.reason, operator_id=args.operator,
                                    now=now, clone_audit_ref=args.clone_audit)

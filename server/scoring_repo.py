@@ -11,6 +11,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from .models import ContentError
+from .scoring_standings import bump_principal_boards
 
 
 def new_id(prefix: str = "") -> str:
@@ -137,6 +138,7 @@ class ScoringRepository:
         conn.execute("INSERT OR IGNORE INTO scoring_purge_gate (open) VALUES (1)")
         try:
             for pid in principal_ids:
+                bump_principal_boards(conn, pid)                 # boards this principal stood on change before the rows go
                 conn.execute("UPDATE scoring_principals SET claimed_to = NULL WHERE claimed_to = ?", (pid,))
                 conn.execute("UPDATE scoring_principals SET claim_source_id = NULL WHERE claim_source_id = ?", (pid,))
                 # Phase 1 tables first (set_attempts references question_issues); exposure rows need the purge gate.

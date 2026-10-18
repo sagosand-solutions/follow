@@ -10,12 +10,21 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from math import lcm
 
 from .models import ContentError
 
 WEEK_SECONDS = 7 * 86400
+
+
+def iso_week(now: float) -> tuple[float, float]:
+    """[start, end) of the UTC ISO week containing ``now`` (Monday 00:00 to the next Monday)."""
+    moment = datetime.fromtimestamp(now, timezone.utc)
+    monday = (moment - timedelta(days=moment.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    start = monday.timestamp()
+    return start, start + WEEK_SECONDS
 
 
 def total_parameters(catalog) -> tuple[int, int, int]:

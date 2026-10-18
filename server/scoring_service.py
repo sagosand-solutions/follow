@@ -16,7 +16,6 @@ import re
 import secrets
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 
 from .auth import AuthSecurity
@@ -24,6 +23,8 @@ from .content_access import has_entitlement
 from .models import ContentError, ServerError, UserStatus
 from .scoring_catalog import FAMILIES, RULES_VERSION, SCORE_UNITS
 from .scoring_repo import Attempt, Issue, Preference, ScoringRepository, new_id
+from .scoring_standings import StandingsWriter, bump_principal_boards
+from .scoring_versions import iso_week
 
 ISSUE_TTL = 30 * 60
 RECEIPT_TTL = 7 * 24 * 3600
@@ -60,13 +61,6 @@ class Actor:
     """Who is calling: an authenticated account or an anonymous (free-only) cookie profile."""
     user_id: str | None = None
     anon_hash: str | None = None
-
-
-def iso_week(now: float) -> tuple[float, float]:
-    moment = datetime.fromtimestamp(now, timezone.utc)
-    monday = (moment - timedelta(days=moment.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    start = monday.timestamp()
-    return start, start + 7 * 86400
 
 
 def course_points(units: int, pool: int) -> Fraction:
@@ -171,6 +165,7 @@ class ScoringService:
         self.scoring = scoring
         self.clock = clock
         self.security = AuthSecurity(settings)
+        self.standings = StandingsWriter()
 
     # ---- helpers ------------------------------------------------------
     def _now(self) -> float:
@@ -402,6 +397,9 @@ class ScoringService:
                     (principal.id, key, now))
                 self.repo.insert_receipt(principal.id, key, digest, issue.question_id, now + RECEIPT_TTL)
                 self.repo.purge_receipts(now - RECEIPT_TTL)
+                preference = self.repo.preference(principal.id, issue.family)
+                published = preference is not None and preference.opted_in_at is not None and preference.moderation_state == "ok"
+                self.standings.apply(self.db.connect(), attempt, principal, published)
         # Committed (or a verified replay): only now may a solution be projected.
         solution = self._solution(principal, issue, catalog, pq, attempt)
         return {"attempt": attempt_dto(attempt), "replayed": replayed, "solution": solution}
@@ -601,6 +599,7 @@ class ScoringService:
                 alias = "Reader-" + secrets.token_hex(3)
             self.repo.upsert_preference(Preference(principal.id, family, now if opt_in else None, alias, nick,
                                                    current.moderation_state if current else "ok"))
+            bump_principal_boards(self.db.connect(), principal.id)
         return {"family": family, "opted_in": bool(opt_in), "alias": alias}
 
     # ---- claim --------------------------------------------------------
@@ -632,6 +631,7 @@ class ScoringService:
                          (now, source.id))
             conn.execute("DELETE FROM submission_receipts WHERE principal_id = ?", (source.id,))
             conn.execute("DELETE FROM leaderboard_preferences WHERE principal_id = ?", (source.id,))
+            conn.execute("DELETE FROM anonymous_units WHERE principal_id = ?", (source.id,))
             conn.execute("UPDATE scoring_principals SET state = 'consumed', anon_cookie_hash = NULL, claimed_to = ? WHERE id = ?",
                          (target.id, source.id))
             conn.execute("UPDATE scoring_principals SET claim_source_id = ? WHERE id = ?", (source.id, target.id))
