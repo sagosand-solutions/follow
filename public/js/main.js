@@ -13,6 +13,8 @@ import { questionView } from './views/question.js';
 import { reviewView } from './views/review.js';
 import { aboutView } from './views/about.js';
 import { notFoundView } from './views/notfound.js';
+import { profileView } from './views/profile.js';
+import { leaderboardView } from './views/leaderboard.js';
 
 initTheme();
 
@@ -49,7 +51,7 @@ async function boot() {
   const continueSlot = h('span', { class: 'nav__continue' });
   const accountSlot = h('span', { class: 'nav__account' });
   header.replaceChildren(
-    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
+    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), CONFIG.scoringUi ? h('a', { href: '#/profile' }, t('nav.profile')) : null, h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
   );
   const refreshContinue = async () => {
     const target = continueAcross(await loadCourses().catch(() => []), store.answers());
@@ -71,6 +73,10 @@ async function boot() {
   registerRoute('/q/:id', questionView);
   registerRoute('/review', reviewView);
   registerRoute('/about', aboutView);
+  if (CONFIG.scoringUi) {
+    registerRoute('/profile', profileView);
+    registerRoute('/leaderboard', leaderboardView);
+  }
   if (CONFIG.accountsUi) await enableAccounts(accountSlot);
   setNotFound(notFoundView);
   await startRouter(main, document.getElementById('live'));

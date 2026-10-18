@@ -504,3 +504,53 @@
   .home > .home-notes { order: 4; }
   .home > .map-card { order: 5; }
 }
+
+/* Scoring views: profile, leaderboards, result moment (behind CONFIG.scoringUi) */
+.score-pair { display: grid; gap: var(--s-4); }
+.score-pair > * { min-width: 0; }
+@media (min-width: 60rem) { .score-pair { grid-template-columns: 1fr 1fr; } .score-pair--board { grid-template-columns: 1.4fr 1fr; align-items: start; } }
+.score-card { display: grid; gap: var(--s-3); align-content: start; padding: var(--s-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
+.score-card h2 { font-size: var(--text-lg); }
+.score-card--challenge { border-inline-start: 6px solid var(--accent-attention); }
+.score-big { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); margin: 0; }
+.score-big__value { font-size: var(--text-3xl); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.score-big__unit { font-size: var(--text-lg); font-weight: 700; color: var(--muted); }
+.score-lock { color: var(--muted); }
+.score-table { width: 100%; border-collapse: collapse; }
+.score-table th, .score-table td { text-align: start; padding: var(--s-3); border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.score-table thead th { font-size: var(--text-sm); color: var(--muted); border-bottom-color: var(--line-strong); padding-block: var(--s-2); }
+.score-table tbody th { font-weight: 600; }
+.score-table .num { text-align: end; white-space: nowrap; }
+.board__me td { background: var(--attention-wash); font-weight: 800; }
+.board__gap td { text-align: center; color: var(--muted); padding-block: var(--s-1); }
+.score-history { list-style: none; padding: 0; margin: 0; }
+.score-history li { display: grid; grid-template-columns: 8rem 1fr; gap: var(--s-3); padding-block: var(--s-3); border-top: 1px solid var(--line); }
+.score-history li:first-child { border-top: 0; }
+.score-rules { display: grid; grid-template-columns: auto 1fr; gap: var(--s-1) var(--s-3); margin: 0; font-size: var(--text-sm); }
+.score-rules dt { font-weight: 800; text-align: end; font-variant-numeric: tabular-nums; }
+.score-rules dd { margin: 0; color: var(--muted); }
+.score-line, .score-delta { margin: 0; }
+.score-delta { color: var(--ink); font-weight: 700; }
+.option__sub { display: block; font-size: var(--text-sm); color: var(--muted); font-weight: 400; }
+.board-controls { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; }
+.board-controls .theme-select { margin: 0; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 3px; border: 1px solid var(--line-strong); border-radius: 999px; }
+.seg__option { position: relative; display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: var(--s-4); border-radius: 999px; font-weight: 700; font-size: var(--text-sm); cursor: pointer; }
+.seg__input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.seg__option:has(.seg__input:checked) { background: var(--surface-2); }
+.seg__option:has(.seg__input:checked) span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.25em; }
+.seg__option:has(.seg__input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.tag { display: inline-flex; align-items: center; padding: 0 var(--s-3); border: 1px solid var(--line-strong); border-radius: 999px; font-size: var(--text-sm); font-weight: 700; line-height: 1.9; vertical-align: middle; }
+.tag--real { border-color: var(--accent-line); }
+.test-strip { padding: var(--s-2) var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-2); font-size: var(--text-sm); font-weight: 700; }
+.result-card { max-width: 44rem; }
+.result-card__invite { border-inline-start-color: var(--line-strong); max-width: none; }
+.result-card .result-card__invite p { color: var(--ink); }
+.result-card__invite .banner__title { font-weight: 800; }
+@media (max-width: 37.49rem) {
+  .score-card { padding: var(--s-4); }
+  .score-table { font-size: var(--text-sm); }
+  .score-table th, .score-table td { padding-inline: var(--s-2); }
+  .score-history li { grid-template-columns: 1fr; gap: 0; }
+}
+@media (forced-colors: active) { .score-card, .seg, .tag, .test-strip { border: 1px solid CanvasText; } .board__me td { outline: 2px solid CanvasText; outline-offset: -2px; } .seg__option:has(.seg__input:checked) { outline: 2px solid Highlight; } }

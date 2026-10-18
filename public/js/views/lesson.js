@@ -10,6 +10,8 @@ import { eyebrow, facts, pluralTemplate } from '../components/ui.js';
 import { summaryNode } from '../components/summary.js';
 import { lessonEnding } from './lesson-end.js';
 import { reviewQueue } from '../review.js';
+import { CONFIG } from '../config.js';
+import { courseFinished, resultCard } from '../components/result-card.js';
 
 function statusOf(answer) {
   if (!answer) return t('lesson.status.none');
@@ -94,6 +96,8 @@ export async function lessonView({ id }) {
     }
     // End of a finished lesson: where to go next and what builds on this lesson.
     const { next, buildsOn } = lessonEnding(course, lesson.id);
+    // The result moment sits at the end of the course's last lesson once every question has a first try.
+    if (CONFIG.scoringUi && !next && courseFinished(course, store.answers())) parts.push(resultCard(course, store.answers()));
     const reviewCount = reviewQueue(course, store.answers()).length;
     parts.push(
       h(
