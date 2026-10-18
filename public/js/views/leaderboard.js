@@ -1,5 +1,6 @@
 // #/leaderboard?list=challenge|free&period=week|all&course=all|<id>. Test data (scoring/mock.js) until the server
-// API exists; the reader's own row comes from this browser and is never published. Behind CONFIG.scoringUi.
+// API exists. Points kept in this browser are unverified, so they are never placed among others on a list (the
+// server's own row and neighbours come with the API). Behind CONFIG.scoringUi.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { loadCourses } from '../data.js';
@@ -21,8 +22,8 @@ export function readBoardQuery(hash, courseIds) {
 
 const queryString = (s) => `#/leaderboard?list=${s.list}&period=${s.period}&course=${s.course}`;
 
-// The reader's own points for this list, from this browser: free questions only, so never on the challenge list.
-function ownRow(state, entries, records, now) {
+// The reader's own points from this browser for this period and course (free questions only), or null.
+function ownPoints(state, entries, records, now) {
   if (state.list !== 'free') return null;
   const first = [...firstTries(records).values()];
   const inWindow = state.period === 'week' ? first.filter((r) => r.t >= weekStart(now)) : first;
@@ -30,7 +31,7 @@ function ownRow(state, entries, records, now) {
   const picked = state.course === 'all' ? scores : scores.filter((s) => s.id === state.course);
   const answered = picked.reduce((a, s) => a + s.answered, 0);
   if (!answered) return null;
-  return { id: 'me', name: t('board.you'), points: totalPoints(picked), answered, pool: picked.reduce((a, s) => a + s.pool, 0), me: true };
+  return totalPoints(picked);
 }
 
 function radios(name, values, current, legend, onPick) {
@@ -63,10 +64,9 @@ export async function leaderboardView() {
     const pools = entries.filter((e) => state.course === 'all' || e.id === state.course).map((e) => courseScore(e.course, []).pool);
     const pool = pools.reduce((a, n) => a + n, 0);
     const board = mockBoard({ family: state.list, window: state.period, course: state.course, pool });
-    const mine = ownRow(state, entries, store.answers(), now);
-    const ranked = sharedRanks(mine ? [...board.rows, mine] : board.rows);
-    const meRanked = ranked.find((r) => r.me);
-    const shown = boardWindow(ranked, 'me');
+    const mine = ownPoints(state, entries, store.answers(), now);
+    const ranked = sharedRanks(board.rows);
+    const shown = boardWindow(ranked, null, { top: 10 });
     const courseTitle = state.course === 'all' ? t('board.course.all') : entries.find((e) => e.id === state.course).course.title;
     const caption = t('board.caption', { list: t(`board.list.${state.list}`), period: t(`board.period.${state.period}`), course: courseTitle });
     const rows = shown.map((r) =>
@@ -74,7 +74,7 @@ export async function leaderboardView() {
         ? h('tr', { class: 'board__gap' }, h('td', { colspan: '4' }, h('span', { 'aria-hidden': 'true' }, '…'), h('span', { class: 'visually-hidden' }, t('board.gap'))))
         : h('tr', { class: r.me ? 'board__me' : null, 'aria-current': r.me ? 'true' : null }, h('td', {}, String(r.rank)), h('td', {}, r.name), h('td', { class: 'num' }, formatPoints(r.points)), h('td', { class: 'num' }, t('profile.ofPool', { n: r.answered, pool: r.pool }))),
     );
-    const own = state.list === 'challenge' ? t('board.challenge.none') : meRanked ? t('board.notPublished', { rank: meRanked.rank, n: ranked.length }) : t('board.free.none');
+    const own = state.list === 'challenge' ? t('board.challenge.none') : mine !== null ? t('board.local', { points: formatPoints(mine) }) : t('board.free.none');
     slot.replaceChildren(
       h(
         'section',

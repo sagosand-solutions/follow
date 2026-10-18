@@ -29,7 +29,7 @@ export function mockBoard({ family, window, course, pool = 36 }) {
     const answered = Math.max(1, Math.round(pool * (window === 'week' ? 0.15 + random() * 0.5 : 0.3 + random() * 0.7)));
     // Points on the 1000 scale: a skill share of the answered questions, minus a few confident misses.
     const skill = random();
-    const points = Math.round((1000 * answered * (skill * 0.95 - (1 - skill) * 0.1)) / pool);
+    const points = Math.round((1000 * answered * (skill * 0.95 - (1 - skill) * 0.2)) / pool);
     const name = i < NAMES.length ? NAMES[i] : `Reader ${1000 + Math.floor(random() * 9000)}`;
     rows.push({ id: `m${i}`, name, points, answered, pool });
   }

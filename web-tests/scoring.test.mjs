@@ -10,39 +10,40 @@ const half = (q, attempt, t) => ({ question_id: q, attempt, t, outcome: 'answere
 const wrong = (q, attempt, t) => ({ question_id: q, attempt, t, outcome: 'answered', score: 0, option_id: 'c' });
 const unsure = (q, attempt, t) => ({ question_id: q, attempt, t, outcome: 'unknown', score: null, option_id: null });
 
-test('rules: +1, +0.5, 0 for not sure, -0.25 for a chosen wrong option', () => {
+test('rules: +1, +0.5, 0 for not sure, -0.5 for a chosen wrong option (rules r2)', () => {
   assert.deepEqual([pointsFor(right('a', 1, 1)), pointsFor(half('a', 1, 1)), pointsFor(unsure('a', 1, 1)), pointsFor(wrong('a', 1, 1))], [RULES.right, RULES.partial, RULES.unsure, RULES.wrong]);
-  assert.deepEqual([RULES.right, RULES.partial, RULES.unsure, RULES.wrong], [1, 0.5, 0, -0.25]);
+  assert.deepEqual([RULES.right, RULES.partial, RULES.unsure, RULES.wrong], [1, 0.5, 0, -0.5]);
+  assert.equal(RULES.version, 'r2');
 });
 
 test('only the first try counts; later tries change learning, never points', () => {
   const c = course('a', 'b');
   const s = courseScore(c, [wrong('a', 1, 1), right('a', 2, 2), right('a', 3, 3)]);
-  assert.equal(s.sum, -0.25);
+  assert.equal(s.sum, -0.5);
   assert.equal(s.answered, 1);
   assert.equal(s.learned, 1);
   assert.equal(s.improved, 1);
-  assert.equal(s.points, (1000 * -0.25) / 2);
+  assert.equal(s.points, (1000 * -0.5) / 2);
 });
 
-test("the contract's example: 1 right, 1 half, 1 wrong, 1 not sure in a pool of 10 gives 125; total over 3 courses 41.67", () => {
+test("the contract's example: 1 right, 1 half, 1 wrong, 1 not sure in a pool of 10 gives 100; total over 3 courses 33.33", () => {
   const c = course(...'abcdefghij');
   const s = courseScore(c, [right('a', 1, 1), half('b', 1, 1), wrong('c', 1, 1), unsure('d', 1, 1)]);
-  assert.equal(s.points, 125);
+  assert.equal(s.points, 100);
   const total = totalPoints([s, { points: 0 }, { points: 0 }]);
-  assert.equal(Math.round(total * 100) / 100, 41.67);
+  assert.equal(Math.round(total * 100) / 100, 33.33);
   assert.equal(coursePoints(1, 0), null);
   assert.equal(totalPoints([]), null);
   assert.equal(totalPoints([s, { points: null }]), null);
 });
 
-test('range is -250 to 1000 and display uses a real minus sign', () => {
-  assert.equal(courseScore(course('a', 'b'), [wrong('a', 1, 1), wrong('b', 1, 1)]).points, -250);
+test('range is -500 to 1000 and display uses a real minus sign', () => {
+  assert.equal(courseScore(course('a', 'b'), [wrong('a', 1, 1), wrong('b', 1, 1)]).points, -500);
   assert.equal(courseScore(course('a'), [right('a', 1, 1)]).points, 1000);
-  assert.equal(formatPoints(-250), '−250');
+  assert.equal(formatPoints(-500), '−500');
   assert.equal(formatPoints(612.4), '612');
   assert.equal(formatPoints(null), '–');
-  assert.equal(formatDelta(-0.25), '−0.25');
+  assert.equal(formatDelta(-0.5), '−0.5');
   assert.equal(formatDelta(0.5), '+0.5');
   assert.equal(formatDelta(0), '0');
 });
@@ -75,7 +76,7 @@ test('mock boards are deterministic and stay inside the scale', () => {
   const b = mockBoard({ family: 'free', window: 'all', course: 'all', pool: 46 });
   assert.deepEqual(a, b);
   assert.equal(a.participants, 212);
-  for (const r of a.rows) assert.ok(r.points >= -250 && r.points <= 1000 && r.answered >= 1 && r.answered <= 46);
+  for (const r of a.rows) assert.ok(r.points >= -500 && r.points <= 1000 && r.answered >= 1 && r.answered <= 46);
 });
 
 test('scoring UI is off by default and its routes exist only behind the flag', async () => {
@@ -88,5 +89,5 @@ test('scoring UI is off by default and its routes exist only behind the flag', a
 test('no casino words in the scoring copy', async () => {
   const en = JSON.parse(await readFile(new URL('../public/i18n/en.json', import.meta.url), 'utf8'));
   const text = Object.entries(en).filter(([k]) => /^(score|profile|board|result)\./.test(k)).map(([, v]) => v).join(' ').toLowerCase();
-  for (const word of ['streak', 'penalty', 'lost', 'hurry', 'only today', 'limited', 'jackpot', 'win big']) assert.ok(!text.includes(word), word);
+  for (const word of ['nobody can', 'never lose', 'streak', 'penalty', 'lost', 'hurry', 'only today', 'limited', 'jackpot', 'win big']) assert.ok(!text.includes(word), word);
 });

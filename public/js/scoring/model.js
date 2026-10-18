@@ -2,7 +2,7 @@
 // No DOM, storage, network or clock: callers pass parsed courses, answer records and `now`.
 
 // Points per first try. The challenge counts the FIRST try only; later tries are practice.
-export const RULES = Object.freeze({ version: 1, right: 1, partial: 0.5, unsure: 0, wrong: -0.25 });
+export const RULES = Object.freeze({ version: 'r2', right: 1, partial: 0.5, unsure: 0, wrong: -0.5 });
 
 export function outcomeOf(record) {
   if (!record) return null;
