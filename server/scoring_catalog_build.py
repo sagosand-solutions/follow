@@ -339,6 +339,15 @@ def _validate_question(question_id: str, data: object, family: str, validator) -
             f"question {question_id!r} must have exactly one full, one half and at least "
             "three zero-credit options; booleans are not scores"
         )
+    # ``uniqueItems`` compares whole option objects, so two options that differ only
+    # by text/score can still share one id; the scorer resolves a question by its
+    # first id match, so option ids must be unique on their own.
+    seen_ids: set[str] = set()
+    for option in question["options"]:
+        option_id = option["id"]
+        if option_id in seen_ids:
+            raise CatalogBuildError(f"question {question_id!r} has duplicate option id {option_id!r}")
+        seen_ids.add(option_id)
 
 
 # --- build -------------------------------------------------------------------

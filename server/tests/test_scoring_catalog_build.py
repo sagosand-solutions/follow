@@ -379,6 +379,29 @@ class RejectionTest(BuilderFixture):
         del data["options"][1]["partial_reason"]
         self.question_that_fails(data)
 
+    def test_duplicate_option_ids_rejected(self):
+        data = make_question("py-alpha")
+        data["options"][1]["id"] = data["options"][0]["id"]
+        self.question_that_fails(data)
+
+    def test_duplicate_option_ids_leave_previous_artifact(self):
+        digest = self.add_question("py-alpha")
+        release = self.write_release({"python": [("py-alpha", "python-lifetime")]})
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+        out = self.root / "artifact.json"
+        builder.write_artifact(out, self.build(release, exposures))
+        before = out.read_bytes()
+
+        data = make_question("py-alpha")
+        data["options"][1]["id"] = data["options"][0]["id"]
+        payload = json.dumps(data).encode("utf-8")
+        (self.content / "py-alpha.json").write_bytes(payload)
+        self.entries[-1]["sha256"] = _sha(payload)
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": _sha(payload)}))
+        with self.assertRaises(CatalogBuildError):
+            builder.build_artifact(self.content, self.freeze_manifest(), release, exposures)
+        self.assertEqual(out.read_bytes(), before)
+
     def test_all_zero_options_rejected(self):
         data = make_question("py-alpha")
         for option in data["options"]:

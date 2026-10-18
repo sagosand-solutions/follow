@@ -78,6 +78,16 @@ exit `0` means equal, `1` means drift. A build error exits `2`.
 `--list-unexposed` makes the build report the manifest entries that have no
 exposure row (see below); the count is always noted on stderr when non-zero.
 
+`--question-schema` overrides the schema path. It is a **trusted build input**:
+the operator must point it at the official question contract. It is not a way to
+skip or weaken validation, so a build that ships an artifact should use the
+bundled `schema/question.schema.json` and record the override in review.
+
+Option ids must be unique within a question. The schema's `uniqueItems` compares
+whole option objects, so it does not catch two options that differ only by
+text/score while sharing one id; the builder rejects that separately, because the
+scorer resolves an option by its first id match.
+
 ## Output artifact
 
 The artifact format: `schema_version`, `catalog_version`, `rules_version`,
