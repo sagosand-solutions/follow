@@ -8,10 +8,26 @@ const LEVELS = ['beginner', 'intermediate', 'advanced'];
 
 const filled = (v) => typeof v === 'string' && v.trim() !== '';
 
+export const PRACTICE_PROFILE = 'beginner-practice';
+
+// The answer profile of a question that passed checkQuestion: only the explicit field says "practice". A legacy 0.1 document
+// and a 0.2 `standard` document are the same standard kind. Nothing is inferred from the id, level, course or option count.
+export function isPractice(q) {
+  return !!q && q.schema_version === '0.2' && q.answer_profile === PRACTICE_PROFILE;
+}
+
 // Returns an error string, or null when the question is acceptable.
 export function checkQuestion(q, id) {
   if (!q || typeof q !== 'object' || Array.isArray(q)) return 'not an object';
-  if (q.schema_version !== '0.1') return 'unsupported schema_version';
+  // 0.1 is the legacy standard question and has no profile; 0.2 needs an explicit known profile. Never a silent fallback.
+  if (q.schema_version === '0.1') {
+    if ('answer_profile' in q) return 'answer_profile on 0.1';
+  } else if (q.schema_version === '0.2') {
+    if (q.answer_profile !== 'standard' && q.answer_profile !== PRACTICE_PROFILE) return 'answer_profile';
+  } else {
+    return 'unsupported schema_version';
+  }
+  const practice = isPractice(q);
   if (typeof q.id !== 'string' || !QUESTION_ID.test(q.id) || q.id !== id) return 'id';
   if (!TYPES.includes(q.type)) return 'type';
   if (!LEVELS.includes(q.level)) return 'level';
@@ -31,7 +47,8 @@ export function checkQuestion(q, id) {
     }
   }
 
-  if (!Array.isArray(q.options) || q.options.length < 5 || q.options.length > 8) return 'option count';
+  if (!Array.isArray(q.options)) return 'option count';
+  if (practice ? q.options.length !== 4 : q.options.length < 5 || q.options.length > 8) return 'option count';
   const optionIds = new Set();
   let full = 0;
   let half = 0;
@@ -56,7 +73,7 @@ export function checkQuestion(q, id) {
       return 'option score';
     }
   }
-  if (full !== 1 || half !== 1 || zero < 3) return 'option scores';
+  if (full !== 1 || half !== 1 || (practice ? zero !== 2 : zero < 3)) return 'option scores';
   if (!q.author || !filled(q.author.name)) return 'author';
   return null;
 }

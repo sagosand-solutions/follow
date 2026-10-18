@@ -3,16 +3,18 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { CONFIG } from '../config.js';
-import { courseScore, formatPoints } from '../scoring/model.js';
+import { scoreWithProfiles, formatPoints } from '../scoring/model.js';
 import { facts } from './ui.js';
 
-export function courseFinished(course, records) {
-  const s = courseScore(course, records);
-  return s.pool > 0 && s.answered === s.pool;
+// `profiles` is the Map of validated answer profiles of the course (data.js). Without it (unknown) there is no result: nothing is
+// scored on a guess, and a course whose questions are all practice has no scoring pool and no result.
+export function courseFinished(course, records, profiles = null) {
+  const s = scoreWithProfiles(course, records, undefined, null, profiles);
+  return !s.unavailable && s.pool > 0 && s.answered === s.pool;
 }
 
-export function resultCard(course, records, isRightNow = null) {
-  const s = courseScore(course, records, undefined, isRightNow);
+export function resultCard(course, records, isRightNow = null, profiles = null) {
+  const s = scoreWithProfiles(course, records, undefined, isRightNow, profiles);
   const half = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
   return h(
     'section',

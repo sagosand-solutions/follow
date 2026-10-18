@@ -114,6 +114,8 @@
   "q.check": "Check answer",
   "q.hint": "Choose an answer to continue.",
   "q.unsure": "I'm not sure",
+  "q.practice": "Practice",
+  "q.practice.note": "Practice question: four choices and no points. It never counts toward a score or a leaderboard.",
   "q.letter": "Answer {letter}",
   "q.next": "Next question",
   "q.finish": "Finish this lesson",

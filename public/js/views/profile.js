@@ -2,12 +2,12 @@
 // per course, and a calm week-by-week history. Shown only when CONFIG.scoringUi is on. Data: this browser only.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { loadCourses, loadQuestion } from '../data.js';
+import { loadCourses, loadQuestion, loadAnswerProfiles } from '../data.js';
 import { currentAnswer } from '../answers.js';
 import { store } from '../progress.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { reviewQueue } from '../review.js';
-import { RULES, courseScore, totalPoints, formatPoints, recentWeeks } from '../scoring/model.js';
+import { RULES, scoreWithProfiles, totalPoints, formatPoints, recentWeeks } from '../scoring/model.js';
 import { eyebrow, facts } from '../components/ui.js';
 import { bigNumber } from '../components/score-ui.js';
 import { errorNode } from './errors.js';
@@ -57,8 +57,11 @@ export async function profileView() {
     const cur = q ? currentAnswer(q, r) : null;
     return !!cur && cur.outcome === 'answered' && cur.score === 1;
   };
-  const scores = entries.map((e) => ({ id: e.id, title: e.course.title, course: e.course, ...courseScore(e.course, records, RULES, isRightNow) }));
-  const total = totalPoints(scores);
+  // Each course's validated answer profiles come from its exported index. Unknown profiles mean no points for that course (and no
+  // total); practice-only courses have no pool and stay out of the total. Nothing is assumed or counted as zero.
+  const profiles = await Promise.all(entries.map((e) => loadAnswerProfiles(e.id)));
+  const scores = entries.map((e, i) => ({ id: e.id, title: e.course.title, course: e.course, ...scoreWithProfiles(e.course, records, RULES, isRightNow, profiles[i]) }));
+  const total = totalPoints(scores.filter((s) => !s.practiceOnly));
   const sum = (key) => scores.reduce((a, s) => a + s.counts[key], 0);
   const answered = scores.reduce((a, s) => a + s.answered, 0);
   const learned = scores.reduce((a, s) => a + s.learned, 0);

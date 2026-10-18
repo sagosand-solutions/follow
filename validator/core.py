@@ -277,7 +277,10 @@ def validate_question(question, map_data, *, schema_dir=None):
     cases = question["verification"]["cases"]
     issues += _duplicates(cases, "verification/cases")
     scores = [o["score"] for o in question["options"]]
-    if any(isinstance(s, bool) for s in scores) or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) < 3:
+    if question.get("answer_profile") == "beginner-practice":     # exactly four options: one full, one half, two zero-credit
+        if any(isinstance(s, bool) for s in scores) or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) != 2:
+            issues.append(Issue("scores", "/options", "The beginner-practice profile requires exactly one full, one half and two zero-credit options; booleans are not scores"))
+    elif any(isinstance(s, bool) for s in scores) or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) < 3:
         issues.append(Issue("scores", "/options", "Require one full, one half and at least three zero-credit options; booleans are not scores"))
     texts = set()
     for i, option in enumerate(question["options"]):

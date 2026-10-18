@@ -29,6 +29,30 @@ export function clearDataCache() {
 const derived = (name, courseId) => (courseId === DEFAULT_COURSE ? `${name}.json` : `${name}-${courseId}.json`);
 const badCourse = () => Object.assign(new Error('bad course'), { status: 404 });
 
+// The validated answer profile of every question of a course, from the exported index: a Map id -> 'standard' | 'beginner-practice',
+// or null when the profiles cannot be read for certain (the index is missing, is not version 2, or any entry lacks a known
+// profile). Callers must treat null as "unknown" and must not compute scoring pools or points from it: there is no silent
+// standard fallback and no zero fallback.
+const PROFILES = ['standard', 'beginner-practice'];
+
+export async function loadAnswerProfiles(courseId = DEFAULT_COURSE) {
+  let index;
+  try {
+    index = await loadIndex(courseId);
+  } catch {
+    return null;
+  }
+  if (!index || typeof index !== 'object' || index.data_version !== 2 || !Array.isArray(index.questions)) return null;
+  const profiles = new Map();
+  for (const entry of index.questions) {
+    if (!entry || typeof entry.id !== 'string' || !PROFILES.includes(entry.answer_profile) || profiles.has(entry.id)) return null;
+    profiles.set(entry.id, entry.answer_profile);
+  }
+  return profiles;
+}
+
+export const practiceIdsOf = (profiles) => (profiles ? [...profiles].filter(([, profile]) => profile === 'beginner-practice').map(([id]) => id) : null);
+
 export const loadIndex = (courseId = DEFAULT_COURSE) => (isCourseId(courseId) ? getJson(derived('index', courseId)) : Promise.reject(badCourse()));
 export const loadCourse = (courseId = DEFAULT_COURSE) => (isCourseId(courseId) ? getJson(`courses/${courseId}.json`) : Promise.reject(badCourse()));
 

@@ -59,7 +59,8 @@ marked optional.
 
 | Field | Type | Rule |
 |---|---|---|
-| `schema_version` | string | Constant `"0.1"`. |
+| `schema_version` | string | `"0.1"` (the legacy standard question) or `"0.2"` (explicit answer profile). Any other value is refused. |
+| `answer_profile` | string | **Required in 0.2, forbidden in 0.1.** `standard` (5 to 8 options) or `beginner-practice` (exactly 4 options). Never inferred. |
 | `id` | string | Matches `^[a-z][a-z0-9-]{2,79}$`. |
 | `language` | string | Constant `"python"`. |
 | `locale` | string | Constant `"en"`. |
@@ -69,11 +70,28 @@ marked optional.
 | `concepts` | array | Nonempty, unique concept IDs, each matching `^(py\|prod\|sql)\.[a-z][a-z0-9-]*$`. |
 | `prompt` | string | Nonempty plain text. States all assumptions and the actual question. |
 | `snippets` | array | Nonempty array of Snippet objects. The first snippet is the primary displayed code. |
-| `options` | array | 5 to 8 Option objects. |
+| `options` | array | Option objects: 5 to 8 for `0.1` and `0.2` `standard`; exactly 4 for `0.2` `beginner-practice`. |
 | `explanation` | string | Nonempty plain text giving the correct conclusion. |
 | `verification` | object | A Verification object (below). |
 | `author` | object | `{ "name": <nonempty string> }` only. |
 | `license` | string | Enum `"CC-BY-SA-4.0"` or `"LicenseRef-Proprietary"`. |
+
+### Answer profiles (0.2)
+
+Version `0.1` is unchanged: five to eight options, one full, one half and at least three zero-credit, and no
+`answer_profile`. Version `0.2` adds an explicit profile and nothing else:
+
+- `standard`: the same rules as `0.1` (5 to 8 options, one 1, one 0.5, at least three 0).
+- `beginner-practice`: exactly **four** options, one 1, one 0.5 and **two** 0, for a clean beginner exercise. A separate "I'm not
+  sure" row in a reader is not a JSON option. Booleans are never scores.
+
+An unknown version, an unknown or missing profile, a profile on `0.1` and every inconsistent combination are refused;
+there is no fallback, and nothing is inferred from a course name, level, id prefix, option count or licence. The schema decides
+structure and option count; the validator decides the score distribution, unique option ids, the misconception and
+`partial_reason` binding and the snippet and case references, in the same way for both profiles. A `beginner-practice` question is
+local practice only: it is never part of a server scoring pool (the scoring-catalog builder and the server both refuse it). The
+exported course index (`data_version` 2) states every question's profile explicitly, and a reader computes scoring pools and points only
+from a complete index; with an unknown profile it computes nothing.
 
 Local identifiers for snippets, options and cases match
 `^[a-z][a-z0-9-]{0,79}$`. They are stable opaque identifiers, so a reader can key

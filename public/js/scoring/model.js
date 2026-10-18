@@ -54,10 +54,16 @@ export function coursePoints(sum, pool) {
 
 // `isRightNow(record)` decides whether the newest try is right against the question as it is NOW (the lesson page's
 // validity rule). Without it, "learned" falls back to the stored score, which callers must not call "right now".
-export function courseScore(course, records, rules = RULES, isRightNow = null) {
-  const ids = questionIds(course);
-  const first = firstTries(records);
-  const latest = latestTries(records);
+// `practiceIds` is the set of question ids whose VALIDATED profile is beginner-practice (from the exported index, see data.js). A
+// practice question is local practice only: neither its answers nor its id take part in points or in the scoring pool. Callers must
+// not guess: when the profiles cannot be read they do not compute points at all.
+export function courseScore(course, records, rules = RULES, isRightNow = null, practiceIds = null) {
+  const list = Array.isArray(records) ? records : [];
+  const practice = new Set(practiceIds || []);
+  const ids = questionIds(course).filter((id) => !practice.has(id));
+  const scored = list.filter((r) => !practice.has(r && r.question_id));
+  const first = firstTries(scored);
+  const latest = latestTries(scored);
   const counts = { right: 0, partial: 0, unsure: 0, wrong: 0 };
   let sum = 0;
   let learned = 0;
@@ -76,6 +82,19 @@ export function courseScore(course, records, rules = RULES, isRightNow = null) {
   }
   const answered = counts.right + counts.partial + counts.unsure + counts.wrong;
   return { pool: ids.length, answered, counts, sum, points: coursePoints(sum, ids.length), learned, improved };
+}
+
+// Course points with the answer profiles read from the exported index (`profiles`: Map id -> profile, see data.js). When the
+// profiles are unknown or do not cover every question of the course, nothing is computed: `unavailable` with null points (never
+// a silent standard assumption, never 0). A course whose questions are all practice has no scoring pool: `practiceOnly`.
+export function scoreWithProfiles(course, records, rules = RULES, isRightNow = null, profiles = null) {
+  const ids = questionIds(course);
+  if (!(profiles instanceof Map) || ids.some((id) => !profiles.has(id))) {
+    return { pool: ids.length, answered: 0, counts: { right: 0, partial: 0, unsure: 0, wrong: 0 }, sum: 0, points: null, learned: 0, improved: 0, unavailable: true, practiceOnly: false };
+  }
+  const practiceIds = ids.filter((id) => profiles.get(id) === 'beginner-practice');
+  const score = courseScore(course, records, rules, isRightNow, practiceIds);
+  return { ...score, unavailable: false, practiceOnly: ids.length > 0 && score.pool === 0 };
 }
 
 // The total is the mean over ALL courses in the catalogue, not started ones counting as 0. Null without courses.

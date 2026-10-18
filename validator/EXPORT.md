@@ -88,16 +88,20 @@ the course remains editorial; it is not sorted or rewritten.
 
 ```json
 {
-  "data_version": 1,
+  "data_version": 2,
   "onboarding_question": "first-editorial-question",
   "questions": [
-    {"id": "first-editorial-question", "type": "output", "level": "beginner", "difficulty": 0.2, "concepts": ["py.values"]}
+    {"id": "first-editorial-question", "type": "output", "level": "beginner", "difficulty": 0.2, "concepts": ["py.values"], "answer_profile": "standard"}
   ]
 }
 ```
 
 Index question entries are sorted by stable question ID and contain only the
-five shown fields. `public/data/concepts.json` contains the **entire** canonical
+six shown fields. `answer_profile` is always present and explicit: the question's own
+profile (`standard` or `beginner-practice`) for a 0.2 document, and `standard` for a legacy 0.1
+document (that is what the 0.1 contract means). Index `data_version` 2 introduced it; a client that
+cannot read a version-2 index with a valid profile on every entry must not compute scoring pools
+from it (see the web client), and nothing is inferred from the id, level or option count. `public/data/concepts.json` contains the **entire** canonical
 map with unchanged JSON semantics. Both outputs use UTF-8, two-space indentation,
 sorted object keys, literal Unicode, and one trailing newline. No timestamp,
 absolute path or machine-specific metadata is generated. `data_version` versions

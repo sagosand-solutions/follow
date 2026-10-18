@@ -113,6 +113,9 @@ not score.
   question's JSON `id` must equal the manifest id.
 - Selected questions are read only through the hash-checked catalog (path/symlink
   safety included); a changed file or a wrong hash is rejected. A question that
+  is not a standard-profile question (a legacy 0.1 document, or 0.2 with `answer_profile: standard`, five to eight options;
+  the four-option `beginner-practice` profile, an unknown version or profile and a profile on 0.1 are refused with a clear
+  error before anything is written, and before the schema, so a schema override cannot admit one) or
   does not satisfy the official schema or the static score rule (exactly one full,
   one half and at least three zero-credit options; booleans are not scores) is
   rejected before anything is written, so an invalid pool never yields an artifact.
