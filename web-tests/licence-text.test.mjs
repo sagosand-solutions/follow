@@ -26,7 +26,8 @@ test('the phone map shows counts: cells are hidden only on narrow screens', () =
   const media = phone.slice(phone.indexOf('@media (max-width: 37.49rem)'));
   assert.match(media, /\.map__row:not\(\.map--compact\) \.map__cells \{ display: none; \}/, 'cells are hidden inside the narrow-screen media block');
   assert.ok(phone.indexOf('.map__row:not(.map--compact) .map__cells') > phone.indexOf('@media (max-width: 37.49rem)'));
-  assert.match(css, /\.map__count--phone, \.map-intro--phone \{ display: none; \}/);
+  assert.match(css, /\.map-intro--phone \{ display: none; \}/);
+  assert.doesNotMatch(css, /\.map__count[^{]*\{[^}]*display: none/, 'the count is shown at every width');
   assert.match(css, /\.map-intro--wide \{ display: none; \}/);
 });
 

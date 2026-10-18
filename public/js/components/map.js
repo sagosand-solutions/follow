@@ -1,5 +1,5 @@
 // Reading map: one cell per question, coloured AND patterned by the stored outcome (never colour alone).
-// Cells are decoration; the counts are given as text for assistive technology.
+// Cells are decoration; each row also states its count as visible text, and the full breakdown is given for assistive technology.
 
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
@@ -58,9 +58,11 @@ export function readingMap(course, nextId) {
         h('div', {}, h('p', { class: 'map__count' }, t('course.lesson.progress', { answered: read, total: ids.length })), h('p', { class: 'visually-hidden' }, summaryText(ids))),
       );
     }
-    // On a phone the row shows a count instead of every cell (the cells stay in the lesson cards below).
+    // Every row states its count in text, so progress never rests on the cells' colour or contrast alone.
+    // On a phone the count stands in for the cells (they stay in the lesson cards below).
     const read = ids.filter((id) => store.latest(id)).length;
-    return h('div', { class: 'map__row' }, label, h('div', {}, cells(ids, nextId), h('p', { class: 'map__count map__count--phone' }, t('course.lesson.progress', { answered: read, total: ids.length })), h('p', { class: 'visually-hidden' }, summaryText(ids))));
+    const track = h('div', { class: 'map__track' }, cells(ids, nextId), h('p', { class: 'map__count' }, t('course.lesson.progress', { answered: read, total: ids.length })));
+    return h('div', { class: 'map__row' }, label, h('div', {}, track, h('p', { class: 'visually-hidden' }, summaryText(ids))));
   });
   return h('div', { class: 'map' }, ...rows, legend());
 }
