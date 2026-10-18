@@ -282,6 +282,19 @@ class BindingTests(Scenario):
         with self.assertRaises(LedgerError):
             self.check("rel-2", kw.pop("ledger_path", self.ledger_path), kw.pop("catalogs", self.cat2), **kw)
 
+    def test_check_release_itself_enforces_the_chain_not_only_verify_step(self):
+        """Break only the chain fields of an otherwise consistent candidate; the decision names the broken ledger and the right baseline."""
+        self.ready()
+        for label, change in {"a sequence jump": {"seq": 4}, "a wrong previous digest": {"previous_digest": "d" * 64}}.items():
+            with self.subTest(label=label):
+                broken = copy.deepcopy(self.ledger2)
+                broken.update(change)
+                sealed = pool_ledger.seal({k: v for k, v in broken.items() if k != "digest"})
+                self.install(None, self.decision("rel-2", sealed, self.cat2, first=False, previous=self.first["digest"]))
+                with self.assertRaises(LedgerError) as caught:
+                    self.check("rel-2", self.save("broken.json", sealed), self.cat2, inventory_path=self.inventory_path)
+                self.assertIn("does not continue", str(caught.exception), "refused by the chain check, not by some other binding")
+
     def test_the_decision_binds_candidate_ledger_counts_and_release(self):
         self.ready()
         self.refused(candidate="d" * 40)
