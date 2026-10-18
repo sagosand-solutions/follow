@@ -379,6 +379,7 @@
   "score.line.how": "How points work",
   "score.unsure.sub": "0 points. You see the answer and why.",
   "score.delta": "Points for this first try: {delta}",
+  "score.challenge.open": "Try a server-scored challenge",
   "profile.eyebrow": "Your profile",
   "profile.title": "Your reading",
   "profile.lead": "Two numbers that never mix: points from first tries, and what you understand now. Both come from this browser only.",

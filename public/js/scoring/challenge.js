@@ -34,13 +34,14 @@ export async function challengeQuestionView({ id, course = null }) {
   }
   const issued = await client.scoringIssue(id);
   if (!issued.ok) {
+    if (issued.code === 'locked' && issued.attempt) return message('Already answered', scoreLabel(issued.attempt), h('a', { href: courseHref(course?.id).slice(1) }, 'Back to course'));
     if (issued.code === 'signed_out') return message('Sign in required', 'Sign in to open a server-issued scoring question.', h('a', { class: 'button button--primary', href: '#/signin?next=account' }, 'Sign in'));
     if (issued.code === 'unavailable') return message('Scoring is off', 'The scoring service is currently unavailable. No local score has been submitted.');
     return message('Question unavailable', 'This question cannot be issued for scoring. No local score has been submitted.', h('a', { href: courseHref(course?.id).slice(1) }, 'Back to course'));
   }
 
   const q = issued.question;
-  if (!q || q.id !== id || !Array.isArray(q.options) || !Array.isArray(q.snippets)) return message('Question unavailable', 'The scoring service returned an invalid question.');
+  if (typeof issued.issue_id !== 'string' || !['official', 'free'].includes(issued.family) || typeof issued.course_id !== 'string' || !q || q.id !== id || typeof q.prompt !== 'string' || !Array.isArray(q.options) || q.options.length < 5 || q.options.length > 8 || !Array.isArray(q.snippets) || q.snippets.some((snippet) => !snippet || typeof snippet.code !== 'string')) return message('Question unavailable', 'The scoring service returned an invalid question.');
   const root = h('div', { class: 'question' });
   const letters = 'ABCDEFGH';
   const options = h('div', { class: 'options', role: 'radiogroup', 'aria-label': 'Answer choices' });
@@ -66,6 +67,7 @@ export async function challengeQuestionView({ id, course = null }) {
     const selected = radios.find((radio) => radio.checked);
     if (!selected || submit.disabled) return;
     submit.disabled = true;
+    radios.forEach((radio) => { radio.disabled = true; });
     status.hidden = false;
     status.textContent = 'Submitting your first answer…';
     const result = await client.scoringAnswer({ issue_id: issued.issue_id, outcome: selected.value ? 'answer' : 'not_sure', option_id: selected.value || null, idempotency_key: key });
@@ -115,7 +117,8 @@ export async function challengeQuestionView({ id, course = null }) {
     strings: { copy: 'Copy', copied: 'Copied', copyFailed: 'Copy failed', ariaLabel: (n, language) => `${language} code, ${n} lines`, markedSummary: (lines) => `Highlighted lines: ${lines.join(', ')}`, lineMarked: (n) => `line ${n} highlighted`, lineUnmarked: (n) => `line ${n} not highlighted`, cursorLine: (n) => `line ${n}` },
   }));
   const title = h('h1', { class: 'question__title' }, renderInline(q.prompt));
-  const first = h('div', { class: 'question__top stack' }, h('p', { class: 'chip' }, `Official · ${issued.course_id} · ${issued.revision}`), title);
+  const familyLabel = issued.family === 'free' ? 'Free practice' : 'Official challenge';
+  const first = h('div', { class: 'question__top stack' }, h('p', { class: 'chip' }, `${familyLabel} · ${issued.course_id}`), title);
   root.replaceChildren(first, h('div', { class: 'q-grid' }, h('div', { class: 'q-stage' }, ...snippets), h('div', { class: 'q-side' }, options, actions)));
   return { title: q.prompt.split('\n')[0], node: root };
 }

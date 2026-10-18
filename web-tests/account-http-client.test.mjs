@@ -171,6 +171,7 @@ test('scoring API uses session CSRF, opaque responses, no-store reads, and prese
     ok({ user: { id: 'u' }, csrf_token: 'session-token' }),
     ok({ issue_id: 'i1', revision: 'r1', question: { options: [{ option_id: 'oabc1234567', text: 'A' }] } }),
     locked,
+    locked,
     ok({ family: 'official', rules_version: 'r2', total: { points: 0, answered: 0, pool: 4 } }),
     ok({ family: 'official', entries: [], participants: 0 }),
   ]);
@@ -181,16 +182,19 @@ test('scoring API uses session CSRF, opaque responses, no-store reads, and prese
   assert.deepEqual(JSON.parse(mock.calls[1].init.body), {});
   assert.equal(mock.calls[1].init.headers['X-CSRF-Token'], 'session-token');
   assert.equal(mock.calls[1].init.credentials, 'same-origin');
+  const alreadyIssued = await c.scoringIssue('q/1');
+  assert.equal(alreadyIssued.code, 'locked');
+  assert.deepEqual(alreadyIssued.attempt, { question_id: 'q1', score_units: -1 });
   const answer = await c.scoringAnswer({ issue_id: 'i1', outcome: 'answer', option_id: 'oabc1234567', idempotency_key: 'attempt-key' });
   assert.equal(answer.code, 'locked');
   assert.deepEqual(answer.attempt, { question_id: 'q1', score_units: -1 });
-  assert.deepEqual(JSON.parse(mock.calls[2].init.body), { issue_id: 'i1', outcome: 'answer', option_id: 'oabc1234567', idempotency_key: 'attempt-key' });
-  assert.equal(mock.calls[2].init.headers['X-CSRF-Token'], 'session-token');
+  assert.deepEqual(JSON.parse(mock.calls[3].init.body), { issue_id: 'i1', outcome: 'answer', option_id: 'oabc1234567', idempotency_key: 'attempt-key' });
+  assert.equal(mock.calls[3].init.headers['X-CSRF-Token'], 'session-token');
   assert.equal((await c.scoringMe({ family: 'official', window: 'week' })).ok, true);
   assert.equal((await c.scoringLeaderboards({ family: 'official', scope: 'course:sql', window: 'all' })).ok, true);
-  assert.equal(mock.calls[3].init.cache, 'no-store');
   assert.equal(mock.calls[4].init.cache, 'no-store');
-  assert.equal(mock.calls[4].url, '/api/leaderboards?family=official&scope=course%3Asql&window=all&limit=50');
+  assert.equal(mock.calls[5].init.cache, 'no-store');
+  assert.equal(mock.calls[5].url, '/api/leaderboards?family=official&scope=course%3Asql&window=all&limit=50');
   assert.doesNotMatch((await (await import('node:fs/promises')).readFile(new URL('../public/js/account/http-client.js', import.meta.url), 'utf8')), /localStorage|sessionStorage/);
 });
 

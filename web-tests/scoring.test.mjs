@@ -83,7 +83,16 @@ test('scoring UI is off by default and its routes exist only behind the flag', a
   const config = await readFile(new URL('../public/js/config.js', import.meta.url), 'utf8');
   const main = await readFile(new URL('../public/js/main.js', import.meta.url), 'utf8');
   assert.match(config, /scoringUi: false/);
-  assert.match(main, /if \(CONFIG\.scoringUi\) \{\n\s+registerRoute\('\/profile', async/);
+  assert.match(main, /if \(CONFIG\.scoringUi\) \{\n\s+registerRoute\('\/challenge\/:id', async[\s\S]*registerRoute\('\/profile', async/);
+});
+
+test('server-scored challenge is explicit; public questions and local review keep their local path', async () => {
+  const question = await readFile(new URL('../public/js/views/question.js', import.meta.url), 'utf8');
+  const main = await readFile(new URL('../public/js/main.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(question, /if \(CONFIG\.scoringUi\) return .*challengeQuestionView/);
+  assert.match(question, /CONFIG\.scoringUi && !ctx\.reviewMode/);
+  assert.match(main, /registerRoute\('\/challenge\/:id', async/);
+  assert.match(main, /if \(CONFIG\.scoringUi\) \{/);
 });
 
 test('server challenge view never reads or writes local scoring and submits only an issued opaque option', async () => {
@@ -92,7 +101,10 @@ test('server challenge view never reads or writes local scoring and submits only
   assert.match(source, /client\.scoringAnswer\(\{ issue_id: issued\.issue_id, outcome:/);
   assert.match(source, /option_id: selected\.value \|\| null/);
   assert.match(source, /idempotency_key: key/);
+  assert.match(source, /issued\.code === 'locked' && issued\.attempt/);
   assert.match(source, /result\.code === 'locked' && result\.attempt/);
+  assert.match(source, /issued\.family === 'free' \? 'Free practice' : 'Official challenge'/);
+  assert.doesNotMatch(source, /issued\.revision/);
   assert.doesNotMatch(source, /store\.record|localStorage|sessionStorage|pointsFor\(/);
   const profile = await readFile(new URL('../public/js/views/profile.js', import.meta.url), 'utf8');
   const board = await readFile(new URL('../public/js/views/leaderboard.js', import.meta.url), 'utf8');
