@@ -31,7 +31,9 @@ from .auth import AuthSecurity
 from .config import AppEnv, check_paddle_settings
 from .content_access import ContentAccessError, resolve_content
 from .scoring_http import Hooks, scoring_routes
-from .scoring_service import ScoringService
+from .scoring_service import ScoringService, verify_pool
+from .scoring_catalog import verify_binding
+from .payment_apply import apply_decision
 from .paddle.types import PaddleConfigError, PaddleError
 from .paddle.signature import verify_webhook as verify_paddle_webhook
 from .paddle_repo import PaddleQueueFull
@@ -39,7 +41,8 @@ from .paddle_checkout import build_checkout_context, reserve_or_reuse_checkout
 from .paddle_service import PaddleService
 from .content_catalog import build_release_summary
 from .dto import entitlements_dto, me_dto, product_list_dto
-from .models import AuthIntent, ConflictError, ServerError, SetupError, UserStatus, canonical_acknowledgements, resolve_active_bundle
+from .models import (AuthIntent, ConflictError, ContentError, PurchaseState, ServerError, SetupError, UserStatus,
+                     canonical_acknowledgements, resolve_active_bundle)
 from .repositories import Repositories
 from .rate_limit import EmailStartLimiter
 from .sessions import AuthenticatedPrincipal, SessionService
@@ -230,14 +233,11 @@ def create_app(settings, services: Services) -> Starlette:
         if settings.app_env is AppEnv.PRODUCTION or services.scoring is None:
             raise SetupError("scoring requires the mock/test configuration and a loaded scoring catalog")
         if settings.scoring.enabled:
-            from .models import ContentError
-            from .scoring_catalog import verify_binding
             official = services.scoring.catalogs.get("official")
             try:
                 if official is None:
                     raise ContentError("no official scoring snapshot")
                 verify_binding(official, services.catalog)
-                from .scoring_service import verify_pool
                 verify_pool(services.scoring)
             except ContentError as exc:
                 raise SetupError(f"scoring snapshot is not bound to the content manifest: {exc}") from None
@@ -721,8 +721,6 @@ def _apply_verified_event(repositories, provider_path: str, event) -> None:
     Dedup, the locked purchase read, the revision check, the CAS and the grant/revoke are ONE transaction
     (``payment_apply.apply_decision``); an unknown state value raises ValueError before any write.
     """
-    from .models import PurchaseState
-    from .payment_apply import apply_decision
     state = getattr(event, "state", None)
     purchase = repositories.purchases.get_by_provider_id(provider_path, getattr(event, "provider_purchase_id", ""))
     if purchase is None:
@@ -735,5 +733,4 @@ def _apply_verified_event(repositories, provider_path: str, event) -> None:
                    payload_digest=getattr(event, "payload_digest", ""), purchase_id=purchase.id,
                    new_state=new_state, event_label=str(state), new_revision=revision)
     if result.outcome == "conflict":
-        from .models import ConflictError
         raise ConflictError("payment event id reused with a different payload")  # unchanged external contract

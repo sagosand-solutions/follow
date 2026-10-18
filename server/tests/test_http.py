@@ -16,6 +16,17 @@ class HttpTestCase(unittest.TestCase):
         return fixture
 
 
+class ImportSmokeTests(unittest.TestCase):
+    def test_server_modules_import_cleanly_and_the_dead_body_reader_is_gone(self):
+        import importlib
+        for name in ("server.http", "server.app", "server.account_data", "server.scoring_http", "server.scoring_service"):
+            with self.subTest(module=name):
+                self.assertIsNotNone(importlib.import_module(name))
+        server_http = importlib.import_module("server.http")
+        self.assertFalse(hasattr(server_http, "read_body"))          # REF-05: the unused reader is removed
+        self.assertFalse(hasattr(server_http, "BodyLimitExceeded"))
+
+
 class RedirectAllowlistTests(unittest.TestCase):
     def redirect(self, url, *, hosts=frozenset({"pay.example"}), app_env=AppEnv.TEST):
         from server.app import _allowlisted_redirect

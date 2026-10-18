@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from . import http
+from .auth import AuthSecurity
 from .models import StorageError
 from .scoring_limits import RollingLimiter
 from .scoring_service import (Actor, LIST_MAX, ScoringError, ScoringService, _ISSUE_RE, _KEY_RE, _OPT_RE)
@@ -109,7 +110,6 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
             return blocked
         if not hooks.check_origin(request):
             return http.error_response("forbidden", hooks.request_id(request))
-        from .auth import AuthSecurity
         preauth = request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, settings))
         if preauth is None or not AuthSecurity(settings).verify_csrf(preauth, request.headers.get("x-csrf-token"),
                                                                      purpose="preauth"):
