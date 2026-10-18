@@ -8,8 +8,8 @@ export const SCENARIOS = ['signed-out', 'signed-in', 'pending', 'paid', 'refunde
 
 const PRODUCT = { id: 'python-lifetime', title: 'Python, beginner to advanced', amount_minor: 500, currency: 'USD', published_chapter_count: null, checkout_enabled: false, policy: { version: 'placeholder', required_acknowledgements: ['withdrawal-consent'] } };
 
-export function createFakeClient({ scenario = 'signed-out', providersOn = { google: true, apple: false, discord: false, metamask: false, email: true }, checkoutEnabled = false, chapterCount = null } = {}) {
-  const state = { scenario, providersOn: { ...providersOn }, checkoutEnabled, chapterCount, consent: false };
+export function createFakeClient({ scenario = 'signed-out', providersOn = { google: true, apple: false, discord: false, metamask: false, email: true }, checkoutEnabled = false, chapterCount = null, checkoutMode = 'redirect' } = {}) {
+  const state = { scenario, providersOn: { ...providersOn }, checkoutEnabled, chapterCount, consent: false, checkoutMode };
   const signedIn = () => state.scenario !== 'signed-out';
   return {
     mock: true,
@@ -29,7 +29,7 @@ export function createFakeClient({ scenario = 'signed-out', providersOn = { goog
       return [];
     },
     async purchase() {
-      if (state.scenario === 'pending') return { product_id: PRODUCT.id, state: 'pending' };
+      if (state.scenario === 'pending') return { id: 'mock-purchase', product_id: PRODUCT.id, state: 'pending' };
       return null;
     },
     // The fake client has no premium content.
@@ -48,7 +48,8 @@ export function createFakeClient({ scenario = 'signed-out', providersOn = { goog
       if (!state.checkoutEnabled) return { ok: false, code: 'checkout_disabled' };
       if (product_id !== PRODUCT.id || policy_version !== PRODUCT.policy.version || !acknowledgements.includes('withdrawal-consent')) return { ok: false, code: 'policy_required' };
       state.scenario = 'pending';
-      return { ok: true };
+      // 'overlay' mimics the strict answer of the Paddle path (made-up ids); the dev window is separately switched on in the configuration.
+      return state.checkoutMode === 'overlay' ? { ok: true, kind: 'overlay', purchase_id: 'mock-purchase', transaction_id: 'txn_mocktransaction0000' } : { ok: true };
     },
     async logout() {
       state.scenario = 'signed-out';

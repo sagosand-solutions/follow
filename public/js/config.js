@@ -13,6 +13,8 @@ export const CONFIG = {
   accountsUi: false,
   accountsApi: null,
   accountsCheckoutOrigins: [],
+  // The dev stand-in for the payment provider's checkout window: null (off) or 'dev-shim'. Only ever set here, never from the URL or storage.
+  accountsOverlay: null,
   storagePrefix: 'follow.v0',
   dataPath: 'data/',
   i18nPath: 'i18n/',

@@ -372,6 +372,8 @@
 .mock__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); font-size: var(--text-sm); }
 .mock__check { display: inline-flex; align-items: center; gap: var(--s-2); }
 .mock__select { min-height: 2.5rem; font: inherit; }
+.shim__label { justify-self: start; margin: 0; padding: 0 var(--s-2); border: 2px dashed var(--outcome-partial); border-radius: var(--radius-sm); color: var(--outcome-partial); font-weight: 800; font-size: var(--text-sm); }
+@media (forced-colors: active) { .shim__label { border-color: CanvasText; color: CanvasText; } }
 .account { max-width: var(--measure); }
 .account__card { display: grid; gap: var(--s-3); padding: var(--s-5); border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
 .account__card h2 { font-size: var(--text-lg); }
