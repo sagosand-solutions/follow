@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { RULES, firstTries, courseScore, coursePoints, totalPoints, formatPoints, formatDelta, sharedRanks, boardWindow, weekStart, recentWeeks, pointsFor } from '../public/js/scoring/model.js';
 import { mockBoard } from '../public/js/scoring/mock.js';
+import { courseForServerId, courseBackHref } from '../public/js/scoring/challenge.js';
 
 const course = (...qs) => ({ levels: [{ lessons: [{ id: 'l', questions: qs }] }] });
 const right = (q, attempt, t) => ({ question_id: q, attempt, t, outcome: 'answered', score: 1, option_id: 'a' });
@@ -86,6 +87,23 @@ test('scoring UI is off by default and its routes exist only behind the flag', a
   assert.match(main, /if \(CONFIG\.scoringUi\) \{\n\s+registerRoute\('\/challenge\/:id', async[\s\S]*registerRoute\('\/profile', async/);
 });
 
+test('challenge navigation maps the server course id and preserves SPA hashes at root and subpaths', () => {
+  const courses = [{ id: 'python' }, { id: 'production' }, { id: 'sql' }];
+  const production = courseForServerId(courses, 'production');
+  assert.equal(production.id, 'production');
+  assert.equal(courseBackHref(production), '#/course/production');
+  assert.equal(courseForServerId(courses, 'unknown'), null);
+  assert.equal(courseBackHref(null), '#/');
+  for (const base of ['https://example.test/', 'https://example.test/follow/']) {
+    const url = new URL(courseBackHref(production), base);
+    assert.equal(url.hash, '#/course/production');
+    assert.equal(url.pathname, new URL(base).pathname);
+    const home = new URL(courseBackHref(null), base);
+    assert.equal(home.hash, '#/');
+    assert.equal(home.pathname, new URL(base).pathname);
+  }
+});
+
 test('server-scored challenge is explicit; public questions and local review keep their local path', async () => {
   const question = await readFile(new URL('../public/js/views/question.js', import.meta.url), 'utf8');
   const main = await readFile(new URL('../public/js/main.js', import.meta.url), 'utf8');
@@ -104,6 +122,9 @@ test('server challenge view never reads or writes local scoring and submits only
   assert.match(source, /issued\.code === 'locked' && issued\.attempt/);
   assert.match(source, /result\.code === 'locked' && result\.attempt/);
   assert.match(source, /issued\.family === 'free' \? 'Free practice' : 'Official challenge'/);
+  assert.match(source, /courseFromServerId\(issued\.attempt\.course_id\)/);
+  assert.match(source, /courseFromServerId\(issued\.course_id\)/);
+  assert.doesNotMatch(source, /\.slice\(1\)/);
   assert.doesNotMatch(source, /issued\.revision/);
   assert.doesNotMatch(source, /store\.record|localStorage|sessionStorage|pointsFor\(/);
   const profile = await readFile(new URL('../public/js/views/profile.js', import.meta.url), 'utf8');

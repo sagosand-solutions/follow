@@ -3,6 +3,7 @@ import { t } from '../i18n.js';
 import { renderInline, renderText } from '../text.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { courseHref } from '../catalog.js';
+import { loadCourses } from '../data.js';
 import { CONFIG } from '../config.js';
 import { getClient } from '../account/index.js';
 
@@ -18,6 +19,19 @@ function randomKey() {
   return [...bytes].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
+export function courseForServerId(entries, courseId) {
+  if (!Array.isArray(entries) || typeof courseId !== 'string') return null;
+  return entries.find((entry) => entry?.id === courseId) || null;
+}
+
+export function courseBackHref(entry) {
+  return entry && typeof entry.id === 'string' ? courseHref(entry.id) : '#/';
+}
+
+async function courseFromServerId(courseId) {
+  try { return courseForServerId(await loadCourses(), courseId); } catch { return null; }
+}
+
 function scoreLabel(attempt) {
   const labels = { correct: 'Correct', partial: 'Partly correct', not_sure: 'Not sure', wrong: 'Incorrect' };
   const units = { 2: '+1', 1: '+0.5', 0: '0', '-1': '−0.5' };
@@ -25,7 +39,7 @@ function scoreLabel(attempt) {
   return `${labels[attempt?.outcome] || 'Answer recorded'}${value === undefined ? '' : ` · ${value}`}`;
 }
 
-export async function challengeQuestionView({ id, course = null }) {
+export async function challengeQuestionView({ id }) {
   if (!CONFIG.accountsApi) return message('Scoring unavailable', 'The scoring service is not configured. Your local practice progress has not been changed.');
   let client;
   try { client = getClient(); } catch { return message('Scoring unavailable', 'The scoring service could not be initialized.'); }
@@ -34,12 +48,16 @@ export async function challengeQuestionView({ id, course = null }) {
   }
   const issued = await client.scoringIssue(id);
   if (!issued.ok) {
-    if (issued.code === 'locked' && issued.attempt) return message('Already answered', scoreLabel(issued.attempt), h('a', { href: courseHref(course?.id).slice(1) }, 'Back to course'));
+    if (issued.code === 'locked' && issued.attempt) {
+      const lockedCourse = await courseFromServerId(issued.attempt.course_id);
+      return message('Already answered', scoreLabel(issued.attempt), h('a', { href: courseBackHref(lockedCourse) }, lockedCourse ? 'Back to course' : 'Back to courses'));
+    }
     if (issued.code === 'signed_out') return message('Sign in required', 'Sign in to open a server-issued scoring question.', h('a', { class: 'button button--primary', href: '#/signin?next=account' }, 'Sign in'));
     if (issued.code === 'unavailable') return message('Scoring is off', 'The scoring service is currently unavailable. No local score has been submitted.');
-    return message('Question unavailable', 'This question cannot be issued for scoring. No local score has been submitted.', h('a', { href: courseHref(course?.id).slice(1) }, 'Back to course'));
+    return message('Question unavailable', 'This question cannot be issued for scoring. No local score has been submitted.', h('a', { href: courseBackHref(null) }, 'Back to courses'));
   }
 
+  const course = await courseFromServerId(issued.course_id);
   const q = issued.question;
   if (typeof issued.issue_id !== 'string' || !['official', 'free'].includes(issued.family) || typeof issued.course_id !== 'string' || !q || q.id !== id || typeof q.prompt !== 'string' || !Array.isArray(q.options) || q.options.length < 5 || q.options.length > 8 || !Array.isArray(q.snippets) || q.snippets.some((snippet) => !snippet || typeof snippet.code !== 'string')) return message('Question unavailable', 'The scoring service returned an invalid question.');
   const root = h('div', { class: 'question' });
@@ -104,7 +122,7 @@ export async function challengeQuestionView({ id, course = null }) {
       }
     }
     if (solution?.explanation) parts.push(h('section', { class: 'explanation' }, h('h3', {}, 'Explanation'), h('div', { class: 'prose' }, renderText(solution.explanation))));
-    const next = h('a', { class: 'button button--primary', href: courseHref(course?.id).slice(1) }, 'Back to course');
+    const next = h('a', { class: 'button button--primary', href: courseBackHref(course) }, course ? 'Back to course' : 'Back to courses');
     root.replaceChildren(root.firstChild, h('section', { class: `verdict verdict--${attempt?.outcome || 'unsure'}` }, ...parts, next));
     root.querySelector('.verdict__title')?.focus();
   });
