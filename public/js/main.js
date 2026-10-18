@@ -13,6 +13,7 @@ import { questionView } from './views/question.js';
 import { reviewView } from './views/review.js';
 import { aboutView } from './views/about.js';
 import { notFoundView } from './views/notfound.js';
+import { wireNavMenu } from './components/menu.js';
 
 initTheme();
 
@@ -48,9 +49,13 @@ async function boot() {
   // every answer change without re-rendering the whole header.
   const continueSlot = h('span', { class: 'nav__continue' });
   const accountSlot = h('span', { class: 'nav__account' });
-  header.replaceChildren(
-    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), CONFIG.scoringUi ? h('a', { href: '#/profile' }, t('nav.profile')) : null, h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
-  );
+  // On a phone the list folds behind a Menu button (a disclosure); on wider screens the button is hidden and nothing changes.
+  const themeBox = h('div', { class: 'nav__theme' }, h('span', { class: 'nav__theme-label', 'aria-hidden': 'true' }, t('theme.label')), themeButton);
+  const navList = h('div', { class: 'nav__list', id: 'nav-list' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), CONFIG.scoringUi ? h('a', { href: '#/profile' }, t('nav.profile')) : null, h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeBox);
+  const navToggle = h('button', { type: 'button', class: 'nav__toggle', 'aria-expanded': 'false', 'aria-controls': 'nav-list' }, t('nav.menu'));
+  const nav = h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, navToggle, navList);
+  header.replaceChildren(h('div', { class: 'shell' }, tagline, nav));
+  wireNavMenu({ nav, toggle: navToggle, list: navList, continueSlot, narrow: window.matchMedia('(max-width: 37.49rem)') });
   const refreshContinue = async () => {
     const target = continueAcross(await loadCourses().catch(() => []), store.answers());
     continueSlot.replaceChildren();

@@ -49,6 +49,7 @@
   "nav.label": "Main",
   "nav.course": "Course",
   "nav.about": "About",
+  "nav.menu": "Menu",
   "theme.label": "Theme",
   "footer.license": "Platform: AGPL-3.0. Question schema and validator: MIT. Free questions and course content: CC BY-SA 4.0. Each question and study note states its own licence.",
   "footer.draft": "Early draft. Expect rough edges.",
