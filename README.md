@@ -8,7 +8,7 @@ An open-source platform for learning to read and understand code, from beginner 
 
 ## How it works
 
-- Courses present code followed by multiple-choice questions. Each question has one correct answer, one half-correct answer, and at least three wrong answers. Wrong answers map to named misconceptions and have their own feedback.
+- Courses present code followed by multiple-choice questions. A standard question has one correct answer, one half-correct answer, and at least three wrong answers (five to eight choices). A beginner-practice question is a gentler exercise with exactly four choices (one correct, one half-correct, two wrong) and no points. Wrong answers map to named misconceptions and have their own feedback.
 - Question types include predicting output, finding an input that crashes code, reasoning about a removed line, comparing equivalent rewrites, and reviewing code written by AI.
 - You can start without an account. Progress stays in your browser.
 - Anyone can build question libraries. The platform provides the question schema, validator, and shared concept maps.
