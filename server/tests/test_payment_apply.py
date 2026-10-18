@@ -10,7 +10,8 @@ from types import SimpleNamespace
 from server.app import _apply_verified_event
 from server.db import Database
 from server.models import ConflictError, PaymentEventStatus, Product, PurchaseState, StorageError
-from server.payment_apply import apply_decision
+from server.payment_apply import apply_decision, apply_reconciled
+from server.paddle_repo import PaddleRepository
 from server.repositories import Repositories
 
 
@@ -256,6 +257,138 @@ class RetryAndBindingTests(Base):
         self.assertEqual(result.outcome, "unknown_purchase")
         self.assertEqual(self.repos.purchases.get(live.id).state, PurchaseState.PENDING)
         self.assertEqual(self.counts(), (0, 0))
+
+
+TXN1 = "txn_01abcdefghjkmnpqrstvwxyz01"
+TXN2 = "txn_01abcdefghjkmnpqrstvwxyz02"
+
+
+def completed_event(txn=TXN1, env="sandbox", n=1, kind="transaction.completed"):
+    from server.paddle.types import VerifiedEvent
+    return VerifiedEvent("paddle", env, f"evt_{n:026d}", kind, "2026-10-19T01:02:03Z", f"ntf_{n:026d}", f"{n:064x}", txn, None, {})
+
+
+class ApplyReconciledTests(Base):
+    """The snapshot-based entry: claim, revision, BINDING, legality and verified evidence are checked in the commit."""
+
+    def setUp(self):
+        super().setUp()
+        self.paddle = PaddleRepository(self.db)
+        self.op = self.paddle.plan(self.purchase.id, "sandbox", self.clock[0])
+        self.paddle.mark_request_sent(self.op, self.clock[0])
+        self.assertEqual(self.paddle.bind(self.op, TXN1, self.clock[0], environment="sandbox"), "bound")
+        self.paddle.mark_due(self.purchase.id, self.clock[0])
+        self.claim = self.paddle.claim_due(self.clock[0], 1)[0]
+        self.digest = "a" * 64
+
+    def evidence(self, **kw):
+        self.assertIn(self.paddle.record_verified(completed_event(**kw), self.clock[0]), ("new", "duplicate"))
+
+    def go(self, **kw):
+        base = dict(purchase_id=self.purchase.id, provider="paddle-sandbox", owner=self.claim["owner"],
+                    generation=self.claim["generation"], expected_revision=self.claim["revision"],
+                    new_state=PurchaseState.PAID, snapshot_digest=self.digest, snapshot_transaction_id=TXN1)
+        base.update(kw)
+        return apply_reconciled(self.repos, self.paddle, **base)
+
+    def audit(self):
+        return [tuple(r) for r in self.db.connect().execute(
+            "SELECT from_state, to_state, from_revision, to_revision, cause, snapshot_digest, event_id FROM purchase_transitions")]
+
+    def test_applied_in_one_effect_with_an_audit_row_that_carries_the_digest_and_no_event_row(self):
+        self.evidence()
+        result = self.go()
+        self.assertEqual((result.outcome, result.granted), ("applied", True))
+        self.assertEqual(self.state(), ("paid", 1))
+        self.assertEqual(self.audit(), [("pending", "paid", 0, 1, "reconcile", self.digest, None)])
+        self.assertEqual(self.counts(), (1, 0))                                    # no payment_events row: nothing was invented
+
+    def test_a_grant_cannot_be_made_without_the_stored_verified_completed_event_and_there_is_no_bypass(self):
+        # no evidence at all
+        self.assertEqual(self.go().outcome, "blocked")
+        # evidence of another kind, for another transaction, or for another environment is not enough
+        self.paddle.record_verified(completed_event(kind="adjustment.created", n=2), self.clock[0])
+        self.paddle.record_verified(completed_event(txn=TXN2, n=3), self.clock[0])
+        self.paddle.record_verified(completed_event(env="live", n=4), self.clock[0])
+        self.assertEqual(self.go().outcome, "blocked")
+        self.assertEqual((self.state(), self.counts(), self.audit()), (("pending", 0), (0, 0), []))
+        # the old optional/injected precondition is gone: passing one is a TypeError, never a bypass
+        for bypass in (None, lambda: True):
+            with self.assertRaises(TypeError):
+                self.go(grant_precondition=bypass)
+        self.evidence()                                                              # the legitimate bound evidence
+        self.assertEqual(self.go().outcome, "applied")
+
+    def test_every_transition_needs_the_bound_operation_and_the_snapshot_for_that_transaction(self):
+        self.evidence()
+        for target in (PurchaseState.PAID, PurchaseState.REFUNDED, PurchaseState.CANCELLED):
+            with self.subTest(target=target):
+                self.assertEqual(self.go(new_state=target, snapshot_transaction_id=TXN2).outcome, "unbound")   # another transaction
+        self.assertEqual(self.go(new_state=PurchaseState.REFUNDED, provider="paddle-live").outcome, "unknown_purchase")
+        # an operation that is not bound (here: a fresh purchase with a merely planned one) can never be applied
+        other = self.repos.purchases.create("u1", "p1", "paddle-sandbox", "srv-other")
+        planned = self.paddle.plan(other.id, "sandbox", self.clock[0])
+        self.paddle.mark_due(other.id, self.clock[0])
+        claim = [c for c in self.paddle.claim_due(self.clock[0], 5) if c["purchase_id"] == other.id][0]
+        for target in (PurchaseState.PAID, PurchaseState.REFUNDED):
+            result = apply_reconciled(self.repos, self.paddle, purchase_id=other.id, provider="paddle-sandbox", owner=claim["owner"],
+                                      generation=claim["generation"], expected_revision=claim["revision"], new_state=target,
+                                      snapshot_digest=self.digest, snapshot_transaction_id=TXN1)
+            self.assertEqual(result.outcome, "unbound")
+        self.assertEqual(self.repos.purchases.get(other.id).state, PurchaseState.PENDING)
+        self.assertEqual(self.paddle.operation(planned)["state"], "planned")
+        self.assertEqual((self.state(), self.counts()), (("pending", 0), (0, 0)))
+
+    def test_a_stale_or_foreign_claim_writes_nothing(self):
+        self.evidence()
+        for name, kw in {"wrong_owner": dict(owner="w-other"), "wrong_generation": dict(generation=self.claim["generation"] + 1)}.items():
+            with self.subTest(case=name):
+                self.assertEqual(self.go(**kw).outcome, "lost_claim")
+        self.paddle.mark_due(self.purchase.id, self.clock[0] + 1)                    # new evidence since the claim
+        self.assertEqual(self.go().outcome, "lost_claim")
+        self.assertEqual((self.state(), self.counts(), self.audit()), (("pending", 0), (0, 0), []))
+
+    def test_revision_provider_legality_and_no_change(self):
+        self.evidence()
+        self.assertEqual(self.go(expected_revision=9).outcome, "stale")
+        self.assertEqual(self.go(provider="paddle-live").outcome, "unknown_purchase")
+        self.assertEqual(self.go(purchase_id="nope").outcome, "lost_claim")      # no claim exists for it: checked first
+        self.assertEqual(self.go(new_state=PurchaseState.PENDING).outcome, "no_change")
+        self.assertEqual(self.state(), ("pending", 0))
+        self.assertEqual(self.go(new_state=PurchaseState.REFUNDED).outcome, "applied")      # pending -> refunded, never granted
+        self.assertEqual((self.counts()[0], self.state()), (0, ("refunded", 1)))
+        self.assertEqual(self.go(expected_revision=1, new_state=PurchaseState.PAID).outcome, "ignored")   # terminal never moves
+        self.assertEqual(len(self.audit()), 1)
+
+    def test_a_deleted_owner_gets_the_state_without_an_entitlement(self):
+        self.evidence()
+        self.repos.users.mark_deleted("u1")
+        result = self.go()
+        self.assertEqual((result.outcome, result.granted, self.counts()[0]), ("applied", False, 0))
+
+    def test_a_failure_inside_rolls_everything_back(self):
+        self.evidence()
+        conn = self.db.connect()
+        conn.execute("CREATE TRIGGER boom BEFORE INSERT ON purchase_transitions BEGIN SELECT RAISE(ABORT, 'x'); END")
+        try:
+            with self.assertRaises((sqlite3.Error, StorageError)):
+                self.go()
+        finally:
+            conn.execute("DROP TRIGGER boom")
+        self.assertEqual((self.state(), self.counts()), (("pending", 0), (0, 0)))
+
+    def test_bad_inputs_are_refused_before_any_write(self):
+        self.evidence()
+        for kw in (dict(expected_revision=True), dict(expected_revision=-1), dict(expected_revision="0"), dict(new_state="paid"),
+                   dict(snapshot_digest="short"), dict(snapshot_digest=None), dict(snapshot_transaction_id=""), dict(snapshot_transaction_id=None)):
+            with self.subTest(kw=str(kw)[:30]), self.assertRaises(ValueError):
+                self.go(**kw)
+        self.assertEqual(self.state(), ("pending", 0))
+
+    def test_the_event_based_entry_also_writes_one_audit_row_with_the_event_id(self):
+        self.apply()
+        rows = [tuple(r) for r in self.db.connect().execute("SELECT cause, event_provider, event_id, snapshot_digest FROM purchase_transitions")]
+        self.assertEqual(rows, [("verified_event", "paddle-sandbox", "evt-1", None)])
 
 
 class ProviderEnumTests(Base):

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Bookkeeping tables for the Paddle adapter: checkout operations, verified-event evidence and reconcile leases.
 
+Provisional values (decision 2026-10-18): confirm before live.
+
 Pure SQL over the request-owned Database. Nothing here calls the provider, decides a purchase state or grants
 access; that stays in ``paddle.mapping`` and ``payment_apply``. Limits and timings are module constants (an open
 product/ops decision), not hidden magic: they can be adjusted in one place.

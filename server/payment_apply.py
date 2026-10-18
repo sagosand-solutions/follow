@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .models import ConflictError, PaymentEventStatus, PurchaseState, StorageError, UserStatus
+from .repositories import new_id
 
 REVOKING_STATES = frozenset({PurchaseState.REFUNDED, PurchaseState.CHARGEBACK, PurchaseState.CANCELLED})
 
@@ -37,6 +38,16 @@ class ApplyResult:
     new_state: str | None = None
     granted: bool = False
     revoked: bool = False
+
+
+def _audit(conn, *, purchase_id, from_state, to_state, from_revision, to_revision, cause, now,
+           event_provider=None, event_id=None, snapshot_digest=None) -> None:
+    """One row per accepted status change, written in the same transaction as the change itself."""
+    conn.execute(
+        "INSERT INTO purchase_transitions (id, purchase_id, from_state, to_state, from_revision, to_revision, cause, "
+        "event_provider, event_id, snapshot_digest, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (new_id(), purchase_id, from_state.value, to_state.value, from_revision, to_revision, cause, event_provider,
+         event_id, snapshot_digest, now))
 
 
 def _valid_revision(value) -> bool:
@@ -126,4 +137,68 @@ def apply_decision(repositories, *, provider: str, event_id: str, payload_digest
             revoked = repositories.entitlements.revoke(purchase.id, purchase.product_id)
         _record(repositories, retry_row, provider, event_id, payload_digest, purchase.id, event_label, revision,
                 PaymentEventStatus.APPLIED)
+        _audit(conn, purchase_id=purchase.id, from_state=purchase.state, to_state=new_state, from_revision=purchase.revision,
+               to_revision=revision, cause="verified_event", now=db.clock(), event_provider=provider, event_id=event_id)
+    return ApplyResult("applied", purchase.id, new_state.value, granted, revoked)
+
+
+def apply_reconciled(repositories, paddle_repo, *, purchase_id: str, provider: str, owner: str, generation: int,
+                     expected_revision: int, new_state: PurchaseState, snapshot_digest: str,
+                     snapshot_transaction_id: str) -> ApplyResult:
+    """Apply a decision taken from an authoritative snapshot (not from an event) under a fenced reconcile claim.
+
+    Everything below happens in ONE ``BEGIN IMMEDIATE`` transaction with the transition, the grant/revoke and the audit
+    row: (1) the worker still holds the claim AND saw all the work (no newer evidence since the claim), (2) the purchase
+    belongs to ``provider`` (so to the environment) and its revision is still ``expected_revision`` (r0, read at the
+    claim), (3) the purchase has a BOUND Paddle operation in that environment and the snapshot is for exactly that bound
+    transaction (every transition, refund and cancel included), (4) the move is legal, and (5) a GRANT additionally
+    needs the stored VERIFIED ``transaction.completed`` event for that bound transaction, looked up here in the same
+    transaction: there is no optional or injected precondition to leave out. Any failure writes nothing and says why,
+    so the caller requeues or re-fetches; a stale decision can never grant or revoke. A reconcile is not a provider
+    event: no event row is written and no event id is invented; the audit row carries the snapshot digest instead.
+    Outcomes: applied, no_change, lost_claim, stale, unknown_purchase, unbound (no bound operation, wrong environment
+    or another transaction), ignored (illegal move), blocked (no verified completed event for a grant).
+    """
+    if not _valid_revision(expected_revision):
+        raise ValueError("expected_revision must be a non-negative integer")
+    if not isinstance(new_state, PurchaseState):
+        raise ValueError("new_state must be a PurchaseState")
+    if not isinstance(snapshot_digest, str) or len(snapshot_digest) != 64:
+        raise ValueError("a reconcile transition needs a 64 character snapshot digest")
+    if not isinstance(snapshot_transaction_id, str) or not snapshot_transaction_id:
+        raise ValueError("a reconcile transition needs the snapshot's transaction id")
+    db = repositories.database
+    with db.transaction(immediate=True) as conn:
+        if not paddle_repo.claim_is_current(purchase_id, owner, generation):
+            return ApplyResult("lost_claim", purchase_id)
+        purchase = repositories.purchases.get(purchase_id)
+        if purchase is None or purchase.provider != provider:
+            return ApplyResult("unknown_purchase")
+        if purchase.revision != expected_revision:
+            return ApplyResult("stale", purchase.id)
+        op = paddle_repo.operation_for_purchase(purchase.id)
+        if (op is None or op["state"] != "bound" or provider != f"paddle-{op['environment']}"
+                or op["provider_txn_id"] != snapshot_transaction_id):
+            return ApplyResult("unbound", purchase.id, purchase.state.value)
+        if new_state is purchase.state:
+            return ApplyResult("no_change", purchase.id, purchase.state.value)
+        if not transition_is_legal(purchase.state, new_state):
+            return ApplyResult("ignored", purchase.id, purchase.state.value)
+        if new_state is PurchaseState.PAID and not paddle_repo.has_completed_evidence(op["environment"], op["provider_txn_id"]):
+            return ApplyResult("blocked", purchase.id, purchase.state.value)
+        revision = purchase.revision + 1
+        cur = conn.execute("UPDATE purchases SET state = ?, revision = ? WHERE id = ? AND revision = ?",
+                           (new_state.value, revision, purchase.id, purchase.revision))
+        if cur.rowcount != 1:
+            raise StorageError("purchase changed during the transaction")
+        granted = revoked = False
+        if new_state is PurchaseState.PAID:
+            owner_user = repositories.users.get(purchase.user_id)
+            if owner_user is not None and owner_user.status is UserStatus.ACTIVE:     # never grant to a deleted account
+                repositories.entitlements.grant(purchase.user_id, purchase.product_id, purchase.id)
+                granted = True
+        elif new_state in REVOKING_STATES:
+            revoked = repositories.entitlements.revoke(purchase.id, purchase.product_id)
+        _audit(conn, purchase_id=purchase.id, from_state=purchase.state, to_state=new_state, from_revision=purchase.revision,
+               to_revision=revision, cause="reconcile", now=db.clock(), snapshot_digest=snapshot_digest)
     return ApplyResult("applied", purchase.id, new_state.value, granted, revoked)
