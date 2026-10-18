@@ -13,7 +13,7 @@ const JS_ROOT = new URL('../public/js/', import.meta.url);
 const DYNAMIC_FAMILIES = {
   'about.limits.': 4, 'board.': 29, 'board.list.': 3, 'board.period.': 3, 'board.tag.': 2,
   'course.import.error.': 4, 'lesson.status.': 5, 'level.': 3, 'map.': 7, 'mock.scenario.': 5,
-  'premium.q.': 10, 'provider.': 5, 'purchase.after.': 2, 'step.': 56, 'step.scope.': 3,
+  'premium.q.': 10, 'profile.outcome.': 4, 'provider.': 5, 'purchase.after.': 2, 'step.': 56, 'step.scope.': 3,
   'step.globals': 4, 'step.locals': 3, 'theme.name.': 6, 'type.': 6,
   'path.soon.1.': 2, 'path.soon.2.': 2,
 };

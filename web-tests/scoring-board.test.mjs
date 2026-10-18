@@ -1,0 +1,378 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+// The server-scored profile and leaderboard against the phase-1 contract: validated answers, one snapshot per drawing,
+// exact places and scores exactly as the server sent them, and nothing from a reader who is no longer signed in. The views
+// run with the REAL http client over a fake fetch, in a small DOM. Fixture catalog c7: python 60 / production 40 / sql 20.
+
+const strings = JSON.parse(readFileSync(new URL('../public/i18n/en.json', import.meta.url), 'utf8'));
+const dataRoot = new URL('../public/data/', import.meta.url);
+
+class Node {
+  constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.className = ''; this.handlers = {}; this.parent = null; this.hidden = false; this.checked = false; }
+  setAttribute(k, v) { this.attrs[k] = String(v); if (k === 'class') this.className = v; }
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+  removeAttribute(k) { delete this.attrs[k]; }
+  addEventListener(type, fn) { (this.handlers[type] ||= []).push(fn); }
+  async fire(type) { for (const fn of this.handlers[type] || []) await fn({ type, target: this, preventDefault() {} }); }
+  append(...nodes) { for (const n of nodes) { if (n && typeof n === 'object') n.parent = this; this.children.push(n); } }
+  replaceChildren(...nodes) { this.children = []; this.append(...nodes); }
+  focus() { focused = this; }
+  all(pred, out = []) { if (pred(this)) out.push(this); for (const c of this.children) if (c && c.tag) c.all(pred, out); return out; }
+  find(pred) { return this.all(pred)[0] || null; }
+  querySelector(sel) { return this.find((n) => n !== this && (sel.startsWith('.') ? n.className.split(' ').includes(sel.slice(1)) : n.tag === sel)); }
+  text() { return this.children.map((c) => (c && c.tag ? c.text() : c.text)).join(''); }
+  get value() { return this.attrs.value ?? ''; }
+  set value(v) { this.attrs.value = v; }
+  set textContent(v) { this.replaceChildren({ text: String(v) }); }
+}
+let focused = null;
+globalThis.document = { createElement: (t) => new Node(t), createTextNode: (text) => ({ text }), createElementNS: (_n, t) => new Node(t) };
+globalThis.location = { hash: '#/leaderboard', pathname: '/' };
+globalThis.window = { addEventListener() {}, scrollTo() {} };
+
+// ---- fixtures (team-free copies of the plan's derived numbers) ----
+const W_EU = { kind: 'week', start: 1792368000, end: 1792972800 };
+const head = (over = {}) => ({ family: 'official', rules_version: 'r2', catalog_version: 'c7', scope: 'total', window: W_EU, board_revision: '4182', ...over });
+const SIG = '0123456789abcdef01234567';
+const courses = [
+  { course_id: 'python', points: 408.333, score_display: '408.33', answered: 30, pool: 60 },
+  { course_id: 'production', points: 225.0, score_display: '225.00', answered: 10, pool: 40 },
+  { course_id: 'sql', points: 0.0, score_display: '0.00', answered: 0, pool: 20 },
+];
+const total = { points: 211.111, score_display: '211.11', answered: 40, pool: 120 };
+const meKim = (over = {}) => ({ ...head(), total, scope_score: { scope: 'total', score_display: '211.11', answered: 40, pool: 120 }, courses, attempts: [], rank: { kind: 'actual', value: 3, participants: 340 }, published: true, moderation: 'ok', own_cursor: `0.4182.${SIG}`, ...over });
+const meNotPublished = () => meKim({ rank: { kind: 'hypothetical', value: 3, participants: 339 }, published: false, own_cursor: null });
+const row = (rank, alias, display, extra = {}) => ({ rank, alias, points: Number(display), score_display: display, answered: 45, pool: 120, ...extra });
+const others = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => row(from + i, `reader${from + i}`, '100.00'));
+const pageTop = (over = {}, kimIsMe = true) => ({ ...head(), participants: 340, entries: [row(1, 'ada', '250.00'), row(1, 'lin', '250.00'), row(3, 'kim', '211.11', { answered: 40, ...(kimIsMe ? { is_me: true } : {}) }), ...others(4, 50)], next_cursor: `50.4182.${SIG}`, ...over });
+
+const { setMessages } = await import('../public/js/i18n.js');
+setMessages(strings);
+const { CONFIG } = await import('../public/js/config.js');
+const board = await import('../public/js/scoring/board.js');
+const { mapHttpError, createHttpClient } = await import('../public/js/account/http-client.js');
+const { rankText } = await import('../public/js/components/score-ui.js');
+
+// ---- fake server ----
+let routes = {};
+let calls = [];
+const reply = (status, body) => ({ ok: status < 400, status, async json() { return body; } });
+globalThis.fetch = async (url, init = {}) => {
+  const u = String(url);
+  calls.push({ url: u, method: init.method || 'GET', body: init.body });
+  if (u.includes('data/')) {
+    const path = u.replace(/^.*data\//, '').replace(/\?.*$/, '');
+    try { return reply(200, JSON.parse(readFileSync(new URL(path, dataRoot), 'utf8'))); } catch { return reply(404, {}); }
+  }
+  const path = u.replace(/^\/api/, '');
+  for (const [prefix, handler] of Object.entries(routes)) if (path.startsWith(prefix)) return handler(path, init);
+  return reply(404, { error: { code: 'not-found' } });
+};
+const signedIn = (id = 'u-kim') => () => reply(200, { user: { id, status: 'active' }, providers: ['google'], session: {}, csrf_token: 'csrf' });
+const signedOut = () => reply(401, { error: { code: 'no-session' } });
+
+CONFIG.accountsApi = '/api';
+// A mounted router, so that "Start from the top" and publishing can re-render (to a blank page here).
+const router = await import('../public/js/router.js');
+router.setNotFound(async () => ({ title: '', node: new Node('div') }));
+await router.startRouter(new Node('main'), null);
+const { leaderboardView } = await import('../public/js/views/leaderboard.js');
+const { profileView } = await import('../public/js/views/profile.js');
+
+const text = (node) => node.text();
+const rowsOf = (node) => node.all((n) => n.tag === 'tr' && n.parent?.tag === 'tbody');
+const buttons = (node, label) => node.all((n) => n.tag === 'button' && n.text() === label);
+
+function serve({ account = signedIn(), me = () => reply(200, meKim()), boards = () => reply(200, pageTop()) } = {}) {
+  calls = [];
+  routes = { '/me': account, '/scoring/me': me, '/leaderboards': boards };
+}
+
+// ---- pure contract ----
+test('parseMe accepts the fixtures and refuses shapes that would claim a place without a published, visible account', () => {
+  assert.equal(board.parseMe(meKim()).rank.value, 3);
+  assert.equal(board.parseMe(meNotPublished()).rank.kind, 'hypothetical');
+  assert.equal(board.parseMe(meKim({ scope_score: null, rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null })).rank.kind, 'none');
+  for (const bad of [
+    meKim({ published: false }),                                                    // actual but not published
+    meKim({ moderation: 'hidden' }),                                                // actual but hidden
+    meNotPublished().own_cursor === null && { ...meNotPublished(), own_cursor: `0.4182.${SIG}` }, // a cursor without a place
+    meKim({ rank: { kind: 'hypothetical', value: 3, participants: 339 }, scope_score: null, own_cursor: null }), // a place for no score
+    meKim({ total: { ...total, score_display: '211.1' } }),
+    meKim({ total: { ...total, score_display: 211.11 } }),
+    meKim({ board_revision: 4182 }),
+    meKim({ window: { kind: 'week', start: 1792972800, end: 1792368000 } }),
+    meKim({ rank: { kind: 'around', value: 3, participants: 340 } }),
+    meKim({ moderation: 'review' }),
+    meKim({ scope_score: { scope: 'course:sql', score_display: '0.00', answered: 0, pool: 20 } }),
+  ]) assert.equal(board.parseMe(bad), null, JSON.stringify(bad).slice(0, 120));
+});
+
+test('parsePage keeps the server order and shared places, and refuses rising places or two rows marked as yours', () => {
+  const page = board.parsePage(pageTop());
+  assert.deepEqual(page.entries.slice(0, 3).map((e) => [e.rank, e.alias, e.me]), [[1, 'ada', false], [1, 'lin', false], [3, 'kim', true]]);
+  assert.equal(board.parsePage(pageTop({ entries: [row(3, 'kim', '211.11'), row(1, 'ada', '250.00')] })), null);
+  assert.equal(board.parsePage(pageTop({ entries: [row(1, 'a', '1.00', { is_me: true }), row(2, 'b', '0.50', { is_me: true })] })), null);
+  assert.equal(board.parsePage(pageTop({ next_cursor: 'page2' })), null);
+  assert.equal(board.parsePage(pageTop({ entries: [row(1, '', '1.00')] })), null);
+});
+
+test('one snapshot: family, versions, scope, window and board revision must all match', () => {
+  const me = board.parseMe(meKim());
+  assert.equal(board.sameSnapshot(me, board.parsePage(pageTop())), true);
+  for (const over of [{ board_revision: '4183' }, { catalog_version: 'c8' }, { rules_version: 'r3' }, { scope: 'course:python' }, { family: 'free' }, { window: { kind: 'week', start: 1791763200, end: 1792368000 } }, { window: { kind: 'all', start: null, end: null } }]) {
+    assert.equal(board.sameSnapshot(me, board.parsePage(pageTop(over))), false, JSON.stringify(over));
+  }
+});
+
+test('score_display is shown digit for digit: a real minus, no -0.00, the locale decimal mark, a dash for anything else', () => {
+  assert.equal(board.localScore('0.13'), '0.13');
+  assert.equal(board.localScore('-0.13'), '−0.13');
+  assert.equal(board.localScore('0.38'), '0.38');
+  assert.equal(board.localScore('-0.00'), '0.00');
+  assert.equal(board.localScore('1000.00'), '1000.00');
+  assert.equal(board.localScore('-500.00'), '−500.00');
+  assert.equal(board.localScore('211.11', 'sv'), '211,11');
+  assert.equal(board.localScore('211.105'), '–');
+  assert.equal(board.localScore(211.11), '–');
+  // two different exact scores may print the same; the server's places still differ and are shown as given
+  const page = board.parsePage(pageTop({ entries: [row(1, 'a', '0.13'), row(2, 'b', '0.13')] }));
+  assert.deepEqual(page.entries.map((e) => [e.rank, board.localScore(e.score_display)]), [[1, '0.13'], [2, '0.13']]);
+});
+
+test('the week: dates in UTC and the reset in the reader’s zone, named, across both DST changes', () => {
+  const plain = { kind: 'week', start: 1791763200, end: 1792368000 };
+  const us = { kind: 'week', start: 1792972800, end: 1793577600 };
+  const sthlm = (w) => board.weekText(w, { timeZone: 'Europe/Stockholm' });
+  const ny = (w) => board.weekText(w, { timeZone: 'America/New_York' });
+  assert.deepEqual([sthlm(plain).from, sthlm(plain).to], ['Mon, Oct 12', 'Mon, Oct 19']);
+  assert.deepEqual([sthlm(plain).resetTime, sthlm(plain).zone], ['02:00', 'GMT+2']);
+  assert.deepEqual([sthlm(W_EU).resetTime, sthlm(W_EU).zone, sthlm(W_EU).resetDay], ['01:00', 'GMT+1', 'Mon, Oct 26']);
+  assert.deepEqual([ny(W_EU).resetTime, ny(W_EU).zone, ny(W_EU).resetDay], ['20:00', 'EDT', 'Sun, Oct 25']);
+  assert.deepEqual([ny(us).resetTime, ny(us).zone, ny(us).resetDay], ['19:00', 'EST', 'Sun, Nov 1']);
+  assert.equal(board.weekText({ kind: 'all', start: null, end: null }), null);
+  assert.doesNotMatch(strings['rank.week'], /midnight/i);
+  assert.match(strings['rank.week'], /\(UTC\)/);
+});
+
+test('placement text: exact place, an exact comparison that says you are not on the list, hidden, and no number without one', () => {
+  const p = (d) => rankText(board.parseMe(d));
+  assert.equal(p(meKim()), 'Place 3 of 340');
+  assert.equal(p(meNotPublished()), 'For comparison: 339 readers are on this list, and this score would place 3. You are not on the list.');
+  assert.equal(p(meKim({ published: false, moderation: 'hidden', rank: { kind: 'hypothetical', value: 3, participants: 339 }, own_cursor: null })), 'Your entry is hidden from public lists.');
+  const none = p(meKim({ rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null }));
+  const noScore = p(meKim({ scope_score: null, rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null }));
+  for (const s of [none, noScore]) assert.doesNotMatch(s, /\d/);
+  assert.notEqual(none, noScore);
+});
+
+test('mapHttpError: 409 stale_cursor keeps its code; a foreign cursor (400 invalid) is not a stale list', () => {
+  assert.equal(mapHttpError(409, { error: { code: 'stale_cursor' } }).code, 'stale_cursor');
+  assert.equal(mapHttpError(400, { error: { code: 'invalid' } }).code, 'invalid_request');
+  assert.equal(mapHttpError(409, { error: { code: 'something-new' } }).code, 'conflict');
+});
+
+test('the auth generation rises on another account, a sign-out, an ended session and account deletion, never on the first look', async () => {
+  let who = 'u-a';
+  routes = { '/me': () => (who ? signedIn(who)() : signedOut()), '/logout': () => reply(200, { ok: true }), '/account/delete': () => reply(200, { ok: true }) };
+  const c = createHttpClient({ baseUrl: '/api' });
+  const seen = [];
+  c.onAuthChange((g) => seen.push(g));
+  await c.me();
+  assert.equal(c.authGeneration(), 0);
+  await c.me();
+  assert.equal(c.authGeneration(), 0, 'same reader');
+  who = 'u-b';
+  await c.me();
+  assert.equal(c.authGeneration(), 1, 'another account');
+  who = null;
+  await c.me();
+  assert.equal(c.authGeneration(), 2, 'session ended');
+  who = 'u-b';
+  await c.me();
+  assert.equal(c.authGeneration(), 3, 'signed in again');
+  await c.logout();
+  assert.equal(c.authGeneration(), 4);
+  await c.me();
+  await c.deleteAccount();
+  assert.ok(c.authGeneration() >= 5);
+  assert.deepEqual(seen.slice(0, 4), [1, 2, 3, 4]);
+});
+
+// ---- the views ----
+test('published and in the top 50: your row is marked in the list, the place matches /me, and nothing offers publishing', async () => {
+  serve();
+  const { node } = await leaderboardView();
+  const rows = rowsOf(node);
+  assert.equal(rows.length, 50);
+  const mine = rows.filter((r) => r.getAttribute('aria-current') === 'true');
+  assert.equal(mine.length, 1);
+  assert.match(text(mine[0]), /^3kim You211\.1140 of 120$/);
+  assert.deepEqual(rows.slice(0, 3).map((r) => text(r.children[0])), ['1', '1', '3']);
+  assert.match(text(node), /Place 3 of 340/);
+  assert.equal(buttons(node, 'Publish my score').length, 0);
+  assert.match(text(node.find((n) => n.tag === 'caption')), /^Official list · This week · All courses · catalog c7 · rules r2$/);
+  assert.match(text(node), /This week: Mon, Oct 19 – Mon, Oct 26 \(UTC\)\. Resets .+ at \d\d:\d\d your time \(.+\)\./);
+  assert.equal(calls.filter((c) => c.url.includes('/leaderboards')).length, 1, 'no neighbour fetch when your row is on the page');
+});
+
+test('a different board revision between /me and the first page draws no rows and offers “Start from the top”', async () => {
+  serve({ boards: () => reply(200, pageTop({ board_revision: '4183' })) });
+  const view = await leaderboardView();
+  assert.equal(rowsOf(view.node).length, 0);
+  assert.match(text(view.node), /The list changed while you were reading it\./);
+  view.after();
+  assert.equal(text(focused), 'Start from the top');
+});
+
+test('after the first 50: a gap, then your place with two above and two below, fetched with your own cursor', async () => {
+  const mo = meKim({ rank: { kind: 'actual', value: 112, participants: 340 }, own_cursor: `109.4182.${SIG}` });
+  const around = { ...head(), participants: 340, entries: [row(110, 'r110', '90.00'), row(111, 'r111', '89.00'), row(112, 'mo', '88.00', { is_me: true }), row(113, 'r113', '87.00'), row(114, 'r114', '86.00')], next_cursor: `114.4182.${SIG}` };
+  serve({ me: () => reply(200, mo), boards: (path) => reply(200, path.includes('cursor=') ? around : pageTop({}, false)) });
+  const { node } = await leaderboardView();
+  const fetches = calls.filter((c) => c.url.includes('/leaderboards'));
+  assert.equal(fetches.length, 2);
+  assert.match(fetches[1].url, /cursor=109\.4182\.0123456789abcdef01234567/);
+  assert.match(fetches[1].url, /[?&]limit=5(&|$)/);
+  const tables = node.all((n) => n.tag === 'table');
+  assert.equal(tables.length, 2);
+  assert.equal(text(tables[1].children[0]), 'Your place');
+  assert.deepEqual(rowsOf(tables[1]).map((r) => text(r.children[0])), ['110', '111', '112', '113', '114']);
+  assert.ok(node.find((n) => n.className === 'board__gap'));
+  assert.match(text(node), /Place 112 of 340/);
+});
+
+test('a neighbour page from another snapshot is never drawn next to the list', async () => {
+  const mo = meKim({ rank: { kind: 'actual', value: 112, participants: 340 }, own_cursor: `109.4182.${SIG}` });
+  serve({ me: () => reply(200, mo), boards: (path) => (path.includes('cursor=') ? reply(409, { error: { code: 'stale_cursor' } }) : reply(200, pageTop({}, false))) });
+  const { node } = await leaderboardView();
+  assert.equal(rowsOf(node).length, 0);
+  assert.match(text(node), /The list changed/);
+});
+
+test('signed in, not published: the exact comparison place and “Publish my score”, no row of yours; publishing sends only the family', async () => {
+  serve({ me: () => reply(200, meNotPublished()), boards: () => reply(200, pageTop({}, false)) });
+  routes['/scoring/preferences'] = () => reply(200, { family: 'official', opted_in: true, alias: 'Reader-abc123' });
+  const { node } = await leaderboardView();
+  assert.match(text(node), /For comparison: 339 readers are on this list, and this score would place 3\. You are not on the list\./);
+  assert.equal(rowsOf(node).filter((r) => r.getAttribute('aria-current')).length, 0);
+  const [publish] = buttons(node, 'Publish my score');
+  assert.ok(publish);
+  await publish.fire('click');
+  const sent = calls.find((c) => c.url.endsWith('/scoring/preferences'));
+  assert.deepEqual(JSON.parse(sent.body), { family: 'official', opt_in: true });
+  // the next drawing returns focus to the placement line, not the page title
+  serve();
+  const next = await leaderboardView();
+  next.after();
+  assert.equal(focused.className, 'score-place__rank');
+  assert.equal(text(focused), 'Place 3 of 340');
+  const later = await leaderboardView();
+  focused = null;
+  later.after();
+  assert.equal(focused, null, 'only once');
+});
+
+test('signed out: the comparison place, the practice note and “Sign in”, never a publish button or a row of yours', async () => {
+  serve({ account: signedOut, me: () => reply(200, meNotPublished()), boards: () => reply(200, pageTop({}, false)) });
+  const { node } = await leaderboardView();
+  assert.match(text(node), /For comparison: 339 readers are on this list, and this score would place 3\./);
+  assert.match(text(node), /Your practice stays with you\. Ranked points start with questions you haven't seen yet\./);
+  assert.equal(buttons(node, 'Publish my score').length, 0);
+  assert.ok(node.find((n) => n.tag === 'a' && n.getAttribute('href') === '#/signin'));
+});
+
+test('hidden: the hidden line, no publish button and no row of yours', async () => {
+  serve({ me: () => reply(200, meKim({ published: false, moderation: 'hidden', rank: { kind: 'hypothetical', value: 3, participants: 339 }, own_cursor: null })), boards: () => reply(200, pageTop({}, false)) });
+  const { node } = await leaderboardView();
+  assert.match(text(node), /Your entry is hidden from public lists\./);
+  assert.equal(buttons(node, 'Publish my score').length, 0);
+});
+
+test('no answers in this scope: no number at all, not a comparison place for 0', async () => {
+  const none = meKim({ scope: 'course:sql', scope_score: null, rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null });
+  serve({ me: () => reply(200, none), boards: () => reply(200, pageTop({ scope: 'course:sql' }, false)) });
+  globalThis.location.hash = '#/leaderboard?list=challenge&period=week&course=sql';
+  const { node } = await leaderboardView();
+  globalThis.location.hash = '#/leaderboard';
+  const place = node.find((n) => n.className === 'score-place');
+  assert.equal(text(place).includes('No ranked answers in this list yet.'), true);
+  assert.doesNotMatch(text(place).replace(/Sign in/, ''), /place \d/i);
+});
+
+test('load more: the next 50 rows are appended in order with a status line; a stale cursor replaces the list, never mixes it', async () => {
+  const second = { ...head(), participants: 340, entries: others(51, 100), next_cursor: null };
+  serve({ boards: (path) => reply(200, path.includes('cursor=') ? second : pageTop()) });
+  const { node } = await leaderboardView();
+  const [more] = buttons(node, 'Load more');
+  assert.equal(more.getAttribute('aria-disabled'), null);
+  await more.fire('click');
+  assert.equal(rowsOf(node).length, 100);
+  assert.match(text(node), /Rows 51–100 loaded\./);
+  assert.equal(more.getAttribute('aria-disabled'), 'true');
+  assert.equal(text(focused.children[0]), '51');
+  const before = calls.length;
+  await more.fire('click');
+  assert.equal(calls.length, before, 'an exhausted list sends nothing');
+
+  serve({ boards: (path) => (path.includes('cursor=') ? reply(409, { error: { code: 'stale_cursor' } }) : reply(200, pageTop())) });
+  const again = await leaderboardView();
+  await buttons(again.node, 'Load more')[0].fire('click');
+  assert.equal(rowsOf(again.node).length, 0);
+  assert.equal(text(focused), 'Start from the top');
+
+  serve({ boards: (path) => reply(200, path.includes('cursor=') ? { ...second, board_revision: '4183' } : pageTop()) });
+  const third = await leaderboardView();
+  await buttons(third.node, 'Load more')[0].fire('click');
+  assert.equal(rowsOf(third.node).length, 0, 'a changed revision on page 2 is stale as well');
+});
+
+test('a late signed-out answer after a sign-in is dropped: no publish button, no foreign place, the view asks again', async () => {
+  // First round: the account answer says a different user than the client saw before, so the generation rises mid-flight.
+  const { getClient } = await import('../public/js/account/index.js');
+  serve({ account: signedIn('u-first') });
+  await getClient().me();
+  let round = 0;
+  serve({
+    account: () => { round += 1; return signedIn(round === 1 ? 'u-second' : 'u-second')(); },
+    me: () => reply(200, round <= 1 ? meNotPublished() : meKim()),
+    boards: () => reply(200, round <= 1 ? pageTop({}, false) : pageTop()),
+  });
+  const { node } = await leaderboardView();
+  assert.ok(round >= 2, 'asked again as the new reader');
+  assert.equal(buttons(node, 'Publish my score').length, 0);
+  assert.match(text(node), /Place 3 of 340/);
+});
+
+test('profile: total, by course and recent answers, with “Practice, not ranked” for answers that do not count', async () => {
+  const attempts = [
+    { question_id: 'q1', family: 'official', course_id: 'python', outcome: 'correct', score_units: 2, accepted_at: 1792400000, rules_version: 'r2', catalog_version: 'c7', rank_eligible: true },
+    { question_id: 'q2', family: 'official', course_id: 'sql', outcome: 'wrong', score_units: -1, accepted_at: 1792300000, rules_version: 'r2', catalog_version: 'c7', rank_eligible: false },
+  ];
+  const kimAll = meKim({ window: { kind: 'all', start: null, end: null }, attempts });
+  const around = { ...head({ window: { kind: 'all', start: null, end: null } }), participants: 340, entries: [row(1, 'ada', '250.00'), row(1, 'lin', '250.00'), row(3, 'kim', '211.11', { is_me: true })], next_cursor: null };
+  serve({ me: () => reply(200, kimAll), boards: () => reply(200, around) });
+  globalThis.location.hash = '#/profile?list=challenge&period=all';
+  const { node } = await profileView();
+  globalThis.location.hash = '#/leaderboard';
+  const all = text(node);
+  assert.match(all, /211\.11/);
+  assert.match(all, /Place 3 of 340/);
+  for (const s of ['408.33', '225.00', '0.00', '30 of 60', '10 of 40', '0 of 20']) assert.ok(all.includes(s), s);
+  const history = node.all((n) => n.tag === 'tr' && n.parent?.tag === 'tbody' && /Ranked|Practice, not ranked/.test(n.text()));
+  assert.deepEqual(history.map((r) => text(r.children[3])), ['Ranked', 'Practice, not ranked']);
+  assert.ok(!all.includes('q1') && !all.includes('q2'), 'no question ids in the history');
+  assert.match(calls.find((c) => c.url.includes('/scoring/me')).url, /family=official&scope=total&window=all/);
+});
+
+test('profile without a scoring identity: a calm state with “Sign in”, never “unavailable”', async () => {
+  serve({ account: signedOut, me: signedOut });
+  globalThis.location.hash = '#/profile?list=free&period=all';
+  const { node } = await profileView();
+  globalThis.location.hash = '#/leaderboard';
+  assert.match(text(node), /No score on this list yet\./);
+  assert.doesNotMatch(text(node), /unavailable/);
+  assert.ok(node.find((n) => n.tag === 'a' && n.getAttribute('href') === '#/signin'));
+});
