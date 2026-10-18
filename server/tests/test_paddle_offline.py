@@ -206,10 +206,11 @@ class StrictInputTests(unittest.TestCase):
 
     def test_occurred_at_must_be_a_full_rfc3339_timestamp_with_a_zone(self):
         for bad in ("2026-10-19", "2026-10-19T01:02:03", "2026-10-19 01:02:03Z", "2026-10-19T01:02Z", "2026-10-19T25:00:00Z",
-                    "2026-13-01T00:00:00Z", "2026-10-19T01:02:03+0100", "2026-10-19T01:02:03+00:60", "2026-10-19T01:02:03-05:99", "2026-10-19T01:02:03+24:00", "2026-10-19T01:02:03.Z", "20261019T010203Z", ""):
+                    "2026-13-01T00:00:00Z", "2026-10-19T01:02:03+0100", "2026-10-19T01:02:03+00:60", "2026-10-19T01:02:03-05:99", "2026-10-19T01:02:03+24:00", "2026-10-19T01:02:03.Z", "20261019T010203Z", "",
+                    "2026-10-19T24:00:00Z", "2026-10-19T24:01:00Z", "2026-10-19T24:00:00+01:00", "2026-10-19T99:00:00Z"):
             with self.subTest(bad=bad), self.assertRaises(PaddleMalformed):
                 self.verify(envelope(occurred_at=bad))
-        for good in ("2026-10-19T01:02:03Z", "2026-10-19T01:02:03.456789123Z", "2026-10-19T01:02:03+02:00", "2026-10-19T01:02:03-23:59", "2026-10-19t01:02:03z"):
+        for good in ("2026-10-19T01:02:03Z", "2026-10-19T01:02:03.456789123Z", "2026-10-19T01:02:03+02:00", "2026-10-19T01:02:03-23:59", "2026-10-19t01:02:03z", "2026-10-19T00:00:00Z", "2026-10-19T23:59:59Z"):
             with self.subTest(good=good):
                 self.assertEqual(self.verify(envelope(occurred_at=good)).occurred_at, good)
 
@@ -296,6 +297,7 @@ def snapshot(status="completed", adjustments=(), **over):
     return AuthoritativeState(**base)
 
 
+PINNED_DIGEST = "51ebc56afbff6db7160179754f66e85dc0e8863a688e17f3ec26f01f47ef899a"      # computed before the digest ordering change
 EXPECTED = Expected("sandbox", PRICE, 1, "USD", transaction_id=TXN, total_minor=1000)
 
 
@@ -321,6 +323,43 @@ class DigestTests(unittest.TestCase):
         }.items():
             with self.subTest(name):
                 self.assertNotEqual(digest.snapshot_digest(other), d)
+
+
+class SnapshotValidationTests(unittest.TestCase):
+    """A repeated adjustment id is ambiguous evidence: it is refused at the gate, never sorted around."""
+    def test_a_repeated_adjustment_id_is_malformed_whatever_else_differs_and_in_any_order(self):
+        base = adj(i=1)
+        variants = {
+            "identical": base, "amount_none_vs_int": Adjustment(base.id, base.action, base.status, base.type, None, "USD"),
+            "amount_differs": Adjustment(base.id, base.action, base.status, base.type, 5, "USD"),
+            "currency_differs": Adjustment(base.id, base.action, base.status, base.type, 1000, "EUR"),
+            "currency_none": Adjustment(base.id, base.action, base.status, base.type, 1000, None),
+            "action_differs": Adjustment(base.id, "credit", base.status, base.type, 1000, "USD"),
+            "status_differs": Adjustment(base.id, base.action, "rejected", base.type, 1000, "USD"),
+        }
+        for name, other in variants.items():
+            for order in ((base, other), (other, base)):
+                with self.subTest(name=name, first=order[0] is base), self.assertRaises(PaddleMalformed):
+                    mapping.validate_snapshot(snapshot(adjustments=order))
+        with self.assertRaises(PaddleMalformed):                                              # the third row repeats the first
+            mapping.validate_snapshot(snapshot(adjustments=[adj(i=1), adj(i=2), adj(i=1)]))
+
+    def test_unique_ids_with_missing_optional_fields_stay_valid_and_digest_stably(self):
+        rows = [Adjustment("adj_%026d" % 1, "credit", "approved", "full", None, None), Adjustment("adj_%026d" % 2, "refund", "approved", "partial", 5, None),
+                Adjustment("adj_%026d" % 3, "refund", "approved", "full", None, "USD")]
+        snap = snapshot(adjustments=rows)
+        self.assertIs(mapping.validate_snapshot(snap), snap)
+        self.assertEqual(digest.snapshot_digest(snap), digest.snapshot_digest(snapshot(adjustments=rows[::-1])))
+
+    def test_the_digest_itself_never_raises_on_missing_fields_even_for_a_repeated_id(self):
+        # Defence in depth: the gate refuses this, but a direct caller still gets a digest, not a TypeError.
+        one = Adjustment("adj_%026d" % 1, "refund", "approved", "full", None, "USD")
+        two = Adjustment("adj_%026d" % 1, "refund", "approved", "full", 5, None)
+        self.assertEqual(digest.snapshot_digest(snapshot(adjustments=[one, two])), digest.snapshot_digest(snapshot(adjustments=[two, one])))
+
+    def test_the_digest_of_a_valid_snapshot_is_pinned(self):
+        snap = snapshot(adjustments=[adj(i=2), adj("credit", "approved", "full", i=1)])
+        self.assertEqual(digest.snapshot_digest(snap), PINNED_DIGEST)
 
 
 class MappingTests(unittest.TestCase):
