@@ -170,11 +170,14 @@ test('the profile loader reads only a complete version-2 index and otherwise ret
 });
 
 test('every consumer that scores gets the profiles first and treats unknown as unknown', () => {
-  for (const [file, pattern] of [['js/views/profile.js', /loadAnswerProfiles\(e\.id\)[\s\S]*scoreWithProfiles\(e\.course, records, RULES, isRightNow, profiles\[i\]\)[\s\S]*totalPoints\(scores\.filter\(\(s\) => !s\.practiceOnly\)\)/],
-                                 ['js/views/leaderboard.js', /loadAnswerProfiles\(e\.id\)[\s\S]*ownPoints\(state, entries, store\.answers\(\), now, profiles\)/],
-                                 ['js/views/lesson.js', /await loadAnswerProfiles\(course\.id\)[\s\S]*courseFinished\(course, store\.answers\(\), profiles\)[\s\S]*resultCard\(course, store\.answers\(\), isRightNow, profiles\)/]]) {
-    assert.match(read(file), pattern, file);
+  assert.match(read('js/views/lesson.js'), /await loadAnswerProfiles\(course\.id\)[\s\S]*courseFinished\(course, store\.answers\(\), profiles\)[\s\S]*resultCard\(course, store\.answers\(\), isRightNow, profiles\)/);
+  // The profile and leaderboard views are server-only (registered only with the flag on): they never compute a local score,
+  // pool or sample board, so the 027 isolation is enforced on the server/model path rather than hidden in a local view.
+  for (const file of ['js/views/profile.js', 'js/views/leaderboard.js']) {
+    assert.doesNotMatch(read(file), /loadAnswerProfiles|scoreWithProfiles|courseScore|mockBoard/, file);
   }
+  assert.match(read('js/views/profile.js'), /client\.scoringMe\(/);
+  assert.match(read('js/views/leaderboard.js'), /client\.scoringLeaderboards\(/);
   assert.doesNotMatch(read('js/views/leaderboard.js') + read('js/views/profile.js') + read('js/components/result-card.js'), /courseScore\(/, 'no scoring path uses the profile-blind function');
 });
 
