@@ -76,6 +76,29 @@ class PaddleRepository:
     def operation_for_purchase(self, purchase_id: str):
         return self._c().execute("SELECT * FROM paddle_operations WHERE purchase_id = ?", (purchase_id,)).fetchone()
 
+    # ---- immutable checkout context --------------------------------------------------------------
+    def record_context(self, operation_id: str, context, now: float) -> None:
+        """Persist the server-chosen checkout fingerprint for an operation, in the caller's transaction.
+
+        Immutable by trigger: the context describes what create sends (price/quantity/currency/amount/scope and the
+        policy bundle), so a later catalog or policy change can never reinterpret an existing checkout.
+        """
+        op = self.operation(operation_id)
+        if op is None:
+            raise ValueError("unknown operation")
+        self._c().execute(
+            "INSERT INTO paddle_checkout_context (operation_id, purchase_id, environment, user_id, product_id, "
+            "policy_bundle_id, bundle_digest, ack_set, access_scope, amount_minor, product_currency, price_id, quantity, "
+            "currency_code, total_minor, total_field, context_digest, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (operation_id, op["purchase_id"], context.environment, context.user_id, context.product_id,
+             context.policy_bundle_id, context.bundle_digest, context.ack_set(), context.access_scope,
+             context.amount_minor, context.product_currency, context.price_id, context.quantity,
+             context.currency_code, context.total_minor, context.total_field, context.digest(), now))
+
+    def checkout_context(self, purchase_id: str):
+        return self._c().execute("SELECT * FROM paddle_checkout_context WHERE purchase_id = ?", (purchase_id,)).fetchone()
+
     def bound_operation(self, environment: str, txn_id: str):
         return self._c().execute("SELECT * FROM paddle_operations WHERE environment = ? AND provider_txn_id = ? "
                                  "AND state = 'bound'", (_check_env(environment), txn_id)).fetchone()

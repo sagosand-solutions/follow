@@ -53,10 +53,11 @@ class MigrationTests(unittest.TestCase):
             self.addCleanup(conn.close)
             self.assertEqual(apply_migrations(conn, migrations=MIGRATIONS[:4]), 4)
             conn.execute("INSERT INTO users (id, created_at, status, deletion_at) VALUES ('u', 1, 'active', NULL)")
-            self.assertEqual(apply_migrations(conn), 1)
+            self.assertEqual(apply_migrations(conn), 2)     # Paddle bookkeeping (5) and the checkout context (6)
             self.assertEqual(apply_migrations(conn), 0)
             names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
-            self.assertTrue({"paddle_operations", "paddle_events", "paddle_reconcile", "purchase_transitions"} <= names)
+            self.assertTrue({"paddle_operations", "paddle_events", "paddle_reconcile", "purchase_transitions",
+                             "paddle_checkout_context"} <= names)
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM users").fetchone()[0], 1)   # earlier data untouched
 
     def test_constraints(self):

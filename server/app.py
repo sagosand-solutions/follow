@@ -33,11 +33,12 @@ from .scoring_http import Hooks, scoring_routes
 from .scoring_service import ScoringService
 from .paddle.types import PaddleConfigError, PaddleError
 from .paddle.signature import verify_webhook as verify_paddle_webhook
-from .paddle_repo import PaddleQueueFull, PaddleRepository
+from .paddle_repo import PaddleQueueFull
+from .paddle_checkout import build_checkout_context, reserve_or_reuse_checkout
 from .paddle_service import PaddleService
 from .content_catalog import build_release_summary
 from .dto import entitlements_dto, me_dto, product_list_dto
-from .models import AuthIntent, ConflictError, ServerError, SetupError, canonical_acknowledgements, resolve_active_bundle
+from .models import AuthIntent, ConflictError, ServerError, SetupError, UserStatus, canonical_acknowledgements, resolve_active_bundle
 from .repositories import Repositories
 from .rate_limit import EmailStartLimiter
 from .sessions import AuthenticatedPrincipal, SessionService
@@ -138,6 +139,12 @@ def _session_cookie(request: Request) -> str | None:
 
 def _principal(request: Request, sessions: SessionService) -> AuthenticatedPrincipal | None:
     return sessions.authenticate(_session_cookie(request))
+
+
+def _is_active_user(repositories, user_id: str) -> bool:
+    """A last re-check inside the checkout transaction: the session was valid, the account must still be active."""
+    user = repositories.users.get(user_id)
+    return user is not None and user.status is UserStatus.ACTIVE
 
 
 def _check_origin(request: Request) -> bool:
@@ -522,23 +529,54 @@ def create_app(settings, services: Services) -> Starlette:
                 return http.error_response("stale-policy", _request_id(request))
             if set(acknowledgements) != set(required) or set(required) != set(bundle.required_acknowledgements):
                 return http.error_response("invalid", _request_id(request))
-            with repositories.database.transaction(immediate=True):
-                purchase = repositories.purchases.create(
-                    principal.user_id, product.id, f"paddle-{settings.paddle_env}" if paddle else services.payment_provider,
-                    f"srv-{secrets.token_urlsafe(12)}")
-                repositories.consents.record(purchase.id, bundle.id, list(acknowledgements))
-                if paddle:       # the intent to create a remote transaction is committed together with purchase and consent
-                    PaddleRepository(repositories.database).plan(purchase.id, settings.paddle_env, services.clock())
+            if paddle:
+                # Everything that authorises this checkout is revalidated INSIDE the same BEGIN IMMEDIATE as
+                # reuse/quota/reserve, and the context is built from those fresh values. The cheap checks above only
+                # shape the error codes; they are never the authority.
+                with repositories.database.transaction(immediate=True):
+                    fresh_principal = _principal(request, sessions)
+                    if (fresh_principal is None or fresh_principal.user_id != principal.user_id
+                            or not _is_active_user(repositories, principal.user_id)):
+                        return http.error_response("no-session", _request_id(request))
+                    fresh_product = repositories.products.get(product.id)
+                    if fresh_product is None or not fresh_product.active:
+                        return http.error_response("invalid", _request_id(request))
+                    fresh_bundle = resolve_active_bundle(services.policy_activations,
+                                                         repositories.policies.list_for_product(product.id),
+                                                         product_id=product.id, access_scope=fresh_product.access_scope,
+                                                         locale="en", now=services.clock(), app_env=settings.app_env.value)
+                    if fresh_bundle is None:
+                        return http.error_response("unavailable", _request_id(request))
+                    if body["policy_version"] != fresh_bundle.version or policy.get("version") != fresh_bundle.version:
+                        return http.error_response("stale-policy", _request_id(request))
+                    if set(acknowledgements) != set(required) or set(required) != set(fresh_bundle.required_acknowledgements):
+                        return http.error_response("invalid", _request_id(request))
+                    context = build_checkout_context(environment=settings.paddle_env, user_id=principal.user_id,
+                                                     product=fresh_product, bundle=fresh_bundle,
+                                                     acknowledgements=acknowledgements,
+                                                     paddle_product=settings.paddle_products[product.id])
+                    reservation = reserve_or_reuse_checkout(repositories, context, services.clock())
+            else:
+                with repositories.database.transaction(immediate=True):
+                    purchase = repositories.purchases.create(
+                        principal.user_id, product.id, services.payment_provider, f"srv-{secrets.token_urlsafe(12)}")
+                    repositories.consents.record(purchase.id, bundle.id, list(acknowledgements))
         if paddle:
+            if reservation.kind == "throttled":     # no ids, no quota details and no remote call on a refusal
+                return http.error_response("throttled", _request_id(request))
+            if reservation.kind == "reused":        # reopening: the SAME purchase and transaction, no new send
+                return http.json_response({"purchase_id": reservation.purchase_id, "state": "pending", "provider": "paddle",
+                                           "checkout": {"mode": "overlay", "transaction_id": reservation.transaction_id}},
+                                          request_id=_request_id(request))
             # AFTER the commit and with no open transaction: the remote call can never run inside one.
             try:
                 with _uow(settings, services) as (repositories, sessions):
-                    outcome = paddle_service(repositories).start_checkout(repositories.purchases.get(purchase.id))
+                    outcome = paddle_service(repositories).start_checkout(repositories.purchases.get(reservation.purchase_id))
             except (ServerError, sqlite3.Error):
                 return http.error_response("unavailable", _request_id(request))
             if outcome["result"] != "bound":
                 return http.error_response("unavailable", _request_id(request))     # no provider id in any failure answer
-            return http.json_response({"purchase_id": purchase.id, "state": "pending", "provider": "paddle",
+            return http.json_response({"purchase_id": reservation.purchase_id, "state": "pending", "provider": "paddle",
                                        "checkout": {"mode": "overlay", "transaction_id": outcome["transaction_id"]}},
                                       request_id=_request_id(request))
         try:
