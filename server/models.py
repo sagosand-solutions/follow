@@ -61,6 +61,11 @@ class EntitlementState(str, Enum):
     REVOKED = "revoked"
 
 
+# Closed set of payment providers. The Paddle environment is part of the value (never parsed out of it): code
+# compares these strings exactly, and the environment always comes from configuration.
+KNOWN_PROVIDERS = frozenset({"mock", "test", "paddle-sandbox", "paddle-live"})
+
+
 class PaymentEventStatus(str, Enum):
     RECEIVED = "received"
     APPLIED = "applied"
