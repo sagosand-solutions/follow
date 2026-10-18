@@ -170,6 +170,58 @@ class ProviderTests(HttpTestCase):
         self.assertEqual(payload, {"providers": [{"id": "email", "kind": "email"}, {"id": "google", "kind": "oauth"}]})
         self.assertEqual(json_body(call(self.make().app, "GET", "/auth/providers")), {"providers": []})
 
+    def test_provider_start_requires_an_exact_login_contract(self):
+        class Recording:
+            def __init__(self):
+                self.calls = []
+
+            def start(self, **kwargs):
+                self.calls.append(kwargs)
+                return {"authorize_url": "https://accounts.example/authorize"}
+
+        adapter = Recording()
+        fx = self.make(providers={"google": adapter})
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        csrf = json_body((status, headers, body))["csrf_token"]
+        cookie = headers["set-cookie"].split(";", 1)[0]
+
+        def start(payload):
+            raw = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+            return call(fx.app, "POST", "/auth/google/start",
+                        headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf}, body=raw)
+
+        base = {"intent": "login", "return_to": "/me"}
+        self.assertEqual(start(base)[0], 200)
+        self.assertEqual(len(adapter.calls), 1)
+        self.assertEqual((adapter.calls[0]["intent"], adapter.calls[0]["return_to"]), ("login", "/me"))
+        bad = [
+            {}, {"intent": "login"}, {"return_to": "/me"}, {**base, "extra": 1},
+            {"intent": "link", "return_to": "/me"}, {"intent": "signup", "return_to": "/me"},
+            {"intent": ["login"], "return_to": "/me"}, {"intent": True, "return_to": "/me"},
+            {"intent": None, "return_to": "/me"}, {"intent": "login", "return_to": "https://evil.example"},
+            {"intent": "login", "return_to": "//evil.example"}, {"intent": "login", "return_to": "/a\u200bb"},
+            [], None, True, "login", b"{",
+        ]
+        for payload in bad:
+            with self.subTest(payload=payload):
+                self.assertEqual(start(payload)[0], 400)
+        self.assertEqual(len(adapter.calls), 1)       # nothing but the one valid request reached the adapter
+
+    def test_provider_start_guards_precede_the_adapter(self):
+        class Recording:
+            calls = []
+
+            def start(self, **kwargs):
+                Recording.calls.append(kwargs)
+                return {"authorize_url": "https://accounts.example/authorize"}
+
+        fx = self.make(providers={"google": Recording()})
+        for headers in ({"origin": "http://testserver"}, {"cookie": "x", "x-csrf-token": "y"}):
+            with self.subTest(headers=headers):
+                self.assertEqual(call(fx.app, "POST", "/auth/google/start", headers=headers,
+                                      body=b'{"intent":"login","return_to":"/me"}')[0], 403)
+        self.assertEqual(Recording.calls, [])
+
     def test_disabled_provider_is_unavailable(self):
         fx = self.make()
         status, _, body = call(fx.app, "POST", "/auth/google/start", headers=fx.headers(csrf=True),

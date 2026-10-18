@@ -152,9 +152,13 @@ def _check_origin(request: Request) -> bool:
     return http.origin_allowed(request.headers.get("origin"), request.app.state.settings.public_origin)
 
 
-def _check_preauth_csrf(request: Request) -> bool:
+def _preauth_cookie(request: Request) -> str | None:
+    return request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, request.app.state.settings))
+
+
+def _check_preauth_csrf(request: Request, cookie: str | None = None) -> bool:
     settings = request.app.state.settings
-    cookie = request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, settings))
+    cookie = _preauth_cookie(request) if cookie is None else cookie
     return cookie is not None and AuthSecurity(settings).verify_csrf(
         cookie, request.headers.get("x-csrf-token"), purpose="preauth")
 
@@ -369,7 +373,8 @@ def create_app(settings, services: Services) -> Starlette:
         return response
 
     async def email_start(request: Request):
-        if not _check_origin(request) or not _check_preauth_csrf(request):
+        preauth_cookie = _preauth_cookie(request)          # read once; the CSRF check below guarantees it is present
+        if not _check_origin(request) or not _check_preauth_csrf(request, preauth_cookie):
             return http.error_response("forbidden", _request_id(request))
         body = _json_body(request)
         if (not isinstance(body, dict) or set(body) != {"email", "return_to", "intent"}
@@ -395,9 +400,6 @@ def create_app(settings, services: Services) -> Starlette:
             response = http.error_response("throttled", _request_id(request))
             response.headers["Retry-After"] = str(retry_after)
             return response
-        preauth_cookie = request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, settings))
-        if preauth_cookie is None:
-            return http.error_response("forbidden", _request_id(request))
         auth_security = AuthSecurity(settings)
         raw_transaction_token = auth_security.new_token()
         transaction_hash = hashlib.sha256(raw_transaction_token.encode("ascii")).hexdigest()
@@ -426,13 +428,14 @@ def create_app(settings, services: Services) -> Starlette:
         if not _check_origin(request) or not _check_preauth_csrf(request):
             return http.error_response("forbidden", _request_id(request))
         body = _json_body(request)
-        return_to = http.local_return_to(body.get("return_to")) if isinstance(body, dict) else None
+        if not isinstance(body, dict) or set(body) != {"intent", "return_to"} or body.get("intent") != "login":
+            return http.error_response("invalid", _request_id(request))   # exact {intent: login, return_to} only
+        return_to = http.local_return_to(body.get("return_to"))
         if return_to is None:
             return http.error_response("invalid", _request_id(request))
         try:
-            result = adapter.start(intent=body.get("intent"), return_to=return_to,
-                                   preauth_binding_cookie=request.cookies.get(
-                                       http.cookie_name(http.COOKIE_PREAUTH, settings)))
+            result = adapter.start(intent="login", return_to=return_to,
+                                   preauth_binding_cookie=_preauth_cookie(request))
         except ServerError:
             return http.error_response("unavailable", _request_id(request))
         authorize = result.get("authorize_url") if isinstance(result, dict) else getattr(result, "authorize_url", None)
