@@ -61,6 +61,7 @@ test('HTTP statuses map to stable user-facing states and network errors offer re
   assert.equal(mapHttpError(403, {}).code, 'reauth_required');
   assert.equal(mapHttpError(404, {}).code, 'not_found');
   assert.equal(mapHttpError(409, {}).code, 'conflict');
+  assert.equal(mapHttpError(409, { error: { code: 'locked' }, attempt: { outcome: 'wrong' } }).code, 'locked');
   assert.equal(mapHttpError(429, {}).code, 'rate_limited');
   assert.equal(mapHttpError(503, {}).code, 'unavailable');
   const c = createHttpClient({ baseUrl: '/api', fetchImpl: async () => { throw new Error('offline'); } });
@@ -162,6 +163,43 @@ test('signed out is a state, not an error: no entitlements and no purchase; othe
   assert.equal(await c.purchase(), null);
   assert.equal((await c.entitlements()).code, 'unavailable');
   assert.equal((await c.purchase()).code, 'unavailable');
+});
+
+test('scoring API uses session CSRF, opaque responses, no-store reads, and preserves locked result', async () => {
+  const locked = { status: 409, body: { error: { code: 'locked', message: 'already answered' }, attempt: { question_id: 'q1', score_units: -1 } } };
+  const mock = mockFetch([
+    ok({ user: { id: 'u' }, csrf_token: 'session-token' }),
+    ok({ issue_id: 'i1', revision: 'r1', question: { options: [{ option_id: 'oabc1234567', text: 'A' }] } }),
+    locked,
+    ok({ family: 'official', rules_version: 'r2', total: { points: 0, answered: 0, pool: 4 } }),
+    ok({ family: 'official', entries: [], participants: 0 }),
+  ]);
+  const c = createHttpClient({ baseUrl: '/api', fetchImpl: mock.fetchImpl });
+  const issue = await c.scoringIssue('q/1');
+  assert.equal(issue.ok, true);
+  assert.equal(mock.calls[1].url, '/api/scoring/questions/q%2F1/issue');
+  assert.deepEqual(JSON.parse(mock.calls[1].init.body), {});
+  assert.equal(mock.calls[1].init.headers['X-CSRF-Token'], 'session-token');
+  assert.equal(mock.calls[1].init.credentials, 'same-origin');
+  const answer = await c.scoringAnswer({ issue_id: 'i1', outcome: 'answer', option_id: 'oabc1234567', idempotency_key: 'attempt-key' });
+  assert.equal(answer.code, 'locked');
+  assert.deepEqual(answer.attempt, { question_id: 'q1', score_units: -1 });
+  assert.deepEqual(JSON.parse(mock.calls[2].init.body), { issue_id: 'i1', outcome: 'answer', option_id: 'oabc1234567', idempotency_key: 'attempt-key' });
+  assert.equal(mock.calls[2].init.headers['X-CSRF-Token'], 'session-token');
+  assert.equal((await c.scoringMe({ family: 'official', window: 'week' })).ok, true);
+  assert.equal((await c.scoringLeaderboards({ family: 'official', scope: 'course:sql', window: 'all' })).ok, true);
+  assert.equal(mock.calls[3].init.cache, 'no-store');
+  assert.equal(mock.calls[4].init.cache, 'no-store');
+  assert.equal(mock.calls[4].url, '/api/leaderboards?family=official&scope=course%3Asql&window=all&limit=50');
+  assert.doesNotMatch((await (await import('node:fs/promises')).readFile(new URL('../public/js/account/http-client.js', import.meta.url), 'utf8')), /localStorage|sessionStorage/);
+});
+
+test('scoring API rejects malformed client inputs and reports unavailable distinctly', async () => {
+  const c = createHttpClient({ baseUrl: '/api', fetchImpl: async () => ({ ok: false, status: 503, async json() { return { error: { code: 'unavailable' } }; } }) });
+  assert.equal((await c.scoringAnswer({ issue_id: 'i', outcome: 'not_sure', option_id: 'wrong', idempotency_key: 'k' })).code, 'invalid_request');
+  assert.equal((await c.scoringIssue('')).code, 'invalid_request');
+  assert.equal((await c.scoringMe({ family: 'other' })).code, 'invalid_request');
+  assert.equal((await c.scoringIssue('q1')).code, 'unavailable');
 });
 
 test('premiumQuestion reads /content/question/<id> and reports honest states; nothing is stored', async () => {

@@ -26,7 +26,12 @@ export function mapHttpError(status, body) {
   if (status === 403 || code === 'forbidden') return { ok: false, code: 'reauth_required', message: 'Please sign in again and retry this request.' };
   if (status === 404 || code === 'not-found') return { ok: false, code: 'not_found', message: 'This item is unavailable.' };
   if (status === 429 || code === 'throttled') return { ok: false, code: 'rate_limited', message: 'Too many attempts. Please wait before trying again.' };
-  if (status === 409 || code === 'stale-policy' || code === 'identity-conflict') return { ok: false, code: 'conflict', message: 'This has changed. Please review and try again.' };
+  if (status === 409 || code === 'stale-policy' || code === 'identity-conflict') {
+    const scoringCode = ['expired', 'stale', 'locked', 'idempotency_conflict', 'claim_conflict'].includes(code) ? code : 'conflict';
+    const error = { ok: false, code: scoringCode, message: scoringCode === 'locked' ? 'This question has already been answered.' : 'This has changed. Please review and try again.' };
+    if (body?.attempt && typeof body.attempt === 'object') error.attempt = body.attempt;
+    return error;
+  }
   if (status === 503 || code === 'unavailable') return { ok: false, code: 'unavailable', message: 'This service is currently unavailable.' };
   return { ok: false, code: 'request_failed', message: 'The request could not be completed.' };
 }
@@ -45,7 +50,7 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (csrf) {
-      const needsSessionCsrf = sessionCsrfPaths.has(path);
+      const needsSessionCsrf = sessionCsrfPaths.has(path) || path.startsWith('/scoring/');
       let token = needsSessionCsrf ? sessionCsrfToken : preauthCsrfToken;
       if (!token) {
         let tokenResult = needsSessionCsrf ? await request('/me') : await request('/auth/csrf');
@@ -65,6 +70,7 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     try {
       response = await fetchImpl(`${base}${path}`, {
         method, credentials: 'same-origin', headers,
+        ...(path.startsWith('/scoring/') || path === '/leaderboards' || path.startsWith('/leaderboards?') ? { cache: 'no-store' } : {}),
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch {
@@ -135,6 +141,35 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     async premiumQuestion(id) {
       const r = await request(`/content/question/${encodeURIComponent(id)}`);
       return r.ok ? { ok: true, question: r.data } : r;
+    },
+    async scoringIssue(questionId) {
+      if (typeof questionId !== 'string' || !questionId) return { ok: false, code: 'invalid_request', message: 'This question is unavailable.' };
+      const r = await request(`/scoring/questions/${encodeURIComponent(questionId)}/issue`, { method: 'POST', csrf: true, body: {} });
+      return r.ok ? { ok: true, ...r.data } : r;
+    },
+    async scoringAnswer({ issue_id, outcome, option_id = null, idempotency_key }) {
+      if (typeof issue_id !== 'string' || !['answer', 'not_sure'].includes(outcome) || typeof idempotency_key !== 'string') {
+        return { ok: false, code: 'invalid_request', message: 'Please choose an answer.' };
+      }
+      if ((outcome === 'answer' && typeof option_id !== 'string') || (outcome === 'not_sure' && option_id !== null)) {
+        return { ok: false, code: 'invalid_request', message: 'Please choose an answer.' };
+      }
+      const r = await request('/scoring/answers', { method: 'POST', csrf: true, body: { issue_id, outcome, option_id, idempotency_key } });
+      return r.ok ? { ok: true, ...r.data } : r;
+    },
+    async scoringMe({ family, window = 'all' }) {
+      if (!['official', 'free'].includes(family) || !['all', 'week'].includes(window)) return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
+      const r = await request(`/scoring/me?family=${encodeURIComponent(family)}&window=${encodeURIComponent(window)}`);
+      return r.ok ? { ok: true, ...r.data } : r;
+    },
+    async scoringLeaderboards({ family, scope = 'total', window = 'all', limit = 50, cursor = null }) {
+      if (!['official', 'free'].includes(family) || !['all', 'week'].includes(window) || !Number.isInteger(limit) || limit < 1 || limit > 50 || (scope !== 'total' && !/^course:[a-z0-9._-]{1,80}$/.test(scope))) {
+        return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
+      }
+      const query = new URLSearchParams({ family, scope, window, limit: String(limit) });
+      if (cursor) query.set('cursor', cursor);
+      const r = await request(`/leaderboards?${query}`);
+      return r.ok ? { ok: true, ...r.data } : r;
     },
     async checkout({ product_id, policy_version, acknowledgements }) {
       const data = await result('/checkout', { method: 'POST', csrf: true, body: { product_id, policy_version, acknowledgements } });

@@ -30,6 +30,7 @@ function verdictOf(score) {
 }
 
 export async function questionView({ id, course: suppliedCourse = null, reviewMode = false }) {
+  if (CONFIG.scoringUi) return (await import('../scoring/challenge.js')).challengeQuestionView({ id, course: suppliedCourse });
   let q;
   try {
     q = await loadQuestion(id);

@@ -86,6 +86,20 @@ test('scoring UI is off by default and its routes exist only behind the flag', a
   assert.match(main, /if \(CONFIG\.scoringUi\) \{\n\s+registerRoute\('\/profile', async/);
 });
 
+test('server challenge view never reads or writes local scoring and submits only an issued opaque option', async () => {
+  const source = await readFile(new URL('../public/js/scoring/challenge.js', import.meta.url), 'utf8');
+  assert.match(source, /client\.scoringIssue\(id\)/);
+  assert.match(source, /client\.scoringAnswer\(\{ issue_id: issued\.issue_id, outcome:/);
+  assert.match(source, /option_id: selected\.value \|\| null/);
+  assert.match(source, /idempotency_key: key/);
+  assert.match(source, /result\.code === 'locked' && result\.attempt/);
+  assert.doesNotMatch(source, /store\.record|localStorage|sessionStorage|pointsFor\(/);
+  const profile = await readFile(new URL('../public/js/views/profile.js', import.meta.url), 'utf8');
+  const board = await readFile(new URL('../public/js/views/leaderboard.js', import.meta.url), 'utf8');
+  assert.match(profile, /client\.scoringMe\(\{ family: 'official'/);
+  assert.match(board, /client\.scoringLeaderboards\(/);
+});
+
 test('with the flag off no scoring module is imported statically (it would be fetched on every page)', async () => {
   const files = ['main.js', 'views/question.js', 'views/lesson.js', 'views/home.js', 'views/course.js', 'views/review.js'];
   for (const f of files) {
