@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import logging
 import secrets
 import sqlite3
 import time
@@ -31,7 +32,9 @@ from .auth import AuthSecurity
 from .config import AppEnv, check_paddle_settings
 from .content_access import ContentAccessError, resolve_content
 from .scoring_http import Hooks, scoring_routes
-from .scoring_service import ScoringService
+from .scoring_service import ScoringService, verify_pool
+from .scoring_catalog import verify_binding
+from .payment_apply import apply_decision
 from .paddle.types import PaddleConfigError, PaddleError
 from .paddle.signature import verify_webhook as verify_paddle_webhook
 from .paddle_repo import PaddleQueueFull
@@ -39,12 +42,15 @@ from .paddle_checkout import build_checkout_context, reserve_or_reuse_checkout
 from .paddle_service import PaddleService
 from .content_catalog import build_release_summary
 from .dto import entitlements_dto, me_dto, product_list_dto
-from .models import AuthIntent, ConflictError, ServerError, SetupError, UserStatus, canonical_acknowledgements, resolve_active_bundle
+from .models import (AuthIntent, ConflictError, ContentError, PurchaseState, ServerError, SetupError, UserStatus,
+                     canonical_acknowledgements, resolve_active_bundle)
 from .repositories import Repositories
 from .rate_limit import EmailStartLimiter
 from .sessions import AuthenticatedPrincipal, SessionService
 
 PADDLE_PROVIDERS = frozenset({"paddle-sandbox", "paddle-live"})   # exact names; nothing parses substrings
+
+_logger = logging.getLogger("follow.server")     # structured, fixed fields only: never a payload, address or token
 
 
 @dataclass
@@ -152,9 +158,13 @@ def _check_origin(request: Request) -> bool:
     return http.origin_allowed(request.headers.get("origin"), request.app.state.settings.public_origin)
 
 
-def _check_preauth_csrf(request: Request) -> bool:
+def _preauth_cookie(request: Request) -> str | None:
+    return request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, request.app.state.settings))
+
+
+def _check_preauth_csrf(request: Request, cookie: str | None = None) -> bool:
     settings = request.app.state.settings
-    cookie = request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, settings))
+    cookie = _preauth_cookie(request) if cookie is None else cookie
     return cookie is not None and AuthSecurity(settings).verify_csrf(
         cookie, request.headers.get("x-csrf-token"), purpose="preauth")
 
@@ -226,14 +236,11 @@ def create_app(settings, services: Services) -> Starlette:
         if settings.app_env is AppEnv.PRODUCTION or services.scoring is None:
             raise SetupError("scoring requires the mock/test configuration and a loaded scoring catalog")
         if settings.scoring.enabled:
-            from .models import ContentError
-            from .scoring_catalog import verify_binding
             official = services.scoring.catalogs.get("official")
             try:
                 if official is None:
                     raise ContentError("no official scoring snapshot")
                 verify_binding(official, services.catalog)
-                from .scoring_service import verify_pool
                 verify_pool(services.scoring)
             except ContentError as exc:
                 raise SetupError(f"scoring snapshot is not bound to the content manifest: {exc}") from None
@@ -369,7 +376,8 @@ def create_app(settings, services: Services) -> Starlette:
         return response
 
     async def email_start(request: Request):
-        if not _check_origin(request) or not _check_preauth_csrf(request):
+        preauth_cookie = _preauth_cookie(request)          # read once; the CSRF check below guarantees it is present
+        if not _check_origin(request) or not _check_preauth_csrf(request, preauth_cookie):
             return http.error_response("forbidden", _request_id(request))
         body = _json_body(request)
         if (not isinstance(body, dict) or set(body) != {"email", "return_to", "intent"}
@@ -395,9 +403,6 @@ def create_app(settings, services: Services) -> Starlette:
             response = http.error_response("throttled", _request_id(request))
             response.headers["Retry-After"] = str(retry_after)
             return response
-        preauth_cookie = request.cookies.get(http.cookie_name(http.COOKIE_PREAUTH, settings))
-        if preauth_cookie is None:
-            return http.error_response("forbidden", _request_id(request))
         auth_security = AuthSecurity(settings)
         raw_transaction_token = auth_security.new_token()
         transaction_hash = hashlib.sha256(raw_transaction_token.encode("ascii")).hexdigest()
@@ -415,8 +420,11 @@ def create_app(settings, services: Services) -> Starlette:
             adapter.start(intent="login", return_to=return_to, email=normalized_email,
                           transaction_token_hash=transaction_hash, callback_url=callback_url)
         except Exception:
-            # Do not reveal account or delivery state; never serialize provider failures.
-            pass
+            # Do not reveal account or delivery state; never serialize provider failures. A fixed event and code plus
+            # the server-generated request id is enough to correlate, with no exception text, payload, address or token.
+            _logger.warning("provider start failed",
+                            extra={"event": "provider_start_failed", "code": "provider_error",
+                                   "request_id": _request_id(request)})
         return http.json_response({"ok": True}, status_code=202, request_id=_request_id(request))
 
     async def provider_start(request: Request):
@@ -426,13 +434,14 @@ def create_app(settings, services: Services) -> Starlette:
         if not _check_origin(request) or not _check_preauth_csrf(request):
             return http.error_response("forbidden", _request_id(request))
         body = _json_body(request)
-        return_to = http.local_return_to(body.get("return_to")) if isinstance(body, dict) else None
+        if not isinstance(body, dict) or set(body) != {"intent", "return_to"} or body.get("intent") != "login":
+            return http.error_response("invalid", _request_id(request))   # exact {intent: login, return_to} only
+        return_to = http.local_return_to(body.get("return_to"))
         if return_to is None:
             return http.error_response("invalid", _request_id(request))
         try:
-            result = adapter.start(intent=body.get("intent"), return_to=return_to,
-                                   preauth_binding_cookie=request.cookies.get(
-                                       http.cookie_name(http.COOKIE_PREAUTH, settings)))
+            result = adapter.start(intent="login", return_to=return_to,
+                                   preauth_binding_cookie=_preauth_cookie(request))
         except ServerError:
             return http.error_response("unavailable", _request_id(request))
         authorize = result.get("authorize_url") if isinstance(result, dict) else getattr(result, "authorize_url", None)
@@ -718,8 +727,6 @@ def _apply_verified_event(repositories, provider_path: str, event) -> None:
     Dedup, the locked purchase read, the revision check, the CAS and the grant/revoke are ONE transaction
     (``payment_apply.apply_decision``); an unknown state value raises ValueError before any write.
     """
-    from .models import PurchaseState
-    from .payment_apply import apply_decision
     state = getattr(event, "state", None)
     purchase = repositories.purchases.get_by_provider_id(provider_path, getattr(event, "provider_purchase_id", ""))
     if purchase is None:
@@ -732,5 +739,4 @@ def _apply_verified_event(repositories, provider_path: str, event) -> None:
                    payload_digest=getattr(event, "payload_digest", ""), purchase_id=purchase.id,
                    new_state=new_state, event_label=str(state), new_revision=revision)
     if result.outcome == "conflict":
-        from .models import ConflictError
         raise ConflictError("payment event id reused with a different payload")  # unchanged external contract

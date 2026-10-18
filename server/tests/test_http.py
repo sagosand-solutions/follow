@@ -16,6 +16,17 @@ class HttpTestCase(unittest.TestCase):
         return fixture
 
 
+class ImportSmokeTests(unittest.TestCase):
+    def test_server_modules_import_cleanly_and_the_dead_body_reader_is_gone(self):
+        import importlib
+        for name in ("server.http", "server.app", "server.account_data", "server.scoring_http", "server.scoring_service"):
+            with self.subTest(module=name):
+                self.assertIsNotNone(importlib.import_module(name))
+        server_http = importlib.import_module("server.http")
+        self.assertFalse(hasattr(server_http, "read_body"))          # the unused reader is removed
+        self.assertFalse(hasattr(server_http, "BodyLimitExceeded"))
+
+
 class RedirectAllowlistTests(unittest.TestCase):
     def redirect(self, url, *, hosts=frozenset({"pay.example"}), app_env=AppEnv.TEST):
         from server.app import _allowlisted_redirect
@@ -169,6 +180,58 @@ class ProviderTests(HttpTestCase):
         payload = json_body(call(fx.app, "GET", "/auth/providers"))
         self.assertEqual(payload, {"providers": [{"id": "email", "kind": "email"}, {"id": "google", "kind": "oauth"}]})
         self.assertEqual(json_body(call(self.make().app, "GET", "/auth/providers")), {"providers": []})
+
+    def test_provider_start_requires_an_exact_login_contract(self):
+        class Recording:
+            def __init__(self):
+                self.calls = []
+
+            def start(self, **kwargs):
+                self.calls.append(kwargs)
+                return {"authorize_url": "https://accounts.example/authorize"}
+
+        adapter = Recording()
+        fx = self.make(providers={"google": adapter})
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        csrf = json_body((status, headers, body))["csrf_token"]
+        cookie = headers["set-cookie"].split(";", 1)[0]
+
+        def start(payload):
+            raw = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+            return call(fx.app, "POST", "/auth/google/start",
+                        headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf}, body=raw)
+
+        base = {"intent": "login", "return_to": "/me"}
+        self.assertEqual(start(base)[0], 200)
+        self.assertEqual(len(adapter.calls), 1)
+        self.assertEqual((adapter.calls[0]["intent"], adapter.calls[0]["return_to"]), ("login", "/me"))
+        bad = [
+            {}, {"intent": "login"}, {"return_to": "/me"}, {**base, "extra": 1},
+            {"intent": "link", "return_to": "/me"}, {"intent": "signup", "return_to": "/me"}, {"intent": "", "return_to": "/me"},
+            {"intent": ["login"], "return_to": "/me"}, {"intent": True, "return_to": "/me"},
+            {"intent": None, "return_to": "/me"}, {"intent": "login", "return_to": "https://evil.example"},
+            {"intent": "login", "return_to": "//evil.example"}, {"intent": "login", "return_to": "/a\u200bb"},
+            [], None, True, "login", b"{",
+        ]
+        for payload in bad:
+            with self.subTest(payload=payload):
+                self.assertEqual(start(payload)[0], 400)
+        self.assertEqual(len(adapter.calls), 1)       # nothing but the one valid request reached the adapter
+
+    def test_provider_start_guards_precede_the_adapter(self):
+        class Recording:
+            calls = []
+
+            def start(self, **kwargs):
+                Recording.calls.append(kwargs)
+                return {"authorize_url": "https://accounts.example/authorize"}
+
+        fx = self.make(providers={"google": Recording()})
+        for headers in ({"origin": "http://testserver"}, {"cookie": "x", "x-csrf-token": "y"}):
+            with self.subTest(headers=headers):
+                self.assertEqual(call(fx.app, "POST", "/auth/google/start", headers=headers,
+                                      body=b'{"intent":"login","return_to":"/me"}')[0], 403)
+        self.assertEqual(Recording.calls, [])
 
     def test_disabled_provider_is_unavailable(self):
         fx = self.make()
@@ -325,6 +388,43 @@ class EmailStartTests(HttpTestCase):
             headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
             body=json.dumps({"email": email, "return_to": return_to, "intent": "login"}).encode())
         return status, response_headers, response_body, cookie
+
+    def test_a_swallowed_adapter_failure_logs_only_fixed_fields_and_stays_202(self):
+        import logging
+        sentinel = "SENTINEL-SECRET-9f3a"
+
+        class Boom(self.FakeEmail):
+            def start(self, **kwargs):
+                raise RuntimeError(f"adapter failed token={sentinel} for {kwargs.get('email')}")
+
+        fx = self.make(providers={"email": Boom()})
+        status, headers, body = call(fx.app, "GET", "/auth/csrf")
+        csrf = json_body((status, headers, body))["csrf_token"]
+        cookie = headers["set-cookie"].split(";", 1)[0]
+        logger = logging.getLogger("follow.server")
+        records = []
+        handler = logging.Handler()
+        handler.emit = records.append
+        logger.addHandler(handler)
+        self.addCleanup(logger.removeHandler, handler)
+        previous, logger.propagate = logger.propagate, False
+        self.addCleanup(setattr, logger, "propagate", previous)
+        status, response_headers, raw = call(
+            fx.app, "POST", "/auth/email/start",
+            headers={"origin": "http://testserver", "cookie": cookie, "x-csrf-token": csrf},
+            body=json.dumps({"email": "known@example.test", "return_to": "/account", "intent": "login"}).encode())
+        self.assertEqual((status, json_body((status, response_headers, raw))), (202, {"ok": True}))
+        self.assertEqual(len(records), 1)
+        record = records[0]
+        self.assertEqual((record.event, record.code), ("provider_start_failed", "provider_error"))
+        self.assertEqual(record.request_id, response_headers["x-request-id"])
+        standard = set(logging.makeLogRecord({}).__dict__)             # the exact extra-field set: no extra key may slip in
+        self.assertEqual(set(record.__dict__) - standard, {"event", "code", "request_id"})
+        self.assertEqual(record.getMessage(), "provider start failed")
+        text = record.getMessage() + " " + json.dumps(record.__dict__, default=str)
+        self.assertNotIn(sentinel, text)
+        self.assertNotIn("known@example.test", text)
+        self.assertNotIn("token=", text)
 
     def test_known_and_unknown_addresses_receive_identical_202_and_outbox(self):
         known = self.start("known@EXAMPLE.TEST")

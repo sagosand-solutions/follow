@@ -628,10 +628,10 @@ class ScoringService:
 
     def delete_user_data(self, user_id: str) -> None:
         """Account deletion: remove every scoring row of the account and of anonymous sources claimed into it.
-        No tombstone and no re-registration guard remain (decision 2026-10-18 16:56). Call inside the delete txn."""
-        principal = self.repo.principal_for_user(user_id)
-        if principal is not None:
-            self.repo.purge_principals(self.repo.sources_claimed_to(principal.id) + [principal.id])
+        No tombstone and no re-registration guard remain. Call inside the delete txn.
+        Thin delegate: the ONE implementation lives in ``ScoringRepository.purge_user``.
+        """
+        self.repo.purge_user(user_id)
 
     # ---- account data -------------------------------------------------
     def export(self, user_id: str) -> dict:

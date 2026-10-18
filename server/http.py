@@ -12,7 +12,7 @@ import secrets
 import unicodedata
 from urllib.parse import urlsplit
 
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 # Stable machine error codes (generic messages; never tokens, SQL or paths).
 ERROR_STATUS = {
@@ -41,10 +41,6 @@ COOKIE_PREAUTH = "preauth"
 COOKIE_SCORING_ANON = "scoring_anon"
 
 
-class BodyLimitExceeded(Exception):
-    """The request body exceeded the configured limit."""
-
-
 def new_request_id() -> str:
     return secrets.token_urlsafe(12)
 
@@ -62,29 +58,8 @@ def json_response(payload, *, status_code: int = 200, request_id: str | None = N
     return JSONResponse(payload, status_code=status_code, headers=headers)
 
 
-def text_response(body: str, *, media_type: str = "text/plain; charset=utf-8", status_code: int = 200) -> "Response":
-    from starlette.responses import Response
+def text_response(body: str, *, media_type: str = "text/plain; charset=utf-8", status_code: int = 200) -> Response:
     return Response(body, media_type=media_type, status_code=status_code, headers={"Cache-Control": NO_STORE})
-
-
-async def read_body(receive, limit: int) -> bytes:
-    """Read the raw body, enforcing the limit before any parsing."""
-    chunks: list[bytes] = []
-    total = 0
-    while True:
-        message = await receive()
-        if message["type"] == "http.disconnect":
-            raise BodyLimitExceeded("client disconnected")
-        if message["type"] != "http.request":
-            continue
-        chunk = message.get("body", b"")
-        total += len(chunk)
-        if total > limit:
-            raise BodyLimitExceeded("body too large")
-        chunks.append(chunk)
-        if not message.get("more_body", False):
-            break
-    return b"".join(chunks)
 
 
 def parse_json(raw: bytes):
