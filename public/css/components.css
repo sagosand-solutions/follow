@@ -554,3 +554,44 @@
   .score-history li { grid-template-columns: 1fr; gap: 0; }
 }
 @media (forced-colors: active) { .score-card, .seg, .tag, .test-strip { border: 1px solid CanvasText; } .board__me td { outline: 2px solid CanvasText; outline-offset: -2px; } .seg__option:has(.seg__input:checked) { outline: 2px solid Highlight; } }
+
+/* Answer moment: a check that draws itself, a disc that fills to half, a one-time glow on the right option.
+   Each animation runs from an empty start to the final state, so with motion off the final icon shows. */
+.moment-icon { flex: none; width: 2rem; height: 2rem; }
+.moment-icon__ring { fill: none; stroke: currentColor; stroke-width: 2; }
+.moment-icon__tick { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.moment-icon__pie { fill: none; stroke: currentColor; stroke-width: 11; stroke-dasharray: 0.5 1; }
+.moment-icon.is-fresh .moment-icon__ring { animation: moment-ring 240ms var(--ease) both; }
+.moment-icon.is-fresh .moment-icon__tick { animation: moment-draw 400ms var(--ease) 160ms both; }
+.moment-icon.is-fresh .moment-icon__pie { animation: moment-pie 480ms var(--ease) 160ms both; }
+@keyframes moment-ring { from { opacity: 0; transform: scale(0.8); transform-origin: center; } }
+@keyframes moment-draw { from { stroke-dashoffset: 1; } }
+@keyframes moment-pie { from { stroke-dasharray: 0 1; } }
+.option.is-glow { animation: moment-glow 900ms var(--ease) 1; }
+@keyframes moment-glow { 0% { background: var(--attention-wash); outline: 3px solid var(--accent-line); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
+
+/* After the answer: verdict, the way on, then why; the rest folded under "Read more". */
+.why, .read-more { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.why > summary, .read-more > summary { min-height: var(--tap); display: flex; align-items: center; padding: var(--s-3) var(--s-4); cursor: pointer; font-weight: 700; }
+.why > summary:focus-visible, .read-more > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+.why__body, .read-more__body { display: grid; gap: var(--s-3); padding: 0 var(--s-4) var(--s-4); }
+.why__body .fb__heading, .read-more__body .fb__heading { font-size: var(--text-base); }
+@media (forced-colors: active) { .why, .read-more { border: 1px solid CanvasText; } .option.is-glow { animation: none; } }
+
+/* Course path on the home page: steps 1 and 2 are coming soon, step 3 is the first real course. */
+.path__heading { font-size: var(--text-lg); margin-block-start: var(--s-2); }
+.path { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-3); }
+.path__step { display: grid; grid-template-columns: 2.25rem 1fr; gap: var(--s-3); align-items: start; }
+.path__n { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 999px; border: 2px solid var(--line-strong); font-weight: 800; color: var(--ink); background: var(--bg); }
+.path__step:not(.path__step--soon) .path__n { background: var(--accent-attention); border-color: var(--accent-attention); color: var(--on-accent-attention); }
+.path__body { min-width: 0; display: grid; gap: var(--s-1); align-content: start; }
+.path__step--soon .path__body { padding: var(--s-3) var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+.path__title { font-weight: 800; }
+.path__soon { font-weight: 700; color: var(--muted); }
+.path__card { padding: var(--s-4); }
+@media (min-width: 60rem) {
+  .path { grid-template-columns: 1fr 1fr 1.4fr; align-items: stretch; }
+  .path__step { grid-template-columns: 1fr; }
+  .path__step--soon .path__body, .path__card { height: 100%; }
+}
+@media (forced-colors: active) { .path__n { border: 2px solid CanvasText; } .path__step--soon .path__body { border: 1px dashed CanvasText; } }

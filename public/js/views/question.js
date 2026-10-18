@@ -1,4 +1,4 @@
-import { h, icon } from '../dom.js';
+import { h, icon, momentIcon } from '../dom.js';
 import { t } from '../i18n.js';
 import { renderText, renderInline } from '../text.js';
 import { seededShuffle, questionSeed } from '../shuffle.js';
@@ -186,6 +186,11 @@ function draw(ctx, prev, stale = false) {
     letters.set(o.id, LETTERS[i]);
     group.append(mkOption(o.id, LETTERS[i], renderInline(o.text)));
   });
+  // Fully right: the chosen option glows once in the highlighter colour.
+  if (ctx.fresh && prev && prev.outcome === 'answered' && prev.score === 1) {
+    const chosenRow = group.querySelector(`[data-option="${chosenId}"]`);
+    if (chosenRow) chosenRow.classList.add('is-glow');
+  }
   group.append(h('hr', { class: 'options__divider' }));
   // Scoring (behind CONFIG.scoringUi): the first try counts, so the cost of each choice is said before it is made.
   const firstTry = !!ctx.scoring && !ctx.reviewMode && !store.latest(q.id);
@@ -220,13 +225,16 @@ function draw(ctx, prev, stale = false) {
     ctx.fit = changedToFit(before, record);
     // Submitting does not change the hash, so tell the header to refresh now.
     document.dispatchEvent(new Event('progresschange'));
+    // The answer moment animates only right after answering, never when an answered question is opened again.
+    ctx.fresh = true;
     draw(ctx, record);
+    ctx.fresh = false;
     const heading = root.querySelector('.verdict__title');
     if (heading) {
       heading.focus({ preventScroll: true });
       // Bring the verdict into view (instant when the reader prefers reduced motion).
       const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      heading.scrollIntoView({ block: 'start', behavior: calm ? 'auto' : 'smooth' });
+      showAnswer(root, heading, calm ? 'auto' : 'smooth');
     }
   };
   check.addEventListener('click', () => {
@@ -296,7 +304,23 @@ async function mountStepper(q, box, figures) {
   // The player sits above the verdict on a phone, so it pushes the verdict down: if the verdict still has focus,
   // put it back in view (instantly, the reader has not moved).
   const verdict = box.ownerDocument.activeElement;
-  if (verdict && verdict.classList && verdict.classList.contains('verdict__title')) verdict.scrollIntoView({ block: 'start', behavior: 'auto' });
+  if (verdict && verdict.classList && verdict.classList.contains('verdict__title')) showAnswer(box.closest('.question') || box.ownerDocument, verdict, 'auto');
+}
+
+// After answering: "Next question" sits near the bottom of the screen, so the verdict and as much of the options as
+// fits stay in view above it. If verdict and button do not fit together, the verdict comes first.
+function showAnswer(root, heading, behavior) {
+  const next = root.querySelector('[data-action="next"]');
+  const top = heading.getBoundingClientRect().top + window.scrollY;
+  if (!next) {
+    heading.scrollIntoView({ block: 'start', behavior });
+    return;
+  }
+  const bottom = next.getBoundingClientRect().bottom + window.scrollY;
+  const margin = 24;
+  const headerRoom = 16;
+  const y = Math.min(top - headerRoom, Math.max(0, bottom + margin - window.innerHeight));
+  window.scrollTo({ top: Math.max(0, y), behavior });
 }
 
 function progressBar(ids, currentId) {
@@ -387,18 +411,26 @@ function renderFeedback(ctx, container, prev, letters) {
   const correct = q.options.find((o) => o.score === 1);
   const frag = [];
 
+  // 1. The verdict, kept short: what you chose and the named misconception. The reasons come after the way on.
   if (unknown) {
-    frag.push(
-      h('section', { class: 'verdict verdict--unsure' }, verdictHeading('unsure', t('verdict.unsure'), t('points.none')), h('p', {}, t('q.noticeUnsure'))),
-    );
+    frag.push(h('section', { class: 'verdict verdict--unsure' }, verdictHeading('unsure', t('verdict.unsure'), t('points.none')), h('p', {}, t('q.noticeUnsure'))));
   } else {
-    const { v, parts } = optionBlock(ctx, chosen, letters.get(chosen.id), true);
-    frag.push(h('section', { class: `verdict verdict--${v.kind}` }, verdictHeading(v.icon, v.word, v.points), ...parts));
+    const v = verdictOf(chosen.score);
+    const chip = chosen.score !== 1 && chosen.misconception ? h('p', { class: 'chips' }, h('span', { class: 'chip chip--misc' }, t('q.misconception', { title: misconceptionTitle(ctx, chosen.misconception) }))) : null;
+    frag.push(
+      h(
+        'section',
+        { class: `verdict verdict--${v.kind}` },
+        verdictHeading(v.icon, v.word, v.points, ctx.fresh),
+        h('p', { class: 'fb__answer' }, h('span', { class: 'fb__letter' }, t('q.letter', { letter: letters.get(chosen.id) })), ' ', h('span', {}, renderInline(chosen.text))),
+        chip,
+      ),
+    );
   }
-
   // Scoring: the first try's points in neutral ink next to the verdict; any later try is practice.
   if (ctx.scoring) frag.push(h('p', { class: 'score-delta small' }, prev.attempt === 1 ? t('score.delta', { delta: ctx.scoring.formatDelta(ctx.scoring.pointsFor(prev, ctx.scoring.RULES)) }) : t('score.line.practice')));
-  // The way on sits right under the verdict, not after all the explanations.
+
+  // 2. The way on sits right under the verdict, before any explanation.
   frag.push(navActions(ctx));
   // A quiet moment when a not-sure or wrong answer now fits (only after an earlier answer, never on a first answer).
   if (ctx.fit && !unknown && chosen && chosen.score === 1) {
@@ -407,43 +439,45 @@ function renderFeedback(ctx, container, prev, letters) {
     frag.push(h('section', { class: 'moment moment--fit' }, h('h2', { class: 'moment__title' }, t('moment.fit.title')), h('p', {}, body)));
   }
 
-  if (unknown || chosen.id !== correct.id) {
-    const { parts } = optionBlock(ctx, correct, letters.get(correct.id), true);
-    frag.push(h('section', { class: 'verdict verdict--correct verdict--quiet' }, h('h2', { class: 'fb__heading' }, t('q.correctAnswer')), ...parts));
+  // 3. Why: open after a miss (that is the lesson), one click away after a right answer.
+  const why = [];
+  if (chosen) {
+    why.push(h('div', { class: 'prose' }, renderText(chosen.feedback)));
+    if (chosen.score === 0.5 && chosen.partial_reason) why.push(h('div', { class: 'partial' }, h('p', { class: 'partial__label' }, t('q.partialReason')), h('div', { class: 'prose' }, renderText(chosen.partial_reason))));
   }
+  if (unknown || chosen.id !== correct.id) {
+    why.push(h('h3', { class: 'fb__heading' }, t('q.correctAnswer')), h('p', { class: 'fb__answer' }, h('span', { class: 'fb__letter' }, t('q.letter', { letter: letters.get(correct.id) })), ' ', h('span', {}, renderInline(correct.text))), h('div', { class: 'prose' }, renderText(correct.feedback)));
+  }
+  const missed = unknown || chosen.score !== 1;
+  const whyBox = h('details', { class: 'why' }, h('summary', {}, missed ? t('q.why.missed') : t('q.why.right')), h('div', { class: 'why__body' }, ...why));
+  whyBox.open = missed;
+  frag.push(whyBox);
 
+  // 4. Read more: the other answers and what the code does, folded.
+  const more = [];
   const others = q.options.filter((o) => o.id !== correct.id && (!chosen || o.id !== chosen.id));
   if (others.length) {
     const list = h('div', { class: 'others__list' });
-    const details = others.map((o) => {
+    for (const o of others) {
       const { v, parts } = optionBlock(ctx, o, letters.get(o.id), false);
-      const d = h(
-        'details',
-        { class: `other other--${v.kind}` },
-        h('summary', {}, h('span', { class: 'fb__letter' }, t('q.letter', { letter: letters.get(o.id) })), ' ', h('span', { class: 'other__text' }, renderInline(o.text)), ' ', h('span', { class: 'other__verdict' }, icon(v.icon), v.word)),
-        h('div', { class: 'other__body' }, ...parts),
+      list.append(
+        h(
+          'details',
+          { class: `other other--${v.kind}` },
+          h('summary', {}, h('span', { class: 'fb__letter' }, t('q.letter', { letter: letters.get(o.id) })), ' ', h('span', { class: 'other__text' }, renderInline(o.text)), ' ', h('span', { class: 'other__verdict' }, icon(v.icon), v.word)),
+          h('div', { class: 'other__body' }, ...parts),
+        ),
       );
-      list.append(d);
-      return d;
-    });
-    const toggle = h('button', { type: 'button', class: 'button button--secondary button--small' }, t('q.showAll'));
-    toggle.addEventListener('click', () => {
-      const open = details.some((d) => !d.open);
-      details.forEach((d) => {
-        d.open = open;
-      });
-      toggle.textContent = open ? t('q.hideAll') : t('q.showAll');
-    });
-    frag.push(h('section', { class: 'others' }, h('h2', { class: 'fb__heading' }, t('q.otherAnswers')), toggle, list));
+    }
+    more.push(h('section', { class: 'others' }, h('h3', { class: 'fb__heading' }, t('q.otherAnswers')), list));
   }
-
-  if (q.explanation) {
-    frag.push(h('section', { class: 'explanation' }, h('h2', { class: 'fb__heading' }, t('q.explanation')), h('div', { class: 'prose' }, renderText(q.explanation))));
-  }
+  if (q.explanation) more.push(h('section', { class: 'explanation' }, h('h3', { class: 'fb__heading' }, t('q.explanation')), h('div', { class: 'prose' }, renderText(q.explanation))));
+  if (more.length) frag.push(h('details', { class: 'read-more' }, h('summary', {}, t('q.readMore')), h('div', { class: 'read-more__body' }, ...more)));
   container.replaceChildren(...frag);
 }
 
 // With the scoring UI on, the first-try points line under the verdict is the only number, so the heading drops its own.
-function verdictHeading(iconName, word, points) {
-  return h('h2', { class: 'verdict__title', tabindex: '-1' }, icon(iconName), h('span', {}, word), CONFIG.scoringUi ? null : h('span', { class: 'verdict__points' }, ` · ${points}`));
+function verdictHeading(iconName, word, points, fresh = false) {
+  const mark = iconName === 'correct' || iconName === 'partial' ? momentIcon(iconName, fresh) : icon(iconName);
+  return h('h2', { class: 'verdict__title', tabindex: '-1' }, mark, h('span', {}, word), CONFIG.scoringUi ? null : h('span', { class: 'verdict__points' }, ` · ${points}`));
 }

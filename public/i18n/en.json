@@ -122,8 +122,6 @@
   "q.feedback": "Feedback",
   "q.correctAnswer": "The correct answer",
   "q.otherAnswers": "The other answers",
-  "q.showAll": "Show all explanations",
-  "q.hideAll": "Hide other explanations",
   "q.explanation": "What the code actually does",
   "q.misconception": "Misconception: {title}",
   "q.partialReason": "Why this is only partly right",
@@ -448,5 +446,16 @@
   "result.invite.account": "Create an account",
   "result.invite.how": "How the lists work",
   "profile.week.range": "Weeks of {from} to {to}",
-  "board.local": "Your {points} points from this browser are not on any list: lists only use first tries graded on the server."
+  "board.local": "Your {points} points from this browser are not on any list: lists only use first tries graded on the server.",
+  "q.why.missed": "Why, and the correct answer",
+  "q.why.right": "Why it is right",
+  "q.readMore": "Read more: the other answers and what the code does",
+  "path.heading": "Start here if you are new",
+  "path.deeper": "Go deeper",
+  "path.step": "Step {n}:",
+  "path.soon": "Coming soon",
+  "path.soon.1.title": "Read like a computer",
+  "path.soon.1.text": "Never programmed? Three to six lines at a time, one idea per question, with the step player in the middle.",
+  "path.soon.2.title": "Small programs from everyday life",
+  "path.soon.2.text": "A shopping list, a password check, a guessing game, a budget: short programs you can follow line by line."
 }
