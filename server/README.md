@@ -107,6 +107,30 @@ to the API path (e.g. `/follow/api`); it is `null` by default (fake client).
 Tests: `server/tests/test_dev.py` (production refused, loopback host, mock app
 answers a GET).
 
+## Scoring (023, mock mode, default off)
+
+Server-side grading, first-answer lock and leaderboards per `team`-internal spec
+`scoring-leaderboard-v1.md` v1.1. Everything is behind flags that default to off:
+`SCORING_ENABLED` (master) and `SCORING_ANONYMOUS_ENABLED`, `SCORING_CLAIM_ENABLED`,
+`SCORING_PUBLISH_ENABLED` (each needs the master). `APP_ENV=production` with any of them
+is a `SetupError`; with the flags off every scoring route answers 503 before it touches
+the database, a cookie or a principal. Activation needs `Services.scoring`
+(`ScoringServices(catalogs, question_source)`), a frozen read-only catalog artifact per
+family loaded once at start (`scoring_catalog.load_catalog`); there is no build step and
+no raw-content fallback at request time.
+
+Routes (`/scoring/anonymous`, `/scoring/questions/{id}/issue`, `/scoring/answers`,
+`/scoring/me`, `/scoring/claim`, `/scoring/preferences`, `/leaderboards`): mutations need
+the exact Origin and the CSRF token of the caller's own cookie. The first accepted answer
+per principal and question is written with the consumed issue and the receipt in ONE
+`BEGIN IMMEDIATE` transaction and can never be replaced (UNIQUE key plus triggers). Points
+are exact fractions: +4/+2/0/-1 units, course = 250 x units / N_c, total = mean over all K
+catalog courses. A solution is returned only after commit and only when every question the
+exposure map ties to that material is locked; the old `/content/{kind}/{id}` route uses the
+same gate, and material with no reviewed exposure row is blocked, not assumed harmless.
+Premium is access control, not DRM: shared answers, own code runs and several accounts
+cannot be prevented, and the free list is explicitly not cheat-resistant.
+
 ## Test gates
 
 ```sh

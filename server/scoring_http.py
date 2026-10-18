@@ -10,6 +10,7 @@ need an exact Origin and the CSRF token that matches the caller's own cookie
 from __future__ import annotations
 
 import re
+import sqlite3
 from dataclasses import dataclass
 from typing import Callable
 
@@ -17,9 +18,9 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from . import http
-from .models import ServerError, StorageError
+from .models import StorageError
 from .scoring_limits import RollingLimiter
-from .scoring_service import (Actor, HISTORY_MAX, LIST_MAX, ScoringError, ScoringService, _ISSUE_RE, _KEY_RE, _OPT_RE)
+from .scoring_service import (Actor, LIST_MAX, ScoringError, ScoringService, _ISSUE_RE, _KEY_RE, _OPT_RE)
 
 _QUESTION_ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,79}\Z")
 WINDOWS = ("all", "week")
@@ -116,7 +117,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 raw, csrf, expires_at = service.create_anonymous(anon_cookie(request))
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
-            except StorageError:
+            except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
         response = http.json_response({"principal": "anonymous", "csrf_token": csrf, "expires_at": expires_at},
                                       request_id=hooks.request_id(request))
@@ -145,7 +146,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 result = service.issue(actor, question_id)
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
-            except StorageError:
+            except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
             return http.json_response(result, request_id=hooks.request_id(request))
 
@@ -174,7 +175,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 result = service.answer(actor, body)
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
-            except StorageError:
+            except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
             return http.json_response(result, request_id=hooks.request_id(request))
 
@@ -194,6 +195,8 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 return http.json_response(service.me(actor, family, window), request_id=hooks.request_id(request))
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
+            except (StorageError, sqlite3.Error):
+                return http.error_response("unavailable", hooks.request_id(request))
 
     async def claim(request):
         if (blocked := disabled(request, needs="claim")) is not None:
@@ -216,7 +219,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 result = service.claim(actor.user_id, source.anon_hash)
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
-            except StorageError:
+            except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
         response = http.json_response(result, request_id=hooks.request_id(request))
         http.clear_scoring_anon_cookie(response, settings)
@@ -241,7 +244,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 result = service.set_preference(actor, body["family"], body["opt_in"], body.get("nickname"), "nickname" in body)
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
-            except StorageError:
+            except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
             return http.json_response(result, request_id=hooks.request_id(request))
 
@@ -264,6 +267,8 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                                              params.get("window", "all"), int(limit_text), params.get("cursor"))
             except ScoringError as exc:
                 return _error(exc, hooks.request_id(request))
+            except (StorageError, sqlite3.Error):
+                return http.error_response("unavailable", hooks.request_id(request))
         payload = http.json_response(result, request_id=hooks.request_id(request))
         if len(payload.body) > 16 * 1024:
             return http.error_response("unavailable", hooks.request_id(request))

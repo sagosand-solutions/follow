@@ -9,7 +9,6 @@ network, provider or payment adapter.
 """
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
@@ -22,7 +21,7 @@ from fractions import Fraction
 
 from .auth import AuthSecurity
 from .content_access import has_entitlement
-from .models import ContentError, ServerError, StorageError, UserStatus
+from .models import ContentError, ServerError, UserStatus
 from .scoring_catalog import FAMILIES, RULES_VERSION, SCORE_UNITS
 from .scoring_repo import Attempt, Issue, Preference, ScoringRepository, new_id
 

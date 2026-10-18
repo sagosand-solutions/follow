@@ -116,7 +116,8 @@ def build_scoring_fixture(*, official=((("py", 10)), ("prod", 4), ("sql", 4)), f
     db_path = str(root / "accounts.db")
     clock = [1_700_000_000.0]
     environ = {"APP_ENV": "test", "PUBLIC_ORIGIN": ORIGIN, "DB_PATH": db_path, "CSRF_SECRET_KEY": "a1" * 32,
-               "SESSION_SECRET_KEY": "b2" * 32, **(SCORING_ENV if env is None else env)}
+               "SESSION_SECRET_KEY": "b2" * 32, "SESSION_IDLE_SECONDS": "100000000",
+               "SESSION_ABSOLUTE_SECONDS": "100000000", **(SCORING_ENV if env is None else env)}
     settings = load_config(environ)
     db = Database(db_path, clock=lambda: clock[0])
     db.migrate()
@@ -142,6 +143,10 @@ def build_scoring_fixture(*, official=((("py", 10)), ("prod", 4), ("sql", 4)), f
             exposures.append({"kind": "question", "id": qid, "content_sha256": digest, "affected_question_ids": [qid]})
             official_ids.append(qid)
         official_courses.append({"course_id": course, "N_c": count, "questions": items})
+    # py-q02's feedback also touches py-q03: its solution is withheld until both are locked.
+    for row in exposures:
+        if row["id"] == "py-q02":
+            row["affected_question_ids"] = ["py-q02", "py-q03"]
     # A study page that reveals the answers of the first two pool questions of the first course.
     study = b'{"study":"reveals two answers"}'
     (content_root / "study-a.txt").write_bytes(study)
