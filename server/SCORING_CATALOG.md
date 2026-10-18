@@ -11,8 +11,12 @@ runtime/HTTP code.
 
 Each selected question is validated against the official question JSON Schema
 (`schema/question.schema.json`) plus the static score rule before anything is
-written; this needs the `jsonschema` library, and the tool fails closed (a build
-error) if it is unavailable.
+written. This needs the `jsonschema` library, which is pinned in
+`validator/requirements.txt`; install the builder environment with
+`python -m pip install -r validator/requirements.txt` (the offline builder
+dependency is deliberately not added to the runtime `server/requirements.txt`).
+The tool fails closed — a build error, exit `2`, never a silent skip — if the
+library or the schema is missing or unreadable.
 
 ## Inputs
 

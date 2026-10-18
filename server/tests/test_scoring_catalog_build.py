@@ -9,9 +9,11 @@ import contextlib
 import hashlib
 import io
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from server import scoring_catalog_build as builder
 from server.scoring_catalog_build import CatalogBuildError
@@ -479,6 +481,17 @@ class RejectionTest(BuilderFixture):
         self.assertNotIn("What does this print", message)
         self.assertNotIn(str(self.content), message)
         self.assertNotIn("answer 0", message)
+
+
+class FailClosedTest(unittest.TestCase):
+    def test_missing_jsonschema_is_a_build_error(self):
+        with mock.patch.dict(sys.modules, {"jsonschema": None}):
+            with self.assertRaises(CatalogBuildError):
+                builder._load_question_validator()
+
+    def test_unreadable_schema_is_a_build_error(self):
+        with self.assertRaises(CatalogBuildError):
+            builder._load_question_validator(Path("does-not-exist/question.schema.json"))
 
 
 class CheckAndWriteTest(BuilderFixture):
