@@ -209,6 +209,8 @@ def create_app(settings, services: Services) -> Starlette:
                 if official is None:
                     raise ContentError("no official scoring snapshot")
                 verify_binding(official, services.catalog)
+                from .scoring_service import verify_pool
+                verify_pool(services.scoring)
             except ContentError as exc:
                 raise SetupError(f"scoring snapshot is not bound to the content manifest: {exc}") from None
     email_limiter = EmailStartLimiter(settings.session_secret, clock=services.clock,

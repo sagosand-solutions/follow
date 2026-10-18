@@ -594,6 +594,192 @@ class RetentionAndScopeTests(Base):
                                     "SCORING_ENABLED": "true"}), Services(open_database=lambda: Database(self.fx.path)))
 
 
+class ProfileGateTests(Base):
+    """Only standard-profile questions may be scored; the four-option practice profile never is."""
+
+    @staticmethod
+    def question(version="0.1", profile=None, options=5, qid="prac-q1"):
+        q = make_question(qid, n_options=options)
+        q["schema_version"] = version
+        if profile is not None:
+            q["answer_profile"] = profile
+        return q
+
+    def question_with_scores(self, scores):
+        q = self.question("0.2", "standard", len(scores))
+        for option, score in zip(q["options"], scores):
+            option["score"] = score
+        return q
+
+    def question_with_ids(self, ids):
+        q = self.question("0.2", "standard", len(ids))
+        for option, option_id in zip(q["options"], ids):
+            option["id"] = option_id
+        return q
+
+    def question_with_options_replaced(self, index, value):
+        q = self.question("0.2", "standard", 5)
+        q["options"][index] = value
+        return q
+
+    def test_eligibility_matrix(self):
+        from server.scoring_service import check_scoring_profile
+        ok = [self.question(), self.question(options=8), self.question("0.2", "standard"), self.question("0.2", "standard", 6)]
+        for q in ok:
+            check_scoring_profile(q)
+        bad = {
+            "beginner_practice_four": self.question("0.2", "beginner-practice", 4),
+            "beginner_practice_five": self.question("0.2", "beginner-practice", 5),
+            "profile_on_legacy": self.question("0.1", "standard"),
+            "legacy_beginner": self.question("0.1", "beginner-practice", 4),
+            "missing_profile_on_02": self.question("0.2"),
+            "unknown_profile": self.question("0.2", "advanced"),
+            "unknown_version": self.question("0.3", "standard"),
+            "four_options_standard": self.question("0.2", "standard", 4),
+            "nine_options": self.question("0.2", "standard", 9),
+            "three_options": self.question("0.1", None, 3),
+            "profile_is_not_a_string": self.question("0.2", ["standard"]),
+            "lying_standard_with_two_full": self.question_with_scores([1, 1, 0.5, 0, 0]),
+            "no_half": self.question_with_scores([1, 0, 0, 0, 0]),
+            "too_few_zero": self.question_with_scores([1, 0.5, 0, 0, 0.5]),
+            "boolean_score": self.question_with_scores([True, 0.5, 0, 0, 0]),
+            "duplicate_option_id": self.question_with_ids(["a", "a", "b", "c", "d"]),
+            "extra_score_in_six": self.question_with_scores([1, 0.5, 0, 0, 0, 0.25]),
+            "extra_negative_in_seven": self.question_with_scores([1, 0.5, 0, 0, 0, 0, -1]),
+            "extra_nan_in_eight": self.question_with_scores([1, 0.5, 0, 0, 0, 0, 0, float("nan")]),
+            "extra_two_in_six": self.question_with_scores([1, 0.5, 0, 0, 0, 2]),
+            "string_score": self.question_with_scores([1, 0.5, 0, 0, "0"]),
+            "id_is_a_list": self.question_with_ids(["a", [], "b", "c", "d"]),
+            "id_is_a_dict": self.question_with_ids(["a", {}, "b", "c", "d"]),
+            "empty_id": self.question_with_ids(["a", "", "b", "c", "d"]),
+            "option_is_not_an_object": self.question_with_options_replaced(2, "x"),
+            "missing_id": self.question_with_options_replaced(1, {"text": "t", "score": 0}),
+            "not_an_object": [],
+        }
+        for name, q in bad.items():
+            with self.subTest(name), self.assertRaises(ContentError):
+                check_scoring_profile(q)
+
+    def hand_built(self, question):
+        import hashlib
+        from server.scoring_service import ManifestQuestionSource, ScoringServices
+        raw = json.dumps(question, sort_keys=True).encode()
+        digest = hashlib.sha256(raw).hexdigest()
+        qid = question["id"]
+        catalog = parse_catalog({"schema_version": 1, "catalog_version": "hand", "rules_version": "r2", "family": "free",
+                                 "courses": [{"course_id": "practice", "N_c": 1, "questions": [
+                                     {"question_id": qid, "product_id": None, "content_sha256": digest}]}],
+                                 "exposures": [{"kind": "question", "id": qid, "content_sha256": digest, "affected_question_ids": [qid]}]},
+                                expected_family="free")
+        return ScoringServices({"free": catalog}, ManifestQuestionSource(None, {qid: raw}))
+
+    def test_hand_built_artifact_with_a_practice_question_is_refused_at_start_up(self):
+        from server.scoring_service import verify_pool
+        verify_pool(self.hand_built(self.question("0.2", "standard")))  # a standard one passes
+        with self.assertRaises(ContentError):
+            verify_pool(self.hand_built(self.question("0.2", "beginner-practice", 4)))
+
+    def test_runtime_refuses_issue_for_a_practice_question_even_if_start_up_was_bypassed(self):
+        from server.repositories import Repositories
+        from server.scoring_service import Actor, ScoringError, ScoringService
+        scoring = self.hand_built(self.question("0.2", "beginner-practice", 4))
+        db = self.fx.db()
+        try:
+            service = ScoringService(Repositories(db), self.fx.settings, scoring, clock=lambda: self.fx.clock[0])
+            with self.assertRaises(ScoringError) as caught:
+                service.issue(Actor(user_id="u1"), "prac-q1")
+            self.assertEqual(caught.exception.code, "unavailable")
+            self.assertEqual(db.connect().execute("SELECT COUNT(*) FROM question_issues").fetchone()[0], 0)
+            self.assertEqual(db.connect().execute("SELECT COUNT(*) FROM first_attempts").fetchone()[0], 0)
+        finally:
+            db.close()
+
+    def stub_services(self, family):
+        """A hand-built pool whose single question can be flipped between eligible and ineligible at run time."""
+        import hashlib
+        from server.scoring_service import ScoringServices
+
+        class Flip:
+            def __init__(self, good, bad):
+                self.good, self.bad, self.valid = good, bad, True
+
+            def read(self, fam, qid, sha):
+                return self.good if self.valid else self.bad
+
+        qid = f"prac-{family}"
+        source = Flip(self.question("0.2", "standard", 5, qid), self.question("0.2", "beginner-practice", 4, qid))
+        digest = hashlib.sha256(b"x").hexdigest()
+        product = "python-lifetime" if family == "official" else None
+        catalog = parse_catalog({"schema_version": 1, "catalog_version": "flip", "rules_version": "r2", "family": family,
+                                 "courses": [{"course_id": "c", "N_c": 1, "questions": [
+                                     {"question_id": qid, "product_id": product, "content_sha256": digest}]}],
+                                 "exposures": [{"kind": "question", "id": qid, "content_sha256": digest, "affected_question_ids": [qid]}]},
+                                expected_family=family)
+        return ScoringServices({family: catalog}, source), source
+
+    def counts(self, db):
+        c = db.connect()
+        return tuple(c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in
+                     ("question_issues", "first_attempts", "submission_receipts")) + (
+            c.execute("SELECT COUNT(*) FROM question_issues WHERE consumed_at IS NOT NULL").fetchone()[0],
+            c.execute("SELECT last_activity FROM scoring_principals WHERE user_id = 'u1'").fetchone()[0])
+
+    def test_answer_and_replay_return_503_without_side_effects_when_the_question_turns_ineligible(self):
+        from server.repositories import Repositories
+        from server.scoring_service import Actor, ScoringError, ScoringService
+        for family in ("free", "official"):
+            with self.subTest(family=family):
+                scoring, source = self.stub_services(family)
+                db = self.fx.db()
+                try:
+                    service = ScoringService(Repositories(db), self.fx.settings, scoring, clock=lambda: self.fx.clock[0])
+                    actor = Actor(user_id="u1")
+                    issued = service.issue(actor, f"prac-{family}")
+                    option = issued["question"]["options"][0]["option_id"]
+                    body = {"issue_id": issued["issue_id"], "outcome": "answer", "option_id": option, "idempotency_key": "k" * 16 + family}
+                    # (a) a NEW answer against an ineligible question: 503, issue stays unconsumed, nothing written
+                    source.valid = False
+                    before = self.counts(db)
+                    self.fx.clock[0] += 5
+                    with self.assertRaises(ScoringError) as caught:
+                        service.answer(actor, body)
+                    self.assertEqual(caught.exception.code, "unavailable")
+                    self.assertEqual(self.counts(db), before)
+                    # (b) the same answer once the question is eligible again succeeds ...
+                    source.valid = True
+                    first = service.answer(actor, body)
+                    self.assertFalse(first["replayed"])
+                    # (c) ... and a later idempotent replay against an ineligible question is a 503 with no side effect,
+                    # not "200 + attempt + no solution".
+                    source.valid = False
+                    before = self.counts(db)
+                    self.fx.clock[0] += 5
+                    with self.assertRaises(ScoringError) as caught:
+                        service.answer(actor, body)
+                    self.assertEqual(caught.exception.code, "unavailable")
+                    self.assertEqual(self.counts(db), before)
+                    # (d) a normal valid replay is untouched
+                    source.valid = True
+                    self.assertTrue(service.answer(actor, body)["replayed"])
+                finally:
+                    db.close()
+
+    def test_malformed_questions_are_content_errors_never_leaked_exceptions(self):
+        from server.scoring_service import check_scoring_profile
+        for data in (None, 5, "q", [], {"schema_version": "0.1", "options": None}, {"schema_version": "0.1", "options": [None] * 5}):
+            with self.subTest(data=repr(data)[:30]), self.assertRaises(ContentError):
+                check_scoring_profile(data)
+
+    def test_app_does_not_start_with_a_practice_question_in_the_pool(self):
+        from server.app import Services, create_app
+        from server.db import Database
+        scoring = self.hand_built(self.question("0.2", "beginner-practice", 4))
+        scoring.catalogs["official"] = self.fx.catalogs["official"]
+        with self.assertRaises(SetupError):
+            create_app(self.fx.settings, Services(open_database=lambda: Database(self.fx.path), catalog=self.fx.content_catalog,
+                                                  scoring=scoring))
+
+
 class GateTests(Base):
     def content(self, kind, cid, user="u1"):
         return call(self.fx.app, "GET", f"/content/{kind}/{cid}", headers=self.fx.headers(user, csrf=False, origin=False))
