@@ -88,6 +88,13 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
             return None, http.error_response("forbidden", hooks.request_id(request))
         return actor, None
 
+    def with_anon_refresh(response, request, actor):
+        """A live anonymous profile keeps its 30-day window: re-set the cookie on owner activity."""
+        raw = anon_cookie(request)
+        if actor is not None and actor.anon_hash is not None and raw and response.status_code == 200:
+            http.set_scoring_anon_cookie(response, raw, settings, max_age=30 * 24 * 3600)
+        return response
+
     def make_service(repositories):
         return ScoringService(repositories, settings, services.scoring, clock=services.clock)
 
@@ -148,7 +155,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 return _error(exc, hooks.request_id(request))
             except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
-            return http.json_response(result, request_id=hooks.request_id(request))
+            return with_anon_refresh(http.json_response(result, request_id=hooks.request_id(request)), request, actor)
 
     async def answers(request):
         if (blocked := disabled(request)) is not None:
@@ -177,7 +184,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 return _error(exc, hooks.request_id(request))
             except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
-            return http.json_response(result, request_id=hooks.request_id(request))
+            return with_anon_refresh(http.json_response(result, request_id=hooks.request_id(request)), request, actor)
 
     async def me(request):
         if (blocked := disabled(request)) is not None:
@@ -247,7 +254,7 @@ def scoring_routes(settings, services, hooks: Hooks) -> list:
                 return _error(exc, hooks.request_id(request))
             except (StorageError, sqlite3.Error):
                 return http.error_response("unavailable", hooks.request_id(request))
-            return http.json_response(result, request_id=hooks.request_id(request))
+            return with_anon_refresh(http.json_response(result, request_id=hooks.request_id(request)), request, actor)
 
     async def leaderboards(request):
         if (blocked := disabled(request, needs="publish")) is not None:

@@ -434,6 +434,113 @@ class RetentionAndScopeTests(Base):
         response = call(self.fx.app, "POST", "/scoring/claim", headers=headers, body=b"{}")
         self.assertEqual((response[0], json_body(response)["error"]["code"]), (409, "claim_conflict"))
 
+    def claim(self, user, anon):
+        headers = self.fx.headers(user)
+        headers["cookie"] += "; " + anon[0]
+        return call(self.fx.app, "POST", "/scoring/claim", headers=headers, body=b"{}")
+
+    def test_claimed_source_is_not_purged_so_no_second_claim_after_31_days(self):
+        first, second = self.fx.anonymous(), self.fx.anonymous()
+        self.anon_answer(first, "py-free-f00", "Right", "a" * 16)
+        self.assertEqual(self.claim("u1", first)[0], 200)
+        self.fx.clock[0] += 31 * 86400
+        db = self.fx.db()
+        try:
+            self.service(db).purge_inactive()
+        finally:
+            db.close()
+        # The consumed source stays as the account's lifetime claim marker; only the unclaimed profile went.
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM scoring_principals WHERE claimed_to IS NOT NULL"), [(1,)])
+        again = self.claim("u1", second)
+        self.assertEqual(again[0], 409)  # second is purged (and u1 already used its claim): never a new claim
+        fresh = self.fx.anonymous()
+        self.assertEqual(json_body(self.claim("u1", fresh))["error"]["code"], "claim_conflict")
+
+    def test_exactly_30_days_idle_is_purgeable_and_29_is_not(self):
+        anon = self.fx.anonymous()
+        self.anon_answer(anon, "py-free-f00", "Right", "a" * 16)
+        db = self.fx.db()
+        try:
+            self.fx.clock[0] += 30 * 86400 - 1
+            self.assertEqual(self.service(db).purge_inactive(), 0)
+            self.fx.clock[0] += 1
+            self.assertEqual(self.service(db).purge_inactive(), 1)
+        finally:
+            db.close()
+
+    def test_purge_is_one_bounded_batch_and_lists_hide_idle_anonymous_profiles(self):
+        anon = self.fx.anonymous()
+        self.anon_answer(anon, "py-free-f00", "Right", "a" * 16)
+        self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "free", "opt_in": True}, anon)[0], 200)
+        board = lambda: json_body(self.fx.get("/leaderboards", user=None, query=b"family=free"))["participants"]
+        self.assertEqual(board(), 1)
+        self.fx.clock[0] += 31 * 86400  # idle, not yet purged by any job: already invisible
+        self.assertEqual(board(), 0)
+        db = self.fx.db()
+        try:
+            for _ in range(3):
+                self.fx.anonymous()  # lazy purge runs one batch per anonymous creation
+            self.assertEqual(self.service(db).purge_inactive(limit=1), 0)  # already purged lazily
+        finally:
+            db.close()
+
+    def test_owner_activity_slides_the_anonymous_window_and_refreshes_the_cookie(self):
+        anon = self.fx.anonymous()
+        self.fx.clock[0] += 20 * 86400
+        response = self.fx.anon_post("/scoring/questions/py-free-f00/issue", {}, anon)
+        self.assertEqual(response[0], 200)
+        self.assertIn("scoring_anon", response[1]["set-cookie"])
+        self.fx.clock[0] += 20 * 86400  # 40 days after creation, 20 after activity: still alive
+        self.assertEqual(self.fx.anon_post("/scoring/questions/py-free-f01/issue", {}, anon)[0], 200)
+
+    def test_replay_after_issue_gc_and_receipt_gc_is_locked_not_404(self):
+        _, issue = self.fx.issue("py-q00")
+        self.fx.answer(issue, "Right", key="k" * 16)
+        self.fx.clock[0] += 40 * 86400
+        db = self.fx.db()
+        try:
+            self.service(db).repo.purge_issues(self.fx.clock[0])
+            self.service(db).repo.purge_receipts(self.fx.clock[0])
+        finally:
+            db.close()
+        gone = self.fx.answer(issue, "Right", key="k" * 16)
+        self.assertEqual((gone[0], json_body(gone)["error"]["code"]), (409, "locked"))
+
+    def test_week_cursor_dies_when_the_week_turns(self):
+        for i, user in enumerate(self.users):
+            _, issue = self.fx.issue("py-free-f00", user=user)
+            self.fx.answer(issue, "Right", user=user, key=f"{i}" * 16)
+            self.fx.post("/scoring/preferences", {"family": "free", "opt_in": True}, user)
+        me = json_body(self.fx.get("/scoring/me", user="u1", query=b"family=free&window=week"))
+        ok = self.fx.get("/leaderboards", user=None, query=f"family=free&window=week&cursor={me['own_cursor']}".encode())
+        self.assertEqual(ok[0], 200)
+        self.fx.clock[0] += 7 * 86400
+        stale = self.fx.get("/leaderboards", user=None, query=f"family=free&window=week&cursor={me['own_cursor']}".encode())
+        self.assertEqual(stale[0], 400)
+
+    def test_startup_requires_an_official_snapshot_bound_to_the_manifest(self):
+        from server.app import Services, create_app
+        from server.db import Database
+        no_official = type(self.fx.scoring)({"free": self.fx.catalogs["free"]}, self.fx.scoring.question_source)
+        with self.assertRaises(SetupError):
+            create_app(self.fx.settings, Services(open_database=lambda: Database(self.fx.path), catalog=self.fx.content_catalog,
+                                                  scoring=no_official))
+        with self.assertRaises(SetupError):
+            create_app(self.fx.settings, Services(open_database=lambda: Database(self.fx.path), catalog=None, scoring=self.fx.scoring))
+
+    def test_gate_denies_when_the_served_file_is_not_the_reviewed_file(self):
+        from server.content_catalog import ContentEntry
+        entry = self.fx.content_catalog.lookup("question", "py-q00")
+        db = self.fx.db()
+        try:
+            service = self.service(db)
+            service.scoring = type(self.fx.scoring)(dict(self.fx.catalogs), self.fx.scoring.question_source)
+            self.assertFalse(service.content_allowed("u1", "question", "py-q00", ContentEntry("question", "py-q00", entry.product_id, entry.path, "0" * 64)))
+            service.scoring.catalogs.pop("official")
+            self.assertFalse(service.content_allowed("u1", "question", "py-q00", entry))  # no snapshot: closed
+        finally:
+            db.close()
+
     def test_account_delete_also_removes_the_claimed_source(self):
         anon = self.fx.anonymous()
         self.anon_answer(anon, "py-free-f00", "Right", "a" * 16)

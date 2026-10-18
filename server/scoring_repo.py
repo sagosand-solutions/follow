@@ -120,9 +120,11 @@ class ScoringRepository:
                           "VALUES (?, ?, ?, ?, ?, 'active')", (pid, cookie_hash, now, now, expires_at))
         return self.principal(pid)
 
-    def touch(self, principal_id: str, now: float) -> None:
-        self._c().execute("UPDATE scoring_principals SET last_activity = ? WHERE id = ? AND last_activity < ?",
-                          (now, principal_id, now))
+    def touch(self, principal_id: str, now: float, anon_ttl: float) -> None:
+        """Owner activity: slides last_activity and (anonymous only) the profile's expiry, both 30 days out."""
+        self._c().execute("UPDATE scoring_principals SET last_activity = ?, "
+                          "expires_at = CASE WHEN user_id IS NULL THEN ? ELSE expires_at END WHERE id = ? AND last_activity <= ?",
+                          (now, now + anon_ttl, principal_id, now))
 
     def purge_principals(self, principal_ids: list) -> None:
         """Hard-delete scoring data of these principals (retention / account deletion). Opens the purge gate for
@@ -144,7 +146,10 @@ class ScoringRepository:
 
     def inactive_anonymous(self, cutoff: float, limit: int = 500) -> list:
         return [r[0] for r in self._c().execute(
-            "SELECT id FROM scoring_principals WHERE user_id IS NULL AND last_activity < ? LIMIT ?", (cutoff, limit))]
+            # A claimed (consumed) source is NOT idle: it stays as the account's lifetime claim marker until
+            # the account is deleted. Exactly 30 days idle is already purgeable (<=).
+            "SELECT id FROM scoring_principals WHERE user_id IS NULL AND claimed_to IS NULL AND last_activity <= ? LIMIT ?",
+            (cutoff, limit))]
 
     def count_active_anonymous(self, now: float) -> int:
         return self._c().execute("SELECT COUNT(*) FROM scoring_principals WHERE anon_cookie_hash IS NOT NULL "
@@ -176,7 +181,9 @@ class ScoringRepository:
         return cur.rowcount == 1
 
     def purge_issues(self, before: float) -> int:
-        return self._c().execute("DELETE FROM question_issues WHERE expires_at < ?", (before,)).rowcount
+        # Only never-answered issues go; an answered (consumed) issue stays with its attempt so a late replay
+        # still resolves to the lock (409 locked), never to a 404.
+        return self._c().execute("DELETE FROM question_issues WHERE consumed_at IS NULL AND expires_at < ?", (before,)).rowcount
 
     # -- attempts ------------------------------------------------------
     def attempt(self, principal_id: str, question_id: str) -> Attempt | None:
@@ -218,13 +225,14 @@ class ScoringRepository:
         sql += " GROUP BY course_id"
         return {r[0]: (r[1], r[2]) for r in self._c().execute(sql, args)}
 
-    def published_sums(self, family: str, start=None, end=None) -> dict:
+    def published_sums(self, family: str, now: float, start=None, end=None) -> dict:
         """principal_id -> {course_id: (units, answered)} for opted-in, visible, active principals."""
         sql = ("SELECT a.principal_id, a.course_id, SUM(a.score_units), COUNT(*) FROM first_attempts a "
                "JOIN leaderboard_preferences p ON p.principal_id = a.principal_id AND p.family = a.family "
                "JOIN scoring_principals s ON s.id = a.principal_id "
-               "WHERE a.family = ? AND p.opted_in_at IS NOT NULL AND p.moderation_state = 'ok' AND s.state = 'active'")
-        args: list = [family]
+               "WHERE a.family = ? AND p.opted_in_at IS NOT NULL AND p.moderation_state = 'ok' AND s.state = 'active' "
+               "AND (s.user_id IS NOT NULL OR s.expires_at > ?)")
+        args: list = [family, now]
         if start is not None:
             sql += " AND a.accepted_at >= ? AND a.accepted_at < ?"
             args += [start, end]

@@ -201,6 +201,16 @@ def create_app(settings, services: Services) -> Starlette:
     if settings.scoring.any():
         if settings.app_env is AppEnv.PRODUCTION or services.scoring is None:
             raise SetupError("scoring requires the mock/test configuration and a loaded scoring catalog")
+        if settings.scoring.enabled:
+            from .models import ContentError
+            from .scoring_catalog import verify_binding
+            official = services.scoring.catalogs.get("official")
+            try:
+                if official is None:
+                    raise ContentError("no official scoring snapshot")
+                verify_binding(official, services.catalog)
+            except ContentError as exc:
+                raise SetupError(f"scoring snapshot is not bound to the content manifest: {exc}") from None
     email_limiter = EmailStartLimiter(settings.session_secret, clock=services.clock,
                                        per_email=settings.limits.email_per_address_per_hour,
                                        per_ip=settings.limits.email_per_ip_per_hour)

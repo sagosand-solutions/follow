@@ -247,7 +247,7 @@ class ScoringService:
             issued[issued_id] = option["id"]
         with self.db.transaction(immediate=True):
             principal = self._principal(actor, create=True)
-            self.repo.touch(principal.id, now)
+            self.repo.touch(principal.id, now, ANON_TTL)
             lock = self.repo.attempt(principal.id, question_id)
             if lock is not None:
                 raise ScoringError("locked", attempt=attempt_dto(lock))
@@ -296,7 +296,7 @@ class ScoringService:
         now = self._now()
         with self.db.transaction(immediate=True):
             principal = self._principal(actor, create=True)
-            self.repo.touch(principal.id, now)
+            self.repo.touch(principal.id, now, ANON_TTL)
             issue = self.repo.issue(issue_id)
             if issue is None or issue.principal_id != principal.id:
                 raise ScoringError("not-found")
@@ -368,8 +368,10 @@ class ScoringService:
     def content_allowed(self, user_id: str, kind: str, content_id: str, entry) -> bool:
         official = self.scoring.catalogs.get("official")
         if official is None:
-            return True
+            return False  # no active snapshot: never fall back to raw bytes
         row = official.exposure(kind, content_id)
+        if row is not None and row[0] != entry.sha256:
+            return False  # the served file is not the reviewed file
         if row is None:
             return False  # default-deny: any served material without a reviewed exposure row, whatever its product
         if not row[1]:
@@ -438,7 +440,7 @@ class ScoringService:
         own_cursor = None
         if mine is not None and principal is not None:
             others = {}
-            for pid, s in self.repo.published_sums(family, start, end).items():
+            for pid, s in self.repo.published_sums(family, now, start, end).items():
                 value = self._score(s, catalog, scope)
                 if value is not None and pid != principal.id:
                     others[pid] = value
@@ -449,13 +451,17 @@ class ScoringService:
             entries = sorted([(-v, pid) for pid, v in others.items()] + ([(-mine, principal.id)] if published else []))
             index = next((i for i, (_neg, pid) in enumerate(entries) if pid == principal.id), sum(1 for e in entries if -e[0] > mine))
             offset = max(0, index - 2)
-            own_cursor = f"{offset}.{self._sign(offset, scope, family, window_kind, catalog.catalog_version)}"
+            own_cursor = f"{offset}.{self._sign(offset, scope, family, self._wkey(window), catalog.catalog_version)}"
         return {"family": family, "rules_version": catalog.rules_version, "catalog_version": catalog.catalog_version,
                 "scope": scope, "window": window,
                 "total": {"points": float(total) if total is not None else 0.0, "answered": sum(n for _u, n in sums.values()),
                           "pool": sum(catalog.pool_sizes.values())},
                 "courses": courses, "attempts": [attempt_dto(a) for a in attempts], "rank": rank, "published": published,
                 "own_cursor": own_cursor}
+
+    @staticmethod
+    def _wkey(window: dict) -> str:
+        return f"{window['kind']}:{window['start']}"  # a week cursor dies when the ISO week turns
 
     def _sign(self, offset: int, scope: str, family: str, window: str, catalog_version: str) -> str:
         message = f"cursor:{family}:{catalog_version}:{scope}:{window}:{offset}".encode()
@@ -464,15 +470,16 @@ class ScoringService:
     def leaderboard(self, family: str, scope: str, window_kind: str, limit: int, cursor: str | None) -> dict:
         catalog = self._catalog(family)
         scope = self._scope(catalog, scope)
+        now = self._now()
+        window, start, end = self._window(window_kind, now)
         offset = 0
         if cursor is not None:
             head, _, sig = cursor.partition(".")
-            if not head.isdigit() or len(head) > 7 or not hmac.compare_digest(sig, self._sign(int(head), scope, family, window_kind, catalog.catalog_version)):
+            if not head.isdigit() or len(head) > 7 or not hmac.compare_digest(sig, self._sign(int(head), scope, family, self._wkey(window), catalog.catalog_version)):
                 raise ScoringError("invalid")
             offset = int(head)
-        window, start, end = self._window(window_kind, self._now())
         profiles = {}
-        for pid, sums in self.repo.published_sums(family, start, end).items():
+        for pid, sums in self.repo.published_sums(family, now, start, end).items():
             score = self._score(sums, catalog, scope)
             if score is not None:
                 answered = sum(n for _u, n in sums.values()) if scope == "total" else sums[_COURSE_SCOPE_RE.fullmatch(scope).group(1)][1]
@@ -491,7 +498,7 @@ class ScoringService:
                 "entries": [{"rank": ranks[pid], "alias": aliases[pid], "points": float(profiles[pid][0]),
                              "answered": profiles[pid][1], "pool": pool} for pid in page],
                 "participants": len(order),
-                "next_cursor": f"{offset + limit}.{self._sign(offset + limit, scope, family, window_kind, catalog.catalog_version)}" if more else None}
+                "next_cursor": f"{offset + limit}.{self._sign(offset + limit, scope, family, self._wkey(window), catalog.catalog_version)}" if more else None}
 
     # ---- preferences --------------------------------------------------
     @staticmethod
@@ -522,6 +529,7 @@ class ScoringService:
         now = self._now()
         with self.db.transaction(immediate=True):
             principal = self._principal(actor, create=True)
+            self.repo.touch(principal.id, now, ANON_TTL)
             current = self.repo.preference(principal.id, family)
             nick = clean if nickname_given else (current.nickname if current else None)
             if nick:
@@ -551,6 +559,10 @@ class ScoringService:
                 "UPDATE first_attempts SET principal_id = ? WHERE principal_id = ? AND family = 'free' AND question_id NOT IN "
                 "(SELECT question_id FROM first_attempts WHERE principal_id = ?)", (target.id, source.id, target.id)).rowcount
             kept = conn.execute("SELECT COUNT(*) FROM first_attempts WHERE principal_id = ?", (source.id,)).fetchone()[0]
+            # Overlapping source rows are inert (the account's own lock won): drop them, keep only the claim marker.
+            conn.execute("INSERT OR IGNORE INTO scoring_purge_gate (open) VALUES (1)")
+            conn.execute("DELETE FROM first_attempts WHERE principal_id = ?", (source.id,))
+            conn.execute("DELETE FROM scoring_purge_gate")
             conn.execute("UPDATE question_issues SET consumed_at = ? WHERE principal_id = ? AND consumed_at IS NULL",
                          (now, source.id))
             conn.execute("DELETE FROM submission_receipts WHERE principal_id = ?", (source.id,))
@@ -558,23 +570,22 @@ class ScoringService:
             conn.execute("UPDATE scoring_principals SET state = 'consumed', anon_cookie_hash = NULL, claimed_to = ? WHERE id = ?",
                          (target.id, source.id))
             conn.execute("UPDATE scoring_principals SET claim_source_id = ? WHERE id = ?", (source.id, target.id))
-            self.repo.touch(target.id, now)
+            self.repo.touch(target.id, now, ANON_TTL)
             mine = self.repo.attempts(target.id, "free")
         return {"moved": moved, "kept": kept, "attempts": [attempt_dto(a) for a in mine]}
 
     # ---- retention / account data -------------------------------------
-    def purge_inactive(self, now: float | None = None) -> int:
-        """Delete anonymous profiles (and their data) idle for 30 days. Runs under the write lock, so it
-        serialises with answer/claim: a claim of a purged source simply finds no source (claim_conflict)."""
+    def purge_inactive(self, now: float | None = None, limit: int = 200) -> int:
+        """Delete up to ``limit`` unclaimed anonymous profiles idle for 30 days (exactly 30 d counts). One bounded
+        batch per call: a scheduled job loops until 0, request paths run a single batch. Runs under the write
+        lock, so it serialises with answer/claim. Claimed sources are kept (the account's lifetime claim marker)
+        and only go with the account."""
         now = self._now() if now is None else now
-        deleted = 0
-        while True:
-            with self.db.transaction(immediate=True):
-                batch = self.repo.inactive_anonymous(now - INACTIVE_TTL)
-                if not batch:
-                    return deleted
+        with self.db.transaction(immediate=True):
+            batch = self.repo.inactive_anonymous(now - INACTIVE_TTL, limit)
+            if batch:
                 self.repo.purge_principals(batch)
-            deleted += len(batch)
+        return len(batch)
 
     def delete_user_data(self, user_id: str) -> None:
         """Account deletion: remove every scoring row of the account and of anonymous sources claimed into it.

@@ -146,3 +146,18 @@ def load_catalog(path, *, expected_family: str | None = None, content_catalog=No
     except (OSError, ValueError) as exc:
         raise ContentError("scoring catalog: unreadable artifact") from exc
     return parse_catalog(data, expected_family=expected_family, content_catalog=content_catalog)
+
+
+def verify_binding(catalog: ScoringCatalog, content_catalog) -> None:
+    """Official snapshot must match the deployment's content manifest exactly (questions, products, hashes,
+    exposure rows). Called at start-up; any gap is a ContentError, never a silent raw fallback."""
+    if content_catalog is None:
+        _fail("official catalog needs the content manifest")
+    for qid, question in catalog.questions.items():
+        entry = content_catalog.lookup("question", qid)
+        if entry is None or entry.product_id != question.product_id or entry.sha256 != question.content_sha256:
+            _fail("official question disagrees with the content manifest")
+    for (kind, content_id), (digest, _affected) in catalog.exposures.items():
+        entry = content_catalog.lookup(kind, content_id)
+        if entry is None or entry.sha256 != digest:
+            _fail("exposure row disagrees with the content manifest")
