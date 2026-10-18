@@ -471,10 +471,10 @@ class RetentionAndScopeTests(Base):
     def test_purge_is_one_bounded_batch_and_lists_hide_idle_anonymous_profiles(self):
         anon = self.fx.anonymous()
         self.anon_answer(anon, "py-free-f00", "Right", "a" * 16)
-        self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "free", "opt_in": True}, anon)[0], 200)
+        self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "free", "opt_in": True}, anon)[0], 401)
         board = lambda: json_body(self.fx.get("/leaderboards", user=None, query=b"family=free"))["participants"]
-        self.assertEqual(board(), 1)
-        self.fx.clock[0] += 31 * 86400  # idle, not yet purged by any job: already invisible
+        self.assertEqual(board(), 0, "an anonymous reader is never listed")
+        self.fx.clock[0] += 31 * 86400  # idle, not yet purged by any job: still not listed
         self.assertEqual(board(), 0)
         db = self.fx.db()
         try:
@@ -908,7 +908,8 @@ class ListAndPreferenceTests(Base):
         self.assertTrue(generated.startswith("Reader-"))
         self.assertEqual(json_body(self.publish("u2"))["alias"], generated)  # stable
         anon = self.fx.anonymous()
-        self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "official", "opt_in": True}, anon)[0], 404)
+        for family in ("official", "free"):
+            self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": family, "opt_in": True}, anon)[0], 401, family)
 
     def test_account_delete_removes_all_scoring_data_with_no_tombstone(self):
         self.free_answer("u1", "py-free-f00", "Right", "a" * 16)

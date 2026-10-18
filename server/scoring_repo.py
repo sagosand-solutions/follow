@@ -40,6 +40,7 @@ class Issue:
     issued_at: float
     expires_at: float
     consumed_at: float | None
+    rank_eligible: int = 0
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class Attempt:
     outcome: str
     score_units: int
     accepted_at: float
+    origin: str = "legacy"
 
 
 @dataclass(frozen=True)
@@ -135,7 +137,10 @@ class ScoringRepository:
             for pid in principal_ids:
                 conn.execute("UPDATE scoring_principals SET claimed_to = NULL WHERE claimed_to = ?", (pid,))
                 conn.execute("UPDATE scoring_principals SET claim_source_id = NULL WHERE claim_source_id = ?", (pid,))
-                for table in ("first_attempts", "question_issues", "submission_receipts", "leaderboard_preferences"):
+                # Phase 1 tables first (set_attempts references question_issues); exposure rows need the purge gate.
+                for table in ("set_attempts", "set_participants", "standings", "course_units", "anonymous_units",
+                              "question_exposure", "first_attempts", "question_issues", "submission_receipts",
+                              "leaderboard_preferences"):
                     conn.execute(f"DELETE FROM {table} WHERE principal_id = ?", (pid,))
                 conn.execute("DELETE FROM scoring_principals WHERE id = ?", (pid,))
         finally:
@@ -181,9 +186,9 @@ class ScoringRepository:
     def insert_issue(self, issue: Issue) -> None:
         self._c().execute(
             "INSERT INTO question_issues (id, principal_id, question_id, family, catalog_version, revision, option_map, "
-            "issued_at, expires_at, consumed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+            "issued_at, expires_at, consumed_at, rank_eligible) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)",
             (issue.id, issue.principal_id, issue.question_id, issue.family, issue.catalog_version, issue.revision,
-             issue.option_map, issue.issued_at, issue.expires_at))
+             issue.option_map, issue.issued_at, issue.expires_at, issue.rank_eligible))
 
     def issue(self, issue_id: str) -> Issue | None:
         row = self._c().execute("SELECT * FROM question_issues WHERE id = ?", (issue_id,)).fetchone()
@@ -199,6 +204,43 @@ class ScoringRepository:
         # still resolves to the lock (409 locked), never to a 404.
         return self._c().execute("DELETE FROM question_issues WHERE consumed_at IS NULL AND expires_at < ?", (before,)).rowcount
 
+    # -- exposure: what a principal has been shown. rank_blocking only ever goes 0 -> 1 (trigger-enforced) -----------
+    def record_exposure(self, principal_id: str, question_id: str, family: str, now: float, via: str, blocking: int) -> None:
+        """Insert, or upgrade a 0 to a 1 (and move the first exposure earlier). An unchanged row is not updated."""
+        self._c().execute(
+            "INSERT INTO question_exposure (principal_id, question_id, family, first_exposed_at, via, rank_blocking) "
+            "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (principal_id, question_id, family) DO UPDATE SET "
+            "rank_blocking = MAX(question_exposure.rank_blocking, excluded.rank_blocking), "
+            "via = CASE WHEN excluded.rank_blocking > question_exposure.rank_blocking THEN excluded.via ELSE question_exposure.via END, "
+            "first_exposed_at = MIN(question_exposure.first_exposed_at, excluded.first_exposed_at) "
+            "WHERE excluded.rank_blocking > question_exposure.rank_blocking OR excluded.first_exposed_at < question_exposure.first_exposed_at",
+            (principal_id, question_id, family, now, via, blocking))
+
+    def rank_blocked(self, principal_id: str, question_id: str, family: str) -> bool:
+        row = self._c().execute("SELECT rank_blocking FROM question_exposure WHERE principal_id = ? AND question_id = ? AND family = ?",
+                                (principal_id, question_id, family)).fetchone()
+        return bool(row and row[0])
+
+    def union_exposure(self, source_id: str, target_id: str, now: float) -> None:
+        """Claim: everything the anonymous source was shown (exposure rows, every issue ever given, every answered
+        question) now blocks ranked play for the target, monotonically."""
+        conn = self._c()
+        sources = conn.execute(
+            "SELECT question_id, family, first_exposed_at, rank_blocking FROM question_exposure WHERE principal_id = ? "
+            "UNION ALL SELECT question_id, family, issued_at, 1 FROM question_issues WHERE principal_id = ? "
+            "UNION ALL SELECT question_id, family, accepted_at, 1 FROM first_attempts WHERE principal_id = ?",
+            (source_id, source_id, source_id)).fetchall()
+        for question_id, family, at, blocking in sources:
+            self.record_exposure(target_id, question_id, family, at, "claim", blocking)
+
+    def withdraw_rank_eligibility(self, principal_id: str) -> None:
+        """Open issues for a question the principal is now blocked on can never produce a ranked attempt."""
+        self._c().execute(
+            "UPDATE question_issues SET rank_eligible = 0 WHERE principal_id = ? AND consumed_at IS NULL AND rank_eligible = 1 "
+            "AND EXISTS (SELECT 1 FROM question_exposure e WHERE e.principal_id = question_issues.principal_id "
+            "AND e.question_id = question_issues.question_id AND e.family = question_issues.family AND e.rank_blocking = 1)",
+            (principal_id,))
+
     # -- attempts ------------------------------------------------------
     def attempt(self, principal_id: str, question_id: str) -> Attempt | None:
         row = self._c().execute("SELECT * FROM first_attempts WHERE principal_id = ? AND question_id = ?",
@@ -208,9 +250,9 @@ class ScoringRepository:
     def insert_attempt(self, a: Attempt) -> None:
         self._c().execute(
             "INSERT INTO first_attempts (principal_id, question_id, family, course_id, catalog_version, rules_version, "
-            "revision, option_id, outcome, score_units, accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "revision, option_id, outcome, score_units, accepted_at, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (a.principal_id, a.question_id, a.family, a.course_id, a.catalog_version, a.rules_version, a.revision,
-             a.option_id, a.outcome, a.score_units, a.accepted_at))
+             a.option_id, a.outcome, a.score_units, a.accepted_at, a.origin))
 
     def locked_question_ids(self, principal_id: str) -> set:
         return {r[0] for r in self._c().execute("SELECT question_id FROM first_attempts WHERE principal_id = ?",
@@ -240,13 +282,14 @@ class ScoringRepository:
         return {r[0]: (r[1], r[2]) for r in self._c().execute(sql, args)}
 
     def published_sums(self, family: str, now: float, start=None, end=None) -> dict:
-        """principal_id -> {course_id: (units, answered)} for opted-in, visible, active principals."""
+        """principal_id -> {course_id: (units, answered)} for opted-in, visible, active ACCOUNT principals, rankable attempts only."""
         sql = ("SELECT a.principal_id, a.course_id, SUM(a.score_units), COUNT(*) FROM first_attempts a "
                "JOIN leaderboard_preferences p ON p.principal_id = a.principal_id AND p.family = a.family "
                "JOIN scoring_principals s ON s.id = a.principal_id "
-               "WHERE a.family = ? AND p.opted_in_at IS NOT NULL AND p.moderation_state = 'ok' AND s.state = 'active' "
-               "AND (s.user_id IS NOT NULL OR s.expires_at > ?)")
-        args: list = [family, now]
+               "JOIN users u ON u.id = s.user_id "
+               "WHERE a.family = ? AND a.origin = 'account' AND p.opted_in_at IS NOT NULL AND p.moderation_state = 'ok' "
+               "AND s.state = 'active' AND u.status = 'active'")
+        args: list = [family]
         if start is not None:
             sql += " AND a.accepted_at >= ? AND a.accepted_at < ?"
             args += [start, end]

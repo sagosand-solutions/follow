@@ -18,13 +18,14 @@ class DbTests(unittest.TestCase):
     def test_migrate_creates_schema_and_repeat_is_noop(self):
         conn = connect(self.path)
         self.addCleanup(conn.close)
-        self.assertEqual(apply_migrations(conn), 6)
+        self.assertEqual(apply_migrations(conn), 7)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         for table in ("users", "identities", "sessions", "auth_transactions", "products", "purchases",
                       "entitlements", "payment_events", "policy_bundles", "purchase_consents", "schema_migrations",
                       "scoring_principals", "question_issues", "first_attempts", "submission_receipts",
                       "leaderboard_preferences", "paddle_operations", "paddle_events", "paddle_reconcile",
-                      "paddle_checkout_context"):
+                      "paddle_checkout_context", "question_exposure", "pool_questions", "ranking_versions", "standings",
+                      "board_revisions", "challenge_sets", "scoring_moderation_audit"):
             self.assertIn(table, names)
         self.assertEqual(apply_migrations(conn), 0)
 
@@ -37,7 +38,7 @@ class DbTests(unittest.TestCase):
                      " VALUES ('p', 'P', 'USD', 500, 'p', 1)")
         conn.execute("INSERT INTO purchases (id, user_id, product_id, provider, provider_purchase_id, state, revision)"
                      " VALUES ('purchase', 'u', 'p', 'mock', 'provider-id', 'pending', 0)")
-        self.assertEqual(apply_migrations(conn), 4)  # purchase ordering (3), scoring (4), Paddle bookkeeping (5) and the checkout context (6)
+        self.assertEqual(apply_migrations(conn), 5)  # purchase ordering (3), scoring (4), Paddle bookkeeping (5), the checkout context (6) and scoring phase 1 (7)
         row = conn.execute("SELECT created_at FROM purchases WHERE id = 'purchase'").fetchone()
         self.assertEqual(row[0], 0)
 
