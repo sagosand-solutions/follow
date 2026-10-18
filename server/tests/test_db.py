@@ -18,10 +18,12 @@ class DbTests(unittest.TestCase):
     def test_migrate_creates_schema_and_repeat_is_noop(self):
         conn = connect(self.path)
         self.addCleanup(conn.close)
-        self.assertEqual(apply_migrations(conn), 3)
+        self.assertEqual(apply_migrations(conn), 4)
         names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         for table in ("users", "identities", "sessions", "auth_transactions", "products", "purchases",
-                      "entitlements", "payment_events", "policy_bundles", "purchase_consents", "schema_migrations"):
+                      "entitlements", "payment_events", "policy_bundles", "purchase_consents", "schema_migrations",
+                      "scoring_principals", "question_issues", "first_attempts", "submission_receipts",
+                      "leaderboard_preferences"):
             self.assertIn(table, names)
         self.assertEqual(apply_migrations(conn), 0)
 
@@ -34,7 +36,7 @@ class DbTests(unittest.TestCase):
                      " VALUES ('p', 'P', 'USD', 500, 'p', 1)")
         conn.execute("INSERT INTO purchases (id, user_id, product_id, provider, provider_purchase_id, state, revision)"
                      " VALUES ('purchase', 'u', 'p', 'mock', 'provider-id', 'pending', 0)")
-        self.assertEqual(apply_migrations(conn), 1)
+        self.assertEqual(apply_migrations(conn), 2)  # purchase ordering (3) and scoring (4)
         row = conn.execute("SELECT created_at FROM purchases WHERE id = 'purchase'").fetchone()
         self.assertEqual(row[0], 0)
 

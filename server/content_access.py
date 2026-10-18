@@ -31,7 +31,7 @@ def has_entitlement(repositories, user_id: str, product_id: str) -> bool:
     return False
 
 
-def resolve_content(catalog, repositories, principal, kind: str, content_id: str):
+def resolve_content(catalog, repositories, principal, kind: str, content_id: str, *, gate=None):
     """Return (bytes, media_type) or raise ContentAccessError(401/404)."""
     if principal is None:
         raise ContentAccessError(NO_SESSION)
@@ -41,6 +41,9 @@ def resolve_content(catalog, repositories, principal, kind: str, content_id: str
     if entry is None:
         raise ContentAccessError(NOT_FOUND)
     if not has_entitlement(repositories, principal.user_id, entry.product_id):
+        raise ContentAccessError(NOT_FOUND)
+    if gate is not None and not gate(entry):
+        # Scoring exposure gate: material tied to still-unlocked competition questions is not served.
         raise ContentAccessError(NOT_FOUND)
     try:
         data = catalog.read(entry)

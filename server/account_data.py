@@ -18,11 +18,14 @@ def _purchases_for_user(repositories, user_id: str):
     return [_purchase(row) for row in rows]
 
 
-def export_account(repositories, user) -> dict:
+def export_account(repositories, user, *, scoring=None) -> dict:
     identities = repositories.identities.list_for_user(user.id)
     purchases = _purchases_for_user(repositories, user.id)
     entitlements = repositories.entitlements.list_active_for_user(user.id)
-    return export_dto(user, identities, purchases, entitlements)
+    data = export_dto(user, identities, purchases, entitlements)
+    if scoring is not None:
+        data["scoring"] = scoring
+    return data
 
 
 def delete_account(repositories, user_id: str) -> bool:
@@ -38,4 +41,10 @@ def delete_account(repositories, user_id: str) -> bool:
         conn.execute("DELETE FROM identities WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM auth_transactions WHERE user_id = ? AND consumed_at IS NULL", (user_id,))
         repositories.users.mark_deleted(user_id)
+        # Scoring data goes with the account: no tombstone, no re-registration guard (decision 2026-10-18 16:56).
+        from .scoring_repo import ScoringRepository
+        principal = ScoringRepository(repositories.database).principal_for_user(user_id)
+        if principal is not None:
+            ScoringRepository(repositories.database).purge_principals(
+                ScoringRepository(repositories.database).sources_claimed_to(principal.id) + [principal.id])
     return True

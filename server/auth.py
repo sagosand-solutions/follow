@@ -22,7 +22,7 @@ from .models import ServerError
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{43}\Z")
 _HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 _PKCE_VERIFIER_RE = re.compile(r"[A-Za-z0-9._~-]{43,128}\Z")
-_PURPOSES = frozenset({"preauth", "session"})
+_PURPOSES = frozenset({"preauth", "session", "scoring-anon"})
 
 
 class AuthRestartRequired(ServerError):
@@ -105,7 +105,7 @@ class AuthSecurity:
         if not hmac.compare_digest(expected, submitted):
             return False
         if stored_hash is None:
-            return purpose == "preauth"
+            return purpose in ("preauth", "scoring-anon")
         if not isinstance(stored_hash, str) or not _HASH_RE.fullmatch(stored_hash):
             return False
         return hmac.compare_digest(submitted_digest, stored_hash)

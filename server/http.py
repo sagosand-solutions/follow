@@ -22,6 +22,11 @@ ERROR_STATUS = {
     "not-found": 404,
     "identity-conflict": 409,
     "stale-policy": 409,
+    "expired": 409,
+    "stale": 409,
+    "locked": 409,
+    "idempotency_conflict": 409,
+    "claim_conflict": 409,
     "body-limit": 413,
     "throttled": 429,
     "server-error": 500,
@@ -32,6 +37,7 @@ NO_STORE = "no-store"
 
 COOKIE_SESSION = "session"
 COOKIE_PREAUTH = "preauth"
+COOKIE_SCORING_ANON = "scoring_anon"
 
 
 class BodyLimitExceeded(Exception):
@@ -136,3 +142,15 @@ def set_preauth_cookie(response, raw_value: str, settings, *, max_age: int) -> N
         cookie_name(COOKIE_PREAUTH, settings), raw_value, max_age=max_age, httponly=True,
         secure=settings.app_env.value == "production", samesite="lax", path="/",
     )
+
+
+def set_scoring_anon_cookie(response, raw_value: str, settings, *, max_age: int) -> None:
+    response.set_cookie(
+        cookie_name(COOKIE_SCORING_ANON, settings), raw_value, max_age=max_age, httponly=True,
+        secure=settings.app_env.value == "production", samesite="lax", path="/",
+    )
+
+
+def clear_scoring_anon_cookie(response, settings) -> None:
+    response.delete_cookie(cookie_name(COOKIE_SCORING_ANON, settings), path="/",
+                           secure=settings.app_env.value == "production", httponly=True, samesite="lax")

@@ -28,6 +28,8 @@ from .account_data import delete_account, export_account
 from .auth import AuthSecurity
 from .config import AppEnv
 from .content_access import ContentAccessError, resolve_content
+from .scoring_http import Hooks, scoring_routes
+from .scoring_service import ScoringService
 from .content_catalog import build_release_summary
 from .dto import entitlements_dto, me_dto, product_list_dto
 from .models import AuthIntent, ConflictError, ServerError, SetupError, canonical_acknowledgements, resolve_active_bundle
@@ -45,6 +47,7 @@ class Services:
     payment_redirect_hosts: frozenset[str] = frozenset()
     providers: Mapping[str, object] = field(default_factory=dict)
     policy_activations: tuple = ()
+    scoring: object | None = None
     published_chapters: tuple = ()
     checkout_policy: dict | None = None
     clock: Callable[[], float] = time.time
@@ -195,6 +198,19 @@ def create_app(settings, services: Services) -> Starlette:
         if "mock" in services.providers or "test" in services.providers:
             raise SetupError("production must not enable mock providers")
 
+    if settings.scoring.any():
+        if settings.app_env is AppEnv.PRODUCTION or services.scoring is None:
+            raise SetupError("scoring requires the mock/test configuration and a loaded scoring catalog")
+        if settings.scoring.enabled:
+            from .models import ContentError
+            from .scoring_catalog import verify_binding
+            official = services.scoring.catalogs.get("official")
+            try:
+                if official is None:
+                    raise ContentError("no official scoring snapshot")
+                verify_binding(official, services.catalog)
+            except ContentError as exc:
+                raise SetupError(f"scoring snapshot is not bound to the content manifest: {exc}") from None
     email_limiter = EmailStartLimiter(settings.session_secret, clock=services.clock,
                                        per_email=settings.limits.email_per_address_per_hour,
                                        per_ip=settings.limits.email_per_ip_per_hour)
@@ -284,9 +300,14 @@ def create_app(settings, services: Services) -> Starlette:
     async def content(request: Request):
         with _uow(settings, services) as (repositories, sessions):
             principal = _principal(request, sessions)
+            gate = None
+            if settings.scoring.enabled and principal is not None:
+                scoring_service = ScoringService(repositories, settings, services.scoring, clock=services.clock)
+                gate = lambda entry: scoring_service.content_allowed(  # noqa: E731
+                    principal.user_id, request.path_params["kind"], request.path_params["id"], entry)
             try:
                 data, media_type = resolve_content(services.catalog, repositories, principal,
-                                                   request.path_params["kind"], request.path_params["id"])
+                                                   request.path_params["kind"], request.path_params["id"], gate=gate)
             except ContentAccessError as exc:
                 return http.error_response(exc.code, _request_id(request))
             try:
@@ -303,7 +324,9 @@ def create_app(settings, services: Services) -> Starlette:
             if not sessions.require_recent_auth(principal):
                 return http.error_response("forbidden", _request_id(request))
             user = repositories.users.get(principal.user_id)
-            return http.json_response(export_account(repositories, user), request_id=_request_id(request))
+            scoring_part = (ScoringService(repositories, settings, services.scoring, clock=services.clock).export(user.id)
+                            if settings.scoring.enabled else None)
+            return http.json_response(export_account(repositories, user, scoring=scoring_part), request_id=_request_id(request))
 
     async def account_delete(request: Request):
         with _uow(settings, services) as (repositories, sessions):
@@ -520,6 +543,11 @@ def create_app(settings, services: Services) -> Starlette:
         ("/account/export", export, ["GET"]),
         ("/account/delete", account_delete, ["POST"]),
     )]
+    # Always mounted: with the flags off every scoring route answers 503 before touching the database.
+    routes += scoring_routes(settings, services, Hooks(
+        uow=lambda: _uow(settings, services), session_cookie=_session_cookie, check_origin=_check_origin,
+        client_ip=_client_ip, request_id=_request_id, json_body=_json_body))
+
     async def not_found(request: Request, exc):
         return http.error_response("not-found", _safe_request_id(request))
 
