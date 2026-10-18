@@ -179,6 +179,19 @@ cursor from an older board revision answers `409 stale_cursor`, a bad or foreign
 
 Operator, reason, release and references are short codes, never names or e-mail addresses. Exit codes: 0 done, 1 static findings, 2 refused.
 
+### Hiding a name (operator tool) and the alias blocklist
+
+`python -m server.moderate hide|unhide --principal ID --family F --reason CODE --operator OP [--dry-run|--write]` changes nothing
+unless `--write` is given. The target is the internal principal and the family, never the alias, so renaming, opting out or opting in
+again cannot lift a hide. A real change appends one audit row (time, operator, principal, family, action, reason code; no e-mail,
+address or session data), moves that family's boards to a new revision in the same transaction and leaves the private history alone.
+Reasons come from a fixed list and operator ids are short codes. `find --family F --alias A` is a read-only lookup of principal ids
+by exact alias. There is no public admin API.
+
+Aliases are also checked against a small versioned list (`server/blocklist/aliases-v1.json`) on whole words after NFKC, case
+folding and a look-alike fold; a missing or malformed list stops start-up. It is a courtesy filter with stated limits, not a claim
+of abuse safety.
+
 ### Rolling scoring back (operator runbook)
 
 There is no command and no database guard that stops an older binary, so rollback is a procedure: stop the service and every worker or

@@ -24,6 +24,7 @@ from .models import ContentError, ServerError, UserStatus
 from .scoring_catalog import FAMILIES, RULES_VERSION, SCORE_UNITS
 from .scoring_repo import Attempt, Issue, Preference, ScoringRepository, new_id
 from . import scoring_boards
+from .alias_blocklist import is_blocked
 from .scoring_standings import StandingsWriter, VersionShape, bump_principal_boards, load_shape
 from .scoring_versions import iso_week, points, score_display, score_key, total_numerator, total_parameters, window_key
 
@@ -43,7 +44,6 @@ _COURSE_SCOPE_RE = re.compile(r"course:([a-z][a-z0-9-]{0,63})\Z")
 _CURSOR_OFFSET = re.compile(r"[0-9]{1,7}")
 _CURSOR_REVISION = re.compile(r"[0-9]{1,12}")
 _CURSOR_SIGNATURE = re.compile(r"[0-9a-f]{24}")
-NICKNAME_BLOCKLIST: frozenset = frozenset()  # human-maintained moderation list; empty in mock mode
 
 
 class ScoringError(ServerError):
@@ -626,7 +626,7 @@ class ScoringService:
             if category in ("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp") or (category == "Zs" and ch != " ") or ch in "<>&\"'`\\":
                 return None
         lowered = text.casefold()
-        if "  " in text or any(token in lowered for token in ("http", "www.", "://", "@")) or lowered in NICKNAME_BLOCKLIST:
+        if "  " in text or any(token in lowered for token in ("http", "www.", "://", "@")) or is_blocked(text):
             return None
         return text
 
