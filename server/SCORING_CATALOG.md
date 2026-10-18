@@ -25,10 +25,18 @@ complete the release:
   "family": "official",
   "courses": [
     {"course_id": "python",
-     "questions": [{"question_id": "py-example", "product_id": "python-lifetime"}]}
+     "questions": [{"question_id": "py-example", "product_id": "python-lifetime",
+                    "previously_exposed": false}]}
   ]
 }
 ```
+
+Every `official` question must carry an explicit `previously_exposed` attestation
+from content review; a `true` value is rejected (a known-exposed question may not
+enter a protected pool), and a missing value is rejected rather than assumed
+safe. The builder never guesses exposure from a filename or hash, so it can never
+promise that an unknown leak does not exist — it only honours the reviewed
+attestation. `free` questions may omit the field.
 
 `exposures.json` — the reviewed exposure map (never automatic answer detection):
 
@@ -75,9 +83,10 @@ The builder does not score.
 ## Fail-closed rules
 
 - A selected question must exist in the manifest; its `product_id` binding must
-  not contradict the manifest; an `official` question must carry a product and
-  the premium license, a `free` question the public license. Free/public and
-  premium are never mixed in one family.
+  not contradict the manifest; an `official` question must carry a product, the
+  premium license and an explicit `previously_exposed` attestation, a `free`
+  question the public license. Free/public and premium are never mixed in one
+  family, and a question attested as previously exposed is refused in `official`.
 - Question ids are unique across courses, `N_c` is the counted pool size, and a
   question's JSON `id` must equal the manifest id.
 - Selected questions are read only through the hash-checked catalog (path/symlink

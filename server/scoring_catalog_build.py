@@ -6,7 +6,9 @@ an *explicit* release selection over an existing content manifest. Nothing here
 scans directories, guesses a course/product/premium status, or reconstructs a
 chapter from a filename: every pool question, its owning course and its product
 binding come from the release file, and every exposure row comes from a reviewed
-exposure map.
+exposure map. An ``official`` question must also carry an explicit
+``previously_exposed`` attestation; a known-exposed question is refused, and the
+builder never claims to detect an unknown leak.
 
 Output is the frozen artifact from ``scoring-server-interfaces-v1.md`` §2 / task
 024 and nothing else. It contains ids, product bindings, hashes, exposure
@@ -63,6 +65,10 @@ _QUESTION_FIELDS = (
 )
 _OPTION_FIELDS = ("id", "text", "score", "feedback", "misconception")
 _SCORES = (0, 0.5, 1)
+
+#: A release question binding may carry an explicit exposure attestation.
+_REQUIRED_QUESTION_KEYS = frozenset({"question_id", "product_id"})
+_ALLOWED_QUESTION_KEYS = _REQUIRED_QUESTION_KEYS | {"previously_exposed"}
 
 _ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,79}\Z")
 _COURSE_RE = re.compile(r"[a-z][a-z0-9._-]{0,63}\Z")
@@ -203,11 +209,24 @@ def parse_release(raw: object) -> Release:
         questions: list[tuple[str, str | None]] = []
         seen: set[str] = set()
         for q_index, raw_question in enumerate(raw_questions):
-            question = _require_object(raw_question, f"course {course_id!r} questions[{q_index}]")
-            _require_exact_keys(
-                question, frozenset({"question_id", "product_id"}),
-                f"course {course_id!r} questions[{q_index}]",
-            )
+            label = f"course {course_id!r} questions[{q_index}]"
+            question = _require_object(raw_question, label)
+            keys = set(question)
+            if keys - _ALLOWED_QUESTION_KEYS or _REQUIRED_QUESTION_KEYS - keys:
+                missing = sorted(_REQUIRED_QUESTION_KEYS - keys)
+                extra = sorted(keys - _ALLOWED_QUESTION_KEYS)
+                raise CatalogBuildError(f"{label} fields invalid (missing {missing}, unexpected {extra})")
+            if "previously_exposed" in question and not isinstance(question["previously_exposed"], bool):
+                raise CatalogBuildError(f"{label} previously_exposed must be a boolean")
+            if family == "official":
+                if "previously_exposed" not in question:
+                    raise CatalogBuildError(
+                        f"{label} must attest previously_exposed for an official question"
+                    )
+                if question["previously_exposed"]:
+                    raise CatalogBuildError(
+                        f"{label} is attested as previously exposed and cannot enter a protected pool"
+                    )
             question_id = _require_id(question["question_id"], f"course {course_id!r} question_id")
             if question_id in seen:
                 raise CatalogBuildError(f"duplicate question_id in course {course_id!r}: {question_id!r}")

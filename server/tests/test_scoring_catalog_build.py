@@ -90,7 +90,8 @@ class BuilderFixture(unittest.TestCase):
         path.write_text(json.dumps({"entries": self.entries}), encoding="utf-8")
         return path
 
-    def write_release(self, courses, *, family="official", rules="r2", catalog_version="rel-1"):
+    def write_release(self, courses, *, family="official", rules="r2", catalog_version="rel-1",
+                      previously_exposed=False):
         # courses: {course_id: [(question_id, product_id), ...]}
         path = self.root / "release.json"
         path.write_text(json.dumps({
@@ -98,8 +99,10 @@ class BuilderFixture(unittest.TestCase):
             "catalog_version": catalog_version,
             "rules_version": rules,
             "family": family,
-            "courses": [{"course_id": cid, "questions": [{"question_id": q, "product_id": p}
-                                                         for q, p in questions]}
+            "courses": [{"course_id": cid,
+                         "questions": [{"question_id": q, "product_id": p,
+                                        "previously_exposed": previously_exposed}
+                                       for q, p in questions]}
                         for cid, questions in courses.items()],
         }), encoding="utf-8")
         return path
@@ -259,6 +262,38 @@ class RejectionTest(BuilderFixture):
         release = self.write_release({"python": [("py-alpha", "sql-lifetime")]})
         exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
         self.build_error(release, exposures)
+
+    def test_official_rejects_previously_exposed(self):
+        digest = self.add_question("py-alpha")
+        release = self.write_release({"python": [("py-alpha", "python-lifetime")]},
+                                     previously_exposed=True)
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+        self.build_error(release, exposures)
+
+    def test_official_requires_exposure_attestation(self):
+        digest = self.add_question("py-alpha")
+        path = self.root / "release.json"
+        path.write_text(json.dumps({
+            "schema_version": 1, "catalog_version": "rel-1", "rules_version": "r2",
+            "family": "official",
+            "courses": [{"course_id": "python", "questions": [
+                {"question_id": "py-alpha", "product_id": "python-lifetime"}]}],
+        }), encoding="utf-8")
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+        self.build_error(path, exposures)
+
+    def test_free_question_may_omit_exposure_attestation(self):
+        digest = self.add_question("py-free", license="CC-BY-SA-4.0")
+        path = self.root / "release.json"
+        path.write_text(json.dumps({
+            "schema_version": 1, "catalog_version": "rel-1", "rules_version": "r2",
+            "family": "free",
+            "courses": [{"course_id": "python", "questions": [
+                {"question_id": "py-free", "product_id": None}]}],
+        }), encoding="utf-8")
+        exposures = self.write_exposures(self.self_and_safe({"py-free": digest}))
+        artifact = json.loads(self.build(path, exposures))
+        self.assertEqual(artifact["family"], "free")
 
     def test_official_rejects_free_license(self):
         digest = self.add_question("py-alpha", license="CC-BY-SA-4.0")
