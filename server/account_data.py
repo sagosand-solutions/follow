@@ -9,12 +9,13 @@ explicit production gate, not a promise made here.
 from __future__ import annotations
 
 from .dto import export_dto
+from .repositories import _purchase
+from .scoring_repo import ScoringRepository
 
 
 def _purchases_for_user(repositories, user_id: str):
     rows = repositories.database.connect().execute(
         "SELECT * FROM purchases WHERE user_id = ? ORDER BY id", (user_id,)).fetchall()
-    from .repositories import _purchase
     return [_purchase(row) for row in rows]
 
 
@@ -41,10 +42,7 @@ def delete_account(repositories, user_id: str) -> bool:
         conn.execute("DELETE FROM identities WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM auth_transactions WHERE user_id = ? AND consumed_at IS NULL", (user_id,))
         repositories.users.mark_deleted(user_id)
-        # Scoring data goes with the account: no tombstone, no re-registration guard (decision 2026-10-18 16:56).
-        from .scoring_repo import ScoringRepository
-        principal = ScoringRepository(repositories.database).principal_for_user(user_id)
-        if principal is not None:
-            ScoringRepository(repositories.database).purge_principals(
-                ScoringRepository(repositories.database).sources_claimed_to(principal.id) + [principal.id])
+        # Scoring data goes with the account: one shared repository purge, no service configuration needed, and no
+        # tombstone or re-registration guard (decision 2026-10-18 16:56). It runs inside this same transaction.
+        ScoringRepository(repositories.database).purge_user(user_id)
     return True

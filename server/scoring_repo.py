@@ -141,6 +141,20 @@ class ScoringRepository:
         finally:
             conn.execute("DELETE FROM scoring_purge_gate")
 
+    def purge_user(self, user_id: str) -> list:
+        """One implementation of account deletion's scoring purge (also used by ``ScoringService.delete_user_data``).
+
+        Removes the account principal and every anonymous source claimed into it, with all their attempts and
+        preferences, and no tombstone or re-registration guard. Call inside the existing delete transaction: it opens
+        no transaction of its own, so a failure rolls the whole account deletion back.
+        """
+        principal = self.principal_for_user(user_id)
+        if principal is None:
+            return []
+        principal_ids = self.sources_claimed_to(principal.id) + [principal.id]
+        self.purge_principals(principal_ids)
+        return principal_ids
+
     def sources_claimed_to(self, principal_id: str) -> list:
         return [r[0] for r in self._c().execute("SELECT id FROM scoring_principals WHERE claimed_to = ?", (principal_id,))]
 
