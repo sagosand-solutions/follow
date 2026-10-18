@@ -289,8 +289,9 @@ class ScoringService:
                 raise ScoringError("locked", attempt=attempt_dto(lock))
             if not self._entitled(actor, family, pq):
                 raise ScoringError("not-found")
-            # Only a ranked pool question in a version that has not been frozen can be issued (default-deny otherwise).
-            if self.repo.pool_state(question_id) != "ranked" or self.repo.version_frozen(family, catalog.catalog_version, RULES_VERSION):
+            # Only a ranked pool question held, with this content, by an OPEN ranking version of the catalog is issued (default-deny).
+            if (self.repo.pool_state(question_id) != "ranked"
+                    or not self.repo.open_member(family, catalog.catalog_version, RULES_VERSION, question_id, pq.content_sha256)):
                 raise ScoringError("unavailable")
             if self.repo.count_open_issues(principal.id, now) >= MAX_OPEN_ISSUES:
                 raise ScoringError("throttled", retry_after=60)

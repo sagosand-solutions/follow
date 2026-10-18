@@ -47,21 +47,34 @@ class Base(unittest.TestCase):
         finally:
             db.close()
 
-    def add_version(self, vid="v1", family="free", status="open", members=(), catalog=None):
-        catalog = catalog or self.fx.catalogs[family].catalog_version
+    def version(self, family="free"):
+        """The open version start-up created for the family's catalog."""
+        return self.rows("SELECT id FROM ranking_versions WHERE family = ?", (family,))[0][0]
+
+    def with_board(self, vid):
+        self.run_sql("INSERT OR IGNORE INTO board_revisions (version_id, window_key, revision) VALUES (?, 'all', 0)", (vid,))
+
+    def quiet_freeze(self, vid):
+        """Freeze without the operator tool's side effects (no withdrawal, no revision bump)."""
+        self.run_sql("UPDATE ranking_versions SET status = 'frozen', frozen_at = 1, freeze_reason = 'manual' WHERE id = ?", (vid,))
+
+    def add_version(self, vid, family="free", catalog="later", members=()):
+        """A second, open version (a later catalog) holding the given questions."""
         self.run_sql("INSERT INTO ranking_versions (id, family, catalog_version, rules_version, snapshot_digest, courses_k, denominator_total, "
                      "created_at, status) VALUES (?, ?, ?, 'r2', ?, 1, '3', 1, 'open')", (vid, family, catalog, "a" * 64))
         for qid in members:
             sha = self.rows("SELECT content_sha256 FROM pool_questions WHERE question_id = ?", (qid,))[0][0]
             self.run_sql("INSERT INTO ranking_version_members (version_id, course_id, question_id, content_sha256) VALUES (?, 'c', ?, ?)",
                          (vid, qid, sha))
-        self.run_sql("INSERT INTO board_revisions (version_id, window_key, revision) VALUES (?, 'all', 0)", (vid,))
-        if status == "frozen":
-            self.run_sql("UPDATE ranking_versions SET status = 'frozen', frozen_at = 1, freeze_reason = 'seed' WHERE id = ?", (vid,))
 
-    def retire(self, qid, **over):
+    def retire(self, qid, freeze=True, **over):
+        """Retire a question; by default first freeze every open version that holds it, as the operator must."""
         kw = dict(release_id="rel-2", reason_code="exposed", operator_id="op-1", now=self.now + 10)
         kw.update(over)
+        if freeze:
+            for (vid,) in self.rows("SELECT v.id FROM ranking_versions v JOIN ranking_version_members m ON m.version_id = v.id "
+                                    "WHERE m.question_id = ? AND v.status = 'open'", (qid,)):
+                pool.freeze(self.db(), vid, reason_code="retirement", now=self.now + 9)
         return pool.retire(self.db(), qid, **kw)
 
     def release(self, qid, **over):
@@ -112,19 +125,28 @@ class IssueGateTests(Base):
         self.retire("py-free-f01")
         self.retire("py-free-f02")
         self.release("py-free-f02")
-        for qid in ("py-free-f01", "py-free-f02"):
-            self.assertEqual(self.issue(qid)[0][0], 503, qid)
-        self.assertEqual(self.rows("SELECT COUNT(*) FROM question_issues WHERE question_id IN ('py-free-f01', 'py-free-f02')"), [(0,)])
+        for qid in ("py-free-f01", "py-free-f02", "py-free-f03"):
+            self.assertEqual(self.issue(qid)[0][0], 503, qid)       # retired, free, and a ranked one of the now frozen version
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM question_issues WHERE question_id IN ('py-free-f01', 'py-free-f02', 'py-free-f03')"), [(0,)])
 
     def test_a_question_that_is_not_registered_is_never_issued(self):
         self.run_sql("DROP TRIGGER pool_questions_no_delete")
         self.run_sql("DELETE FROM pool_questions WHERE question_id = 'py-free-f03'")
         self.assertEqual(self.issue("py-free-f03")[0][0], 503)
 
+    def test_a_question_that_is_not_in_an_open_version_with_this_exact_content_is_never_issued(self):
+        self.run_sql("DROP TRIGGER ranking_version_members_immutable")
+        self.run_sql("UPDATE ranking_version_members SET content_sha256 = ? WHERE question_id = 'py-free-f00'", ("c" * 64,))
+        self.assertEqual(self.issue("py-free-f00")[0][0], 503, "same id, different content")
+        self.run_sql("DROP TRIGGER ranking_version_members_no_delete")
+        self.run_sql("DELETE FROM ranking_version_members WHERE question_id = 'py-free-f01'")
+        self.assertEqual(self.issue("py-free-f01")[0][0], 503, "not a member")
+        self.assertEqual(self.issue("py-free-f02")[0][0], 200)
+
     def test_a_frozen_version_issues_nothing_for_its_family_and_catalog(self):
-        self.add_version("v1", "free", members=("py-free-f00",))
+        v1 = self.version("free")
         self.assertEqual(self.issue("py-free-f00")[0][0], 200)
-        pool.freeze(self.db(), "v1", reason_code="season-end", now=self.now + 5)
+        pool.freeze(self.db(), v1, reason_code="season-end", now=self.now + 5)
         self.assertEqual(self.issue("py-free-f04")[0][0], 503, "the whole version stops, not just one question")
         self.assertEqual(self.issue("py-q00")[0][0], 200, "the other family is unaffected")
 
@@ -140,11 +162,12 @@ class RetirementTests(Base):
     def test_retiring_withdraws_open_issues_and_a_late_answer_writes_nothing(self):
         _, mine = self.issue("py-free-f00")
         _, theirs = self.issue("py-free-f01")
-        self.assertEqual(self.retire("py-free-f00"), 1)
+        self.quiet_freeze(self.version("free"))                      # the version is frozen first, as required; issues still open
+        self.assertEqual(self.retire("py-free-f00", freeze=False), 1, "only the retired question's own issue is withdrawn by retire")
         response = self.fx.answer(mine, "Right", user="u1", key="b" * 16)
         self.assertEqual((response[0], json_body(response)["error"]["code"]), (409, "expired"))
         self.assertEqual(self.rows("SELECT COUNT(*) FROM first_attempts"), [(0,)])
-        self.assertEqual(self.fx.answer(theirs, "Right", user="u1", key="c" * 16)[0], 200, "other questions are untouched")
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM question_issues WHERE consumed_at IS NULL"), [(1,)])
 
     def test_an_accepted_answer_still_replays_after_retirement_and_stays_in_place(self):
         _, issue = self.issue("py-free-f00")
@@ -195,15 +218,14 @@ class RetirementTests(Base):
         self.assertEqual(self.state("py-free-f00"), "retired")
 
     def test_an_open_version_blocks_retirement_and_release_until_it_is_frozen(self):
-        self.add_version("v1", "free", members=("py-free-f00", "py-free-f01"))
-        self.add_version("v2", "official", members=())
+        v1 = self.version("free")
         with self.assertRaises(pool.PoolError) as blocked:
-            self.retire("py-free-f00")
-        self.assertIn("v1", str(blocked.exception))
+            self.retire("py-free-f00", freeze=False)
+        self.assertIn(v1, str(blocked.exception))
         self.assertEqual(self.state("py-free-f00"), "ranked")
-        pool.freeze(self.db(), "v1", reason_code="retirement", now=self.now + 1)
-        self.retire("py-free-f00")
-        self.add_version("v3", "free", members=(), catalog="later")
+        pool.freeze(self.db(), v1, reason_code="retirement", now=self.now + 1)
+        self.retire("py-free-f00", freeze=False)
+        self.add_version("v3", "free", catalog="later")
         self.run_sql("INSERT INTO ranking_version_members (version_id, course_id, question_id, content_sha256) "
                      "SELECT 'v3', 'c', question_id, content_sha256 FROM pool_questions WHERE question_id = 'py-free-f00'")
         with self.assertRaises(pool.PoolError):
@@ -212,12 +234,12 @@ class RetirementTests(Base):
 
     def test_a_failure_in_the_audit_row_rolls_the_whole_retirement_back(self):
         _, issue = self.issue("py-free-f00")
+        self.quiet_freeze(self.version("free"))
         self.run_sql("CREATE TRIGGER fail_audit BEFORE INSERT ON pool_lifecycle_events BEGIN SELECT RAISE(ABORT, 'boom'); END")
         with self.assertRaises(Exception):
-            self.retire("py-free-f00")
+            self.retire("py-free-f00", freeze=False)
         self.assertEqual(self.state("py-free-f00"), "ranked")
-        self.assertEqual(self.rows("SELECT COUNT(*) FROM question_issues WHERE consumed_at IS NOT NULL"), [(0,)])
-        self.assertEqual(self.fx.answer(issue, "Right", user="u1", key="f" * 16)[0], 200)
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM question_issues WHERE consumed_at IS NOT NULL"), [(0,)], "the withdrawal was rolled back too")
 
     def test_operator_reason_release_and_references_are_short_codes_not_personal_data(self):
         for over in ({"operator_id": "someone@example.org"}, {"operator_id": "two words"}, {"operator_id": ""}, {"operator_id": "x" * 65},
@@ -231,36 +253,37 @@ class RetirementTests(Base):
 
 class FreezeTests(Base):
     def test_freeze_withdraws_only_that_family_and_catalog_and_raises_the_board_revision(self):
-        self.add_version("v1", "free", members=("py-free-f00",))
+        v1 = self.version("free")
+        self.with_board(v1)
         _, free_issue = self.issue("py-free-f00")
         _, official_issue = self.issue("py-q00")
         self.run_sql("INSERT INTO question_issues (id, principal_id, question_id, family, catalog_version, revision, option_map, issued_at, "
                      "expires_at) SELECT 'older-issue', principal_id, 'py-free-f05', 'free', 'older', 'r', '{}', 1, 99999999999 "
                      "FROM question_issues WHERE id = ?", (free_issue["issue_id"],))
-        self.assertEqual(pool.freeze(self.db(), "v1", reason_code="season-end", now=self.now + 3), 1)
-        self.assertEqual(self.rows("SELECT status, freeze_reason FROM ranking_versions WHERE id = 'v1'"), [("frozen", "season-end")])
+        self.assertEqual(pool.freeze(self.db(), v1, reason_code="season-end", now=self.now + 3), 1)
+        self.assertEqual(self.rows("SELECT status, freeze_reason FROM ranking_versions WHERE id = ?", (v1,)), [("frozen", "season-end")])
         self.assertEqual(self.rows("SELECT consumed_at IS NULL FROM question_issues WHERE catalog_version = 'older'"), [(1,)],
                          "an issue of another catalog version in the same family is not this version's")
-        self.assertEqual(self.rows("SELECT revision FROM board_revisions WHERE version_id = 'v1'"), [(1,)])
+        self.assertEqual(self.rows("SELECT revision FROM board_revisions WHERE version_id = ?", (v1,)), [(1,)])
         response = self.fx.answer(free_issue, "Right", user="u1", key="g" * 16)
         self.assertEqual((response[0], json_body(response)["error"]["code"]), (409, "expired"))
         self.assertEqual(self.fx.answer(official_issue, "Right", user="u1", key="h" * 16)[0], 200)
 
     def test_freeze_refuses_unknown_repeated_and_malformed_requests(self):
-        self.add_version("v1", "free")
+        v1 = self.version("free")
+        self.with_board(v1)
         with self.assertRaises(pool.PoolError):
             pool.freeze(self.db(), "nope", reason_code="season-end", now=1)
         with self.assertRaises(pool.PoolError):
-            pool.freeze(self.db(), "v1", reason_code="Bad Reason!", now=1)
-        pool.freeze(self.db(), "v1", reason_code="season-end", now=2)
+            pool.freeze(self.db(), v1, reason_code="Bad Reason!", now=1)
+        pool.freeze(self.db(), v1, reason_code="season-end", now=2)
         with self.assertRaises(pool.PoolError):
-            pool.freeze(self.db(), "v1", reason_code="season-end", now=3)
+            pool.freeze(self.db(), v1, reason_code="season-end", now=3)
         self.assertEqual(self.rows("SELECT revision FROM board_revisions"), [(1,)], "a refused freeze changes nothing")
 
     def test_the_answer_guard_holds_when_a_version_is_frozen_without_the_withdrawal(self):
-        self.add_version("v1", "free")
         _, issue = self.issue("py-free-f00")
-        self.run_sql("UPDATE ranking_versions SET status = 'frozen', frozen_at = 1, freeze_reason = 'manual' WHERE id = 'v1'")
+        self.quiet_freeze(self.version("free"))
         self.assertEqual(self.fx.answer(issue, "Right", user="u1", key="i" * 16)[0], 409)
         self.assertEqual(self.rows("SELECT COUNT(*) FROM first_attempts"), [(0,)])
 
@@ -332,19 +355,20 @@ class StaticAndCliTests(Base):
 
     def test_the_command_line_exit_codes_and_messages(self):
         _, issue = self.issue("py-free-f00")
+        self.assertEqual(self.run_cli("freeze", "--version", self.version("free"), "--reason", "retirement")[0], 0)
         code, out, err = self.run_cli("retire", "--question", "py-free-f00", "--release", "rel-2", "--reason", "exposed", "--operator", "op-1")
-        self.assertEqual((code, out.strip(), err), (0, "retired py-free-f00; 1 open issue(s) withdrawn", ""))
+        self.assertEqual((code, out.strip(), err), (0, "retired py-free-f00; 0 open issue(s) withdrawn", ""))
         code, out, err = self.run_cli("retire", "--question", "py-free-f00", "--release", "rel-2", "--reason", "exposed", "--operator", "op-1")
         self.assertEqual((code, out), (2, ""))
         self.assertIn("refused:", err)
         code, out, _ = self.run_cli("free", "--question", "py-free-f00", "--release", "rel-3", "--reason", "reviewed", "--operator", "op-1",
                                     "--clone-audit", "c1", "--license-ok", "l1", "--exposure-audit", "e1")
         self.assertEqual((code, out.strip()), (0, "released py-free-f00"))
-        self.add_version("v1", "official")
-        code, out, _ = self.run_cli("freeze", "--version", "v1", "--reason", "season-end")
+        official = self.version("official")
+        code, out, _ = self.run_cli("freeze", "--version", official, "--reason", "season-end")
         self.assertEqual(code, 0)
-        self.assertIn("frozen v1", out)
-        self.assertEqual(self.run_cli("freeze", "--version", "v1", "--reason", "season-end")[0], 2)
+        self.assertIn(f"frozen {official}", out)
+        self.assertEqual(self.run_cli("freeze", "--version", official, "--reason", "season-end")[0], 2)
 
     def test_check_static_exits_one_with_paths_and_ids_only(self):
         root = self.public_root({"data/leak.json": '{"id": "py-free-f00", "secret": "PRIVATE-SENTINEL-TEXT"}'})

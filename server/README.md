@@ -137,6 +137,12 @@ At start-up every scoring-catalog question is registered once as `ranked`. A que
 content equals another question's, stops the start-up: retire the old id and give the new content a new one. Only a `ranked`
 question in a version that has not been frozen is issued; anything else answers `unavailable`.
 
+Start-up also creates, once per catalog version, an immutable ranking version: the courses with their pool sizes and every member
+question with its content hash, plus a digest of it all. A catalog that changed under the same version, or that holds a question
+that is no longer ranked, stops the start-up; a retired question therefore means a new catalog version, never a silently smaller pool.
+Only a question held with exactly this content by an open version is issued. Scores are exact: a total is 500 x T / D with
+D = K x lcm(pool sizes), and the board's sort key is the zero-padded decimal of (T + D), so no floating point decides a rank.
+
 `python -m server.pool` changes the pool, always in one transaction with an append-only audit row, and never goes backwards:
 
 - `freeze --version V --reason CODE`: a ranking version stops for good; its open issues are withdrawn and its boards move to a new revision.

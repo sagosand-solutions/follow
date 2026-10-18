@@ -10,7 +10,8 @@ from fractions import Fraction
 from server.config import load_config
 from server.models import ContentError, SetupError
 from server.scoring_catalog import parse_catalog
-from server.scoring_repo import ScoringRepository
+from server.scoring_repo import ScoringRepository, new_id
+from server.scoring_versions import ensure_version
 from server.scoring_service import course_points, iso_week, total_points
 from server.tests.scoring_support import SENTINEL, build_scoring_fixture, make_question
 from server.tests.support import ORIGIN, call, json_body
@@ -720,6 +721,7 @@ class ProfileGateTests(Base):
         try:
             with pool_db.transaction(immediate=True):
                 ScoringRepository(pool_db).sync_pool([(qid, family, digest)], self.fx.clock[0], "flip")
+                ensure_version(pool_db.connect(), family, catalog, self.fx.clock[0], new_id)
         finally:
             pool_db.close()
         return ScoringServices({family: catalog}, source), source

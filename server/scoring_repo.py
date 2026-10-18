@@ -272,6 +272,14 @@ class ScoringRepository:
                                 (family, catalog_version, rules_version)).fetchone()
         return bool(row and row[0] == "frozen")
 
+    def open_member(self, family: str, catalog_version: str, rules_version: str, question_id: str, content_sha256: str) -> bool:
+        """True only if an OPEN version of this catalog holds exactly this question with exactly this content."""
+        return self._c().execute(
+            "SELECT 1 FROM ranking_versions v JOIN ranking_version_members m ON m.version_id = v.id "
+            "WHERE v.family = ? AND v.catalog_version = ? AND v.rules_version = ? AND v.status = 'open' "
+            "AND m.question_id = ? AND m.content_sha256 = ?",
+            (family, catalog_version, rules_version, question_id, content_sha256)).fetchone() is not None
+
     # -- attempts ------------------------------------------------------
     def attempt(self, principal_id: str, question_id: str) -> Attempt | None:
         row = self._c().execute("SELECT * FROM first_attempts WHERE principal_id = ? AND question_id = ?",
