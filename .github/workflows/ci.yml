@@ -44,6 +44,11 @@ jobs:
       # The export is the gate for question data: it validates EVERY public question against the vocabulary of its own
       # course (the same validate_question the CLI uses, plus filename, licence, duplicate, orphan and prefix rules) and
       # checks that the derived files are up to date. A single-vocabulary line over all questions cannot work for several courses.
+      # Public CI uses SYNTHETIC data only: this proves the static exposure check works and fails closed (no database, bound
+      # or unbound underlay, empty or tampered underlay, protected id or hash in a public tree, exposure gaps). The real release
+      # check runs in the private release pipeline against the authoritative pool and the digest of the release decision.
+      - name: Static exposure check self-test (synthetic pool only)
+        run: python -m unittest server.tests.test_pool_underlay -v
       - name: Course data is valid and exported files are up to date (static only)
         run: python -m validator export --check
       - name: Traces match question code (static, nothing executed)

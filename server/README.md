@@ -175,7 +175,15 @@ cursor from an older board revision answers `409 stale_cursor`, a bad or foreign
   still contains the question (freeze it first); open issues for the question are withdrawn, accepted answers stay.
 - `free --question Q ... --clone-audit REF --license-ok REF --exposure-audit REF`: `retired` to `free`; all three references are required.
 - `rebuild --version V`: recompute an OPEN version's standings from first attempts (a frozen version is history and is refused); every board moves to a new revision.
-- `check-static --public-root DIR`: fails (exit 1) if a ranked or retired question's id or content hash appears in static files.
+- `export-underlay --out FILE [--catalog FILE ...]`: write the protected pool as ids, content hashes and states only (no text), from the
+  database or from frozen scoring catalogs (a catalog with an exposure gap stops the export); never overwrites; prints the digest.
+- `check-static --public-root DIR [--underlay FILE (--expect-digest D | --unbound)]`: fails (exit 1) if a ranked or retired question's id or content hash appears in static files.
+
+With `--underlay` the check needs no database. It then insists on `--expect-digest` (a RELEASE check: the digest comes from the
+release decision, and the underlay must be exported from the authoritative pool, never derived from the input being checked) or
+`--unbound` (integrity only, prints a notice, used by the public CI self-test with synthetic data). A missing, malformed, empty,
+tampered or stale underlay is an error (exit 2), never a pass. The digest proves integrity only, not origin or currency. Public CI
+holds no real pool ids, hashes or bytes; the real release check lives in the private release pipeline.
 
 Operator, reason, release and references are short codes, never names or e-mail addresses. Exit codes: 0 done, 1 static findings, 2 refused.
 

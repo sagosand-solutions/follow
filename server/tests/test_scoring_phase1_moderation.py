@@ -138,7 +138,7 @@ class HideTests(ModerationBase):
         self.assertEqual(self.rows("SELECT operator, principal_id, family, action, reason_code, dry_run FROM scoring_moderation_audit"),
                          [("op-1", self.u1, "free", "hide", "offensive-alias", 0)])
         board = self.board()
-        self.assertEqual(([e["alias"] for e in board["entries"]], board["participants"]), (["Bob", "Cy"], 2))
+        self.assertEqual((sorted(e["alias"] for e in board["entries"]), board["participants"]), (["Bob", "Cy"], 2))   # a tie: order is by an internal id
         self.assertEqual([(w, r - dict(free_before)[w]) for w, r in self.revisions("free")], [(w, 1) for w, _ in free_before])
         self.assertEqual(self.revisions("official"), official_before)
         self.assertEqual(self.rows("SELECT COUNT(*) FROM first_attempts"), attempts, "the private history stays")
@@ -222,7 +222,8 @@ class FindAndCliTests(ModerationBase):
     def test_command_line_defaults_to_a_dry_run_and_writes_only_with_the_flag(self):
         base = ("hide", "--principal", self.u1, "--family", "free", "--reason", "abuse", "--operator", "op-1")
         code, out, err = self.run_cli(*base)
-        self.assertEqual((code, err), (0, ""))
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("refused", err)          # a stray ResourceWarning from another test may share stderr; only refusals matter here
         self.assertIn("dry run", out)
         self.assertEqual(self.state(), [("ok",)])
         self.assertEqual(self.run_cli(*base, "--dry-run")[0], 0)
