@@ -119,6 +119,17 @@ the database, a cookie or a principal. Activation needs `Services.scoring`
 family loaded once at start (`scoring_catalog.load_catalog`); there is no build step and
 no raw-content fallback at request time.
 
+The free list is a protected pool too. Its questions come from a PRIVATE hash-checked manifest
+(`SCORING_FREE_CONTENT_ROOT` and `SCORING_FREE_MANIFEST`, set together, never under the public
+site), built with the same attestations as the official pool and kept under the proprietary
+licence until the pool lifecycle releases them as free. An in-memory `{id: bytes}` source exists
+only for tests and local development: it needs `SCORING_DEV_SOURCE=true` (which is a `SetupError`
+in production and without `SCORING_ENABLED`) and the two sources exclude each other, so a missing
+or changed private file stops start-up instead of falling back. Served material that reveals
+ranked or retired questions (`/content/{kind}/{id}`) is released only when the reader has locked
+every one of them, whichever family they belong to; paying for the product is not enough, and a
+file without a reviewed exposure row stays closed.
+
 Routes (`/scoring/anonymous`, `/scoring/questions/{id}/issue`, `/scoring/answers`,
 `/scoring/me`, `/scoring/claim`, `/scoring/preferences`, `/leaderboards`): mutations need
 the exact Origin and the CSRF token of the caller's own cookie. The first accepted answer

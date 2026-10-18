@@ -133,7 +133,7 @@ class FlagTests(unittest.TestCase):
             db.close()
 
     def test_sub_flag_off_blocks_only_its_group(self):
-        fx, tmp = build_scoring_fixture(env={"SCORING_ENABLED": "true"})
+        fx, tmp = build_scoring_fixture(env={"SCORING_ENABLED": "true", "SCORING_DEV_SOURCE": "true"})
         self.addCleanup(tmp.cleanup)
         self.assertEqual(fx.issue("py-q00")[0][0], 200)
         self.assertEqual(call(fx.app, "POST", "/scoring/claim", headers=fx.headers("u1"), body=b"{}")[0], 503)

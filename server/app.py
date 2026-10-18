@@ -241,6 +241,10 @@ def create_app(settings, services: Services) -> Starlette:
                 if official is None:
                     raise ContentError("no official scoring snapshot")
                 verify_binding(official, services.catalog)
+                source = services.scoring.question_source
+                if getattr(source, "free_from_memory", False) and not settings.scoring.dev_source:
+                    raise SetupError("the protected free pool needs a private manifest (SCORING_FREE_*); an in-memory source "
+                                     "is for tests and development with SCORING_DEV_SOURCE only")
                 verify_pool(services.scoring)
                 from .scoring_repo import ScoringRepository, new_id
                 from .scoring_versions import ensure_version

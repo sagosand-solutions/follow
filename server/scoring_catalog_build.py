@@ -6,7 +6,7 @@ an *explicit* release selection over an existing content manifest. Nothing here
 scans directories, guesses a course/product/premium status, or reconstructs a
 chapter from a filename: every pool question, its owning course and its product
 binding come from the release file, and every exposure row comes from a reviewed
-exposure map. An ``official`` question must also carry an explicit
+exposure map. Every question (``official`` and ``free``) must also carry an explicit
 ``previously_exposed`` attestation; a known-exposed question is refused, and the
 builder never claims to detect an unknown leak.
 
@@ -58,11 +58,12 @@ BUILDABLE_RULES = frozenset({"r2"})
 
 FAMILIES = ("official", "free")
 
-#: Family -> the only accepted content license for that family's pool. Mixing
-#: free public samples and protected premium into one score set is forbidden.
+#: Family -> the only accepted content license for that family's pool. Both pools are PROTECTED while they rank: a free-list
+#: question is proprietary until its pool lifecycle reaches ``free`` and a separate licence decision exists for that exact
+#: id and hash (server/README.md). The public sample bank is never a protected pool.
 LICENSE_BY_FAMILY = {
     "official": "LicenseRef-Proprietary",
-    "free": "CC-BY-SA-4.0",
+    "free": "LicenseRef-Proprietary",
 }
 
 #: The authoritative question contract; questions are checked against this exact
@@ -223,15 +224,12 @@ def parse_release(raw: object) -> Release:
                 raise CatalogBuildError(f"{label} fields invalid (missing {missing}, unexpected {extra})")
             if "previously_exposed" in question and not isinstance(question["previously_exposed"], bool):
                 raise CatalogBuildError(f"{label} previously_exposed must be a boolean")
-            if family == "official":
-                if "previously_exposed" not in question:
-                    raise CatalogBuildError(
-                        f"{label} must attest previously_exposed for an official question"
-                    )
-                if question["previously_exposed"]:
-                    raise CatalogBuildError(
-                        f"{label} is attested as previously exposed and cannot enter a protected pool"
-                    )
+            if "previously_exposed" not in question:
+                raise CatalogBuildError(f"{label} must attest previously_exposed for a protected {family} question")
+            if question["previously_exposed"]:
+                raise CatalogBuildError(
+                    f"{label} is attested as previously exposed and cannot enter a protected pool"
+                )
             question_id = _require_id(question["question_id"], f"course {course_id!r} question_id")
             if question_id in seen:
                 raise CatalogBuildError(f"duplicate question_id in course {course_id!r}: {question_id!r}")

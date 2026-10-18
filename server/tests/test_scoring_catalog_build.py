@@ -167,7 +167,7 @@ class HappyPathTest(BuilderFixture):
         self.assertEqual(sizes, {"production": 3, "python": 2, "sql": 1})
 
     def test_free_family_allows_null_product(self):
-        digest = self.add_question("py-free", product="python-lifetime", license="CC-BY-SA-4.0")
+        digest = self.add_question("py-free", product="python-lifetime")
         release = self.write_release({"python": [("py-free", None)]}, family="free")
         exposures = self.write_exposures(self.self_and_safe({"py-free": digest}))
         artifact = json.loads(self.build(release, exposures))
@@ -301,8 +301,8 @@ class RejectionTest(BuilderFixture):
         exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
         self.build_error(path, exposures)
 
-    def test_free_question_may_omit_exposure_attestation(self):
-        digest = self.add_question("py-free", license="CC-BY-SA-4.0")
+    def test_free_question_must_attest_exposure_too(self):
+        digest = self.add_question("py-free")
         path = self.root / "release.json"
         path.write_text(json.dumps({
             "schema_version": 1, "catalog_version": "rel-1", "rules_version": "r2",
@@ -311,8 +311,15 @@ class RejectionTest(BuilderFixture):
                 {"question_id": "py-free", "product_id": None}]}],
         }), encoding="utf-8")
         exposures = self.write_exposures(self.self_and_safe({"py-free": digest}))
-        artifact = json.loads(self.build(path, exposures))
-        self.assertEqual(artifact["family"], "free")
+        self.build_error(path, exposures)
+
+    def test_free_rejects_previously_exposed_and_the_public_licence(self):
+        digest = self.add_question("py-free")
+        exposed = self.write_release({"python": [("py-free", None)]}, family="free", previously_exposed=True)
+        self.build_error(exposed, self.write_exposures(self.self_and_safe({"py-free": digest})))
+        public = self.add_question("py-open", license="CC-BY-SA-4.0")
+        release = self.write_release({"python": [("py-open", None)]}, family="free")
+        self.build_error(release, self.write_exposures(self.self_and_safe({"py-open": public})))
 
     def test_official_rejects_free_license(self):
         digest = self.add_question("py-alpha", license="CC-BY-SA-4.0")

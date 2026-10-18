@@ -19,7 +19,7 @@ from server.scoring_service import ManifestQuestionSource, ScoringServices
 from server.sessions import SessionService
 from server.tests.support import ORIGIN, call, json_body
 
-SCORING_ENV = {"SCORING_ENABLED": "true", "SCORING_ANONYMOUS_ENABLED": "true", "SCORING_CLAIM_ENABLED": "true",
+SCORING_ENV = {"SCORING_ENABLED": "true", "SCORING_DEV_SOURCE": "true", "SCORING_ANONYMOUS_ENABLED": "true", "SCORING_CLAIM_ENABLED": "true",
                "SCORING_PUBLISH_ENABLED": "true"}
 SENTINEL = "SECRET-SENTINEL-FACIT"
 

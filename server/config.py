@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import base64
 import binascii
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Mapping
 from urllib.parse import urlsplit
@@ -49,6 +49,12 @@ class ScoringFlags:
     anonymous: bool = False
     claim: bool = False
     publish: bool = False
+    #: Test/dev only: allow the protected free pool to be served from an in-memory {id: bytes} map instead of a private,
+    #: hash-checked manifest. Refused in production and without SCORING_ENABLED.
+    dev_source: bool = False
+    #: Private free pool: content root and manifest, set together (never a path under the public site).
+    free_content_root: str | None = None
+    free_manifest: str | None = None
 
     def any(self) -> bool:
         return self.enabled or self.anonymous or self.claim or self.publish
@@ -97,7 +103,8 @@ class Settings:
             "paddle_endpoint_secret": "<redacted>" if self.paddle_endpoint_secret else None,
             "paddle_products": sorted(self.paddle_products),
             "scoring": {"enabled": self.scoring.enabled, "anonymous": self.scoring.anonymous,
-                        "claim": self.scoring.claim, "publish": self.scoring.publish},
+                        "claim": self.scoring.claim, "publish": self.scoring.publish,
+                        "dev_source": self.scoring.dev_source, "free_pool_private": self.scoring.free_manifest is not None},
         }
 
 
@@ -155,7 +162,15 @@ def _parse_scoring(env: Mapping[str, str], app_env: AppEnv) -> ScoringFlags:
         raise SetupError("SCORING_*: scoring must not be enabled in production before a separately approved release")
     if (flags.anonymous or flags.claim or flags.publish) and not flags.enabled:
         raise SetupError("SCORING_*: sub-flags require SCORING_ENABLED")
-    return flags
+    dev_source = _flag_env(env, "SCORING_DEV_SOURCE")
+    root, manifest = (env.get(name, "").strip() or None for name in ("SCORING_FREE_CONTENT_ROOT", "SCORING_FREE_MANIFEST"))
+    if dev_source and (app_env is AppEnv.PRODUCTION or not flags.enabled):
+        raise SetupError("SCORING_DEV_SOURCE: only for test/development with SCORING_ENABLED, never in production")
+    if (root is None) != (manifest is None):
+        raise SetupError("SCORING_FREE_CONTENT_ROOT and SCORING_FREE_MANIFEST must be set together")
+    if root is not None and (not flags.enabled or dev_source):
+        raise SetupError("SCORING_FREE_*: needs SCORING_ENABLED and excludes SCORING_DEV_SOURCE (one source for the free pool)")
+    return replace(flags, dev_source=dev_source, free_content_root=root, free_manifest=manifest)
 
 
 def _strict_json_object(text: str, name: str) -> dict:

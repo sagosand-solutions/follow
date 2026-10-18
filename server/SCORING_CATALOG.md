@@ -40,12 +40,14 @@ complete the release:
 }
 ```
 
-Every `official` question must carry an explicit `previously_exposed` attestation
+Every question, in BOTH families, must carry an explicit `previously_exposed` attestation
 from content review; a `true` value is rejected (a known-exposed question may not
 enter a protected pool), and a missing value is rejected rather than assumed
 safe. The builder never guesses exposure from a filename or hash, so it can never
 promise that an unknown leak does not exist — it only honours the reviewed
-attestation. `free` questions may omit the field.
+attestation. A `free`-list pool is protected too: its questions live in a private
+manifest, carry the proprietary licence while they rank, and only become public
+samples through the pool lifecycle (`server.pool free`) after a separate licence decision.
 
 `exposures.json` — the reviewed exposure map (never automatic answer detection):
 
@@ -106,9 +108,9 @@ not score.
 
 - A selected question must exist in the manifest; its `product_id` binding must
   not contradict the manifest; an `official` question must carry a product, the
-  premium license and an explicit `previously_exposed` attestation, a `free`
-  question the public license. Free/public and premium are never mixed in one
-  family, and a question attested as previously exposed is refused in `official`.
+  proprietary license and an explicit `previously_exposed` attestation, and so must a `free`
+  question (its product may be null). The public sample bank is never a pool, and a
+  question attested as previously exposed is refused in either family.
 - Question ids are unique across courses, `N_c` is the counted pool size, and a
   question's JSON `id` must equal the manifest id.
 - Selected questions are read only through the hash-checked catalog (path/symlink

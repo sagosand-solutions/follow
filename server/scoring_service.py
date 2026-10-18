@@ -135,18 +135,30 @@ def verify_pool(scoring: "ScoringServices") -> None:
 
 
 class ManifestQuestionSource:
-    """Official questions: the existing hash-checked ContentCatalog. Free: explicit {id: bytes} (synthetic in mock)."""
+    """Where a pool question's bytes come from, always hash-checked.
 
-    def __init__(self, content_catalog=None, free: dict | None = None):
+    Official: the content catalog. Free: a PRIVATE hash-checked catalog (``free_catalog``), never the public bank; an explicit
+    in-memory ``{id: bytes}`` map exists only for tests and local development and is refused at start-up unless
+    SCORING_DEV_SOURCE is set (and always in production). There is no fallback from one source to another."""
+
+    def __init__(self, content_catalog=None, free: dict | None = None, free_catalog=None):
+        if free and free_catalog is not None:
+            raise ContentError("the free pool has one source, not two")
         self.content_catalog = content_catalog
         self.free = dict(free or {})
+        self.free_catalog = free_catalog
+
+    @property
+    def free_from_memory(self) -> bool:
+        return bool(self.free)
 
     def read(self, family: str, question_id: str, sha256: str) -> dict:
-        if family == "official":
-            entry = self.content_catalog.lookup("question", question_id) if self.content_catalog else None
+        catalog = self.content_catalog if family == "official" else self.free_catalog
+        if family == "official" or self.free_catalog is not None:
+            entry = catalog.lookup("question", question_id) if catalog else None
             if entry is None or entry.sha256 != sha256:
                 raise ContentError("question missing or changed")
-            raw = self.content_catalog.read(entry)
+            raw = catalog.read(entry)
         else:
             raw = self.free.get(question_id)
             if raw is None or hashlib.sha256(raw).hexdigest() != sha256:
@@ -428,18 +440,22 @@ class ScoringService:
 
     # ---- exposure gate (central, used by /content) --------------------
     def content_allowed(self, user_id: str, kind: str, content_id: str, entry) -> bool:
-        official = self.scoring.catalogs.get("official")
-        if official is None:
+        """Served material is released only when every ranked or retired question it reveals is locked by this reader.
+
+        Rows from BOTH families count. Default-deny: no reviewed row anywhere, a row for different bytes, or no active
+        official snapshot all refuse. Paying for the product is not enough. A question that has become free is public and
+        needs no lock; a question the pool does not know is treated as still protected."""
+        if self.scoring.catalogs.get("official") is None:
             return False  # no active snapshot: never fall back to raw bytes
-        row = official.exposure(kind, content_id)
-        if row is not None and row[0] != entry.sha256:
-            return False  # the served file is not the reviewed file
-        if row is None:
-            return False  # default-deny: any served material without a reviewed exposure row, whatever its product
-        if not row[1]:
+        rows = [row for catalog in self.scoring.catalogs.values() if (row := catalog.exposure(kind, content_id)) is not None]
+        if not rows or any(row[0] != entry.sha256 for row in rows):
+            return False
+        affected = frozenset().union(*(row[1] for row in rows))
+        protected = {q for q in affected if self.repo.pool_state(q) != "free"}
+        if not protected:
             return True
         principal = self.repo.principal_for_user(user_id)
-        return principal is not None and row[1] <= self.repo.locked_question_ids(principal.id)
+        return principal is not None and protected <= self.repo.locked_question_ids(principal.id)
 
     # ---- me / lists ---------------------------------------------------
     @staticmethod
@@ -638,7 +654,7 @@ class ScoringService:
                 alias = "Reader-" + secrets.token_hex(3)
             self.repo.upsert_preference(Preference(principal.id, family, now if opt_in else None, alias, nick,
                                                    current.moderation_state if current else "ok"))
-            bump_principal_boards(self.db.connect(), principal.id)
+            bump_principal_boards(self.db.connect(), principal.id, family)
         return {"family": family, "opted_in": bool(opt_in), "alias": alias}
 
     # ---- claim --------------------------------------------------------
