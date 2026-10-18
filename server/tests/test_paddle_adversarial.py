@@ -476,13 +476,21 @@ class OccurredAtTests(unittest.TestCase):
 
     def test_accepts_zone_variants(self):
         for value in ("2026-10-18T00:00:00Z", "2026-10-18t00:00:00z", "2026-10-18T00:00:00+23:59",
-                      "2026-10-18T00:00:00-00:30", "2026-10-18T00:00:00.123456789Z"):
+                      "2026-10-18T00:00:00-00:30", "2026-10-18T00:00:00.123456789Z", "2026-10-18T23:59:59Z"):
             with self.subTest(value=value):
                 event = verify(encode(envelope("transaction.completed", transaction_data(), occurred_at=value)))
                 self.assertEqual(event.occurred_at, value)
 
     def test_rejects_missing_zone_and_date_only(self):
         for value in ("2026-10-18T00:00:00", "2026-10-18", "2026-10-18 00:00:00Z"):
+            with self.subTest(value=value):
+                self.assertMalformed(value)
+
+    def test_rejects_hour_24_and_above(self):
+        # RFC 3339 allows hours 00-23 only; a permissive parser that accepts 24:00:00
+        # would let an out-of-domain timestamp through.
+        for value in ("2026-10-18T24:00:00Z", "2026-10-18T24:00:00+00:00", "2026-10-18T24:30:00Z",
+                      "2026-10-18T25:00:00Z", "2026-10-18T99:00:00Z"):
             with self.subTest(value=value):
                 self.assertMalformed(value)
 
@@ -726,13 +734,18 @@ class DigestTests(unittest.TestCase):
         self.assertNotEqual(snapshot_digest(snapshot(adjustments=(one,))),
                             snapshot_digest(snapshot(adjustments=(one, two))))
 
-    def test_digest_of_duplicate_adjustment_ids_is_a_typed_error(self):
-        # A transport returning two rows that reuse an id (one with a total, one without)
-        # passes validate_snapshot. The digest must still fail typed, not crash.
-        snap = snapshot(adjustments=(adjustment(ADJ, total_minor=None), adjustment(ADJ, total_minor=500)))
-        validate_snapshot(snap)
-        with self.assertRaises(PaddleMalformed):
-            snapshot_digest(snap)
+    def test_repeated_adjustment_id_is_refused_at_the_snapshot_gate(self):
+        # A repeated adjustment id is ambiguous evidence (it could double-count a refund),
+        # so it must be refused with a typed error at the gate, before any digest is built.
+        duplicates = (
+            (adjustment(ADJ, total_minor=None), adjustment(ADJ, total_minor=500)),
+            (adjustment(ADJ), adjustment(ADJ)),                        # even byte-identical repeats
+            (adjustment(ADJ), adjustment(ADJ, action="credit")),
+        )
+        for pair in duplicates:
+            with self.subTest(pair=pair):
+                with self.assertRaises(PaddleMalformed):
+                    validate_snapshot(snapshot(adjustments=pair))
 
 
 # --------------------------------------------------------------------------- dedup
