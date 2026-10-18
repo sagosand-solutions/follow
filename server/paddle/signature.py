@@ -56,7 +56,7 @@ def parse_signature_header(value) -> tuple[int, tuple[str, ...]]:
 def _secret_bytes(secret) -> bytes:
     raw = secret.encode("utf-8") if isinstance(secret, str) else secret
     if not isinstance(raw, (bytes, bytearray)) or len(raw) < 16:
-        raise PaddleMalformed("endpoint secret is not configured")
+        raise PaddleConfigError("endpoint secret is not configured")
     return bytes(raw)
 
 
@@ -65,7 +65,7 @@ def verify_signature(raw_body: bytes, header, secret, now: float, *, tolerance: 
     if not isinstance(raw_body, (bytes, bytearray)) or len(raw_body) > MAX_BODY_BYTES:
         raise PaddleMalformed("body missing or too large")
     if not isinstance(now, (int, float)) or isinstance(now, bool) or not math.isfinite(now):
-        raise PaddleMalformed("server clock unavailable")
+        raise PaddleConfigError("server clock unavailable")
     if isinstance(tolerance, bool) or not isinstance(tolerance, (int, float)) or not math.isfinite(tolerance) or tolerance < 0:
         raise PaddleConfigError("tolerance must be a finite, non-negative number")
     ts, candidates = parse_signature_header(header)
@@ -197,7 +197,7 @@ def verify_webhook(raw_body: bytes, headers: Mapping, now: float, *, secret, env
     not carry one). Nothing here decides ownership, amount or state.
     """
     if environment not in ("sandbox", "live"):
-        raise PaddleMalformed("environment is not configured")
+        raise PaddleConfigError("environment is not configured")
     verify_signature(raw_body, _single_header(headers, "paddle-signature"), secret, now, tolerance=tolerance)
     envelope = _strict_json(raw_body)
     if not isinstance(envelope, dict) or not isinstance(envelope.get("data"), dict):

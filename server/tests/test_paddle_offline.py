@@ -92,10 +92,10 @@ class SignatureTests(unittest.TestCase):
     def test_body_and_secret_limits_and_clock(self):
         with self.assertRaises(PaddleMalformed):
             signature.verify_signature(b"x" * (signature.MAX_BODY_BYTES + 1), sign(b"x"), SECRET, NOW)
-        with self.assertRaises(PaddleMalformed):
+        with self.assertRaises(PaddleConfigError):     # our own configuration, not the caller's malformed request
             signature.verify_signature(envelope(), sign(envelope()), "short", NOW)
         for clock in (float("nan"), float("inf"), None, True):
-            with self.subTest(clock=clock), self.assertRaises(PaddleMalformed):
+            with self.subTest(clock=clock), self.assertRaises(PaddleConfigError):
                 signature.verify_signature(envelope(), sign(envelope()), SECRET, clock)
 
     def test_comparison_is_constant_time_by_construction(self):
@@ -164,7 +164,7 @@ class WebhookTests(unittest.TestCase):
         raw = envelope("subscription.created", {"id": "sub_01abcdefghjkmnpqrstvwxyz00"})
         event = self.verify(raw)
         self.assertEqual((event.transaction_id, event.adjustment_id, event.data), (None, None, {}))
-        with self.assertRaises(PaddleMalformed):
+        with self.assertRaises(PaddleConfigError):
             signature.verify_webhook(raw, {"Paddle-Signature": sign(raw)}, NOW, secret=SECRET, environment="staging")
 
     def test_dedup_key_is_separate_from_the_digest(self):

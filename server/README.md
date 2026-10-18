@@ -131,6 +131,24 @@ same gate, and material with no reviewed exposure row is blocked, not assumed ha
 Premium is access control, not DRM: shared answers, own code runs and several accounts
 cannot be prevented, and the free list is explicitly not cheat-resistant.
 
+## Paddle Billing (sandbox/test preparation, default off)
+
+Off unless `PAYMENTS_PROVIDER=paddle`. It needs `PADDLE_ENV=sandbox` (live is refused until a real transport has been
+approved), `PADDLE_API_KEY` (checked once for its environment prefix, never stored), `PADDLE_ENDPOINT_SECRET` (at least 16
+characters, different from the key, redacted everywhere) and `PADDLE_PRODUCTS` (strict JSON: product id to price id,
+quantity 1, currency and the expected total; a missing total means nothing is ever granted). `APP_ENV=production` is
+refused. The transport is injected (`Services.paddle_transport`); there is no real HTTP client yet.
+
+`POST /checkout` keeps the mock flow unchanged and, with Paddle on, answers `{purchase_id, state: "pending", provider:
+"paddle", checkout: {mode: "overlay", transaction_id}}` only when a remote transaction was created AND bound; every other
+outcome is a 503 without any provider id, and a new start is a new purchase with a new consent (never an automatic retry).
+`POST /payments/paddle-sandbox/webhook` verifies the signature over the original bytes (two signature fields are refused),
+answers 200 for an accepted or repeated event, 409 for a reused event id with another body, 400 for anything that fails
+verification, 413 for a large body and 503 when the bounded queue is full or storage fails. It stores evidence and queues
+a job; it never fetches from the provider and never grants. `PaddleService.reconcile_due` (a plain function, not
+scheduled yet) fetches an authoritative snapshot and is the only path that can change a purchase.
+Provisional values (decision 2026-10-18): confirm before live.
+
 ## Test gates
 
 ```sh

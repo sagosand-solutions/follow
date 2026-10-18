@@ -13,6 +13,7 @@ import hashlib
 import ipaddress
 import json
 import secrets
+import sqlite3
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -26,16 +27,22 @@ from starlette.routing import Route
 from . import http
 from .account_data import delete_account, export_account
 from .auth import AuthSecurity
-from .config import AppEnv
+from .config import AppEnv, check_paddle_settings
 from .content_access import ContentAccessError, resolve_content
 from .scoring_http import Hooks, scoring_routes
 from .scoring_service import ScoringService
+from .paddle.types import PaddleConfigError, PaddleError
+from .paddle.signature import verify_webhook as verify_paddle_webhook
+from .paddle_repo import PaddleQueueFull, PaddleRepository
+from .paddle_service import PaddleService
 from .content_catalog import build_release_summary
 from .dto import entitlements_dto, me_dto, product_list_dto
 from .models import AuthIntent, ConflictError, ServerError, SetupError, canonical_acknowledgements, resolve_active_bundle
 from .repositories import Repositories
 from .rate_limit import EmailStartLimiter
 from .sessions import AuthenticatedPrincipal, SessionService
+
+PADDLE_PROVIDERS = frozenset({"paddle-sandbox", "paddle-live"})   # exact names; nothing parses substrings
 
 
 @dataclass
@@ -48,6 +55,8 @@ class Services:
     providers: Mapping[str, object] = field(default_factory=dict)
     policy_activations: tuple = ()
     scoring: object | None = None
+    paddle_transport: object | None = None     # injected; no real transport exists yet (sandbox/test only)
+    on_decision: object | None = None          # optional reconcile observer(purchase_id, reason); stores nothing
     published_chapters: tuple = ()
     checkout_policy: dict | None = None
     clock: Callable[[], float] = time.time
@@ -198,6 +207,13 @@ def create_app(settings, services: Services) -> Starlette:
         if "mock" in services.providers or "test" in services.providers:
             raise SetupError("production must not enable mock providers")
 
+    # The injected Settings are checked here by the same function load_config uses, not trusted because an env parser ran.
+    check_paddle_settings(settings.payments_provider, settings.paddle_env, settings.paddle_endpoint_secret, settings.paddle_products)
+    if settings.payments_provider == "paddle":
+        if settings.app_env is AppEnv.PRODUCTION or services.paddle_transport is None or services.payments is not None:
+            raise SetupError("paddle needs the sandbox/test configuration, an injected transport and no mock payment adapter")
+    elif services.paddle_transport is not None:
+        raise SetupError("a Paddle transport was injected but PAYMENTS_PROVIDER is not paddle")
     if settings.scoring.any():
         if settings.app_env is AppEnv.PRODUCTION or services.scoring is None:
             raise SetupError("scoring requires the mock/test configuration and a loaded scoring catalog")
@@ -460,9 +476,22 @@ def create_app(settings, services: Services) -> Starlette:
         http.clear_preauth_cookie(response, settings)
         return response
 
+    def paddle_service(repositories) -> PaddleService:
+        return PaddleService(repositories, services.paddle_transport, settings.paddle_products,
+                             environment=settings.paddle_env, clock=services.clock, on_decision=services.on_decision)
+
     async def checkout(request: Request):
+        if settings.payments_provider != "paddle":
+            return await create_checkout(request)
+        try:        # a storage or operational failure anywhere on the Paddle path (also the first intent transaction) is a 503
+            return await create_checkout(request)
+        except (ServerError, sqlite3.Error):
+            return http.error_response("unavailable", _request_id(request))
+
+    async def create_checkout(request: Request):
         policy = services.checkout_policy
-        if services.payments is None or policy is None:
+        paddle = settings.payments_provider == "paddle"
+        if policy is None or (services.paddle_transport is None if paddle else services.payments is None):
             return http.error_response("unavailable", _request_id(request))
         with _uow(settings, services) as (repositories, sessions):
             principal = _principal(request, sessions)
@@ -476,6 +505,8 @@ def create_app(settings, services: Services) -> Starlette:
             product = repositories.products.get(body["product_id"])
             if product is None or not product.active:
                 return http.error_response("invalid", _request_id(request))
+            if paddle and product.id not in settings.paddle_products:
+                return http.error_response("unavailable", _request_id(request))     # the server sells only what it configured
             try:
                 acknowledgements = canonical_acknowledgements(body["acknowledgements"])
                 required = canonical_acknowledgements(policy.get("required_acknowledgements"))
@@ -492,9 +523,24 @@ def create_app(settings, services: Services) -> Starlette:
             if set(acknowledgements) != set(required) or set(required) != set(bundle.required_acknowledgements):
                 return http.error_response("invalid", _request_id(request))
             with repositories.database.transaction(immediate=True):
-                purchase = repositories.purchases.create(principal.user_id, product.id, services.payment_provider,
-                                                         f"srv-{secrets.token_urlsafe(12)}")
+                purchase = repositories.purchases.create(
+                    principal.user_id, product.id, f"paddle-{settings.paddle_env}" if paddle else services.payment_provider,
+                    f"srv-{secrets.token_urlsafe(12)}")
                 repositories.consents.record(purchase.id, bundle.id, list(acknowledgements))
+                if paddle:       # the intent to create a remote transaction is committed together with purchase and consent
+                    PaddleRepository(repositories.database).plan(purchase.id, settings.paddle_env, services.clock())
+        if paddle:
+            # AFTER the commit and with no open transaction: the remote call can never run inside one.
+            try:
+                with _uow(settings, services) as (repositories, sessions):
+                    outcome = paddle_service(repositories).start_checkout(repositories.purchases.get(purchase.id))
+            except (ServerError, sqlite3.Error):
+                return http.error_response("unavailable", _request_id(request))
+            if outcome["result"] != "bound":
+                return http.error_response("unavailable", _request_id(request))     # no provider id in any failure answer
+            return http.json_response({"purchase_id": purchase.id, "state": "pending", "provider": "paddle",
+                                       "checkout": {"mode": "overlay", "transaction_id": outcome["transaction_id"]}},
+                                      request_id=_request_id(request))
         try:
             result = services.payments.create_checkout(purchase, product, purchase.id)
         except ServerError:
@@ -506,7 +552,36 @@ def create_app(settings, services: Services) -> Starlette:
         return http.json_response({"state": "pending", "redirect_url": redirect, "purchase_id": purchase.id},
                                   request_id=_request_id(request))
 
+    async def paddle_webhook(request: Request, provider_path: str):
+        """Server-to-server: the signature over the ORIGINAL bytes is the gate (no Origin/CSRF). Evidence + job only."""
+        if (settings.payments_provider != "paddle" or provider_path != f"paddle-{settings.paddle_env}"
+                or services.paddle_transport is None):
+            return http.error_response("not-found", _request_id(request))
+        values = request.headers.getlist("paddle-signature")          # the RAW header list: two fields are ambiguous
+        try:
+            event = verify_paddle_webhook(request.scope["app_body"], {"paddle-signature": values[0] if len(values) == 1 else values},
+                                          services.clock(), secret=settings.paddle_endpoint_secret,
+                                          environment=settings.paddle_env)
+        except PaddleConfigError:
+            return http.error_response("unavailable", _request_id(request))       # our own configuration problem, not the caller's
+        except PaddleError:
+            return http.error_response("invalid", _request_id(request))           # one generic answer, no detail
+        try:
+            with _uow(settings, services) as (repositories, sessions):
+                outcome = paddle_service(repositories).handle_event(event)
+        except PaddleQueueFull:
+            return http.error_response("unavailable", _request_id(request))
+        except (ServerError, sqlite3.Error):
+            return http.error_response("unavailable", _request_id(request))
+        if outcome == "conflict":
+            return http.error_response("conflict", _request_id(request))
+        return http.json_response({"ok": True}, request_id=_request_id(request))
+
     async def webhook(request: Request):
+        if request.path_params["provider"] in PADDLE_PROVIDERS:
+            return await paddle_webhook(request, request.path_params["provider"])
+        if settings.payments_provider == "paddle":      # with Paddle configured there is no mock webhook route at all
+            return http.error_response("not-found", _request_id(request))
         if services.payments is None:
             return http.error_response("unavailable", _request_id(request))
         if request.path_params["provider"] != services.payment_provider:

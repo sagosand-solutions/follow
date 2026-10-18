@@ -76,13 +76,14 @@ class Base(unittest.TestCase):
         self.repos.products.upsert(Product("p1", "P1", "USD", 500, "python", True))
         self.repos.users.create(user_id="u1")
         self.transport = Transport()
+        self.decisions = {}                                          # injected observer target (the service itself stores nothing)
         self.catalog = {"p1": PaddleProduct(PRICE, 1, "USD", total_minor=1000)}
         self.service = self.make_service()
         self.paddle = self.service.paddle
 
     def make_service(self, env="sandbox", catalog=None, repos=None):
         return PaddleService(repos or self.repos, self.transport, catalog if catalog is not None else self.catalog,
-                             environment=env, clock=lambda: self.now[0])
+                             environment=env, clock=lambda: self.now[0], on_decision=self.decisions.__setitem__)
 
     def purchase_with_op(self, n=1, provider="paddle-sandbox", env="sandbox"):
         with self.db.transaction(immediate=True):
@@ -348,18 +349,31 @@ class ReconcileTests(Base):
                 out = self.run_reconcile()
                 self.assertEqual(out, [(purchase.id, "manual:manual")])
                 self.assertEqual(self.transport.get_calls[-1], TXN.format(n))            # the right transaction was fetched
-                self.assertEqual(self.service.decisions[purchase.id], reason)             # and it failed on exactly this dimension
+                self.assertEqual(self.decisions[purchase.id], reason)             # and it failed on exactly this dimension
                 row = self.paddle.reconcile_row(purchase.id)
                 self.assertEqual((row["state"], row["reason"]), ("manual", manual_reason))
                 self.assertEqual(self.state(purchase), ("pending", 0))
         self.assertEqual(self.entitled(), 0)
+
+    def test_an_observer_failure_never_steers_a_payment_and_nothing_is_stored_without_one(self):
+        def broken(pid, reason):
+            raise RuntimeError("secret=abc")
+        service = PaddleService(self.repos, self.transport, self.catalog, environment="sandbox", clock=lambda: self.now[0], on_decision=broken)
+        purchase, _ = self.bound_purchase()
+        service.handle_event(event(1))
+        self.transport.get_results.append(snapshot())
+        self.assertEqual(service.reconcile_due(10), [(purchase.id, "applied:deleted")])      # still a normal grant
+        self.assertEqual((self.state(purchase), self.entitled()), (("paid", 1), 1))
+        self.assertIsNone(self.paddle.reconcile_row(purchase.id))                             # no back-off, no manual row
+        silent = PaddleService(self.repos, self.transport, self.catalog, environment="sandbox", clock=lambda: self.now[0])
+        self.assertFalse(hasattr(silent, "decisions"))                                          # no hidden growing history
 
     def test_a_snapshot_for_another_transaction_is_its_own_isolated_case(self):
         purchase, _ = self.bound_purchase(1)
         self.service.handle_event(event(1, txn=1))
         self.transport.get_results.append(snapshot(txn=2))                                # valid in every other respect
         self.assertEqual(self.run_reconcile(), [(purchase.id, "manual:manual")])
-        self.assertEqual(self.service.decisions[purchase.id], "snapshot is not for the bound transaction")
+        self.assertEqual(self.decisions[purchase.id], "snapshot is not for the bound transaction")
         self.assertEqual(self.entitled(), 0)
 
     def test_an_undecided_amount_policy_blocks_every_grant(self):
@@ -368,7 +382,7 @@ class ReconcileTests(Base):
         undecided.handle_event(event(1, txn=1))
         self.transport.get_results.append(snapshot(txn=1))
         self.assertEqual(undecided.reconcile_due(10), [(purchase.id, "manual:manual")])
-        self.assertEqual(undecided.decisions[purchase.id], "amount policy is not decided")
+        self.assertEqual(self.decisions[purchase.id], "amount policy is not decided")
         self.assertEqual((self.state(purchase), self.paddle.reconcile_row(purchase.id)["reason"], self.entitled()), (("pending", 0), "proof", 0))
 
     def test_a_corrupt_snapshot_is_malformed_and_never_aborts_the_batch(self):

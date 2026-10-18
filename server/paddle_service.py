@@ -4,7 +4,8 @@
 This module owns the order of operations; the rules live elsewhere: ``paddle.mapping.decide`` (what a snapshot
 means), ``payment_apply.apply_reconciled`` (the one atomic, fenced effect) and ``paddle_repo`` (bookkeeping). The
 transport is a plain object supplied by the caller, so no network is touched here and a test can script every
-failure. Nothing is wired into the HTTP app yet and nothing grants access except ``reconcile_due``.
+failure. The HTTP app only creates checkouts and stores webhook evidence through this module; nothing grants access
+except ``reconcile_due``.
 
 Provisional values (decision 2026-10-18): confirm before live. This covers the limits and timings in ``paddle_repo``
 (orphan caps and TTL, bound-event cap, lease, backoff, attempts, wait window).
@@ -64,7 +65,7 @@ def error_class(exc: BaseException) -> str:
 
 
 class PaddleService:
-    def __init__(self, repositories, transport: PaddleTransport, catalog: dict, *, environment: str, clock):
+    def __init__(self, repositories, transport: PaddleTransport, catalog: dict, *, environment: str, clock, on_decision=None):
         if environment not in ("sandbox", "live"):
             raise ValueError("unknown Paddle environment")
         self.repositories = repositories
@@ -74,7 +75,7 @@ class PaddleService:
         if not all(isinstance(v, PaddleProduct) for v in dict(catalog).values()):
             raise ValueError("catalog values must be PaddleProduct")
         self.catalog = dict(catalog)
-        self.decisions = {}                  # purchase id -> reason of the last decision (observability for tests and ops)
+        self.on_decision = on_decision        # optional observer(purchase_id, reason): stores nothing here, never steers a payment
         self.environment = environment
         self.provider = f"paddle-{environment}"
         self.clock = clock
@@ -194,7 +195,7 @@ class PaddleService:
         expected = Expected(self.environment, product.price_id, product.quantity, product.currency_code,
                             transaction_id=txn_id, total_minor=product.total_minor, total_field=product.total_field)
         decision = mapping.decide(purchase.state.value, snapshot, expected)
-        self.decisions[pid] = decision.reason
+        self._observe(pid, decision.reason)
         if decision.action == "none":
             return "finish:" + self.paddle.finish(*token)
         if decision.action == "reconcile":
@@ -220,6 +221,16 @@ class PaddleService:
         if result.outcome == "blocked":
             return "await:" + self.paddle.await_event(*token, self.clock(), first_seen)
         return "manual:" + self.paddle.to_manual(*token, "reconcile")    # ignored / unknown_purchase / unbound
+
+    def _observe(self, purchase_id: str, reason: str) -> None:
+        """Tell an injected observer why a decision was taken. An observer failure is swallowed: it can never change a
+        payment decision, cause a back-off or a manual-review row, and nothing about it is logged or stored."""
+        if self.on_decision is None:
+            return
+        try:
+            self.on_decision(purchase_id, reason)
+        except Exception:
+            pass
 
     def _first_seen(self, txn_id: str, op) -> float:
         rows = self.paddle.events_for_transaction(self.environment, txn_id)
