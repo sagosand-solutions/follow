@@ -294,8 +294,13 @@ class ScoringService:
             if self.repo.count_open_issues_total(now) >= MAX_OPEN_ISSUES_GLOBAL:
                 raise ScoringError("unavailable")
             self.repo.purge_issues(now - RECEIPT_TTL)
+            # An anonymous issue always blocks later ranked play of that question; an account's own issue does not, unless
+            # an earlier (claimed) exposure already does.
+            account = principal.user_id is not None
+            rankable = account and not self.repo.rank_blocked(principal.id, question_id, family)
+            self.repo.record_exposure(principal.id, question_id, family, now, "issue", 0 if account else 1)
             issue = Issue(new_id("i"), principal.id, question_id, family, catalog.catalog_version, revision,
-                          json.dumps(issued, sort_keys=True), now, now + ISSUE_TTL, None)
+                          json.dumps(issued, sort_keys=True), now, now + ISSUE_TTL, None, 1 if rankable else 0)
             self.repo.insert_issue(issue)
         options = [{"option_id": oid, "text": next(o["text"] for o in question["options"] if o["id"] == orig)}
                    for oid, orig in ((o_id, issued[o_id]) for o_id in self._issued_order(issued, shuffled))]
@@ -371,8 +376,16 @@ class ScoringService:
                     result, units = outcome_for(question, original)
                 except ContentError:
                     raise ScoringError("unavailable") from None
+                # Rankable only for an account, from an issue that was rank-eligible, with no blocking exposure right now
+                # (an issue given before a claim can never yield a ranked attempt after it).
+                if principal.user_id is None:
+                    origin = "anonymous"
+                elif issue.rank_eligible and not self.repo.rank_blocked(principal.id, issue.question_id, issue.family):
+                    origin = "account"
+                else:
+                    origin = "exposed"
                 attempt = Attempt(principal.id, issue.question_id, issue.family, pq.course_id, catalog.catalog_version,
-                                  RULES_VERSION, issue.revision, original, result, units, now)
+                                  RULES_VERSION, issue.revision, original, result, units, now, origin)
                 self.repo.insert_attempt(attempt)
                 if not self.repo.consume_issue(issue.id, now):
                     raise ScoringError("expired")
@@ -558,8 +571,9 @@ class ScoringService:
 
     def set_preference(self, actor: Actor, family: str, opt_in: bool, nickname, nickname_given: bool) -> dict:
         self._catalog(family)
-        if family == "official" and actor.user_id is None:
-            raise ScoringError("not-found")
+        if actor.user_id is None:
+            # Publishing is account-only for every family; an anonymous reader has no leaderboard identity.
+            raise ScoringError("no-session")
         clean = None
         if nickname_given and nickname is not None:
             clean = self.valid_nickname(nickname)
@@ -594,6 +608,10 @@ class ScoringService:
             if source.claimed_to is not None or target.claim_source_id is not None or source.id == target.id:
                 raise ScoringError("claim_conflict")
             conn = self.db.connect()
+            # Exposure first (it reads the source's attempts and issues before they are moved or dropped); the moved
+            # attempts keep their origin, so nothing anonymous becomes rankable.
+            self.repo.union_exposure(source.id, target.id, now)
+            self.repo.withdraw_rank_eligibility(target.id)
             moved = conn.execute(
                 "UPDATE first_attempts SET principal_id = ? WHERE principal_id = ? AND family = 'free' AND question_id NOT IN "
                 "(SELECT question_id FROM first_attempts WHERE principal_id = ?)", (target.id, source.id, target.id)).rowcount

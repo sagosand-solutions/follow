@@ -454,15 +454,14 @@ class LeaderboardTests(AbuseBase):
         self.assertEqual(len(after["entries"]), 1)
         self.assertGreater(after["entries"][0]["points"], 0)
 
-    def test_expired_anonymous_alias_leaves_the_free_list(self):
+    def test_an_anonymous_reader_cannot_publish_and_is_never_listed(self):
         anon = self.fx.anonymous()
         self.anon_answer(anon, "py-free-f00", key="alias")
-        self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "free", "opt_in": True}, anon)[0], 200)
-        before = json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all"))
-        self.assertEqual(before["participants"], 1)
-        self.fx.clock[0] += 31 * 24 * 3600
-        after = json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all"))
-        self.assertEqual(after["participants"], 0, "an expired anonymous alias is still listed")
+        self.assertEqual(self.fx.anon_post("/scoring/preferences", {"family": "free", "opt_in": True}, anon)[0], 401)
+        for offset in (0, 31 * 24 * 3600):
+            self.fx.clock[0] += offset
+            board = json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all"))
+            self.assertEqual(board["participants"], 0)
 
 
 class DisabledFlagTests(unittest.TestCase):
