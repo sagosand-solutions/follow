@@ -25,6 +25,7 @@ ERROR_STATUS = {
     "stale-policy": 409,
     "expired": 409,
     "stale": 409,
+    "stale_cursor": 409,
     "locked": 409,
     "idempotency_conflict": 409,
     "claim_conflict": 409,

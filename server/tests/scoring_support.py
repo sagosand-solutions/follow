@@ -19,7 +19,7 @@ from server.scoring_service import ManifestQuestionSource, ScoringServices
 from server.sessions import SessionService
 from server.tests.support import ORIGIN, call, json_body
 
-SCORING_ENV = {"SCORING_ENABLED": "true", "SCORING_ANONYMOUS_ENABLED": "true", "SCORING_CLAIM_ENABLED": "true",
+SCORING_ENV = {"SCORING_ENABLED": "true", "SCORING_DEV_SOURCE": "true", "SCORING_ANONYMOUS_ENABLED": "true", "SCORING_CLAIM_ENABLED": "true",
                "SCORING_PUBLISH_ENABLED": "true"}
 SENTINEL = "SECRET-SENTINEL-FACIT"
 
@@ -191,7 +191,7 @@ def build_scoring_fixture(*, official=((("py", 10)), ("prod", 4), ("sql", 4)), f
         "official": parse_catalog({"schema_version": 1, "catalog_version": "2026-10-18.1", "rules_version": "r2",
                                    "family": "official", "courses": official_courses, "exposures": exposures},
                                   expected_family="official", content_catalog=content_catalog),
-        "free": parse_catalog({"schema_version": 1, "catalog_version": "2026-10-18.1", "rules_version": "r2",
+        "free": parse_catalog({"schema_version": 1, "catalog_version": "2026-10-19.1", "rules_version": "r2",
                                "family": "free", "courses": free_items, "exposures": free_exposures},
                               expected_family="free"),
     }

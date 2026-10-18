@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "comment": "Human-maintained alias moderation list, matched on whole words after NFKC, case folding, look-alike and digit-for-letter folding. A deliberately small seed: impersonation of the site or its staff, and a few mild insults. It is a courtesy filter, not a claim of abuse safety; moderators hide the rest with the operator tool.",
+  "terms": [
+    "admin", "administrator", "moderator", "mod", "staff", "support", "official", "owner", "system", "root",
+    "follow", "readfirst", "idiot", "moron", "stupid"
+  ]
+}

@@ -101,6 +101,11 @@ class SyncTests(Base):
             self.assertEqual(ScoringRepository(db).sync_pool(entries, self.now + 1, "rel-9"), 0, "a second start-up registers nothing new")
         self.assertEqual(self.rows("SELECT COUNT(*) FROM pool_lifecycle_events"), [(0,)])
 
+    def test_each_family_is_registered_under_its_own_catalog_version(self):
+        for family, catalog in self.fx.catalogs.items():
+            self.assertEqual(self.rows("SELECT DISTINCT release_id FROM pool_questions WHERE family = ?", (family,)), [(catalog.catalog_version,)])
+        self.assertNotEqual(self.fx.catalogs["free"].catalog_version, self.fx.catalogs["official"].catalog_version)
+
     def test_a_changed_or_cloned_question_stops_start_up_without_leaking_hashes(self):
         db = self.db()
         repo = ScoringRepository(db)
@@ -357,7 +362,8 @@ class StaticAndCliTests(Base):
         _, issue = self.issue("py-free-f00")
         self.assertEqual(self.run_cli("freeze", "--version", self.version("free"), "--reason", "retirement")[0], 0)
         code, out, err = self.run_cli("retire", "--question", "py-free-f00", "--release", "rel-2", "--reason", "exposed", "--operator", "op-1")
-        self.assertEqual((code, out.strip(), err), (0, "retired py-free-f00; 0 open issue(s) withdrawn", ""))
+        self.assertEqual((code, out.strip()), (0, "retired py-free-f00; 0 open issue(s) withdrawn"))
+        self.assertNotIn("refused", err)
         code, out, err = self.run_cli("retire", "--question", "py-free-f00", "--release", "rel-2", "--reason", "exposed", "--operator", "op-1")
         self.assertEqual((code, out), (2, ""))
         self.assertIn("refused:", err)

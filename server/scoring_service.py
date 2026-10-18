@@ -23,8 +23,10 @@ from .content_access import has_entitlement
 from .models import ContentError, ServerError, UserStatus
 from .scoring_catalog import FAMILIES, RULES_VERSION, SCORE_UNITS
 from .scoring_repo import Attempt, Issue, Preference, ScoringRepository, new_id
-from .scoring_standings import StandingsWriter, bump_principal_boards
-from .scoring_versions import iso_week
+from . import scoring_boards
+from .alias_blocklist import is_blocked
+from .scoring_standings import StandingsWriter, VersionShape, bump_principal_boards, load_shape
+from .scoring_versions import iso_week, points, score_display, score_key, total_numerator, total_parameters, window_key
 
 ISSUE_TTL = 30 * 60
 RECEIPT_TTL = 7 * 24 * 3600
@@ -39,7 +41,9 @@ _KEY_RE = re.compile(r"[A-Za-z0-9_-]{16,64}\Z")
 _OPT_RE = re.compile(r"o[a-z0-9]{10}\Z")
 _ISSUE_RE = re.compile(r"[A-Za-z0-9_-]{8,64}\Z")
 _COURSE_SCOPE_RE = re.compile(r"course:([a-z][a-z0-9-]{0,63})\Z")
-NICKNAME_BLOCKLIST: frozenset = frozenset()  # human-maintained moderation list; empty in mock mode
+_CURSOR_OFFSET = re.compile(r"[0-9]{1,7}")
+_CURSOR_REVISION = re.compile(r"[0-9]{1,12}")
+_CURSOR_SIGNATURE = re.compile(r"[0-9a-f]{24}")
 
 
 class ScoringError(ServerError):
@@ -131,18 +135,30 @@ def verify_pool(scoring: "ScoringServices") -> None:
 
 
 class ManifestQuestionSource:
-    """Official questions: the existing hash-checked ContentCatalog. Free: explicit {id: bytes} (synthetic in mock)."""
+    """Where a pool question's bytes come from, always hash-checked.
 
-    def __init__(self, content_catalog=None, free: dict | None = None):
+    Official: the content catalog. Free: a PRIVATE hash-checked catalog (``free_catalog``), never the public bank; an explicit
+    in-memory ``{id: bytes}`` map exists only for tests and local development and is refused at start-up unless
+    SCORING_DEV_SOURCE is set (and always in production). There is no fallback from one source to another."""
+
+    def __init__(self, content_catalog=None, free: dict | None = None, free_catalog=None):
+        if free and free_catalog is not None:
+            raise ContentError("the free pool has one source, not two")
         self.content_catalog = content_catalog
         self.free = dict(free or {})
+        self.free_catalog = free_catalog
+
+    @property
+    def free_from_memory(self) -> bool:
+        return bool(self.free)
 
     def read(self, family: str, question_id: str, sha256: str) -> dict:
-        if family == "official":
-            entry = self.content_catalog.lookup("question", question_id) if self.content_catalog else None
+        catalog = self.content_catalog if family == "official" else self.free_catalog
+        if family == "official" or self.free_catalog is not None:
+            entry = catalog.lookup("question", question_id) if catalog else None
             if entry is None or entry.sha256 != sha256:
                 raise ContentError("question missing or changed")
-            raw = self.content_catalog.read(entry)
+            raw = catalog.read(entry)
         else:
             raw = self.free.get(question_id)
             if raw is None or hashlib.sha256(raw).hexdigest() != sha256:
@@ -424,18 +440,22 @@ class ScoringService:
 
     # ---- exposure gate (central, used by /content) --------------------
     def content_allowed(self, user_id: str, kind: str, content_id: str, entry) -> bool:
-        official = self.scoring.catalogs.get("official")
-        if official is None:
+        """Served material is released only when every ranked or retired question it reveals is locked by this reader.
+
+        Rows from BOTH families count. Default-deny: no reviewed row anywhere, a row for different bytes, or no active
+        official snapshot all refuse. Paying for the product is not enough. A question that has become free is public and
+        needs no lock; a question the pool does not know is treated as still protected."""
+        if self.scoring.catalogs.get("official") is None:
             return False  # no active snapshot: never fall back to raw bytes
-        row = official.exposure(kind, content_id)
-        if row is not None and row[0] != entry.sha256:
-            return False  # the served file is not the reviewed file
-        if row is None:
-            return False  # default-deny: any served material without a reviewed exposure row, whatever its product
-        if not row[1]:
+        rows = [row for catalog in self.scoring.catalogs.values() if (row := catalog.exposure(kind, content_id)) is not None]
+        if not rows or any(row[0] != entry.sha256 for row in rows):
+            return False
+        affected = frozenset().union(*(row[1] for row in rows))
+        protected = {q for q in affected if self.repo.pool_state(q) != "free"}
+        if not protected:
             return True
         principal = self.repo.principal_for_user(user_id)
-        return principal is not None and row[1] <= self.repo.locked_question_ids(principal.id)
+        return principal is not None and protected <= self.repo.locked_question_ids(principal.id)
 
     # ---- me / lists ---------------------------------------------------
     @staticmethod
@@ -451,22 +471,6 @@ class ScoringService:
             raise ScoringError("unavailable" if family in FAMILIES else "invalid")
         return catalog
 
-    def _score(self, sums: dict, catalog, scope: str) -> Fraction | None:
-        """Exact score for `total` or `course:<id>`; None when there is no valid attempt in scope."""
-        if scope == "total":
-            if not sums:
-                return None
-            return total_points({c: u for c, (u, _n) in sums.items()}, catalog)
-        course = _COURSE_SCOPE_RE.fullmatch(scope).group(1)
-        if course not in sums:
-            return None
-        return course_points(sums[course][0], catalog.pool_sizes[course])
-
-    @staticmethod
-    def _ranked(scores: dict) -> dict:
-        ordered = sorted(scores.values(), reverse=True)
-        return {pid: 1 + sum(1 for other in ordered if other > score) for pid, score in scores.items()}
-
     def _scope(self, catalog, scope: str) -> str:
         if scope != "total":
             match = _COURSE_SCOPE_RE.fullmatch(scope) if isinstance(scope, str) else None
@@ -474,89 +478,140 @@ class ScoringService:
                 raise ScoringError("invalid")
         return scope
 
+    def _version(self, conn, family: str, catalog):
+        row = scoring_boards.current_version(conn, family, catalog.catalog_version, catalog.rules_version)
+        if row is None:
+            raise ScoringError("unavailable")
+        return row["id"]
+
+    @staticmethod
+    def _shape(conn, version_id: str) -> VersionShape:
+        return load_shape(conn, version_id)
+
+    @staticmethod
+    def _scope_terms(shape: VersionShape, scope: str, units: dict):
+        """(numerator, denominator, pool) of a scope for these course units, or None when the scope holds no attempt."""
+        if scope == "total":
+            if not units:
+                return None
+            _, _, d = total_parameters(shape)
+            return total_numerator({c: u for c, (u, _n) in units.items()}, shape), d, sum(shape.pool_sizes.values())
+        course = _COURSE_SCOPE_RE.fullmatch(scope).group(1)
+        if course not in units:
+            return None
+        return units[course][0], shape.pool_sizes[course], shape.pool_sizes[course]
+
+    def _sign(self, family: str, version_id: str, scope: str, window: str, revision: int, offset: int) -> str:
+        message = f"cursor:{family}:{version_id}:{scope}:{window}:{revision}:{offset}".encode()
+        return hmac.new(self.settings.session_secret, message, hashlib.sha256).hexdigest()[:24]
+
+    def _cursor(self, family, version_id, scope, window, revision, offset) -> str:
+        return f"{offset}.{revision}.{self._sign(family, version_id, scope, window, revision, offset)}"
+
     def me(self, actor: Actor, family: str, window_kind: str, scope: str = "total") -> dict:
         catalog = self._catalog(family)
         scope = self._scope(catalog, scope)
         now = self._now()
         window, start, end = self._window(window_kind, now)
-        principal = self._principal(actor, create=False)
-        if principal is None:
-            sums, attempts, pref = {}, [], None
-        else:
-            if family == "official" and actor.user_id is None:
+        wkey = window_key("all") if start is None else window_key("week", start)
+        with self.db.transaction():                           # one read snapshot for every number below
+            conn = self.db.connect()
+            principal = self._principal(actor, create=False)
+            if principal is not None and family == "official" and actor.user_id is None:
                 raise ScoringError("not-found")
-            sums = self.repo.course_sums(principal.id, family, start, end)
-            attempts = self.repo.attempts(principal.id, family, start=start, end=end, limit=HISTORY_MAX)
-            pref = self.repo.preference(principal.id, family)
-        units = {c: u for c, (u, _n) in sums.items()}
-        courses = [{"course_id": c, "points": float(course_points(units.get(c, 0), catalog.pool_sizes[c])),
-                    "answered": sums.get(c, (0, 0))[1], "pool": catalog.pool_sizes[c]} for c in catalog.course_ids]
-        total = self._score(sums, catalog, "total")
-        mine = self._score(sums, catalog, scope)
-        published = bool(pref and pref.opted_in_at is not None and pref.moderation_state == "ok")
-        rank = {"kind": "none", "value": None, "participants": 0}
-        own_cursor = None
-        if mine is not None and principal is not None:
-            others = {}
-            for pid, s in self.repo.published_sums(family, now, start, end).items():
-                value = self._score(s, catalog, scope)
-                if value is not None and pid != principal.id:
-                    others[pid] = value
-            value = 1 + sum(1 for v in others.values() if v > mine)
-            rank = {"kind": "actual" if published else "hypothetical", "value": value,
-                    "participants": len(others) + (1 if published else 0)}
-            # Private pointer into the public list: published neighbours only, bound to family/catalog/scope/window.
-            entries = sorted([(-v, pid) for pid, v in others.items()] + ([(-mine, principal.id)] if published else []))
-            index = next((i for i, (_neg, pid) in enumerate(entries) if pid == principal.id), sum(1 for e in entries if -e[0] > mine))
-            offset = max(0, index - 2)
-            own_cursor = f"{offset}.{self._sign(offset, scope, family, self._wkey(window), catalog.catalog_version)}"
+            version_id = self._version(conn, family, catalog)
+            shape = self._shape(conn, version_id)
+            revision = scoring_boards.board_revision(conn, version_id, wkey)
+            units, attempts, pref, members = {}, [], None, set()
+            if principal is not None:
+                table = "course_units" if principal.user_id is not None else "anonymous_units"
+                units = {r["course_id"]: (r["units"], r["answered"]) for r in conn.execute(
+                    f"SELECT course_id, units, answered FROM {table} WHERE version_id = ? AND window_key = ? AND principal_id = ?",
+                    (version_id, wkey, principal.id))}
+                attempts = self.repo.attempts(principal.id, family, start=start, end=end, limit=HISTORY_MAX)
+                pref = self.repo.preference(principal.id, family)
+                members = {r[0] for r in conn.execute("SELECT question_id FROM ranking_version_members WHERE version_id = ?", (version_id,))}
+            _, _, total_d = total_parameters(shape)
+            total = self._scope_terms(shape, "total", units)
+            courses = []
+            for c in catalog.course_ids:
+                u, n = units.get(c, (0, 0))
+                n_c = shape.pool_sizes[c]
+                courses.append({"course_id": c, "points": float(points(u, n_c)), "score_display": score_display(u, n_c),
+                                "answered": n, "pool": n_c})
+            total_numer = total[0] if total else 0
+            terms = self._scope_terms(shape, scope, units)
+            published = bool(pref and pref.opted_in_at is not None and pref.moderation_state == "ok" and principal.user_id is not None)
+            rank, own_cursor, scope_score = {"kind": "none", "value": None, "participants": 0}, None, None
+            if terms is not None:
+                numerator, denominator, pool = terms
+                answered = sum(n for _u, n in units.values()) if scope == "total" else units[scope.split(":", 1)[1]][1]
+                scope_score = {"scope": scope, "score_display": score_display(numerator, denominator), "answered": answered, "pool": pool}
+                key = score_key(numerator, denominator)
+                own = scoring_boards.own_position(conn, family, version_id, scope, wkey, principal.id) if published else None
+                if own is not None:
+                    rank = {"kind": "actual", "value": own["rnk"], "participants": own["participants"]}
+                    offset = max(0, own["pos"] - 1 - 2)
+                    own_cursor = self._cursor(family, version_id, scope, wkey, revision, offset)
+                else:
+                    value, count = scoring_boards.hypothetical(conn, family, version_id, scope, wkey, key)
+                    if count:
+                        rank = {"kind": "hypothetical", "value": value, "participants": count}
+            history = []
+            for a in attempts:
+                item = attempt_dto(a)
+                item["rank_eligible"] = (a.origin == "account" and a.question_id in members
+                                         and a.catalog_version == catalog.catalog_version and a.rules_version == catalog.rules_version)
+                history.append(item)
         return {"family": family, "rules_version": catalog.rules_version, "catalog_version": catalog.catalog_version,
-                "scope": scope, "window": window,
-                "total": {"points": float(total) if total is not None else 0.0, "answered": sum(n for _u, n in sums.values()),
-                          "pool": sum(catalog.pool_sizes.values())},
-                "courses": courses, "attempts": [attempt_dto(a) for a in attempts], "rank": rank, "published": published,
-                "own_cursor": own_cursor}
+                "scope": scope, "window": window, "board_revision": str(revision),
+                "total": {"points": float(points(total_numer, total_d)), "score_display": score_display(total_numer, total_d),
+                          "answered": sum(n for _u, n in units.values()), "pool": sum(shape.pool_sizes.values())},
+                "scope_score": scope_score, "courses": courses, "attempts": history, "rank": rank, "published": published,
+                "moderation": pref.moderation_state if pref else "ok", "own_cursor": own_cursor}
 
-    @staticmethod
-    def _wkey(window: dict) -> str:
-        return f"{window['kind']}:{window['start']}"  # a week cursor dies when the ISO week turns
-
-    def _sign(self, offset: int, scope: str, family: str, window: str, catalog_version: str) -> str:
-        message = f"cursor:{family}:{catalog_version}:{scope}:{window}:{offset}".encode()
-        return hmac.new(self.settings.session_secret, message, hashlib.sha256).hexdigest()[:24]
-
-    def leaderboard(self, family: str, scope: str, window_kind: str, limit: int, cursor: str | None) -> dict:
+    def leaderboard(self, family: str, scope: str, window_kind: str, limit: int, cursor: str | None, viewer_user_id: str | None = None) -> dict:
         catalog = self._catalog(family)
         scope = self._scope(catalog, scope)
         now = self._now()
         window, start, end = self._window(window_kind, now)
-        offset = 0
-        if cursor is not None:
-            head, _, sig = cursor.partition(".")
-            if not head.isdigit() or len(head) > 7 or not hmac.compare_digest(sig, self._sign(int(head), scope, family, self._wkey(window), catalog.catalog_version)):
-                raise ScoringError("invalid")
-            offset = int(head)
-        profiles = {}
-        for pid, sums in self.repo.published_sums(family, now, start, end).items():
-            score = self._score(sums, catalog, scope)
-            if score is not None:
-                answered = sum(n for _u, n in sums.values()) if scope == "total" else sums[_COURSE_SCOPE_RE.fullmatch(scope).group(1)][1]
-                profiles[pid] = (score, answered)
-        ranks = self._ranked({pid: v[0] for pid, v in profiles.items()})
-        order = sorted(profiles, key=lambda pid: (-profiles[pid][0], pid))
-        page = order[offset:offset + limit]
-        pool = sum(catalog.pool_sizes.values()) if scope == "total" else catalog.pool_sizes[_COURSE_SCOPE_RE.fullmatch(scope).group(1)]
-        aliases = {}
-        for pid in page:
-            pref = self.repo.preference(pid, family)
-            aliases[pid] = pref.alias if pref else "Reader"
-        more = offset + limit < len(order)
+        wkey = window_key("all") if start is None else window_key("week", start)
+        with self.db.transaction():
+            conn = self.db.connect()
+            version_id = self._version(conn, family, catalog)
+            revision = scoring_boards.board_revision(conn, version_id, wkey)
+            offset = 0
+            if cursor is not None:
+                parts = cursor.split(".") if isinstance(cursor, str) else []
+                # Plain ASCII shapes only: str.isdigit() also accepts digits such as U+00B2 that int() then refuses, and
+                # compare_digest refuses a non-ASCII str, so every part is checked BEFORE it is converted or compared.
+                if len(parts) != 3 or not _CURSOR_OFFSET.fullmatch(parts[0]) or not _CURSOR_REVISION.fullmatch(parts[1]) \
+                        or not _CURSOR_SIGNATURE.fullmatch(parts[2]):
+                    raise ScoringError("invalid")
+                if not hmac.compare_digest(parts[2], self._sign(family, version_id, scope, wkey, int(parts[1]), int(parts[0]))):
+                    raise ScoringError("invalid")
+                if int(parts[1]) != revision:
+                    raise ScoringError("stale_cursor")
+                offset = int(parts[0])
+            shape = self._shape(conn, version_id)
+            rows, participants = scoring_boards.page(conn, family, version_id, scope, wkey, offset, limit)
+            viewer = self.repo.principal_for_user(viewer_user_id) if viewer_user_id else None
+            if scope == "total":
+                denominator, pool = total_parameters(shape)[2], sum(shape.pool_sizes.values())
+            else:
+                denominator = pool = shape.pool_sizes[_COURSE_SCOPE_RE.fullmatch(scope).group(1)]
+        entries = []
+        for r in rows:
+            numerator = int(r["numerator"])
+            entry = {"rank": r["rnk"], "alias": r["alias"], "points": float(points(numerator, denominator)),
+                     "score_display": score_display(numerator, denominator), "answered": r["answered"], "pool": pool}
+            if viewer is not None and r["principal_id"] == viewer.id:
+                entry["is_me"] = True
+            entries.append(entry)
+        more = offset + len(rows) < participants and len(rows) == limit
         return {"family": family, "rules_version": catalog.rules_version, "catalog_version": catalog.catalog_version,
-                "scope": scope, "window": window,
-                "entries": [{"rank": ranks[pid], "alias": aliases[pid], "points": float(profiles[pid][0]),
-                             "answered": profiles[pid][1], "pool": pool} for pid in page],
-                "participants": len(order),
-                "next_cursor": f"{offset + limit}.{self._sign(offset + limit, scope, family, self._wkey(window), catalog.catalog_version)}" if more else None}
+                "scope": scope, "window": window, "board_revision": str(revision), "entries": entries, "participants": participants,
+                "next_cursor": self._cursor(family, version_id, scope, wkey, revision, offset + limit) if more else None}
 
     # ---- preferences --------------------------------------------------
     @staticmethod
@@ -571,7 +626,7 @@ class ScoringService:
             if category in ("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp") or (category == "Zs" and ch != " ") or ch in "<>&\"'`\\":
                 return None
         lowered = text.casefold()
-        if "  " in text or any(token in lowered for token in ("http", "www.", "://", "@")) or lowered in NICKNAME_BLOCKLIST:
+        if "  " in text or any(token in lowered for token in ("http", "www.", "://", "@")) or is_blocked(text):
             return None
         return text
 
@@ -599,7 +654,7 @@ class ScoringService:
                 alias = "Reader-" + secrets.token_hex(3)
             self.repo.upsert_preference(Preference(principal.id, family, now if opt_in else None, alias, nick,
                                                    current.moderation_state if current else "ok"))
-            bump_principal_boards(self.db.connect(), principal.id)
+            bump_principal_boards(self.db.connect(), principal.id, family)
         return {"family": family, "opted_in": bool(opt_in), "alias": alias}
 
     # ---- claim --------------------------------------------------------

@@ -36,9 +36,12 @@ def bump_board(conn, version_id: str, window: str) -> None:
     conn.execute("UPDATE board_revisions SET revision = revision + 1 WHERE version_id = ? AND window_key = ?", (version_id, window))
 
 
-def bump_principal_boards(conn, principal_id: str) -> None:
-    """Everywhere this principal has a standing: a publication, alias or removal change moves those boards."""
-    for version_id, window in conn.execute("SELECT DISTINCT version_id, window_key FROM standings WHERE principal_id = ?", (principal_id,)).fetchall():
+def bump_principal_boards(conn, principal_id: str, family: str | None = None) -> None:
+    """Every board this principal has a standing on (only the given family's when named): a publication, alias or removal
+    change moves exactly those boards."""
+    sql = ("SELECT DISTINCT s.version_id, s.window_key FROM standings s JOIN ranking_versions v ON v.id = s.version_id "
+           "WHERE s.principal_id = ?" + (" AND v.family = ?" if family else ""))
+    for version_id, window in conn.execute(sql, (principal_id, family) if family else (principal_id,)).fetchall():
         bump_board(conn, version_id, window)
 
 

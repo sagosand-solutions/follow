@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Operator tool for the scoring question pool: ``python -m server.pool freeze|retire|free|rebuild|check-static``.
+"""Operator tool for the scoring question pool: ``python -m server.pool freeze|retire|free|rebuild|check-static|export-underlay``.
 
 One way only: a ranked question can be retired, a retired one can be released as free, nothing moves back. Every change is
 one transaction with an append-only audit row; a version is frozen before any of its questions is retired. Operator and
@@ -121,17 +121,25 @@ def free(db: Database, question_id: str, *, release_id: str, reason_code: str, o
                      (question_id, release_id, now, operator_id, reason_code, clone_audit_ref))
 
 
-def check_static(db: Database, public_root: str) -> list:
+def protected_from_db(db: Database) -> list:
+    """(question_id, content_sha256) of every ranked or retired question in the live database."""
+    return [(r["question_id"], r["content_sha256"]) for r in db.connect().execute(
+        "SELECT question_id, content_sha256 FROM pool_questions WHERE state IN ('ranked', 'retired') ORDER BY question_id")]
+
+
+def check_static(db: Database | None, public_root: str, protected: list | None = None) -> list:
     """Findings (path + id + how) for every ranked or retired question whose id or content hash appears under ``public_root``.
     Even a question an operator has played is a finding: static material is world-readable. An id followed by a dot (a file
     extension) counts as a mention, and a symlink or a file over MAX_SCAN_BYTES is itself a finding (never followed or read), so
-    the check errs toward a false alarm rather than a missed leak."""
+    the check errs toward a false alarm rather than a missed leak. The protected list comes from the database, or from a
+    validated underlay passed as ``protected``; an EMPTY list is an error, never a clean pass."""
     root = Path(public_root)
     if not root.is_dir():
         raise PoolError("static root is not a directory")
-    conn = db.connect()
-    protected = [(r["question_id"], r["content_sha256"]) for r in conn.execute(
-        "SELECT question_id, content_sha256 FROM pool_questions WHERE state IN ('ranked', 'retired') ORDER BY question_id")]
+    if protected is None:
+        protected = protected_from_db(db)
+    if not protected:
+        raise PoolError("the protected pool is empty: nothing to check against, which is never a pass")
     patterns = {qid: re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(qid) + r"(?![A-Za-z0-9_-])") for qid, _ in protected}
     findings = []
     for path in sorted(p for p in root.rglob("*") if p.is_file() or p.is_symlink()):
@@ -181,12 +189,72 @@ def _parser() -> argparse.ArgumentParser:
     r.add_argument("--version", required=True)
     c = sub.add_parser("check-static", help="fail if a ranked or retired question appears in static files")
     c.add_argument("--public-root", required=True)
+    c.add_argument("--underlay", help="check against an exported underlay instead of the database")
+    binding = c.add_mutually_exclusive_group()
+    binding.add_argument("--expect-digest", help="with --underlay: the digest from the release decision (required for a release check)")
+    binding.add_argument("--unbound", action="store_true", help="with --underlay: integrity only, NOT a release check (self-tests)")
+    e = sub.add_parser("export-underlay", help="write ids, hashes and states of the protected pool (no content)")
+    e.add_argument("--out", required=True)
+    e.add_argument("--catalog", action="append", default=[], help="a frozen scoring catalog artifact (repeatable); default: the database")
     return parser
+
+
+def _static_command(args) -> int:
+    from . import pool_underlay
+    if args.underlay is None:
+        if args.expect_digest or args.unbound:
+            raise PoolError("--expect-digest and --unbound need --underlay")
+        db = _database(args.db)
+        try:
+            findings = check_static(db, args.public_root)
+        finally:
+            db.close()
+    else:
+        if not (args.expect_digest or args.unbound):
+            raise PoolError("an underlay check needs --expect-digest (a release check) or --unbound (integrity only)")
+        try:
+            protected, digest = pool_underlay.load(args.underlay)
+        except pool_underlay.UnderlayError as exc:
+            raise PoolError(str(exc)) from None
+        if args.expect_digest and args.expect_digest != digest:
+            raise PoolError("the underlay digest is not the expected release digest")
+        if args.unbound:
+            print("UNBOUND: integrity only, this is not a release check", file=sys.stderr)
+        findings = check_static(None, args.public_root, protected)
+    for rel, qid, how in findings:
+        print(f"{rel}: {qid} ({how})", file=sys.stderr)
+    if findings:
+        print(f"{len(findings)} finding(s): protected questions must not appear in static files", file=sys.stderr)
+        return 1
+    print("no protected question appears in static files")
+    return 0
+
+
+def _export_command(args) -> int:
+    from . import pool_underlay
+    try:
+        if args.catalog:
+            document = pool_underlay.from_catalogs(args.catalog)
+        else:
+            db = _database(args.db)
+            try:
+                document = pool_underlay.from_db(db)
+            finally:
+                db.close()
+        pool_underlay.write(document, args.out)
+    except pool_underlay.UnderlayError as exc:
+        raise PoolError(str(exc)) from None
+    print(f"underlay written: {document['count']} question(s), digest {document['digest']}")
+    return 0
 
 
 def main(argv=None, *, clock=time.time) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "check-static":
+            return _static_command(args)
+        if args.command == "export-underlay":
+            return _export_command(args)
         db = _database(args.db)
         try:
             now = clock()
@@ -204,14 +272,6 @@ def main(argv=None, *, clock=time.time) -> int:
                 free(db, args.question, release_id=args.release, reason_code=args.reason, operator_id=args.operator, now=now,
                      clone_audit_ref=args.clone_audit, license_ok_ref=args.license_ok, exposure_audit_ref=args.exposure_audit)
                 print(f"released {args.question}")
-            else:
-                findings = check_static(db, args.public_root)
-                for rel, qid, how in findings:
-                    print(f"{rel}: {qid} ({how})", file=sys.stderr)
-                if findings:
-                    print(f"{len(findings)} finding(s): protected questions must not appear in static files", file=sys.stderr)
-                    return 1
-                print("no protected question appears in static files")
         finally:
             db.close()
     except PoolError as exc:

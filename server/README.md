@@ -119,6 +119,17 @@ the database, a cookie or a principal. Activation needs `Services.scoring`
 family loaded once at start (`scoring_catalog.load_catalog`); there is no build step and
 no raw-content fallback at request time.
 
+The free list is a protected pool too. Its questions come from a PRIVATE hash-checked manifest
+(`SCORING_FREE_CONTENT_ROOT` and `SCORING_FREE_MANIFEST`, set together, never under the public
+site), built with the same attestations as the official pool and kept under the proprietary
+licence until the pool lifecycle releases them as free. An in-memory `{id: bytes}` source exists
+only for tests and local development: it needs `SCORING_DEV_SOURCE=true` (which is a `SetupError`
+in production and without `SCORING_ENABLED`) and the two sources exclude each other, so a missing
+or changed private file stops start-up instead of falling back. Served material that reveals
+ranked or retired questions (`/content/{kind}/{id}`) is released only when the reader has locked
+every one of them, whichever family they belong to; paying for the product is not enough, and a
+file without a reviewed exposure row stays closed.
+
 Routes (`/scoring/anonymous`, `/scoring/questions/{id}/issue`, `/scoring/answers`,
 `/scoring/me`, `/scoring/claim`, `/scoring/preferences`, `/leaderboards`): mutations need
 the exact Origin and the CSRF token of the caller's own cookie. The first accepted answer
@@ -149,6 +160,14 @@ only feeds a private aggregate used for a hypothetical placement, and exposed, l
 changes nothing, and a failure writing standings rolls the whole answer back. A board's revision rises on every change a reader can
 see (a published reader's answer, publishing, unpublishing, renaming, deletion, a rebuild, a freeze), which makes older cursors stale.
 
+Reads (`/scoring/me`, `/leaderboards`) run in one read snapshot and add, never replace, fields: `board_revision` (text), `score_display` (exact
+two-decimal string, ties away from zero), `scope_score` (null when the scope holds no attempt), `moderation`, and per attempt
+`rank_eligible` (true only for an account's attempt that is a member of this version). The published list is filtered before ranking
+and paging; equal scores share a rank and ties are ordered by fewer answers, then earlier last answer, then an internal id that never
+leaves the server. A placement is `actual` for a published account, `hypothetical` for anyone else and only when a comparable
+published pool exists, otherwise `none`. A cursor is `offset.revision.signature`, bound to family, version, scope and window; a
+cursor from an older board revision answers `409 stale_cursor`, a bad or foreign one `400 invalid`.
+
 `python -m server.pool` changes the pool, always in one transaction with an append-only audit row, and never goes backwards:
 
 - `freeze --version V --reason CODE`: a ranking version stops for good; its open issues are withdrawn and its boards move to a new revision.
@@ -156,9 +175,30 @@ see (a published reader's answer, publishing, unpublishing, renaming, deletion, 
   still contains the question (freeze it first); open issues for the question are withdrawn, accepted answers stay.
 - `free --question Q ... --clone-audit REF --license-ok REF --exposure-audit REF`: `retired` to `free`; all three references are required.
 - `rebuild --version V`: recompute an OPEN version's standings from first attempts (a frozen version is history and is refused); every board moves to a new revision.
-- `check-static --public-root DIR`: fails (exit 1) if a ranked or retired question's id or content hash appears in static files.
+- `export-underlay --out FILE [--catalog FILE ...]`: write the protected pool as ids, content hashes and states only (no text), from the
+  database or from frozen scoring catalogs (a catalog with an exposure gap stops the export); never overwrites; prints the digest.
+- `check-static --public-root DIR [--underlay FILE (--expect-digest D | --unbound)]`: fails (exit 1) if a ranked or retired question's id or content hash appears in static files.
+
+With `--underlay` the check needs no database. It then insists on `--expect-digest` (a RELEASE check: the digest comes from the
+release decision, and the underlay must be exported from the authoritative pool, never derived from the input being checked) or
+`--unbound` (integrity only, prints a notice, used by the public CI self-test with synthetic data). A missing, malformed, empty,
+tampered or stale underlay is an error (exit 2), never a pass. The digest proves integrity only, not origin or currency. Public CI
+holds no real pool ids, hashes or bytes; the real release check lives in the private release pipeline.
 
 Operator, reason, release and references are short codes, never names or e-mail addresses. Exit codes: 0 done, 1 static findings, 2 refused.
+
+### Hiding a name (operator tool) and the alias blocklist
+
+`python -m server.moderate hide|unhide --principal ID --family F --reason CODE --operator OP [--dry-run|--write]` changes nothing
+unless `--write` is given. The target is the internal principal and the family, never the alias, so renaming, opting out or opting in
+again cannot lift a hide. A real change appends one audit row (time, operator, principal, family, action, reason code; no e-mail,
+address or session data), moves that family's boards to a new revision in the same transaction and leaves the private history alone.
+Reasons come from a fixed list and operator ids are short codes. `find --family F --alias A` is a read-only lookup of principal ids
+by exact alias. There is no public admin API.
+
+Aliases are also checked against a small versioned list (`server/blocklist/aliases-v1.json`) on whole words after NFKC, case
+folding and a look-alike fold; a missing or malformed list stops start-up. It is a courtesy filter with stated limits, not a claim
+of abuse safety.
 
 ### Rolling scoring back (operator runbook)
 

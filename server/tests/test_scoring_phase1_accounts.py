@@ -6,6 +6,7 @@ as a ranked row. All data is synthetic.
 """
 import unittest
 
+from server import pool
 from server.tests.scoring_support import build_scoring_fixture
 from server.tests.support import call, json_body
 
@@ -104,10 +105,15 @@ class PublishingTests(Base):
         listed = lambda: json_body(self.fx.get("/leaderboards", user=None, query=query))["entries"][0]["answered"]
         self.assertEqual(listed(), 2)
         self.run_sql("DROP TRIGGER first_attempts_only_claim_moves")      # test-only: the origin is otherwise immutable
+        version = self.rows("SELECT id FROM ranking_versions WHERE family = 'free'")[0][0]
         for origin in ("exposed", "anonymous", "legacy"):
             self.run_sql("UPDATE first_attempts SET origin = ? WHERE question_id = 'py-free-f01'", (origin,))
+            self.assertEqual(listed(), 2, "the materialised standing does not change until a rebuild")
+            pool.rebuild_standings(self.fx.db(), version)
             self.assertEqual(listed(), 1, origin)
-        self.run_sql("UPDATE first_attempts SET origin = 'account' WHERE question_id = 'py-free-f01'")
+            self.run_sql("UPDATE first_attempts SET origin = 'account' WHERE question_id = 'py-free-f01'")
+            pool.rebuild_standings(self.fx.db(), version)
+            self.assertEqual(listed(), 2)
 
     def test_a_suspended_user_is_not_listed(self):
         self.user_answer("u1", "py-free-f00")

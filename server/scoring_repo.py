@@ -312,34 +312,6 @@ class ScoringRepository:
             args.append(limit)
         return [_attempt(r) for r in self._c().execute(sql, args)]
 
-    def course_sums(self, principal_id: str, family: str, start=None, end=None) -> dict:
-        """course_id -> (sum of units, answered count)."""
-        sql = "SELECT course_id, SUM(score_units), COUNT(*) FROM first_attempts WHERE principal_id = ? AND family = ?"
-        args: list = [principal_id, family]
-        if start is not None:
-            sql += " AND accepted_at >= ? AND accepted_at < ?"
-            args += [start, end]
-        sql += " GROUP BY course_id"
-        return {r[0]: (r[1], r[2]) for r in self._c().execute(sql, args)}
-
-    def published_sums(self, family: str, now: float, start=None, end=None) -> dict:
-        """principal_id -> {course_id: (units, answered)} for opted-in, visible, active ACCOUNT principals, rankable attempts only."""
-        sql = ("SELECT a.principal_id, a.course_id, SUM(a.score_units), COUNT(*) FROM first_attempts a "
-               "JOIN leaderboard_preferences p ON p.principal_id = a.principal_id AND p.family = a.family "
-               "JOIN scoring_principals s ON s.id = a.principal_id "
-               "JOIN users u ON u.id = s.user_id "
-               "WHERE a.family = ? AND a.origin = 'account' AND p.opted_in_at IS NOT NULL AND p.moderation_state = 'ok' "
-               "AND s.state = 'active' AND u.status = 'active'")
-        args: list = [family]
-        if start is not None:
-            sql += " AND a.accepted_at >= ? AND a.accepted_at < ?"
-            args += [start, end]
-        sql += " GROUP BY a.principal_id, a.course_id"
-        out: dict = {}
-        for pid, course, units, count in self._c().execute(sql, args):
-            out.setdefault(pid, {})[course] = (units, count)
-        return out
-
     # -- receipts ------------------------------------------------------
     def receipt(self, principal_id: str, key: str, now: float):
         return self._c().execute("SELECT * FROM submission_receipts WHERE principal_id = ? AND idempotency_key = ? "

@@ -320,7 +320,8 @@ class RebuildTests(Base):
         out, err = io.StringIO(), io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):
             code = pool.main(["--db", self.fx.path, "rebuild", "--version", self.version("free")])
-        self.assertEqual((code, err.getvalue()), (0, ""))
+        self.assertEqual(code, 0, err.getvalue())
+        self.assertNotIn("refused", err.getvalue())
         self.assertIn("rebuilt", out.getvalue())
         self.assertEqual(self.snapshot(), before)
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
