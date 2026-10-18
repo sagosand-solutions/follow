@@ -10,7 +10,7 @@ moves backwards and no new enum value exists.
 """
 from __future__ import annotations
 
-from .types import AuthoritativeState, Decision, Expected, VerifiedEvent
+from .types import AuthoritativeState, Adjustment, Decision, Expected, Item, PaddleMalformed, VerifiedEvent
 
 TERMINAL_STATES = frozenset({"refunded", "chargeback", "cancelled"})
 INFORMATIONAL_EVENTS = frozenset({
@@ -96,3 +96,30 @@ def decide(state_before: str, snapshot: AuthoritativeState, expected: Expected) 
             return Decision("cancelled", "authoritative canceled")
         return Decision("reconcile", "canceled after payment")
     return Decision("none", "not final")   # draft, ready, billed, paid, past_due: information, never a grant
+
+
+def validate_snapshot(state) -> AuthoritativeState:
+    """Typed check of EVERY field a transport returned, so a corrupt payload is a PaddleMalformed, never a stray exception.
+
+    The dataclass annotation alone validates nothing at run time; this is the real gate before ``decide``/digest.
+    """
+    def bad(message):
+        raise PaddleMalformed(message)
+    if not isinstance(state, AuthoritativeState):
+        bad("snapshot has the wrong type")
+    if state.environment not in ("sandbox", "live") or not isinstance(state.transaction_id, str) or not state.transaction_id:
+        bad("snapshot environment or transaction id is malformed")
+    if not isinstance(state.status, str) or not isinstance(state.complete, bool):
+        bad("snapshot status or completeness is malformed")
+    if state.currency_code is not None and not isinstance(state.currency_code, str):
+        bad("snapshot currency is malformed")
+    if not isinstance(state.totals, dict) or any(not isinstance(k, str) or type(v) is not int for k, v in state.totals.items()):
+        bad("snapshot totals are malformed")
+    if not isinstance(state.items, tuple) or any(not isinstance(i, Item) or not isinstance(i.price_id, str) or type(i.quantity) is not int for i in state.items):
+        bad("snapshot items are malformed")
+    if not isinstance(state.adjustments, tuple) or any(
+            not isinstance(a, Adjustment) or not all(isinstance(x, str) for x in (a.id, a.action, a.status, a.type))
+            or (a.total_minor is not None and type(a.total_minor) is not int) or (a.currency_code is not None and not isinstance(a.currency_code, str))
+            for a in state.adjustments):
+        bad("snapshot adjustments are malformed")
+    return state
