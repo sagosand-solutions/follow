@@ -49,7 +49,7 @@ async function boot() {
   const continueSlot = h('span', { class: 'nav__continue' });
   const accountSlot = h('span', { class: 'nav__account' });
   header.replaceChildren(
-    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
+    h('div', { class: 'shell' }, tagline, h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), CONFIG.scoringUi ? h('a', { href: '#/profile' }, t('nav.profile')) : null, h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeButton)),
   );
   const refreshContinue = async () => {
     const target = continueAcross(await loadCourses().catch(() => []), store.answers());
@@ -71,6 +71,11 @@ async function boot() {
   registerRoute('/q/:id', questionView);
   registerRoute('/review', reviewView);
   registerRoute('/about', aboutView);
+  // Scoring views load only when the flag is on, so the default site never fetches their code.
+  if (CONFIG.scoringUi) {
+    registerRoute('/profile', async (params) => (await import('./views/profile.js')).profileView(params));
+    registerRoute('/leaderboard', async (params) => (await import('./views/leaderboard.js')).leaderboardView(params));
+  }
   if (CONFIG.accountsUi) await enableAccounts(accountSlot);
   setNotFound(notFoundView);
   await startRouter(main, document.getElementById('live'));

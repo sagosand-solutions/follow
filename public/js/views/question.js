@@ -62,7 +62,9 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   }
   const where = course ? findLessonOf(course, id) : null;
   const root = h('div', { class: 'question' });
-  const ctx = { q, where, concepts, root, course, reviewMode };
+  // Scoring helpers load only behind the flag (the default site never fetches them).
+  const scoring = CONFIG.scoringUi ? { ...(await import('../components/score-ui.js')), ...(await import('../scoring/model.js')) } : null;
+  const ctx = { q, where, concepts, root, course, reviewMode, scoring };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
@@ -185,7 +187,10 @@ function draw(ctx, prev, stale = false) {
     group.append(mkOption(o.id, LETTERS[i], renderInline(o.text)));
   });
   group.append(h('hr', { class: 'options__divider' }));
-  const unknownRow = mkOption(UNKNOWN, null, t('q.unsure'), 'option--unsure');
+  // Scoring (behind CONFIG.scoringUi): the first try counts, so the cost of each choice is said before it is made.
+  const firstTry = !!ctx.scoring && !ctx.reviewMode && !store.latest(q.id);
+  const unsureText = firstTry ? [t('q.unsure'), h('span', { class: 'option__sub' }, t('score.unsure.sub'))] : t('q.unsure');
+  const unknownRow = mkOption(UNKNOWN, null, unsureText, 'option--unsure');
   if (answered && prev.outcome === 'unknown') unknownRow.querySelector('input').checked = true;
   group.append(unknownRow);
 
@@ -234,8 +239,10 @@ function draw(ctx, prev, stale = false) {
   });
 
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
-  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, answered ? null : actions, feedback, sourceFor(q));
+  const scoreLine = ctx.scoring && !answered ? ctx.scoring.tryLine(firstTry) : null;
+  const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, scoreLine, answered ? null : actions, feedback, sourceFor(q));
   const noteNode = showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
+  if (firstTry && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
   root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
@@ -389,6 +396,8 @@ function renderFeedback(ctx, container, prev, letters) {
     frag.push(h('section', { class: `verdict verdict--${v.kind}` }, verdictHeading(v.icon, v.word, v.points), ...parts));
   }
 
+  // Scoring: the first try's points in neutral ink next to the verdict; any later try is practice.
+  if (ctx.scoring) frag.push(h('p', { class: 'score-delta small' }, prev.attempt === 1 ? t('score.delta', { delta: ctx.scoring.formatDelta(ctx.scoring.pointsFor(prev, ctx.scoring.RULES)) }) : t('score.line.practice')));
   // The way on sits right under the verdict, not after all the explanations.
   frag.push(navActions(ctx));
   // A quiet moment when a not-sure or wrong answer now fits (only after an earlier answer, never on a first answer).
@@ -434,6 +443,7 @@ function renderFeedback(ctx, container, prev, letters) {
   container.replaceChildren(...frag);
 }
 
+// With the scoring UI on, the first-try points line under the verdict is the only number, so the heading drops its own.
 function verdictHeading(iconName, word, points) {
-  return h('h2', { class: 'verdict__title', tabindex: '-1' }, icon(iconName), h('span', {}, word), h('span', { class: 'verdict__points' }, ` · ${points}`));
+  return h('h2', { class: 'verdict__title', tabindex: '-1' }, icon(iconName), h('span', {}, word), CONFIG.scoringUi ? null : h('span', { class: 'verdict__points' }, ` · ${points}`));
 }
