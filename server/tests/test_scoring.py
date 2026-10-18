@@ -594,6 +594,83 @@ class RetentionAndScopeTests(Base):
                                     "SCORING_ENABLED": "true"}), Services(open_database=lambda: Database(self.fx.path)))
 
 
+class ProfileGateTests(Base):
+    """Only standard-profile questions may be scored; the four-option practice profile never is."""
+
+    @staticmethod
+    def question(version="0.1", profile=None, options=5, qid="prac-q1"):
+        q = make_question(qid, n_options=options)
+        q["schema_version"] = version
+        if profile is not None:
+            q["answer_profile"] = profile
+        return q
+
+    def test_eligibility_matrix(self):
+        from server.scoring_service import check_scoring_profile
+        ok = [self.question(), self.question(options=8), self.question("0.2", "standard"), self.question("0.2", "standard", 6)]
+        for q in ok:
+            check_scoring_profile(q)
+        bad = {
+            "beginner_practice_four": self.question("0.2", "beginner-practice", 4),
+            "beginner_practice_five": self.question("0.2", "beginner-practice", 5),
+            "profile_on_legacy": self.question("0.1", "standard"),
+            "legacy_beginner": self.question("0.1", "beginner-practice", 4),
+            "missing_profile_on_02": self.question("0.2"),
+            "unknown_profile": self.question("0.2", "advanced"),
+            "unknown_version": self.question("0.3", "standard"),
+            "four_options_standard": self.question("0.2", "standard", 4),
+            "nine_options": self.question("0.2", "standard", 9),
+            "three_options": self.question("0.1", None, 3),
+            "profile_is_not_a_string": self.question("0.2", ["standard"]),
+        }
+        for name, q in bad.items():
+            with self.subTest(name), self.assertRaises(ContentError):
+                check_scoring_profile(q)
+
+    def hand_built(self, question):
+        import hashlib
+        from server.scoring_service import ManifestQuestionSource, ScoringServices
+        raw = json.dumps(question, sort_keys=True).encode()
+        digest = hashlib.sha256(raw).hexdigest()
+        qid = question["id"]
+        catalog = parse_catalog({"schema_version": 1, "catalog_version": "hand", "rules_version": "r2", "family": "free",
+                                 "courses": [{"course_id": "practice", "N_c": 1, "questions": [
+                                     {"question_id": qid, "product_id": None, "content_sha256": digest}]}],
+                                 "exposures": [{"kind": "question", "id": qid, "content_sha256": digest, "affected_question_ids": [qid]}]},
+                                expected_family="free")
+        return ScoringServices({"free": catalog}, ManifestQuestionSource(None, {qid: raw}))
+
+    def test_hand_built_artifact_with_a_practice_question_is_refused_at_start_up(self):
+        from server.scoring_service import verify_pool
+        verify_pool(self.hand_built(self.question("0.2", "standard")))  # a standard one passes
+        with self.assertRaises(ContentError):
+            verify_pool(self.hand_built(self.question("0.2", "beginner-practice", 4)))
+
+    def test_runtime_refuses_issue_and_answer_for_a_practice_question_even_if_start_up_was_bypassed(self):
+        from server.repositories import Repositories
+        from server.scoring_service import Actor, ScoringError, ScoringService
+        scoring = self.hand_built(self.question("0.2", "beginner-practice", 4))
+        db = self.fx.db()
+        try:
+            service = ScoringService(Repositories(db), self.fx.settings, scoring, clock=lambda: self.fx.clock[0])
+            with self.assertRaises(ScoringError) as caught:
+                service.issue(Actor(user_id="u1"), "prac-q1")
+            self.assertEqual(caught.exception.code, "unavailable")
+            self.assertEqual(db.connect().execute("SELECT COUNT(*) FROM question_issues").fetchone()[0], 0)
+            self.assertEqual(db.connect().execute("SELECT COUNT(*) FROM first_attempts").fetchone()[0], 0)
+        finally:
+            db.close()
+
+    def test_app_does_not_start_with_a_practice_question_in_the_pool(self):
+        from server.app import Services, create_app
+        from server.db import Database
+        scoring = self.hand_built(self.question("0.2", "beginner-practice", 4))
+        scoring.catalogs["official"] = self.fx.catalogs["official"]
+        with self.assertRaises(SetupError):
+            create_app(self.fx.settings, Services(open_database=lambda: Database(self.fx.path), catalog=self.fx.content_catalog,
+                                                  scoring=scoring))
+
+
 class GateTests(Base):
     def content(self, kind, cid, user="u1"):
         return call(self.fx.app, "GET", f"/content/{kind}/{cid}", headers=self.fx.headers(user, csrf=False, origin=False))

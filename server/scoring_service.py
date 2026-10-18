@@ -102,6 +102,30 @@ def attempt_dto(a: Attempt) -> dict:
             "catalog_version": a.catalog_version}
 
 
+def check_scoring_profile(data: dict) -> None:
+    """Only standard-profile questions may be scored on the server.
+
+    A question is eligible when it is a legacy 0.1 document (which has no ``answer_profile``) or a 0.2 document
+    that says ``standard``, and it has 5-8 options. Anything else (the four-option beginner-practice profile, an
+    unknown version or profile, a profile on 0.1, a missing profile on 0.2) is refused: never inferred, never a
+    silent fallback. The check reads the hash-bound question itself, so a hand-built or stale artifact cannot
+    smuggle a practice question into the competition pool.
+    """
+    version = data.get("schema_version")
+    has_profile = "answer_profile" in data
+    ok = (version == "0.1" and not has_profile) or (version == "0.2" and data.get("answer_profile") == "standard")
+    options = data.get("options")
+    if not ok or not isinstance(options, list) or not 5 <= len(options) <= 8:
+        raise ContentError("question is not eligible for server scoring")
+
+
+def verify_pool(scoring: "ScoringServices") -> None:
+    """Start-up gate: every pooled question must exist, match its hash and be eligible for scoring."""
+    for family, catalog in scoring.catalogs.items():
+        for pq in catalog.questions.values():
+            check_scoring_profile(scoring.question_source.read(family, pq.question_id, pq.content_sha256))
+
+
 class ManifestQuestionSource:
     """Official questions: the existing hash-checked ContentCatalog. Free: explicit {id: bytes} (synthetic in mock)."""
 
@@ -184,7 +208,9 @@ class ScoringService:
 
     def _read_question(self, family: str, pq) -> dict:
         try:
-            return self.scoring.question_source.read(family, pq.question_id, pq.content_sha256)
+            data = self.scoring.question_source.read(family, pq.question_id, pq.content_sha256)
+            check_scoring_profile(data)
+            return data
         except ContentError:
             raise ScoringError("unavailable") from None
 
