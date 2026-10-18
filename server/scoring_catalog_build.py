@@ -36,15 +36,16 @@ from .models import ContentError
 
 SCHEMA_VERSION = 1
 
-#: Known rules versions and their fixed score units. The builder never scores;
-#: it only refuses an unknown rules_version so a typo cannot freeze a catalog
-#: under a rule set the runtime does not know. r2 (+2/+1/0/-1, denominator 2)
-#: is the current decision; r1 (+4/+2/0/-1, denominator 4) is retained for the
-#: already-issued version.
-SUPPORTED_RULES = {
+#: Known rules versions and their fixed score units, for error messages and for
+#: refusing a typo. The builder never scores. Only ``BUILDABLE_RULES`` may be
+#: frozen into a *new* catalog: the 2026-10-18 decision requires r2
+#: (+2/+1/0/-1, denominator 2) for new catalogs and forbids reinterpreting r1's
+#: quarter points (r1 = +4/+2/0/-1, denominator 4, historical only).
+KNOWN_RULES = {
     "r1": {"correct": 4, "partial": 2, "not_sure": 0, "wrong": -1, "denominator": 4},
     "r2": {"correct": 2, "partial": 1, "not_sure": 0, "wrong": -1, "denominator": 2},
 }
+BUILDABLE_RULES = frozenset({"r2"})
 
 FAMILIES = ("official", "free")
 
@@ -172,8 +173,12 @@ def parse_release(raw: object) -> Release:
     )
     catalog_version = _require_str(data["catalog_version"], "release catalog_version")
     rules_version = data["rules_version"]
-    if rules_version not in SUPPORTED_RULES:
+    if rules_version not in KNOWN_RULES:
         raise CatalogBuildError(f"unknown rules_version: {rules_version!r}")
+    if rules_version not in BUILDABLE_RULES:
+        raise CatalogBuildError(
+            f"rules_version {rules_version!r} is not allowed for new catalogs; use 'r2'"
+        )
     family = data["family"]
     if family not in FAMILIES:
         raise CatalogBuildError(f"unknown family: {family!r}")

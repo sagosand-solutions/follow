@@ -67,9 +67,10 @@ The frozen format from the 023 interface contract: `schema_version`,
 JSON with sorted keys and sorted arrays, so input file/manifest order cannot
 change the bytes.
 
-Known `rules_version` values are `r1` (+4/+2/0/−1, denominator 4) and `r2`
-(+2/+1/0/−1, denominator 2). The builder does not score; it only refuses an
-unknown rule set.
+Only `rules_version` `r2` (+2/+1/0/−1, denominator 2) may be frozen into a new
+catalog. The historical `r1` (+4/+2/0/−1, denominator 4) and any unknown value
+are rejected: the 2026-10-18 decision forbids reinterpreting r1's quarter points.
+The builder does not score.
 
 ## Fail-closed rules
 

@@ -160,12 +160,12 @@ class HappyPathTest(BuilderFixture):
         self.assertEqual(artifact["family"], "free")
         self.assertIsNone(artifact["courses"][0]["questions"][0]["product_id"])
 
-    def test_rules_r1_also_supported(self):
+    def test_rules_r1_rejected_for_new_catalogs(self):
         digest = self.add_question("py-alpha")
         release = self.write_release({"python": [("py-alpha", "python-lifetime")]}, rules="r1")
         exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
-        artifact = json.loads(self.build(release, exposures))
-        self.assertEqual(artifact["rules_version"], "r1")
+        with self.assertRaises(CatalogBuildError):
+            self.build(release, exposures)
 
     def test_non_question_exposure_row_passes_through(self):
         digest = self.add_question("py-alpha")
