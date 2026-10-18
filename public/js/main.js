@@ -73,6 +73,7 @@ async function boot() {
   registerRoute('/about', aboutView);
   // Scoring views load only when the flag is on, so the default site never fetches their code.
   if (CONFIG.scoringUi) {
+    registerRoute('/challenge/:id', async (params) => (await import('./scoring/challenge.js')).challengeQuestionView(params));
     registerRoute('/profile', async (params) => (await import('./views/profile.js')).profileView(params));
     registerRoute('/leaderboard', async (params) => (await import('./views/leaderboard.js')).leaderboardView(params));
   }

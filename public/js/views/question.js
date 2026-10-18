@@ -62,9 +62,8 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   }
   const where = course ? findLessonOf(course, id) : null;
   const root = h('div', { class: 'question' });
-  // Scoring helpers load only behind the flag (the default site never fetches them).
-  const scoring = CONFIG.scoringUi ? { ...(await import('../components/score-ui.js')), ...(await import('../scoring/model.js')) } : null;
-  const ctx = { q, where, concepts, root, course, reviewMode, scoring };
+  // Local question and review flows stay local; only the explicit challenge route uses server scoring.
+  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
@@ -147,6 +146,7 @@ function draw(ctx, prev, stale = false) {
     meta.append(progressBar(where.lesson.questions, q.id));
   }
   header.append(meta);
+  if (CONFIG.scoringUi && !ctx.reviewMode) header.append(h('a', { class: 'button button--secondary button--small', href: `#/challenge/${encodeURIComponent(q.id)}` }, t('score.challenge.open')));
   const chips = h('p', { class: 'chips' }, h('span', { class: 'chip' }, t(`type.${q.type}`)), q.level ? h('span', { class: 'chip' }, t(`level.${q.level}`)) : null);
 
   // Study layer: notes for the concepts this question practises, in a sheet that keeps the question in place.
@@ -476,8 +476,8 @@ function renderFeedback(ctx, container, prev, letters) {
   container.replaceChildren(...frag);
 }
 
-// With the scoring UI on, the first-try points line under the verdict is the only number, so the heading drops its own.
+// Local practice always shows its own points; the server-graded challenge has its own view (scoring/challenge.js).
 function verdictHeading(iconName, word, points, fresh = false) {
   const mark = iconName === 'correct' || iconName === 'partial' ? momentIcon(iconName, fresh) : icon(iconName);
-  return h('h2', { class: 'verdict__title', tabindex: '-1' }, mark, h('span', {}, word), CONFIG.scoringUi ? null : h('span', { class: 'verdict__points' }, ` · ${points}`));
+  return h('h2', { class: 'verdict__title', tabindex: '-1' }, mark, h('span', {}, word), h('span', { class: 'verdict__points' }, ` · ${points}`));
 }
