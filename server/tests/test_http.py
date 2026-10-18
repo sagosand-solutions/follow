@@ -207,7 +207,7 @@ class ProviderTests(HttpTestCase):
         self.assertEqual((adapter.calls[0]["intent"], adapter.calls[0]["return_to"]), ("login", "/me"))
         bad = [
             {}, {"intent": "login"}, {"return_to": "/me"}, {**base, "extra": 1},
-            {"intent": "link", "return_to": "/me"}, {"intent": "signup", "return_to": "/me"},
+            {"intent": "link", "return_to": "/me"}, {"intent": "signup", "return_to": "/me"}, {"intent": "", "return_to": "/me"},
             {"intent": ["login"], "return_to": "/me"}, {"intent": True, "return_to": "/me"},
             {"intent": None, "return_to": "/me"}, {"intent": "login", "return_to": "https://evil.example"},
             {"intent": "login", "return_to": "//evil.example"}, {"intent": "login", "return_to": "/a\u200bb"},
@@ -418,6 +418,9 @@ class EmailStartTests(HttpTestCase):
         record = records[0]
         self.assertEqual((record.event, record.code), ("provider_start_failed", "provider_error"))
         self.assertEqual(record.request_id, response_headers["x-request-id"])
+        standard = set(logging.makeLogRecord({}).__dict__)             # the exact extra-field set: no extra key may slip in
+        self.assertEqual(set(record.__dict__) - standard, {"event", "code", "request_id"})
+        self.assertEqual(record.getMessage(), "provider start failed")
         text = record.getMessage() + " " + json.dumps(record.__dict__, default=str)
         self.assertNotIn(sentinel, text)
         self.assertNotIn("known@example.test", text)
