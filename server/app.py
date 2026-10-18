@@ -581,26 +581,24 @@ def _allowlisted_redirect(url, services: Services):
 
 
 def _apply_verified_event(repositories, provider_path: str, event) -> None:
-    """Apply only a newer authoritative revision; never create users or grants for unknown purchases."""
+    """Apply only a newer authoritative revision; never create users or grants for unknown purchases.
+
+    Dedup, the locked purchase read, the revision check, the CAS and the grant/revoke are ONE transaction
+    (``payment_apply.apply_decision``); an unknown state value raises ValueError before any write.
+    """
+    from .models import PurchaseState
+    from .payment_apply import apply_decision
     state = getattr(event, "state", None)
     purchase = repositories.purchases.get_by_provider_id(provider_path, getattr(event, "provider_purchase_id", ""))
     if purchase is None:
         return
-    revision = getattr(event, "revision", 0)
-    if not isinstance(revision, int) or revision <= purchase.revision:
-        return
-    from .models import PaymentEventStatus, PurchaseState, UserStatus
     new_state = PurchaseState(state)  # unknown state -> ValueError before any write
-    with repositories.database.transaction(immediate=True):
-        repositories.payment_events.record(provider_path, getattr(event, "event_id", ""),
-                                           getattr(event, "payload_digest", ""), purchase_id=purchase.id,
-                                           normalized_state=str(state), revision=revision)
-        repositories.purchases.compare_and_swap(purchase.id, purchase.revision,
-                                                state=new_state, revision=revision)
-        owner = repositories.users.get(purchase.user_id)
-        if state == "paid":
-            # A late webhook for a known purchase must not grant to a deleted account.
-            if owner is not None and owner.status is UserStatus.ACTIVE:
-                repositories.entitlements.grant(purchase.user_id, purchase.product_id, purchase.id)
-        elif state in ("refunded", "chargeback", "cancelled"):
-            repositories.entitlements.revoke(purchase.id, purchase.product_id)
+    revision = getattr(event, "revision", 0)
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 0:
+        return                         # a malformed provider revision is ignored, as before
+    result = apply_decision(repositories, provider=provider_path, event_id=getattr(event, "event_id", ""),
+                   payload_digest=getattr(event, "payload_digest", ""), purchase_id=purchase.id,
+                   new_state=new_state, event_label=str(state), new_revision=revision)
+    if result.outcome == "conflict":
+        from .models import ConflictError
+        raise ConflictError("payment event id reused with a different payload")  # unchanged external contract

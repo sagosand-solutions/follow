@@ -14,7 +14,7 @@ import secrets
 import sqlite3
 
 from .models import (
-    CORE_ACKNOWLEDGEMENTS, AuthIntent, AuthTransaction, ConflictError, Entitlement, EntitlementState,
+    CORE_ACKNOWLEDGEMENTS, KNOWN_PROVIDERS, AuthIntent, AuthTransaction, ConflictError, Entitlement, EntitlementState,
     Identity, NotFoundError, PaymentEvent, PaymentEventStatus, PolicyBundle, Product, Purchase, PurchaseConsent,
     PurchaseState, Session, User, UserStatus, canonical_acknowledgements, compute_bundle_digest,
 )
@@ -230,6 +230,8 @@ class ProductRepository(_Repo):
 class PurchaseRepository(_Repo):
     def create(self, user_id: str, product_id: str, provider: str, provider_purchase_id: str, *,
                state: PurchaseState = PurchaseState.PENDING, revision: int = 0, purchase_id: str | None = None) -> Purchase:
+        if provider not in KNOWN_PROVIDERS:
+            raise ValueError("unknown payment provider")
         pid = purchase_id or new_id()
         try:
             with self.db.transaction(immediate=True) as conn:
@@ -318,6 +320,8 @@ class PaymentEventRepository(_Repo):
                normalized_state: str, revision: int, status: PaymentEventStatus = PaymentEventStatus.RECEIVED,
                event_row_id: str | None = None) -> str:
         """Return 'inserted' or 'duplicate'; raise ConflictError on a payload change."""
+        if provider not in KNOWN_PROVIDERS:
+            raise ValueError("unknown payment provider")
         row_id = event_row_id or new_id()
         with self.db.transaction(immediate=True) as conn:
             existing = conn.execute("SELECT payload_digest FROM payment_events WHERE provider = ? AND event_id = ?",
