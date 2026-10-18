@@ -17,7 +17,7 @@ from server import pool
 from server.models import ContentError
 from server.scoring_repo import ScoringRepository
 from server.tests.scoring_support import build_scoring_fixture
-from server.tests.support import json_body
+from server.tests.support import json_body, run_cli_captured
 
 REFS = dict(clone_audit_ref="audit-clone-1", license_ok_ref="licence-ok-1", exposure_audit_ref="exposure-1")
 
@@ -353,17 +353,14 @@ class StaticAndCliTests(Base):
         self.assertEqual(pool.check_static(self.db(), root), [("dir-link", "-", "symlink is not followed or scanned")])
 
     def run_cli(self, *argv):
-        out, err = io.StringIO(), io.StringIO()
-        with redirect_stdout(out), redirect_stderr(err):
-            code = pool.main(["--db", self.fx.path, *argv], clock=lambda: self.now + 50)
-        return code, out.getvalue(), err.getvalue()
+        return run_cli_captured(pool.main, ["--db", self.fx.path, *argv], clock=lambda: self.now + 50)
 
     def test_the_command_line_exit_codes_and_messages(self):
         _, issue = self.issue("py-free-f00")
         self.assertEqual(self.run_cli("freeze", "--version", self.version("free"), "--reason", "retirement")[0], 0)
         code, out, err = self.run_cli("retire", "--question", "py-free-f00", "--release", "rel-2", "--reason", "exposed", "--operator", "op-1")
         self.assertEqual((code, out.strip()), (0, "retired py-free-f00; 0 open issue(s) withdrawn"))
-        self.assertNotIn("refused", err)
+        self.assertEqual(err, "")
         code, out, err = self.run_cli("retire", "--question", "py-free-f00", "--release", "rel-2", "--reason", "exposed", "--operator", "op-1")
         self.assertEqual((code, out), (2, ""))
         self.assertIn("refused:", err)
