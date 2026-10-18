@@ -131,6 +131,30 @@ same gate, and material with no reviewed exposure row is blocked, not assumed ha
 Premium is access control, not DRM: shared answers, own code runs and several accounts
 cannot be prevented, and the free list is explicitly not cheat-resistant.
 
+### Question pool lifecycle and the operator tool
+
+At start-up every scoring-catalog question is registered once as `ranked`. A question whose content changed under the same id, or whose
+content equals another question's, stops the start-up: retire the old id and give the new content a new one. Only a `ranked`
+question in a version that has not been frozen is issued; anything else answers `unavailable`.
+
+`python -m server.pool` changes the pool, always in one transaction with an append-only audit row, and never goes backwards:
+
+- `freeze --version V --reason CODE`: a ranking version stops for good; its open issues are withdrawn and its boards move to a new revision.
+- `retire --question Q --release R --reason CODE --operator OP [--clone-audit REF]`: `ranked` to `retired`. Refused while an open version
+  still contains the question (freeze it first); open issues for the question are withdrawn, accepted answers stay.
+- `free --question Q ... --clone-audit REF --license-ok REF --exposure-audit REF`: `retired` to `free`; all three references are required.
+- `check-static --public-root DIR`: fails (exit 1) if a ranked or retired question's id or content hash appears in static files.
+
+Operator, reason, release and references are short codes, never names or e-mail addresses. Exit codes: 0 done, 1 static findings, 2 refused.
+
+### Rolling scoring back (operator runbook)
+
+There is no command and no database guard that stops an older binary, so rollback is a procedure: stop the service and every worker or
+scheduler; block access to the scoring endpoints; check that the scoring flags are off in the configuration the OLD process will really
+use; start it without scoring; confirm the scoring endpoints answer unavailable before reopening other traffic. Never run two versions
+against the scoring tables at once. The database, attempts, locks and exposures are kept; rows an older binary writes get
+`origin = 'legacy'` and are never ranked.
+
 ## Paddle Billing (sandbox/test preparation, default off)
 
 Off unless `PAYMENTS_PROVIDER=paddle`. It needs `PADDLE_ENV=sandbox` (live is refused until a real transport has been

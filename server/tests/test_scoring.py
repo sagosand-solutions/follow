@@ -10,6 +10,7 @@ from fractions import Fraction
 from server.config import load_config
 from server.models import ContentError, SetupError
 from server.scoring_catalog import parse_catalog
+from server.scoring_repo import ScoringRepository
 from server.scoring_service import course_points, iso_week, total_points
 from server.tests.scoring_support import SENTINEL, build_scoring_fixture, make_question
 from server.tests.support import ORIGIN, call, json_body
@@ -708,13 +709,19 @@ class ProfileGateTests(Base):
 
         qid = f"prac-{family}"
         source = Flip(self.question("0.2", "standard", 5, qid), self.question("0.2", "beginner-practice", 4, qid))
-        digest = hashlib.sha256(b"x").hexdigest()
+        digest = hashlib.sha256(qid.encode()).hexdigest()
         product = "python-lifetime" if family == "official" else None
         catalog = parse_catalog({"schema_version": 1, "catalog_version": "flip", "rules_version": "r2", "family": family,
                                  "courses": [{"course_id": "c", "N_c": 1, "questions": [
                                      {"question_id": qid, "product_id": product, "content_sha256": digest}]}],
                                  "exposures": [{"kind": "question", "id": qid, "content_sha256": digest, "affected_question_ids": [qid]}]},
                                 expected_family=family)
+        pool_db = self.fx.db()                      # a hand-built pool is registered the way start-up registers a catalog
+        try:
+            with pool_db.transaction(immediate=True):
+                ScoringRepository(pool_db).sync_pool([(qid, family, digest)], self.fx.clock[0], "flip")
+        finally:
+            pool_db.close()
         return ScoringServices({family: catalog}, source), source
 
     def counts(self, db):

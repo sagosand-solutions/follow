@@ -242,6 +242,15 @@ def create_app(settings, services: Services) -> Starlette:
                     raise ContentError("no official scoring snapshot")
                 verify_binding(official, services.catalog)
                 verify_pool(services.scoring)
+                from .scoring_repo import ScoringRepository
+                pool_db = services.open_database()
+                try:
+                    with pool_db.transaction(immediate=True):
+                        for family, catalog in services.scoring.catalogs.items():
+                            ScoringRepository(pool_db).sync_pool([(pq.question_id, family, pq.content_sha256)
+                                                                  for pq in catalog.questions.values()], services.clock(), catalog.catalog_version)
+                finally:
+                    pool_db.close()
             except ContentError as exc:
                 raise SetupError(f"scoring snapshot is not bound to the content manifest: {exc}") from None
     email_limiter = EmailStartLimiter(settings.session_secret, clock=services.clock,
