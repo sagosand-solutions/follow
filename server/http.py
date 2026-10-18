@@ -21,6 +21,7 @@ ERROR_STATUS = {
     "forbidden": 403,
     "not-found": 404,
     "identity-conflict": 409,
+    "conflict": 409,
     "stale-policy": 409,
     "expired": 409,
     "stale": 409,

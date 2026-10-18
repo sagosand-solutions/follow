@@ -15,6 +15,8 @@ from enum import Enum
 from typing import Mapping
 from urllib.parse import urlsplit
 
+import json
+
 from .models import SetupError
 
 KNOWN_ADAPTERS = frozenset({"email", "google", "apple", "discord", "siwe", "mock", "test"})
@@ -68,6 +70,10 @@ class Settings:
     csrf_key: bytes = field(repr=False)
     session_secret: bytes = field(repr=False)
     scoring: ScoringFlags = field(default_factory=lambda: ScoringFlags())
+    payments_provider: str = "mock"
+    paddle_env: str | None = None
+    paddle_endpoint_secret: str | None = field(default=None, repr=False)
+    paddle_products: dict = field(default_factory=dict, repr=False)
 
     def __repr__(self) -> str:  # keep secrets out of logs and tracebacks
         return f"Settings({self.redacted()!r})"
@@ -86,6 +92,10 @@ class Settings:
             "recent_auth_seconds": self.recent_auth_seconds,
             "csrf_key": "<redacted>",
             "session_secret": "<redacted>",
+            "payments_provider": self.payments_provider,
+            "paddle_env": self.paddle_env,
+            "paddle_endpoint_secret": "<redacted>" if self.paddle_endpoint_secret else None,
+            "paddle_products": sorted(self.paddle_products),
             "scoring": {"enabled": self.scoring.enabled, "anonymous": self.scoring.anonymous,
                         "claim": self.scoring.claim, "publish": self.scoring.publish},
         }
@@ -146,6 +156,88 @@ def _parse_scoring(env: Mapping[str, str], app_env: AppEnv) -> ScoringFlags:
     if (flags.anonymous or flags.claim or flags.publish) and not flags.enabled:
         raise SetupError("SCORING_*: sub-flags require SCORING_ENABLED")
     return flags
+
+
+def _strict_json_object(text: str, name: str) -> dict:
+    """Strict JSON for configuration: duplicate keys and non-finite numbers are refused; errors never echo the input."""
+    def no_duplicates(pairs):
+        keys = [k for k, _ in pairs]
+        if len(set(keys)) != len(keys):
+            raise ValueError("duplicate key")
+        return dict(pairs)
+
+    def reject(_constant):
+        raise ValueError("non-finite number")
+    try:
+        data = json.loads(text, object_pairs_hook=no_duplicates, parse_constant=reject)
+    except (ValueError, RecursionError):
+        raise SetupError(f"{name}: not valid strict JSON") from None
+    if not isinstance(data, dict) or not data:
+        raise SetupError(f"{name}: must be a non-empty JSON object")
+    return data
+
+
+def _parse_paddle(env: Mapping[str, str], app_env: AppEnv):
+    """Paddle configuration (mock preparation only: sandbox, no real transport, never production).
+
+    The API key is used here ONCE for the environment/prefix check and is never stored; the endpoint secret is kept
+    only in a field that is redacted everywhere. Any problem is a SetupError that does not echo a secret.
+    """
+    from .paddle.policy import validate_config
+    from .paddle.types import PaddleConfigError
+    from .paddle_service import PaddleProduct
+    provider = (env.get("PAYMENTS_PROVIDER") or "mock").strip().lower()
+    if provider == "mock":
+        for name in ("PADDLE_ENV", "PADDLE_ENDPOINT_SECRET", "PADDLE_API_KEY", "PADDLE_PRODUCTS"):
+            if env.get(name):
+                raise SetupError(f"{name}: only valid with PAYMENTS_PROVIDER=paddle")
+        return "mock", None, None, {}
+    if provider != "paddle":
+        raise SetupError("PAYMENTS_PROVIDER: must be mock or paddle")
+    paddle_env = (env.get("PADDLE_ENV") or "").strip()
+    if paddle_env != "sandbox":
+        raise SetupError("PADDLE_ENV: only sandbox is supported until a real transport has been approved")
+    try:
+        validate_config(paddle_env=paddle_env, api_key=env.get("PADDLE_API_KEY"), endpoint_secret=env.get("PADDLE_ENDPOINT_SECRET"),
+                        app_env=app_env.value)
+    except PaddleConfigError as exc:
+        raise SetupError(f"PADDLE_*: {exc}") from None
+    raw = _strict_json_object(env.get("PADDLE_PRODUCTS") or "", "PADDLE_PRODUCTS")
+    products = {}
+    for product_id, spec in raw.items():
+        if (not isinstance(product_id, str) or not isinstance(spec, dict)
+                or set(spec) - {"price_id", "quantity", "currency_code", "total_minor", "total_field"}
+                or not {"price_id", "quantity", "currency_code"} <= set(spec)):
+            raise SetupError("PADDLE_PRODUCTS: each product needs price_id, quantity, currency_code (and optional total_minor/total_field)")
+        try:
+            product = PaddleProduct(**spec)
+        except (ValueError, TypeError):
+            raise SetupError("PADDLE_PRODUCTS: a product entry is invalid") from None
+        products[product_id] = product
+    check_paddle_settings("paddle", paddle_env, env["PADDLE_ENDPOINT_SECRET"], products)
+    return "paddle", paddle_env, env["PADDLE_ENDPOINT_SECRET"], products
+
+
+def check_paddle_settings(provider, paddle_env, endpoint_secret, products) -> None:
+    """The ONE check of the Paddle settings, run by load_config and again by create_app on whatever Settings it is given.
+
+    After it passes, building a PaddleService per request cannot fail on configuration. Messages never echo a secret.
+    """
+    from .paddle_service import PaddleProduct
+    if provider == "mock":
+        if paddle_env or endpoint_secret or products:
+            raise SetupError("Paddle settings are present but PAYMENTS_PROVIDER is not paddle")
+        return
+    if provider != "paddle":
+        raise SetupError("PAYMENTS_PROVIDER: must be mock or paddle")
+    if paddle_env != "sandbox":
+        raise SetupError("paddle: only the sandbox environment is supported")
+    if not isinstance(endpoint_secret, str) or len(endpoint_secret) < 16:
+        raise SetupError("paddle: the endpoint secret is missing or too short")
+    if (not isinstance(products, dict) or not products
+            or not all(isinstance(key, str) and key and isinstance(value, PaddleProduct) and value.quantity == 1
+                       for key, value in products.items())):
+        raise SetupError("paddle: the product catalog is missing, empty or invalid (string ids, PaddleProduct values, quantity 1)")
 
 
 def _parse_adapters(raw: str) -> frozenset[str]:
@@ -250,4 +342,5 @@ def load_config(env: Mapping[str, str]) -> Settings:
         csrf_key=csrf_key,
         session_secret=session_secret,
         scoring=_parse_scoring(env, app_env),
+        **dict(zip(("payments_provider", "paddle_env", "paddle_endpoint_secret", "paddle_products"), _parse_paddle(env, app_env))),
     )
