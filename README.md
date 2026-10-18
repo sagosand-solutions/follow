@@ -2,64 +2,83 @@
 
 **Learn to read code, not just write it.**
 
-An open source platform for learning to read and understand code, from beginner to advanced. AI writes code faster than people do. Understanding and reviewing it is the new bottleneck.
+An open-source platform for learning to read and understand code, from beginner to advanced. AI writes code faster than people do. Understanding and reviewing it is the new bottleneck.
 
-> **Status: early draft.** The first course is live at <https://sagosand.se/follow/>. It has 14 reviewed Python questions in 7 lessons. The name "follow" is a working title and will change.
+> **Current question bank:** 44 free questions — 34 Python, 5 Production, and 5 SQL.
 
 ## How it works
 
-- Courses are code blocks followed by multiple-choice questions. Each question has one correct answer, one half-correct answer and at least three wrong answers. Every wrong answer maps to a named misconception and comes with its own feedback.
-- Question types vary: what does this print, which input crashes it, what happens if a line is removed, which rewrite is equivalent, and "an AI wrote this, what is wrong?".
-- You can start right away without an account. Progress stays in your browser.
-- Planned: an adaptive placement test that maps what you already know and suggests where to start.
-- Anyone can build question libraries. The platform owns the contract: a question schema, a validator and a shared concept map.
+- Courses present code followed by multiple-choice questions. Each question has one correct answer, one half-correct answer, and at least three wrong answers. Wrong answers map to named misconceptions and have their own feedback.
+- Question types include predicting output, finding an input that crashes code, reasoning about a removed line, comparing equivalent rewrites, and reviewing code written by AI.
+- You can start without an account. Progress stays in your browser.
+- Anyone can build question libraries. The platform provides the question schema, validator, and shared concept maps.
 
 ## Repository layout
 
 | Path | What |
 |---|---|
-| [`public/`](public/) | The static site: plain HTML, CSS and ES modules, with no build step. Served as is. |
-| [`public/data/`](public/data/) | Questions, courses and the derived index the site reads. |
-| [`schema/`](schema/) | JSON Schemas for questions, courses and the concept map, plus the Python concept map. |
-| [`validator/`](validator/) | Python validator and static data export. |
+| [`public/`](public/) | Static site: plain HTML, CSS, and ES modules; no build step. |
+| [`public/data/`](public/data/) | Public questions, courses, concept maps, traces, and derived indexes. |
+| [`schema/`](schema/) | JSON Schemas for questions, courses, and concept maps, plus the Python concept map. |
+| [`validator/`](validator/) | Python content validator and static data export/check tools. |
+| [`adaptive/`](adaptive/) | Experimental local practice-recommendation policy. It is deterministic advice, not a placement model, assessment, mastery tracker, or production UI. |
+| [`server/`](server/) | Accounts/backend foundation, SQLite storage, HTTP endpoints, and a loopback development runner. The runner is mock/test only; it is not a live service or proof of real-provider behavior. See [`server/README.md`](server/README.md). |
 | [`content/`](content/) | Illustrative example content. |
-| [`web-tests/`](web-tests/) | Tests for the site's modules (`node:test`). |
+| [`web-tests/`](web-tests/) | Browser-module tests using Node's built-in test runner. |
 
-## Run it locally
+## Development setup
+
+The CI workflow currently checks Python 3.11 and 3.14, and uses Node 24. Install the Python requirements and use Node 24 or newer for the web tests:
 
 ```sh
-python3 -m http.server -d public 8123   # then open http://localhost:8123/
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r validator/requirements.txt -r server/requirements.txt
 ```
 
-The site uses relative URLs only, so it also works under a sub-path.
+For a static-only preview, serve `public/` from the repository root:
+
+```sh
+python3 -m http.server -d public 8123
+# Open http://localhost:8123/
+```
+
+For the local mock backend and site on one loopback origin, run:
+
+```sh
+python -m server.dev --port 8000
+# Open http://127.0.0.1:8000/follow/
+```
+
+The development runner uses a temporary SQLite database and generated local secrets, binds to loopback, and makes no external provider calls. Provider/payment flows are disabled there. This setup is for local development and tests, not deployment. See [`server/README.md`](server/README.md) for configuration and limitations.
 
 ## Check your changes
 
 ```sh
-python3 -m venv .venv && . .venv/bin/activate
-python3 -m pip install -r validator/requirements.txt
-python3 -m unittest discover -s validator/tests
-python3 -m unittest discover -s schema/tests
-python3 -m validator export --check                 # every question against its course's vocabulary; derived data is up to date
+python -m unittest discover -s validator/tests
+python -m unittest discover -s schema/tests
+python -m unittest discover -s server/tests
+python -m validator export --check
+python -m validator trace --check
 node --test 'web-tests/*.test.mjs'
 ```
 
-To check one question file while you write it, pass its course vocabulary (the default is Python's):
+To check a question while you write it, pass the relevant course vocabulary (Python is the default):
 
 ```sh
-python3 -m validator public/data/questions/<python-question>.json
-python3 -m validator --concept-map schema/concepts/production-v0.json public/data/questions/<production-question>.json
-python3 -m validator --concept-map schema/concepts/sql-v0.json public/data/questions/<sql-question>.json
+python -m validator public/data/questions/<python-question>.json
+python -m validator --concept-map schema/concepts/production-v0.json public/data/questions/<production-question>.json
+python -m validator --concept-map schema/concepts/sql-v0.json public/data/questions/<sql-question>.json
 ```
 
-CI runs the same checks on every pull request (`export --check` is the gate for question data). Question code is checked statically in CI and never executed there. Running snippets locally needs explicit flags and is meant only for code you have read and trust. See [`validator/README.md`](validator/README.md).
+CI runs the checks above. Question code is checked statically and is never executed in CI. Running snippets locally requires explicit flags and is intended only for code you have read and trust. See [`validator/README.md`](validator/README.md).
 
 ## Licenses
 
 | Part | License |
 |---|---|
 | Platform code | [AGPL-3.0](LICENSE) |
-| Question schema, concept map and validator | [MIT](LICENSES/MIT.txt) |
+| Question schema, concept maps, and validator | [MIT](LICENSES/MIT.txt) |
 | Course and question content | [CC BY-SA 4.0](LICENSES/CC-BY-SA-4.0.txt) |
 
 Directories under a license other than AGPL-3.0 say so in their own README.
