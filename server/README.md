@@ -208,6 +208,15 @@ use; start it without scoring; confirm the scoring endpoints answer unavailable 
 against the scoring tables at once. The database, attempts, locks and exposures are kept; rows an older binary writes get
 `origin = 'legacy'` and are never ranked.
 
+### Local scoring demo (`python -m server.dev --scoring`)
+
+Development only (the runner refuses `APP_ENV=production`, and scoring is a `SetupError` there anyway). It turns scoring on for that one
+process, over a SYNTHETIC protected pool written to a temporary directory: an official pool bound to a throwaway product, and a free
+pool read through its own private, hash-checked manifest (the same path a real deployment uses, not the in-memory source). Every
+question says it is synthetic and no public-bank question is ever used as a protected fixture. Three seeded test readers
+(`dev-reader-1..3`) get sessions for the throwaway database only, printed at start with the cookie and CSRF header to send. It does not
+combine with `--content-root`/`--manifest`, makes no external call and binds loopback.
+
 ## Paddle Billing (sandbox/test preparation, default off)
 
 Off unless `PAYMENTS_PROVIDER=paddle`. It needs `PADDLE_ENV=sandbox` (live is refused until a real transport has been
