@@ -122,4 +122,6 @@ def validate_snapshot(state) -> AuthoritativeState:
             or (a.total_minor is not None and type(a.total_minor) is not int) or (a.currency_code is not None and not isinstance(a.currency_code, str))
             for a in state.adjustments):
         bad("snapshot adjustments are malformed")
+    if len({a.id for a in state.adjustments}) != len(state.adjustments):
+        bad("snapshot repeats an adjustment id")       # ambiguous evidence: even identical repeats could double-count a refund
     return state

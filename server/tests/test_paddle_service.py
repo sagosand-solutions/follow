@@ -389,7 +389,10 @@ class ReconcileTests(Base):
         corrupt = [("totals_text", lambda t: snapshot(t, totals={"grand_total": "1000"})), ("items_list", lambda t: snapshot(t, items=[Item(PRICE, 1)])),
                    ("status_none", lambda t: snapshot(t, status=None)), ("adjustment_object", lambda t: snapshot(t, adjustments=(object(),))),
                    ("complete_text", lambda t: snapshot(t, complete="yes")), ("quantity_bool", lambda t: snapshot(t, items=(Item(PRICE, True),))),
-                   ("currency_int", lambda t: snapshot(t, currency_code=5)), ("none", lambda t: None), ("dict", lambda t: {"x": 1})]
+                   ("currency_int", lambda t: snapshot(t, currency_code=5)),
+                   ("repeated_adjustment_id_identical", lambda t: snapshot(t, adjustments=(refund(1), refund(1)))),
+                   ("repeated_adjustment_id_none_vs_int", lambda t: snapshot(t, adjustments=(
+                       Adjustment(f"adj_{1:026d}", "refund", "approved", "full", None, "USD"), refund(1)))), ("none", lambda t: None), ("dict", lambda t: {"x": 1})]
         for index, (name, make) in enumerate(corrupt):
             with self.subTest(snapshot=name):
                 a, _ = self.bound_purchase(2 * index + 1)
