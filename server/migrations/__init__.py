@@ -159,4 +159,93 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             "CREATE INDEX idx_purchases_user_created ON purchases (user_id, created_at DESC, id DESC)",
         ),
     ),
+    (
+        4,
+        (
+            """
+            CREATE TABLE scoring_principals (
+                id TEXT PRIMARY KEY,
+                user_id TEXT UNIQUE REFERENCES users(id),
+                anon_cookie_hash TEXT UNIQUE,
+                created_at REAL NOT NULL,
+                expires_at REAL,
+                claimed_to TEXT REFERENCES scoring_principals(id),
+                claim_source_id TEXT UNIQUE REFERENCES scoring_principals(id),
+                state TEXT NOT NULL CHECK (state IN ('active', 'consumed', 'closed')),
+                CHECK (user_id IS NULL OR (anon_cookie_hash IS NULL AND claimed_to IS NULL))
+            )
+            """,
+            """
+            CREATE TABLE question_issues (
+                id TEXT PRIMARY KEY,
+                principal_id TEXT NOT NULL REFERENCES scoring_principals(id),
+                question_id TEXT NOT NULL,
+                family TEXT NOT NULL CHECK (family IN ('official', 'free')),
+                catalog_version TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                option_map TEXT NOT NULL,
+                issued_at REAL NOT NULL,
+                expires_at REAL NOT NULL,
+                consumed_at REAL
+            )
+            """,
+            "CREATE INDEX idx_question_issues_principal ON question_issues (principal_id, consumed_at)",
+            """
+            CREATE TABLE first_attempts (
+                principal_id TEXT NOT NULL REFERENCES scoring_principals(id),
+                question_id TEXT NOT NULL,
+                family TEXT NOT NULL CHECK (family IN ('official', 'free')),
+                course_id TEXT NOT NULL,
+                catalog_version TEXT NOT NULL,
+                rules_version TEXT NOT NULL,
+                revision TEXT NOT NULL,
+                option_id TEXT,
+                outcome TEXT NOT NULL CHECK (outcome IN ('correct', 'partial', 'not_sure', 'wrong')),
+                score_units INTEGER NOT NULL CHECK (score_units IN (4, 2, 0, -1)),
+                accepted_at REAL NOT NULL,
+                PRIMARY KEY (principal_id, question_id)
+            )
+            """,
+            "CREATE INDEX idx_first_attempts_family ON first_attempts (family, course_id, accepted_at)",
+            """
+            CREATE TRIGGER first_attempts_no_delete BEFORE DELETE ON first_attempts
+            BEGIN
+                SELECT RAISE(ABORT, 'first_attempts is immutable');
+            END
+            """,
+            """
+            CREATE TRIGGER first_attempts_only_claim_moves BEFORE UPDATE ON first_attempts
+            WHEN NEW.principal_id = OLD.principal_id
+              OR NEW.question_id IS NOT OLD.question_id OR NEW.family IS NOT OLD.family
+              OR NEW.course_id IS NOT OLD.course_id OR NEW.catalog_version IS NOT OLD.catalog_version
+              OR NEW.rules_version IS NOT OLD.rules_version OR NEW.revision IS NOT OLD.revision
+              OR NEW.option_id IS NOT OLD.option_id OR NEW.outcome IS NOT OLD.outcome
+              OR NEW.score_units IS NOT OLD.score_units OR NEW.accepted_at IS NOT OLD.accepted_at
+            BEGIN
+                SELECT RAISE(ABORT, 'first_attempts is immutable');
+            END
+            """,
+            """
+            CREATE TABLE submission_receipts (
+                principal_id TEXT NOT NULL REFERENCES scoring_principals(id),
+                idempotency_key TEXT NOT NULL,
+                request_digest TEXT NOT NULL,
+                question_id TEXT NOT NULL,
+                expires_at REAL NOT NULL,
+                PRIMARY KEY (principal_id, idempotency_key)
+            )
+            """,
+            """
+            CREATE TABLE leaderboard_preferences (
+                principal_id TEXT NOT NULL REFERENCES scoring_principals(id),
+                family TEXT NOT NULL CHECK (family IN ('official', 'free')),
+                opted_in_at REAL,
+                alias TEXT NOT NULL,
+                nickname TEXT,
+                moderation_state TEXT NOT NULL CHECK (moderation_state IN ('ok', 'hidden')),
+                PRIMARY KEY (principal_id, family)
+            )
+            """,
+        ),
+    ),
 )

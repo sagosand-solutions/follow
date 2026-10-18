@@ -41,6 +41,18 @@ class LimitSettings:
 
 
 @dataclass(frozen=True)
+class ScoringFlags:
+    """Scoring is mock-only and default-off; sub-flags need the main flag (023)."""
+    enabled: bool = False
+    anonymous: bool = False
+    claim: bool = False
+    publish: bool = False
+
+    def any(self) -> bool:
+        return self.enabled or self.anonymous or self.claim or self.publish
+
+
+@dataclass(frozen=True)
 class Settings:
     app_env: AppEnv
     public_origin: str
@@ -55,6 +67,7 @@ class Settings:
     recent_auth_seconds: int
     csrf_key: bytes = field(repr=False)
     session_secret: bytes = field(repr=False)
+    scoring: ScoringFlags = field(default_factory=lambda: ScoringFlags())
 
     def __repr__(self) -> str:  # keep secrets out of logs and tracebacks
         return f"Settings({self.redacted()!r})"
@@ -73,6 +86,8 @@ class Settings:
             "recent_auth_seconds": self.recent_auth_seconds,
             "csrf_key": "<redacted>",
             "session_secret": "<redacted>",
+            "scoring": {"enabled": self.scoring.enabled, "anonymous": self.scoring.anonymous,
+                        "claim": self.scoring.claim, "publish": self.scoring.publish},
         }
 
 
@@ -108,6 +123,29 @@ def _int_env(env: Mapping[str, str], name: str, default: int) -> int:
     if value <= 0:
         raise SetupError(f"{name}: must be positive")
     return value
+
+
+_TRUE = frozenset({"1", "true", "yes", "on"})
+_FALSE = frozenset({"", "0", "false", "no", "off"})
+
+
+def _flag_env(env: Mapping[str, str], name: str) -> bool:
+    value = (env.get(name) or "").strip().lower()
+    if value in _TRUE:
+        return True
+    if value in _FALSE:
+        return False
+    raise SetupError(f"{name}: must be a boolean (true/false)")
+
+
+def _parse_scoring(env: Mapping[str, str], app_env: AppEnv) -> ScoringFlags:
+    flags = ScoringFlags(enabled=_flag_env(env, "SCORING_ENABLED"), anonymous=_flag_env(env, "SCORING_ANONYMOUS_ENABLED"),
+                         claim=_flag_env(env, "SCORING_CLAIM_ENABLED"), publish=_flag_env(env, "SCORING_PUBLISH_ENABLED"))
+    if flags.any() and app_env is AppEnv.PRODUCTION:
+        raise SetupError("SCORING_*: scoring must not be enabled in production before a separately approved release")
+    if (flags.anonymous or flags.claim or flags.publish) and not flags.enabled:
+        raise SetupError("SCORING_*: sub-flags require SCORING_ENABLED")
+    return flags
 
 
 def _parse_adapters(raw: str) -> frozenset[str]:
@@ -211,4 +249,5 @@ def load_config(env: Mapping[str, str]) -> Settings:
         recent_auth_seconds=_int_env(env, "RECENT_AUTH_SECONDS", 10 * 60),
         csrf_key=csrf_key,
         session_secret=session_secret,
+        scoring=_parse_scoring(env, app_env),
     )
