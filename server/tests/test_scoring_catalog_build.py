@@ -1,4 +1,4 @@
-"""Tests for the generic scoring-catalog builder (task 024).
+"""Tests for the generic scoring-catalog builder.
 
 All content here is synthetic: no private question, path or metadata is read or
 written. Run from the repository root::
@@ -21,17 +21,26 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def make_question(question_id, *, license="LicenseRef-Proprietary", options=5, **overrides):
-    option_list = [
-        {
+def make_options(count=5):
+    # Exactly one full, one half and at least three zero-credit options, matching
+    # the static score rule and the score-dependent schema shape.
+    options = []
+    for index in range(count):
+        option = {
             "id": f"opt-{index}",
             "text": f"answer {index}",
-            "score": 1 if index == 0 else 0,
+            "score": 1 if index == 0 else (0.5 if index == 1 else 0),
             "feedback": f"feedback {index}",
             "misconception": None if index == 0 else "py.example",
         }
-        for index in range(options)
-    ]
+        if index == 1:
+            option["partial_reason"] = "Half the reasoning is right."
+        options.append(option)
+    return options
+
+
+def make_question(question_id, *, license="LicenseRef-Proprietary", options=5, **overrides):
+    option_list = make_options(options)
     question = {
         "schema_version": "0.1",
         "id": question_id,
@@ -344,6 +353,63 @@ class RejectionTest(BuilderFixture):
         release = self.write_release({"python": [("py-alpha", "python-lifetime")]})
         exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
         self.build_error(release, exposures)
+
+    def question_that_fails(self, data):
+        self.add_question("py-alpha", data=data)
+        digest = _sha((self.content / "py-alpha.json").read_bytes())
+        release = self.write_release({"python": [("py-alpha", "python-lifetime")]})
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+        self.build_error(release, exposures)
+
+    def test_snippets_none_rejected(self):
+        self.question_that_fails(make_question("py-alpha", snippets=None))
+
+    def test_empty_snippets_rejected(self):
+        self.question_that_fails(make_question("py-alpha", snippets=[]))
+
+    def test_boolean_score_rejected(self):
+        data = make_question("py-alpha")
+        data["options"][0]["score"] = True
+        self.question_that_fails(data)
+
+    def test_half_without_partial_reason_rejected(self):
+        data = make_question("py-alpha")
+        del data["options"][1]["partial_reason"]
+        self.question_that_fails(data)
+
+    def test_all_zero_options_rejected(self):
+        data = make_question("py-alpha")
+        for option in data["options"]:
+            option["score"] = 0
+            option.pop("partial_reason", None)
+            option["misconception"] = "py.example"
+        self.question_that_fails(data)
+
+    def test_missing_full_credit_rejected(self):
+        data = make_question("py-alpha")
+        data["options"][0]["score"] = 0
+        data["options"][0]["misconception"] = "py.example"
+        self.question_that_fails(data)
+
+    def test_multiple_full_credit_rejected(self):
+        data = make_question("py-alpha")
+        data["options"][2]["score"] = 1
+        data["options"][2]["misconception"] = None
+        self.question_that_fails(data)
+
+    def test_schema_error_message_carries_no_raw_content(self):
+        data = make_question("py-alpha")
+        data["snippets"] = None
+        self.add_question("py-alpha", data=data)
+        digest = _sha((self.content / "py-alpha.json").read_bytes())
+        release = self.write_release({"python": [("py-alpha", "python-lifetime")]})
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+        with self.assertRaises(CatalogBuildError) as caught:
+            self.build(release, exposures)
+        message = str(caught.exception)
+        self.assertNotIn("What does this print", message)
+        self.assertNotIn("Because.", message)
+        self.assertNotIn(str(self.content), message)
 
     def test_missing_manifest(self):
         digest = self.add_question("py-alpha")

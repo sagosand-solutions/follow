@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Deterministic scoring-catalog builder (task 024, owner K4).
+"""Deterministic scoring-catalog builder.
 
 Builds one frozen internal scoring catalog per family (``official``/``free``) from
 an *explicit* release selection over an existing content manifest. Nothing here
@@ -10,11 +10,17 @@ exposure map. An ``official`` question must also carry an explicit
 ``previously_exposed`` attestation; a known-exposed question is refused, and the
 builder never claims to detect an unknown leak.
 
-Output is the frozen artifact from ``scoring-server-interfaces-v1.md`` §2 / task
-024 and nothing else. It contains ids, product bindings, hashes, exposure
-references and versions — never prompts, options, feedback, solutions, source
-paths or raw secrets. Runtime ownership (loading, migrations, HTTP) is task 023
-and lives in other modules; **runtime code must never import this builder.**
+Each pool question is read through the hash-checked manifest and validated against
+the official question JSON Schema plus the static score rule (one full, one half
+and at least three zero-credit options; booleans are not scores) before anything
+is written. This needs the ``jsonschema`` library; the tool fails closed if it is
+unavailable.
+
+The output is a frozen scoring artifact and nothing else. It contains ids,
+product bindings, hashes, exposure references and versions — never prompts,
+options, feedback, solutions, source paths or raw secrets. Loading a built catalog
+at runtime lives in other server modules; this is a build-time tool and **runtime
+code must never import it.**
 
 Public tests and fixtures use only synthetic content. Real private release inputs
 and artifacts live in the private repo or an internal draft and are never
@@ -40,9 +46,9 @@ SCHEMA_VERSION = 1
 
 #: Known rules versions and their fixed score units, for error messages and for
 #: refusing a typo. The builder never scores. Only ``BUILDABLE_RULES`` may be
-#: frozen into a *new* catalog: the 2026-10-18 decision requires r2
-#: (+2/+1/0/-1, denominator 2) for new catalogs and forbids reinterpreting r1's
-#: quarter points (r1 = +4/+2/0/-1, denominator 4, historical only).
+#: frozen into a *new* catalog: the current policy requires r2 (+2/+1/0/-1,
+#: denominator 2) for new catalogs and forbids reinterpreting r1's quarter points
+#: (r1 = +4/+2/0/-1, denominator 4, historical only).
 KNOWN_RULES = {
     "r1": {"correct": 4, "partial": 2, "not_sure": 0, "wrong": -1, "denominator": 4},
     "r2": {"correct": 2, "partial": 1, "not_sure": 0, "wrong": -1, "denominator": 2},
@@ -58,13 +64,9 @@ LICENSE_BY_FAMILY = {
     "free": "CC-BY-SA-4.0",
 }
 
-_QUESTION_FIELDS = (
-    "schema_version", "id", "language", "locale", "type", "level", "difficulty",
-    "concepts", "prompt", "snippets", "options", "explanation", "verification",
-    "author", "license",
-)
-_OPTION_FIELDS = ("id", "text", "score", "feedback", "misconception")
-_SCORES = (0, 0.5, 1)
+#: The authoritative question contract; questions are checked against this exact
+#: file with ``jsonschema`` (never a hand-rolled subset).
+_DEFAULT_QUESTION_SCHEMA = Path(__file__).resolve().parents[1] / "schema" / "question.schema.json"
 
 #: A release question binding may carry an explicit exposure attestation.
 _REQUIRED_QUESTION_KEYS = frozenset({"question_id", "product_id"})
@@ -288,48 +290,61 @@ def parse_exposures(raw: object) -> tuple[Exposure, ...]:
     return tuple(sorted(rows, key=lambda row: (row.kind, row.id)))
 
 
-# --- question contract (focused subset of schema/question.schema.json) -------
+# --- question contract (official schema + static score rule) -----------------
 
 
-def _validate_question(question_id: str, data: object, family: str) -> None:
+def _load_question_validator(schema_path=None):
+    """Return a ``jsonschema`` validator for the official question schema.
+
+    The builder fails closed: a missing ``jsonschema`` library, an unreadable
+    schema or a malformed schema is a build error, never a silent skip.
+    """
+    try:
+        from jsonschema import Draft202012Validator
+    except ImportError as exc:
+        raise CatalogBuildError(
+            "the jsonschema library is required to validate question content"
+        ) from exc
+    path = Path(schema_path) if schema_path is not None else _DEFAULT_QUESTION_SCHEMA
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise CatalogBuildError("the question schema could not be loaded") from exc
+    try:
+        Draft202012Validator.check_schema(schema)
+    except Exception as exc:
+        raise CatalogBuildError("the question schema is not a valid JSON Schema") from exc
+    return Draft202012Validator(schema)
+
+
+def _validate_question(question_id: str, data: object, family: str, validator) -> None:
     question = _require_object(data, f"question {question_id!r}")
-    missing = [field for field in _QUESTION_FIELDS if field not in question]
-    if missing:
-        raise CatalogBuildError(f"question {question_id!r} missing fields: {missing}")
-    if question["schema_version"] != "0.1":
-        raise CatalogBuildError(f"question {question_id!r} schema_version must be '0.1'")
+    errors = sorted(validator.iter_errors(question), key=lambda error: list(error.absolute_path))
+    if errors:
+        first = errors[0]
+        where = "/" + "/".join(str(part) for part in first.absolute_path) if first.absolute_path else "/"
+        raise CatalogBuildError(
+            f"question {question_id!r} violates the question schema at {where} ({first.validator})"
+        )
     if question["id"] != question_id:
         raise CatalogBuildError(f"question {question_id!r} id does not match the manifest entry")
     if question["license"] != LICENSE_BY_FAMILY[family]:
         raise CatalogBuildError(
             f"question {question_id!r} license does not match the {family} family"
         )
-    options = question["options"]
-    if not isinstance(options, list) or not 5 <= len(options) <= 8:
-        raise CatalogBuildError(f"question {question_id!r} must have 5-8 options")
-    seen: set[str] = set()
-    for index, raw_option in enumerate(options):
-        option = _require_object(raw_option, f"question {question_id!r} options[{index}]")
-        missing = [field for field in _OPTION_FIELDS if field not in option]
-        if missing:
-            raise CatalogBuildError(f"question {question_id!r} options[{index}] missing fields: {missing}")
-        option_id = _require_id(option["id"], f"question {question_id!r} options[{index}] id")
-        if option_id in seen:
-            raise CatalogBuildError(f"question {question_id!r} has duplicate option id {option_id!r}")
-        seen.add(option_id)
-        _require_str(option["text"], f"question {question_id!r} options[{index}] text")
-        if option["score"] not in _SCORES:
-            raise CatalogBuildError(f"question {question_id!r} options[{index}] score is not 0, 0.5 or 1")
-        _require_str(option["feedback"], f"question {question_id!r} options[{index}] feedback")
-        misconception = option["misconception"]
-        if misconception is not None:
-            _require_str(misconception, f"question {question_id!r} options[{index}] misconception")
+    scores = [option["score"] for option in question["options"]]
+    if (any(isinstance(score, bool) for score in scores)
+            or scores.count(1) != 1 or scores.count(0.5) != 1 or scores.count(0) < 3):
+        raise CatalogBuildError(
+            f"question {question_id!r} must have exactly one full, one half and at least "
+            "three zero-credit options; booleans are not scores"
+        )
 
 
 # --- build -------------------------------------------------------------------
 
 
-def _load_pool(catalog: ContentCatalog, release: Release) -> list[PoolQuestion]:
+def _load_pool(catalog: ContentCatalog, release: Release, validator) -> list[PoolQuestion]:
     pool: list[PoolQuestion] = []
     seen: dict[str, str] = {}
     for course_id, questions in release.courses:
@@ -350,7 +365,7 @@ def _load_pool(catalog: ContentCatalog, release: Release) -> list[PoolQuestion]:
                 raise CatalogBuildError(f"question {question_id!r} failed the hash-checked read") from exc
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                 raise CatalogBuildError(f"question {question_id!r} is not valid JSON") from exc
-            _validate_question(question_id, data, release.family)
+            _validate_question(question_id, data, release.family, validator)
             pool.append(PoolQuestion(course_id=course_id, question_id=question_id,
                                      product_id=product_id, content_sha256=entry.sha256))
     return pool
@@ -383,15 +398,17 @@ def _validate_exposures(exposures: tuple[Exposure, ...], pool: list[PoolQuestion
             )
 
 
-def build_artifact(content_root, manifest_path, release_path, exposures_path) -> bytes:
+def build_artifact(content_root, manifest_path, release_path, exposures_path,
+                   question_schema=None) -> bytes:
     """Return the canonical artifact bytes, or raise ``CatalogBuildError``."""
+    validator = _load_question_validator(question_schema)
     release = parse_release(_read_json(release_path, "release"))
     exposures = parse_exposures(_read_json(exposures_path, "exposures"))
     try:
         catalog = ContentCatalog.load(content_root, manifest_path)
     except ContentError as exc:
         raise CatalogBuildError("content catalog could not be loaded") from exc
-    pool = _load_pool(catalog, release)
+    pool = _load_pool(catalog, release, validator)
     _validate_exposures(exposures, pool, catalog)
 
     by_course: dict[str, list[PoolQuestion]] = {}
@@ -515,6 +532,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--manifest", required=True, help="content manifest with kind/id/product/hash")
     parser.add_argument("--release", required=True, help="versioned release selection (explicit pool)")
     parser.add_argument("--exposures", required=True, help="reviewed exposure map")
+    parser.add_argument("--question-schema", default=None,
+                        help="official question JSON Schema (default: bundled schema/question.schema.json)")
     parser.add_argument("--out", required=True, help="artifact path")
     parser.add_argument("--check", action="store_true",
                         help="compare --out with a fresh build without writing; non-zero on drift")
@@ -537,7 +556,8 @@ def _report_unexposed(content_root, manifest_path, exposures_path, list_entries:
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     try:
-        payload = build_artifact(args.content_root, args.manifest, args.release, args.exposures)
+        payload = build_artifact(args.content_root, args.manifest, args.release, args.exposures,
+                                 question_schema=args.question_schema)
         _report_unexposed(args.content_root, args.manifest, args.exposures, args.list_unexposed)
         if args.check:
             if check_artifact(args.out, payload):

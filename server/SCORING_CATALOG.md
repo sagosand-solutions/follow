@@ -6,8 +6,13 @@ existing content manifest. It never scans directories and never guesses a course
 product, premium status or prior answer exposure from a filename.
 
 AGPL-3.0-or-later, like the rest of `server/`. The builder is a build-time tool:
-runtime code (`server/scoring_catalog.py` and the 023 HTTP layer) must never
-import it, and this module never imports runtime/HTTP code.
+runtime loading and HTTP code must never import it, and this module never imports
+runtime/HTTP code.
+
+Each selected question is validated against the official question JSON Schema
+(`schema/question.schema.json`) plus the static score rule before anything is
+written; this needs the `jsonschema` library, and the tool fails closed (a build
+error) if it is unavailable.
 
 ## Inputs
 
@@ -71,8 +76,8 @@ exposure row (see below); the count is always noted on stderr when non-zero.
 
 ## Output artifact
 
-The frozen format from the 023 interface contract: `schema_version`,
-`catalog_version`, `rules_version`, `family`,
+The artifact format: `schema_version`, `catalog_version`, `rules_version`,
+`family`,
 `courses:[{course_id,N_c,questions:[{question_id,product_id,content_sha256}]}]`,
 `exposures:[{kind,id,content_sha256,affected_question_ids}]`. Canonical UTF-8
 JSON with sorted keys and sorted arrays, so input file/manifest order cannot
@@ -80,8 +85,8 @@ change the bytes.
 
 Only `rules_version` `r2` (+2/+1/0/−1, denominator 2) may be frozen into a new
 catalog. The historical `r1` (+4/+2/0/−1, denominator 4) and any unknown value
-are rejected: the 2026-10-18 decision forbids reinterpreting r1's quarter points.
-The builder does not score.
+are rejected: reinterpreting r1's quarter points is forbidden. The builder does
+not score.
 
 ## Fail-closed rules
 
@@ -93,8 +98,10 @@ The builder does not score.
 - Question ids are unique across courses, `N_c` is the counted pool size, and a
   question's JSON `id` must equal the manifest id.
 - Selected questions are read only through the hash-checked catalog (path/symlink
-  safety included); a changed file, a wrong hash or a bad question structure is
-  rejected.
+  safety included); a changed file or a wrong hash is rejected. A question that
+  does not satisfy the official schema or the static score rule (exactly one full,
+  one half and at least three zero-credit options; booleans are not scores) is
+  rejected before anything is written, so an invalid pool never yields an artifact.
 - Every `(kind,id)` exposure row must exist in the manifest with a matching hash,
   affected ids must belong to the same pool, and every pool question needs its own
   exposure row containing its own id. An empty list is an explicit reviewed-safe
