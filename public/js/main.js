@@ -13,8 +13,6 @@ import { questionView } from './views/question.js';
 import { reviewView } from './views/review.js';
 import { aboutView } from './views/about.js';
 import { notFoundView } from './views/notfound.js';
-import { profileView } from './views/profile.js';
-import { leaderboardView } from './views/leaderboard.js';
 
 initTheme();
 
@@ -73,9 +71,10 @@ async function boot() {
   registerRoute('/q/:id', questionView);
   registerRoute('/review', reviewView);
   registerRoute('/about', aboutView);
+  // Scoring views load only when the flag is on, so the default site never fetches their code.
   if (CONFIG.scoringUi) {
-    registerRoute('/profile', profileView);
-    registerRoute('/leaderboard', leaderboardView);
+    registerRoute('/profile', async (params) => (await import('./views/profile.js')).profileView(params));
+    registerRoute('/leaderboard', async (params) => (await import('./views/leaderboard.js')).leaderboardView(params));
   }
   if (CONFIG.accountsUi) await enableAccounts(accountSlot);
   setNotFound(notFoundView);

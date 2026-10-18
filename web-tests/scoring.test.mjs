@@ -83,7 +83,16 @@ test('scoring UI is off by default and its routes exist only behind the flag', a
   const config = await readFile(new URL('../public/js/config.js', import.meta.url), 'utf8');
   const main = await readFile(new URL('../public/js/main.js', import.meta.url), 'utf8');
   assert.match(config, /scoringUi: false/);
-  assert.match(main, /if \(CONFIG\.scoringUi\) \{\n\s+registerRoute\('\/profile', profileView\);\n\s+registerRoute\('\/leaderboard', leaderboardView\);/);
+  assert.match(main, /if \(CONFIG\.scoringUi\) \{\n\s+registerRoute\('\/profile', async/);
+});
+
+test('with the flag off no scoring module is imported statically (it would be fetched on every page)', async () => {
+  const files = ['main.js', 'views/question.js', 'views/lesson.js', 'views/home.js', 'views/course.js', 'views/review.js'];
+  for (const f of files) {
+    const src = await readFile(new URL(`../public/js/${f}`, import.meta.url), 'utf8');
+    const statics = src.split('\n').filter((line) => /^import /.test(line));
+    for (const line of statics) assert.doesNotMatch(line, /scoring\/|score-ui|result-card|views\/profile|views\/leaderboard|\.\/profile|\.\/leaderboard/, `${f}: ${line}`);
+  }
 });
 
 test('no casino words in the scoring copy', async () => {
