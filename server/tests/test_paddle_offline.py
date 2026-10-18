@@ -206,10 +206,10 @@ class StrictInputTests(unittest.TestCase):
 
     def test_occurred_at_must_be_a_full_rfc3339_timestamp_with_a_zone(self):
         for bad in ("2026-10-19", "2026-10-19T01:02:03", "2026-10-19 01:02:03Z", "2026-10-19T01:02Z", "2026-10-19T25:00:00Z",
-                    "2026-13-01T00:00:00Z", "2026-10-19T01:02:03+0100", "2026-10-19T01:02:03.Z", "20261019T010203Z", ""):
+                    "2026-13-01T00:00:00Z", "2026-10-19T01:02:03+0100", "2026-10-19T01:02:03+00:60", "2026-10-19T01:02:03-05:99", "2026-10-19T01:02:03+24:00", "2026-10-19T01:02:03.Z", "20261019T010203Z", ""):
             with self.subTest(bad=bad), self.assertRaises(PaddleMalformed):
                 self.verify(envelope(occurred_at=bad))
-        for good in ("2026-10-19T01:02:03Z", "2026-10-19T01:02:03.456789123Z", "2026-10-19T01:02:03+02:00", "2026-10-19t01:02:03z"):
+        for good in ("2026-10-19T01:02:03Z", "2026-10-19T01:02:03.456789123Z", "2026-10-19T01:02:03+02:00", "2026-10-19T01:02:03-23:59", "2026-10-19t01:02:03z"):
             with self.subTest(good=good):
                 self.assertEqual(self.verify(envelope(occurred_at=good)).occurred_at, good)
 
@@ -236,7 +236,7 @@ class StrictInputTests(unittest.TestCase):
         signature.verify_signature(raw, sign(raw), SECRET, NOW, tolerance=0)
 
     def test_url_parser_errors_become_typed_rejections(self):
-        for url in ("https://api.paddle.com:abc/x", "https://api.paddle.com:99999999/x", "https://[::1/x", "https://[api.paddle.com]/x",
+        for url in ("https://api.paddle.com:abc/x", "https://api.paddle.com:99999999/x", "https://@api.paddle.com/x", "https://:@api.paddle.com/x", "https://:pw@api.paddle.com/x", "https://user:@api.paddle.com/x", "https://[::1/x", "https://[api.paddle.com]/x",
                     "https://api.paddle.com\n/x", "https://api.paddle.com/x\t", "https://api.paddle.com/ x", "https://api.paddle.com\\@evil.example/",
                     "https://api.pad\u00e4le.com/x", "https://api.paddle.com/" + "a" * 3000, "", None, 5, b"https://api.paddle.com/"):
             with self.subTest(url=repr(url)[:40]), self.assertRaises(PaddleTransportRejected):

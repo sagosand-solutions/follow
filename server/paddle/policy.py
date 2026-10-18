@@ -63,5 +63,5 @@ def check_response_url(environment: str, url) -> None:
         host, port, user, password = parts.hostname, parts.port, parts.username, parts.password
     except ValueError:
         raise PaddleTransportRejected("host not allowed") from None
-    if parts.scheme != "https" or host != API_HOSTS[environment] or user or password or port not in (None, 443):
+    if parts.scheme != "https" or host != API_HOSTS[environment] or user is not None or password is not None or "@" in parts.netloc or port not in (None, 443):
         raise PaddleTransportRejected("host not allowed")
