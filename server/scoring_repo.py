@@ -10,6 +10,9 @@ import secrets
 import sqlite3
 from dataclasses import dataclass
 
+from .models import ContentError
+from .scoring_standings import bump_principal_boards
+
 
 def new_id(prefix: str = "") -> str:
     return prefix + secrets.token_urlsafe(12)
@@ -135,6 +138,7 @@ class ScoringRepository:
         conn.execute("INSERT OR IGNORE INTO scoring_purge_gate (open) VALUES (1)")
         try:
             for pid in principal_ids:
+                bump_principal_boards(conn, pid)                 # boards this principal stood on change before the rows go
                 conn.execute("UPDATE scoring_principals SET claimed_to = NULL WHERE claimed_to = ?", (pid,))
                 conn.execute("UPDATE scoring_principals SET claim_source_id = NULL WHERE claim_source_id = ?", (pid,))
                 # Phase 1 tables first (set_attempts references question_issues); exposure rows need the purge gate.
@@ -240,6 +244,43 @@ class ScoringRepository:
             "AND EXISTS (SELECT 1 FROM question_exposure e WHERE e.principal_id = question_issues.principal_id "
             "AND e.question_id = question_issues.question_id AND e.family = question_issues.family AND e.rank_blocking = 1)",
             (principal_id,))
+
+    # -- pool lifecycle: ranked -> retired -> free, one way (triggers enforce it) -------------------------------------
+    def sync_pool(self, entries, now: float, release_id: str) -> int:
+        """Register every catalog question as ranked, once. A known id must keep its hash; a hash already used by another id is a clone.
+        Returns the number of newly registered questions. Raises ContentError (no content in the message) on a conflict."""
+        conn = self._c()
+        added = 0
+        for question_id, family, sha in entries:
+            row = conn.execute("SELECT family, content_sha256 FROM pool_questions WHERE question_id = ?", (question_id,)).fetchone()
+            if row is not None:
+                if (row["family"], row["content_sha256"]) != (family, sha):
+                    raise ContentError(f"pool question {question_id} changed since it was registered")
+                continue
+            try:
+                conn.execute("INSERT INTO pool_questions (question_id, family, content_sha256, state, release_id, since, reason_code, "
+                             "operator_id) VALUES (?, ?, ?, 'ranked', ?, ?, 'catalog', 'startup')", (question_id, family, sha, release_id, now))
+            except sqlite3.IntegrityError:
+                raise ContentError(f"pool question {question_id} duplicates the content of another question") from None
+            added += 1
+        return added
+
+    def pool_state(self, question_id: str) -> str | None:
+        row = self._c().execute("SELECT state FROM pool_questions WHERE question_id = ?", (question_id,)).fetchone()
+        return row[0] if row else None
+
+    def version_frozen(self, family: str, catalog_version: str, rules_version: str) -> bool:
+        row = self._c().execute("SELECT status FROM ranking_versions WHERE family = ? AND catalog_version = ? AND rules_version = ?",
+                                (family, catalog_version, rules_version)).fetchone()
+        return bool(row and row[0] == "frozen")
+
+    def open_member(self, family: str, catalog_version: str, rules_version: str, question_id: str, content_sha256: str) -> bool:
+        """True only if an OPEN version of this catalog holds exactly this question with exactly this content."""
+        return self._c().execute(
+            "SELECT 1 FROM ranking_versions v JOIN ranking_version_members m ON m.version_id = v.id "
+            "WHERE v.family = ? AND v.catalog_version = ? AND v.rules_version = ? AND v.status = 'open' "
+            "AND m.question_id = ? AND m.content_sha256 = ?",
+            (family, catalog_version, rules_version, question_id, content_sha256)).fetchone() is not None
 
     # -- attempts ------------------------------------------------------
     def attempt(self, principal_id: str, question_id: str) -> Attempt | None:

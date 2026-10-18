@@ -131,6 +131,43 @@ same gate, and material with no reviewed exposure row is blocked, not assumed ha
 Premium is access control, not DRM: shared answers, own code runs and several accounts
 cannot be prevented, and the free list is explicitly not cheat-resistant.
 
+### Question pool lifecycle and the operator tool
+
+At start-up every scoring-catalog question is registered once as `ranked`. A question whose content changed under the same id, or whose
+content equals another question's, stops the start-up: retire the old id and give the new content a new one. Only a `ranked`
+question in a version that has not been frozen is issued; anything else answers `unavailable`.
+
+Start-up also creates, once per catalog version, an immutable ranking version: the courses with their pool sizes and every member
+question with its content hash, plus a digest of it all. A catalog that changed under the same version, or that holds a question
+that is no longer ranked, stops the start-up; a retired question therefore means a new catalog version, never a silently smaller pool.
+Only a question held with exactly this content by an open version is issued. Scores are exact: a total is 500 x T / D with
+D = K x lcm(pool sizes), and the board's sort key is the zero-padded decimal of (T + D), so no floating point decides a rank.
+
+Each accepted first attempt updates its standings in the same transaction as the answer: an account's rankable attempt adds to its
+per-course units and re-writes its exact `total` and `course:<id>` rows for the `all` and the ISO-week window; an anonymous attempt
+only feeds a private aggregate used for a hypothetical placement, and exposed, legacy or claimed attempts never score. A replay
+changes nothing, and a failure writing standings rolls the whole answer back. A board's revision rises on every change a reader can
+see (a published reader's answer, publishing, unpublishing, renaming, deletion, a rebuild, a freeze), which makes older cursors stale.
+
+`python -m server.pool` changes the pool, always in one transaction with an append-only audit row, and never goes backwards:
+
+- `freeze --version V --reason CODE`: a ranking version stops for good; its open issues are withdrawn and its boards move to a new revision.
+- `retire --question Q --release R --reason CODE --operator OP [--clone-audit REF]`: `ranked` to `retired`. Refused while an open version
+  still contains the question (freeze it first); open issues for the question are withdrawn, accepted answers stay.
+- `free --question Q ... --clone-audit REF --license-ok REF --exposure-audit REF`: `retired` to `free`; all three references are required.
+- `rebuild --version V`: recompute an OPEN version's standings from first attempts (a frozen version is history and is refused); every board moves to a new revision.
+- `check-static --public-root DIR`: fails (exit 1) if a ranked or retired question's id or content hash appears in static files.
+
+Operator, reason, release and references are short codes, never names or e-mail addresses. Exit codes: 0 done, 1 static findings, 2 refused.
+
+### Rolling scoring back (operator runbook)
+
+There is no command and no database guard that stops an older binary, so rollback is a procedure: stop the service and every worker or
+scheduler; block access to the scoring endpoints; check that the scoring flags are off in the configuration the OLD process will really
+use; start it without scoring; confirm the scoring endpoints answer unavailable before reopening other traffic. Never run two versions
+against the scoring tables at once. The database, attempts, locks and exposures are kept; rows an older binary writes get
+`origin = 'legacy'` and are never ranked.
+
 ## Paddle Billing (sandbox/test preparation, default off)
 
 Off unless `PAYMENTS_PROVIDER=paddle`. It needs `PADDLE_ENV=sandbox` (live is refused until a real transport has been
