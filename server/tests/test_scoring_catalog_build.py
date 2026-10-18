@@ -263,6 +263,14 @@ class RejectionTest(BuilderFixture):
         exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
         self.build_error(release, exposures)
 
+    def test_course_id_rejects_dot_and_underscore(self):
+        digest = self.add_question("py-alpha")
+        for course_id in ("py.core", "py_core"):
+            release = self.write_release({course_id: [("py-alpha", "python-lifetime")]})
+            exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+            with self.assertRaises(CatalogBuildError):
+                self.build(release, exposures)
+
     def test_official_rejects_previously_exposed(self):
         digest = self.add_question("py-alpha")
         release = self.write_release({"python": [("py-alpha", "python-lifetime")]},
@@ -464,6 +472,26 @@ class CheckAndWriteTest(BuilderFixture):
         with self.assertRaises(CatalogBuildError):
             builder.build_artifact(self.content, self.freeze_manifest(), bad_release, exposures)
         self.assertEqual(out.read_bytes(), before)
+
+    def test_unexposed_report_lists_material_without_row(self):
+        digest = self.add_question("py-alpha")
+        self.add_material("study", "study-x")
+        release = self.write_release({"python": [("py-alpha", "python-lifetime")]})
+        exposures = self.write_exposures(self.self_and_safe({"py-alpha": digest}))
+        report = builder.unexposed_manifest_entries(self.content, self.freeze_manifest(), exposures)
+        self.assertEqual(report, (("study", "study-x"),))
+
+    def test_unexposed_report_empty_when_everything_is_covered(self):
+        digest = self.add_question("py-alpha")
+        study = self.add_material("study", "study-x")
+        release = self.write_release({"python": [("py-alpha", "python-lifetime")]})
+        exposures = self.write_exposures(self.self_and_safe(
+            {"py-alpha": digest},
+            extras=[{"kind": "study", "id": "study-x", "content_sha256": study,
+                     "affected_question_ids": []}],
+        ))
+        report = builder.unexposed_manifest_entries(self.content, self.freeze_manifest(), exposures)
+        self.assertEqual(report, ())
 
     def test_main_writes_and_checks(self):
         digest = self.add_question("py-alpha")

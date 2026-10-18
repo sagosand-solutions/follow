@@ -66,6 +66,9 @@ python -m server.scoring_catalog_build \
 `--check` builds in memory and compares `--out` byte-for-byte without writing;
 exit `0` means equal, `1` means drift. A build error exits `2`.
 
+`--list-unexposed` makes the build report the manifest entries that have no
+exposure row (see below); the count is always noted on stderr when non-zero.
+
 ## Output artifact
 
 The frozen format from the 023 interface contract: `schema_version`,
@@ -96,6 +99,13 @@ The builder does not score.
   affected ids must belong to the same pool, and every pool question needs its own
   exposure row containing its own id. An empty list is an explicit reviewed-safe
   statement; a missing row is not.
+- A `course_id` must match the runtime catalog pattern `[a-z][a-z0-9-]{0,63}`, so
+  the builder cannot freeze a course the runtime would refuse to load.
+- The builder only governs the selected pool; other manifest material
+  (`exam`/`study`/unselected questions) that has no exposure row is left to the
+  runtime's default-deny. This is reported (count on stderr, ids with
+  `--list-unexposed`) but never written into the artifact, and it is not a claim
+  that the exposure map is a complete leak inventory.
 - Writing is atomic and refuses to reuse a `catalog_version` with a different
   pool: a changed pool needs a new release version and a separate migration
   decision. A failed build leaves any previous artifact untouched.

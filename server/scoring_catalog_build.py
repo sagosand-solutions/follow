@@ -71,7 +71,9 @@ _REQUIRED_QUESTION_KEYS = frozenset({"question_id", "product_id"})
 _ALLOWED_QUESTION_KEYS = _REQUIRED_QUESTION_KEYS | {"previously_exposed"}
 
 _ID_RE = re.compile(r"[a-z][a-z0-9.-]{0,79}\Z")
-_COURSE_RE = re.compile(r"[a-z][a-z0-9._-]{0,63}\Z")
+#: The runtime catalog loader uses this exact course-id pattern; the builder must
+#: not freeze a course_id (e.g. with ``.``/``_``) that runtime would reject.
+_COURSE_RE = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _PRODUCT_RE = re.compile(r"[a-z][a-z0-9-]{0,63}\Z")
 _HASH_RE = re.compile(r"[0-9a-f]{64}\Z")
 _FORBIDDEN = ("\x00", "\n", "\r", "/", "\\")
@@ -481,6 +483,26 @@ def check_artifact(out_path, payload: bytes) -> bool:
     return path.read_bytes() == payload
 
 
+def unexposed_manifest_entries(content_root, manifest_path, exposures_path) -> tuple[tuple[str, str], ...]:
+    """Manifest ``(kind, id)`` entries with no exposure row.
+
+    The runtime default-denies every such item (for every product) while scoring
+    is on, so a release owner wants to see what the server will refuse. This is a
+    report, never part of the artifact, and it makes no claim that the listed
+    items are safe or that the exposure map is a complete leak inventory.
+    """
+    exposures = parse_exposures(_read_json(exposures_path, "exposures"))
+    try:
+        catalog = ContentCatalog.load(content_root, manifest_path)
+    except ContentError as exc:
+        raise CatalogBuildError("content catalog could not be loaded") from exc
+    covered = {(row.kind, row.id) for row in exposures}
+    return tuple(sorted(
+        (entry.kind, entry.id) for entry in catalog.entries()
+        if (entry.kind, entry.id) not in covered
+    ))
+
+
 # --- CLI ---------------------------------------------------------------------
 
 
@@ -496,13 +518,27 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", required=True, help="artifact path")
     parser.add_argument("--check", action="store_true",
                         help="compare --out with a fresh build without writing; non-zero on drift")
+    parser.add_argument("--list-unexposed", action="store_true",
+                        help="also list manifest entries with no exposure row (runtime default-deny)")
     return parser
+
+
+def _report_unexposed(content_root, manifest_path, exposures_path, list_entries: bool) -> None:
+    unexposed = unexposed_manifest_entries(content_root, manifest_path, exposures_path)
+    if not unexposed:
+        return
+    print(f"note: {len(unexposed)} manifest entries have no exposure row and stay default-denied at runtime",
+          file=sys.stderr)
+    if list_entries:
+        for kind, ident in unexposed:
+            print(f"  {kind}/{ident}", file=sys.stderr)
 
 
 def main(argv=None) -> int:
     args = _parser().parse_args(argv)
     try:
         payload = build_artifact(args.content_root, args.manifest, args.release, args.exposures)
+        _report_unexposed(args.content_root, args.manifest, args.exposures, args.list_unexposed)
         if args.check:
             if check_artifact(args.out, payload):
                 print("scoring catalog unchanged")
