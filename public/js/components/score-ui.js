@@ -46,7 +46,7 @@ export function takePlaceFocus(node) {
 
 // The reader's placement on one list. A signed-in account that is not on the list and not hidden gets "Publish my score"; a
 // signed-out reader gets the practice note and "Sign in", never a publish button.
-export function placementBlock({ me, signedIn, onPublish = null, onUnpublish = null, showScore = true }) {
+export function placementBlock({ me, signedIn, onPublish = null, onUnpublish = null, onShare = null, showScore = true }) {
   const score = showScore && me.scope_score ? h('p', { class: 'score-place__score' }, t('rank.score', { score: localScore(me.scope_score.score_display) })) : null;
   const status = h('p', { class: 'small muted', role: 'status' });
   const act = (fn, label) => {
@@ -62,8 +62,20 @@ export function placementBlock({ me, signedIn, onPublish = null, onUnpublish = n
   const actions = [];
   if (canPublish(me, signedIn) && onPublish) actions.push(act(onPublish, t('rank.publish')));
   if (signedIn === true && me.published && me.moderation === 'ok' && onUnpublish) actions.push(act(onUnpublish, t('rank.unpublish')));
+  // Sharing without a place is fine ("unranked"); only a missing score turns the button off, with its reason, still focusable.
+  let shareNote = null;
+  if (onShare) {
+    const share = h('button', { type: 'button', class: 'button button--secondary button--small', 'aria-haspopup': 'dialog' }, t('share.open'));
+    if (me.scope_score === null) {
+      share.setAttribute('aria-disabled', 'true');
+      share.setAttribute('aria-describedby', 'share-none');
+      shareNote = h('p', { class: 'small muted', id: 'share-none' }, t('share.none'));
+    }
+    share.addEventListener('click', () => { if (share.getAttribute('aria-disabled') !== 'true') onShare(); });
+    actions.push(share);
+  }
   const anon = signedIn === true ? null : [h('p', { class: 'small muted' }, t('rank.practiceNote')), h('p', {}, h('a', { href: '#/signin' }, t('nav.signin')))];
-  return h('div', { class: 'score-place' }, score, h('p', { class: 'score-place__rank', tabindex: '-1' }, rankText(me)), anon, actions.length ? h('div', { class: 'actions actions--row' }, actions) : null, status);
+  return h('div', { class: 'score-place' }, score, h('p', { class: 'score-place__rank', tabindex: '-1' }, rankText(me)), anon, actions.length ? h('div', { class: 'actions actions--row' }, actions) : null, shareNote, status);
 }
 
 // The week a list covers: dates in UTC, the reset in the reader's own time zone with its name. Null for "all time".

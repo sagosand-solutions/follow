@@ -9,6 +9,7 @@ import { refresh } from '../router.js';
 import { eyebrow } from '../components/ui.js';
 import { placementBlock, weekLine, focusPlaceNext, takePlaceFocus } from '../components/score-ui.js';
 import { parseMe, parsePage, sameSnapshot, localScore, loadedRange } from '../scoring/board.js';
+import { openShareDialog } from '../components/share-dialog.js';
 import { CONFIG } from '../config.js';
 import { getClient } from '../account/index.js';
 
@@ -155,7 +156,9 @@ export async function leaderboardView(params, depth = 0) {
     if (r.ok) { focusPlaceNext(); refresh(); }
     return r;
   };
-  const place = me ? h('section', { class: 'score-card' }, h('h2', {}, t('lb.yours')), placementBlock({ me, signedIn, onPublish: publish(true), onUnpublish: publish(false) })) : null;
+  const alias = (page.entries.find((e) => e.me) || own?.entries.find((e) => e.me))?.alias || null;
+  const onShare = () => openShareDialog({ me, listLabel: t(`board.list.${query.list}`), scopeLabel: courseTitle, alias, client });
+  const place = me ? h('section', { class: 'score-card' }, h('h2', {}, t('lb.yours')), placementBlock({ me, signedIn, onPublish: publish(true), onUnpublish: publish(false), onShare })) : null;
   const view = shell([controls, place, page.entries.length ? section : statusLine(t('lb.empty')), ownBlock], null, [h('p', { class: 'lead' }, t('lb.participants', { n: page.participants })), weekLine(page.window)]);
   view.after = () => { watchAuth(client, '#/leaderboard'); takePlaceFocus(view.node); };
   return view;

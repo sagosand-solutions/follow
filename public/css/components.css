@@ -535,6 +535,8 @@ p.board__gap { margin: 0; text-align: center; color: var(--muted); font-weight: 
 .score-place { display: grid; gap: var(--s-2); }
 .score-place > p { margin: 0; }
 .score-place__rank { font-weight: 700; }
+.share__preview { margin: 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-2); font-weight: 700; overflow-wrap: anywhere; user-select: text; }
+.share__alias { display: flex; align-items: center; gap: var(--s-2); min-height: var(--tap); font-weight: 600; }
 .lb-status:empty { display: none; }
 .lb-status:focus { outline: none; }
 .lb-status:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

@@ -9,6 +9,7 @@ import { eyebrow } from '../components/ui.js';
 import { bigNumber, placementBlock, weekLine, focusPlaceNext, takePlaceFocus } from '../components/score-ui.js';
 import { readBoardQuery, boardTable, radios, watchAuth } from './leaderboard.js';
 import { parseMe, parsePage, sameSnapshot, localScore } from '../scoring/board.js';
+import { openShareDialog } from '../components/share-dialog.js';
 import { refresh } from '../router.js';
 import { CONFIG } from '../config.js';
 import { getClient } from '../account/index.js';
@@ -67,12 +68,14 @@ export async function profileView(params, depth = 0) {
   };
   const boardHref = `#/leaderboard?list=${query.list}&period=${query.period}&course=all`;
   const listName = t(`board.list.${query.list}`);
+  const alias = own?.entries.find((e) => e.me)?.alias || null;
+  const onShare = () => openShareDialog({ me, listLabel: listName, scopeLabel: t('board.course.all'), alias, client });
   const scoreCard = h('section', { class: 'score-card score-card--challenge' },
     h('h2', {}, t('profile.server.title', { list: listName })),
     bigNumber(localScore(me.total.score_display), t('profile.challenge.unit')),
     h('p', { class: 'small muted' }, t('profile.server.counts', { n: me.total.answered, pool: me.total.pool, catalog: me.catalog_version, rules: me.rules_version })),
     weekLine(me.window),
-    placementBlock({ me, signedIn, onPublish: publish(true), onUnpublish: publish(false), showScore: false }),
+    placementBlock({ me, signedIn, onPublish: publish(true), onUnpublish: publish(false), onShare, showScore: false }),
     h('p', {}, h('a', { href: boardHref }, t('profile.toBoards'))));
   const ownCard = own ? h('section', { class: 'score-card' }, boardTable(t('lb.yourPlace'), own.entries)) : null;
   const byCourse = h('section', { class: 'score-card' }, h('h2', {}, t('profile.byCourse')), h('table', { class: 'score-table' },

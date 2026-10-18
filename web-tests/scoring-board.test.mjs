@@ -26,9 +26,14 @@ class Node {
   get value() { return this.attrs.value ?? ''; }
   set value(v) { this.attrs.value = v; }
   set textContent(v) { this.replaceChildren({ text: String(v) }); }
+  showModal() { this.open = true; }
+  close() { if (this.open) { this.open = false; this.fire('close'); } }
+  remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
 }
 let focused = null;
-globalThis.document = { createElement: (t) => new Node(t), createTextNode: (text) => ({ text }), createElementNS: (_n, t) => new Node(t) };
+globalThis.document = { createElement: (t) => new Node(t), createTextNode: (text) => ({ text }), createElementNS: (_n, t) => new Node(t), body: new Node('body') };
+let clipboard = [];
+Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText: async (text) => { clipboard.push(text); } } }, configurable: true });
 globalThis.location = { hash: '#/leaderboard', pathname: '/' };
 globalThis.window = { addEventListener() {}, scrollTo() {} };
 
@@ -375,4 +380,74 @@ test('profile without a scoring identity: a calm state with “Sign in”, never
   assert.match(text(node), /No score on this list yet\./);
   assert.doesNotMatch(text(node), /unavailable/);
   assert.ok(node.find((n) => n.tag === 'a' && n.getAttribute('href') === '#/signin'));
+});
+
+// ---- sharing ----
+const share = await import('../public/js/components/share-dialog.js');
+const parts = (me, alias = null) => share.shareParts({ me: board.parseMe(me), listLabel: 'Official', scopeLabel: 'All courses', alias });
+
+test('the share text is a whitelist: product, list, scope, window, score, kind of place, catalog and rules', () => {
+  assert.equal(share.shareText(parts(meKim())), 'Learn to read code · Official list · All courses · week of Mon, Oct 19 (UTC) · 211.11 points · place 3 of 340 · catalog c7 · rules r2');
+  assert.equal(share.shareText(parts(meNotPublished())), 'Learn to read code · Official list · All courses · week of Mon, Oct 19 (UTC) · 211.11 points · not on the list (for comparison: place 3, with 339 readers on it) · catalog c7 · rules r2');
+  assert.match(share.shareText(parts(meKim({ rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null }))), /211\.11 points · unranked · catalog c7/);
+  assert.match(share.shareText(parts(meKim({ window: { kind: 'all', start: null, end: null } }))), / · all time · /);
+  const withAttempts = meKim({ attempts: [{ question_id: 'secret-question-7', course_id: 'python', outcome: 'correct', accepted_at: 1792400000, rank_eligible: true, issue_id: 'iss-1' }] });
+  const text = share.shareText(parts(withAttempts, 'kim'));
+  for (const leak of ['secret-question-7', 'iss-1', '4182', SIG, 'is_me', 'http', '#/', '?']) assert.ok(!text.includes(leak), leak);
+});
+
+test('the public name only for a published, visible row, and only when asked for', () => {
+  assert.match(share.shareText(parts(meKim(), 'kim')), /^Learn to read code · kim · Official list/);
+  assert.doesNotMatch(share.shareText(parts(meNotPublished(), 'kim')), /kim/);
+  const hidden = meKim({ published: false, moderation: 'hidden', rank: { kind: 'hypothetical', value: 3, participants: 339 }, own_cursor: null });
+  assert.doesNotMatch(share.shareText(parts(hidden, 'kim')), /kim/);
+  assert.equal(share.canShowAlias(board.parseMe(meKim()), ''), false);
+});
+
+test('the dialog: preview first, the name box unchecked, copy without any request, and nothing left after a sign-out', async () => {
+  serve();
+  const { node } = await leaderboardView();
+  const [open] = buttons(node, 'Share my score');
+  await open.fire('click');
+  const dialog = document.body.children.at(-1);
+  assert.equal(dialog.tag, 'dialog');
+  assert.equal(dialog.open, true);
+  const preview = dialog.find((n) => n.className === 'share__preview');
+  assert.doesNotMatch(text(preview), /kim/);
+  const box = dialog.find((n) => n.tag === 'input' && n.getAttribute('type') === 'checkbox');
+  assert.equal(box.checked, false);
+  assert.equal(box.getAttribute('checked'), null, 'unchecked from the start');
+  box.checked = true;
+  await box.fire('change');
+  assert.match(text(preview), /· kim ·/);
+  const before = calls.length;
+  clipboard = [];
+  await buttons(dialog, 'Copy text')[0].fire('click');
+  assert.deepEqual(clipboard, [text(preview)]);
+  assert.equal(calls.length, before, 'copying sends nothing');
+  // a sign-out while the dialog is open: it closes, empties the preview and leaves the page
+  routes['/logout'] = () => reply(200, { ok: true });
+  const { getClient } = await import('../public/js/account/index.js');
+  await getClient().logout();
+  assert.equal(dialog.open, false);
+  assert.equal(text(preview), '');
+  assert.ok(!document.body.children.includes(dialog));
+});
+
+test('no name box for a reader who is not on the list; no share without a score, with the reason, still focusable', async () => {
+  serve({ me: () => reply(200, meNotPublished()), boards: () => reply(200, pageTop({}, false)) });
+  const { node } = await leaderboardView();
+  await buttons(node, 'Share my score')[0].fire('click');
+  const dialog = document.body.children.at(-1);
+  assert.equal(dialog.find((n) => n.tag === 'input'), null);
+  dialog.close();
+  serve({ me: () => reply(200, meKim({ scope_score: null, rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null })), boards: () => reply(200, pageTop({}, false)) });
+  const empty = await leaderboardView();
+  const [off] = buttons(empty.node, 'Share my score');
+  assert.equal(off.getAttribute('aria-disabled'), 'true');
+  assert.equal(off.getAttribute('disabled'), null, 'aria-disabled, not disabled: it stays in the tab order');
+  assert.match(text(empty.node.find((n) => n.getAttribute('id') === off.getAttribute('aria-describedby'))), /no score to share/);
+  const count = document.body.children.length;
+  await off.fire('click');
+  assert.equal(document.body.children.length, count, 'no dialog');
 });
