@@ -23,7 +23,7 @@ class ImportSmokeTests(unittest.TestCase):
             with self.subTest(module=name):
                 self.assertIsNotNone(importlib.import_module(name))
         server_http = importlib.import_module("server.http")
-        self.assertFalse(hasattr(server_http, "read_body"))          # REF-05: the unused reader is removed
+        self.assertFalse(hasattr(server_http, "read_body"))          # the unused reader is removed
         self.assertFalse(hasattr(server_http, "BodyLimitExceeded"))
 
 

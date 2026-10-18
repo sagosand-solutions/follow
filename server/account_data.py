@@ -43,6 +43,6 @@ def delete_account(repositories, user_id: str) -> bool:
         conn.execute("DELETE FROM auth_transactions WHERE user_id = ? AND consumed_at IS NULL", (user_id,))
         repositories.users.mark_deleted(user_id)
         # Scoring data goes with the account: one shared repository purge, no service configuration needed, and no
-        # tombstone or re-registration guard (decision 2026-10-18 16:56). It runs inside this same transaction.
+        # tombstone or re-registration guard. It runs inside this same transaction.
         ScoringRepository(repositories.database).purge_user(user_id)
     return True
