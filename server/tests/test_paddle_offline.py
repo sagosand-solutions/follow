@@ -9,7 +9,7 @@ import hmac
 import json
 import unittest
 
-from server.paddle import mapping, policy, signature
+from server.paddle import digest, mapping, policy, signature
 from server.paddle.types import (Adjustment, AuthoritativeState, Expected, Item, PaddleConfigError, PaddleMalformed,
                                  PaddleSignatureInvalid, PaddleStaleTimestamp, PaddleTransportRejected, VerifiedEvent)
 
@@ -290,16 +290,37 @@ class PolicyTests(unittest.TestCase):
 
 def snapshot(status="completed", adjustments=(), **over):
     base = dict(environment="sandbox", transaction_id=TXN, status=status, currency_code="USD",
-                totals={"grand_total": 1000, "total": 1000}, items=(Item(PRICE, 1),), adjustments=tuple(adjustments), fetched_at=NOW)
+                totals={"grand_total": 1000, "total": 1000}, items=(Item(PRICE, 1),), adjustments=tuple(adjustments), fetched_at=NOW,
+                complete=True)
     base.update(over)
     return AuthoritativeState(**base)
 
 
-EXPECTED = Expected("sandbox", PRICE, 1, "USD", total_minor=1000)
+EXPECTED = Expected("sandbox", PRICE, 1, "USD", transaction_id=TXN, total_minor=1000)
 
 
 def adj(action="refund", status="approved", type="full", i=1):
     return Adjustment(f"adj_{i:026d}", action, status, type, 1000, "USD")
+
+
+class DigestTests(unittest.TestCase):
+    def test_the_snapshot_digest_is_canonical_and_covers_everything_a_decision_depends_on(self):
+        base = snapshot(adjustments=[adj(i=1), adj("credit", "approved", "full", i=2)])
+        d = digest.snapshot_digest(base)
+        self.assertRegex(d, r"^[0-9a-f]{64}$")
+        shuffled = snapshot(adjustments=[adj("credit", "approved", "full", i=2), adj(i=1)], totals={"total": 1000, "grand_total": 1000})
+        self.assertEqual(digest.snapshot_digest(shuffled), d)                                   # order never matters
+        self.assertEqual(digest.snapshot_digest(snapshot(adjustments=[adj(i=1), adj("credit", "approved", "full", i=2)], fetched_at=NOW + 99)), d)  # nor fetch time
+        for name, other in {
+            "status": snapshot("paid", base.adjustments), "adjustment_status": snapshot(adjustments=[adj(status="rejected", i=1), adj("credit", "approved", "full", i=2)]),
+            "fewer_adjustments": snapshot(adjustments=[adj(i=1)]), "complete": snapshot(adjustments=base.adjustments, complete=False),
+            "environment": snapshot(adjustments=base.adjustments, environment="live"), "currency": snapshot(adjustments=base.adjustments, currency_code="EUR"),
+            "txn": snapshot(adjustments=base.adjustments, transaction_id="txn_01zzzzzzzzzzzzzzzzzzzzzzzz"),
+            "amount": snapshot(adjustments=base.adjustments, totals={"grand_total": 999, "total": 1000}),
+            "item": snapshot(adjustments=base.adjustments, items=(Item(PRICE, 2),)),
+        }.items():
+            with self.subTest(name):
+                self.assertNotEqual(digest.snapshot_digest(other), d)
 
 
 class MappingTests(unittest.TestCase):
@@ -310,6 +331,24 @@ class MappingTests(unittest.TestCase):
         d = self.decide("pending", snapshot())
         self.assertEqual((d.action, d.grants), ("paid", True))
         self.assertEqual(self.decide("paid", snapshot()).action, "none")
+
+    def test_an_incomplete_or_foreign_snapshot_never_decides_anything(self):
+        for snap in (snapshot(), snapshot(adjustments=[adj()]), snapshot("canceled")):
+            for before in ("pending", "paid"):
+                with self.subTest(status=snap.status, before=before, kind="incomplete"):
+                    d = self.decide(before, snapshot(snap.status, snap.adjustments, complete=False))
+                    self.assertEqual((d.action, d.grants), ("reconcile", False))
+                with self.subTest(status=snap.status, before=before, kind="other transaction"):
+                    d = self.decide(before, snapshot(snap.status, snap.adjustments, transaction_id="txn_01zzzzzzzzzzzzzzzzzzzzzzzz"))
+                    self.assertEqual((d.action, d.grants), ("reconcile", False))
+        for snap in (snapshot(), snapshot(adjustments=[adj()]), snapshot("canceled"), snapshot("completed", [adj("credit", "approved", "full")])):
+            for before in ("pending", "paid"):
+                with self.subTest(status=snap.status, before=before, kind="other environment"):
+                    d = self.decide(before, snapshot(snap.status, snap.adjustments, environment="live"))
+                    self.assertEqual((d.action, d.grants), ("reconcile", False))      # also for refund and cancel
+        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, 1, "USD", total_minor=1000)).action, "reconcile")  # no bound txn
+        self.assertEqual(self.decide("pending", snapshot(complete=None)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot()).action, "paid")
 
     def test_proof_failures_never_grant(self):
         cases = {
@@ -324,7 +363,7 @@ class MappingTests(unittest.TestCase):
                 self.assertEqual((d.action, d.grants), ("reconcile", False))
 
     def test_undecided_amount_policy_blocks_every_grant(self):
-        d = self.decide("pending", snapshot(), Expected("sandbox", PRICE, 1, "USD", total_minor=None))
+        d = self.decide("pending", snapshot(), Expected("sandbox", PRICE, 1, "USD", transaction_id=TXN, total_minor=None))
         self.assertEqual((d.action, d.reason), ("reconcile", "amount policy is not decided"))
 
     def test_full_approved_refund_observed_before_paid_means_no_grant(self):
@@ -387,9 +426,9 @@ class MappingTests(unittest.TestCase):
     def test_numeric_proof_values_must_be_real_integers_not_booleans(self):
         # True == 1 in Python: a bool must never satisfy a quantity or an amount.
         self.assertEqual(self.decide("pending", snapshot(items=(Item(PRICE, True),))).action, "reconcile")
-        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, True, "USD", total_minor=1000)).action, "reconcile")
-        self.assertEqual(self.decide("pending", snapshot(totals={"grand_total": True}), Expected("sandbox", PRICE, 1, "USD", total_minor=1)).action, "reconcile")
-        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, 1, "USD", total_minor=True)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, True, "USD", transaction_id=TXN, total_minor=1000)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(totals={"grand_total": True}), Expected("sandbox", PRICE, 1, "USD", transaction_id=TXN, total_minor=1)).action, "reconcile")
+        self.assertEqual(self.decide("pending", snapshot(), Expected("sandbox", PRICE, 1, "USD", transaction_id=TXN, total_minor=True)).action, "reconcile")
         self.assertEqual(self.decide("pending", snapshot(totals={"grand_total": 1000.0})).action, "reconcile")
         self.assertEqual(self.decide("pending", snapshot(items=(Item(PRICE, 1.0),))).action, "reconcile")
         self.assertEqual(self.decide("pending", snapshot()).action, "paid")
