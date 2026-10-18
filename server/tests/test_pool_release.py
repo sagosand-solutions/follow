@@ -295,6 +295,42 @@ class BindingTests(Scenario):
                     self.check("rel-2", self.save("broken.json", sealed), self.cat2, inventory_path=self.inventory_path)
                 self.assertIn("does not continue", str(caught.exception), "refused by the chain check, not by some other binding")
 
+    def test_a_forbidden_transition_in_an_otherwise_fully_consistent_candidate_is_refused_by_check_release(self):
+        """Release 3 is consistent with its database inventory, catalogs, decision and tree in every way except the history it claims."""
+        first, inventory2, ledger2 = self.second_release()
+        self.install(ledger2, self.decision("rel-2", ledger2, self.cat2, first=False, previous=first["digest"]))   # release 2 is now trusted history
+        free = self.fx.catalogs["free"]
+        extra = {"id": "syn-free-new", "course": "syn-free", "sha": hashlib.sha256(b"synthetic new question").hexdigest(), "version": "free-3"}
+
+        def candidate(label, change, drop=()):
+            doc = copy.deepcopy(ledger2)
+            doc.update(seq=3, release_id="rel-3", previous_digest=ledger2["digest"], events=[])
+            change(doc)
+            doc["counts"] = pool_ledger.counts_of(doc["questions"])
+            doc["lifecycle_events_digest"] = pool_ledger.events_digest(doc["events"])
+            sealed = pool_ledger.seal({k: v for k, v in doc.items() if k != "digest"})                         # a VALID, recomputed digest
+            inv = pool_ledger.seal({"schema": pool_ledger.SCHEMA, "kind": pool_ledger.INVENTORY_KIND, "questions": sealed["questions"], "events": []})
+            inv_path = self.save(f"inv-{label}.json", inv)                                                      # the database agrees with the lie
+            catalogs = [self.cat2[0], catalog_file(self.dir, f"free-3-{label}.json", free, drop=drop, extra=extra)]
+            self.install(None, self.decision("rel-3", sealed, catalogs, first=False, previous=ledger2["digest"]))
+            return self.save(f"l3-{label}.json", sealed), catalogs, inv_path
+
+        row = lambda d, q: next(r for r in d["questions"] if r["question_id"] == q)
+        cases = {"a retirement taken back (retired -> ranked, no event)": (lambda d: row(d, "syn-free-f00").update(state="ranked", clone_audit_ref=None), ()),
+                 "a state change with no event (ranked -> retired)": (lambda d: row(d, "syn-free-f01").update(state="retired"), ("syn-free-f00", "syn-free-f01"))}
+        for label, (change, drop) in cases.items():
+            with self.subTest(label=label):
+                tag = "undo" if "taken back" in label else "silent"
+                path, catalogs, inv_path = candidate(tag, change, drop=drop)
+                with self.assertRaises(LedgerError) as caught:
+                    self.check("rel-3", path, catalogs, inventory_path=inv_path)
+                self.assertIn("not explained by its complete event chain", str(caught.exception), "refused by the chain check, not by another binding")
+                args = ["check-release", "--trusted-checkout", str(self.trusted), "--release-id", "rel-3", "--ledger", path, "--public-root", str(self.public),
+                        "--candidate", CANDIDATE, "--inventory", inv_path] + [x for c in catalogs for x in ("--catalog", c)]
+                code, out, err = run_cli_captured(pool.main, ["--db", self.fx.path, *args])
+                self.assertEqual((code, out), (2, ""), "the real command refuses the same candidate")
+                self.assertIn("refused:", err)
+
     def test_the_decision_binds_candidate_ledger_counts_and_release(self):
         self.ready()
         self.refused(candidate="d" * 40)
