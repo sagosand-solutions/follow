@@ -1,12 +1,25 @@
 // Account screens (test mode, behind CONFIG.accountsUi). Free-course pages never link here except the quiet header link.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { navigate, refresh } from '../router.js';
+import { navigate, refresh, currentPath } from '../router.js';
 import { getClient, testStrip, query } from '../account/index.js';
 import { safeHttpsUrl } from '../account/http-client.js';
+import { runOverlay, createCheckoutGuard } from '../account/checkout-flow.js';
+import { setCheckoutOutcome, takeCheckoutOutcome, clearCheckoutOutcome } from '../account/outcome.js';
+import { CONFIG } from '../config.js';
 import { PROVIDERS, formatPrice, purchaseStatus, canPay, payBlockedReason, safeNext, acknowledgementsFor } from '../account/model.js';
 
+// Shared by every build of the checkout page (see createCheckoutGuard).
+const checkoutGuard = createCheckoutGuard();
+
 const page = (c, title, ...children) => ({ title, node: h('div', { class: 'stack account' }, testStrip(c), h('h1', {}, title), ...children) });
+
+// The checkout window opener. Nothing is loaded unless the dev stand-in is switched on in the configuration (never by URL or
+// storage); a real provider window is a separate, later step. Null means "no opener": the caller fails closed.
+async function loadOverlayOpener() {
+  if (CONFIG.accountsOverlay !== 'dev-shim') return null;
+  return (await import('../account/overlay-shim.js')).openOverlayShim;
+}
 
 async function product(c) {
   const { products } = await c.catalog();
@@ -16,7 +29,8 @@ async function product(c) {
 // ---------- Premium: what you get ----------
 export async function premiumView() {
   const c = getClient();
-  const [p, me, ent, purchase] = await Promise.all([product(c), c.me(), c.entitlements(), c.purchase()]);
+  const p = await product(c);
+  const [me, ent, purchase] = await Promise.all([c.me(), c.entitlements(), c.purchase({ product_id: p.id })]);
   const status = purchaseStatus({ entitlements: ent, purchase }, p.id);
   const price = formatPrice(p.amount_minor, p.currency);
   const count = Number.isInteger(p.published_chapter_count) ? h('p', {}, t('premium.today', { n: p.published_chapter_count })) : null;
@@ -82,27 +96,57 @@ export async function signinView() {
 
 // ---------- Checkout review ----------
 export async function checkoutView() {
+  // FIRST, before any await: builds are ordered by when they start (the router drops all but the newest), so a slow older build
+  // that finishes after a newer one is mounted can neither cancel its window nor change the guard.
+  const build = checkoutGuard.enter();
+  const current = () => checkoutGuard.isCurrent(build);
   const c = getClient();
   const [p, me] = await Promise.all([product(c), c.me()]);
+  if (!current()) return page(c, t('checkout.title'));          // superseded while loading: the router drops this; it changes nothing
   const price = formatPrice(p.amount_minor, p.currency);
   const box = h('input', { type: 'checkbox', id: 'consent', name: 'consent' });
   const pay = h('button', { type: 'button', class: 'button button--primary', 'aria-disabled': 'true', 'aria-describedby': 'pay-reason' }, t('checkout.pay', { price: price || '' }));
   const reason = h('p', { id: 'pay-reason', class: 'hint', role: 'status' });
+  // The guard is shared by every build of this page: from the click on, a start stays shut across a rebuild (a refresh) and is
+  // released only by leaving the page, so a second start is always an explicit new visit, never a callback or a retry. A consent
+  // change cannot re-enable Pay while a checkout is opening, open, or has failed (a purchase may exist).
   const sync = () => {
     const state = { signedIn: me.signed_in, checkoutEnabled: p.checkout_enabled, acknowledged: box.checked };
-    const ok = canPay(state);
-    pay.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    pay.setAttribute('aria-disabled', canPay(state) && !checkoutGuard.locked ? 'false' : 'true');
+    if (checkoutGuard.locked) return;
     const key = payBlockedReason(state);
     reason.textContent = key ? t(key) : '';
   };
+  const showFailure = () => {
+    reason.textContent = '';
+    reason.append(t('checkout.error'), ' ', h('a', { href: '#/purchase' }, t('checkout.checkStatus')));
+  };
+  const onLeave = () => {
+    if (/^\/checkout\/?$/.test(currentPath().split('?')[0])) return;      // the router's own checkout path (query and trailing slash kept): stays locked
+    checkoutGuard.leave();
+    globalThis.removeEventListener('hashchange', onLeave);
+  };
+  clearCheckoutOutcome();
+  globalThis.addEventListener('hashchange', onLeave);
   box.addEventListener('change', sync);
   pay.addEventListener('click', async () => {
-    if (pay.getAttribute('aria-disabled') === 'true') return;
+    if (!current() || checkoutGuard.locked || pay.getAttribute('aria-disabled') === 'true') return;
+    checkoutGuard.lock();
+    pay.setAttribute('aria-disabled', 'true');
+    reason.textContent = t('checkout.opening');
     const r = await c.checkout({ product_id: p.id, policy_version: p.policy.version, acknowledgements: acknowledgementsFor(p.policy, box.checked) });
-    if (r.ok && r.redirect_url) globalThis.location.assign(r.redirect_url);
+    if (!current()) return;
+    if (r.ok && r.kind === 'overlay') {
+      await runOverlay({
+        result: r, loadOpener: loadOverlayOpener, args: { title: p.title, price: price || '' }, ui: { failed: showFailure },
+        go: navigate, setOutcome: setCheckoutOutcome, active: current, register: (handle) => checkoutGuard.register(handle),
+      });
+      if (current()) checkoutGuard.release();
+    } else if (r.ok && r.redirect_url) globalThis.location.assign(r.redirect_url);
     else if (r.ok) navigate('/purchase');
-    else reason.textContent = r.message || t('checkout.error');
+    else showFailure();
   });
+  if (checkoutGuard.locked) showFailure();             // rebuilt while a start was in flight: its outcome is unknown, so show the way to the status page
   sync();
   return page(
     c,
@@ -118,8 +162,11 @@ export async function checkoutView() {
 export async function purchaseView() {
   const c = getClient();
   const p = await product(c);
-  const [ent, purchase] = await Promise.all([c.entitlements(), c.purchase()]);
+  const outcome = takeCheckoutOutcome();            // read once; it only says what happened in the window, never the payment status
+  const [ent, purchase] = await Promise.all([c.entitlements(), c.purchase({ product_id: p.id, purchase_id: outcome ? outcome.purchaseId : null })]);
   const status = purchaseStatus({ entitlements: ent, purchase }, p.id);
+  // The line is for the purchase that window belonged to, and only while that one is the pending purchase shown.
+  const outcomeLine = outcome && status === 'pending' && purchase && purchase.id === outcome.purchaseId ? h('p', { role: 'status' }, t(`purchase.after.${outcome.kind}`)) : null;
   const live = h('p', { class: 'visually-hidden', role: 'status' });
   const again = h('button', { type: 'button', class: 'button button--secondary' }, t('purchase.again'));
   again.addEventListener('click', () => {
@@ -128,9 +175,9 @@ export async function purchaseView() {
   });
   let body;
   if (status === 'active') body = [h('h2', {}, t('purchase.received')), h('div', { class: 'actions' }, h('a', { class: 'button button--primary', href: '#/premium' }, t('purchase.open')), h('a', { href: '#/receipt' }, t('purchase.receipt')))];
-  else if (status === 'pending') body = [h('h2', {}, t('purchase.pending')), h('p', {}, t('purchase.pending.text')), h('p', {}, t('purchase.noRepay')), h('div', { class: 'actions' }, again)];
+  else if (status === 'pending') body = [outcomeLine, h('h2', {}, t('purchase.pending')), h('p', {}, t('purchase.pending.text')), h('div', { class: 'actions' }, again, h('a', { href: '#/course' }, t('account.backCourse')))];
   else if (status === 'revoked') body = [h('p', {}, t('purchase.revoked'))];
-  else body = [h('p', {}, t('purchase.none')), h('a', { href: '#/premium' }, t('premium.back'))];
+  else body = [h('p', {}, t('purchase.none')), h('a', { href: '#/course' }, t('account.backCourse'))];
   return page(c, t('purchase.title'), h('section', { class: 'account__card' }, ...body), live);
 }
 
@@ -157,7 +204,7 @@ export async function accountView() {
   if (!me.signed_in) return page(c, t('account.title'), h('p', {}, t('account.signedOut')), h('a', { class: 'button button--primary', href: '#/signin?next=account' }, t('signin.title')));
   const p = await product(c);
   const [ent] = await Promise.all([c.entitlements()]);
-  const status = purchaseStatus({ entitlements: ent, purchase: await c.purchase() }, p.id);
+  const status = purchaseStatus({ entitlements: ent, purchase: await c.purchase({ product_id: p.id }) }, p.id);
   const message = h('p', { class: 'account__status', role: 'status' });
   const exportBtn = h('button', { type: 'button', class: 'button button--secondary' }, t('account.export'));
   exportBtn.addEventListener('click', async () => {
@@ -184,6 +231,7 @@ export async function accountView() {
       deleteStatus.textContent = result?.message || t('account.deleteFailed');
       return;
     }
+    clearCheckoutOutcome();
     dialog.close();
     navigate('/');
   });
@@ -196,6 +244,7 @@ export async function accountView() {
       message.textContent = result?.message || t('account.logoutFailed');
       return;
     }
+    clearCheckoutOutcome();
     navigate('/');
   });
   const purchaseLine = status === 'active' ? t('account.purchase.active', { title: p.title }) : status === 'pending' ? t('account.purchase.pending', { title: p.title }) : status === 'revoked' ? t('account.purchase.revoked', { title: p.title }) : t('account.purchase.none');

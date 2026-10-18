@@ -19,6 +19,23 @@ export function appReturnTo(route = 'account', location = globalThis.location) {
   return `${path}#/${route}`;
 }
 
+// The Paddle-path checkout answer, strictly: exactly these keys, a pending state, and ids of the documented shape. The result is a
+// NEW object (never a spread of the raw answer) and nothing in it echoes input. A full-string match is checked twice (anchors and
+// matched length) so a trailing line break of any kind is refused; JavaScript has no \Z anchor.
+const OVERLAY_TOP = ['checkout', 'provider', 'purchase_id', 'state'];
+const OVERLAY_INNER = ['mode', 'transaction_id'];
+const TXN_ID = /^txn_[a-z0-9]{10,40}$/;
+const PURCHASE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const fullMatch = (re, value) => typeof value === 'string' && re.test(value) && re.exec(value)[0].length === value.length;
+const exactKeys = (value, keys) => !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join() === keys.join();
+
+export function parseOverlayCheckout(data) {
+  if (!exactKeys(data, OVERLAY_TOP) || data.state !== 'pending' || data.provider !== 'paddle' || !fullMatch(PURCHASE_ID, data.purchase_id)) return null;
+  const inner = data.checkout;
+  if (!exactKeys(inner, OVERLAY_INNER) || inner.mode !== 'overlay' || !fullMatch(TXN_ID, inner.transaction_id)) return null;
+  return { ok: true, kind: 'overlay', purchase_id: data.purchase_id, transaction_id: inner.transaction_id };
+}
+
 export function mapHttpError(status, body) {
   const code = body?.error?.code;
   if (status === 401 || code === 'no-session') return { ok: false, code: 'signed_out', message: 'You are signed out. Please sign in again.' };
@@ -113,11 +130,14 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     },
     // Signed out is a state, not an error: no entitlements, no purchase (same answers as the fake client).
     async entitlements() { const r = await result('/entitlements'); return r?.code === 'signed_out' ? [] : (r?.entitlements ?? r); },
-    async purchase() {
+    // The pending purchase to show: only this product's, and the one with `purchase_id` when it is still pending (the server lists
+    // newest first, so without an id it is the newest pending one).
+    async purchase({ product_id = null, purchase_id = null } = {}) {
       const data = await result('/purchases');
       if (data?.code === 'signed_out') return null;
       if (!data || !Array.isArray(data.purchases)) return data?.ok === false ? data : null;
-      return data.purchases.find((purchase) => purchase.state === 'pending') || null;
+      const pending = data.purchases.filter((purchase) => purchase.state === 'pending' && (product_id === null || purchase.product_id === product_id));
+      return (purchase_id !== null && pending.find((purchase) => purchase.id === purchase_id)) || pending[0] || null;
     },
     async startSignIn(provider) {
       const token = await request('/auth/csrf');
@@ -174,6 +194,9 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     async checkout({ product_id, policy_version, acknowledgements }) {
       const data = await result('/checkout', { method: 'POST', csrf: true, body: { product_id, policy_version, acknowledgements } });
       if (data?.ok === false) return data;
+      if (data && typeof data === 'object' && 'checkout' in data) {          // the Paddle path: an overlay answer, never together with a redirect
+        return parseOverlayCheckout(data) || { ok: false, code: 'invalid_response', message: BAD_RESPONSE };
+      }
       const redirectUrl = safeHttpsUrl(data?.redirect_url);
       if (!redirectUrl || !allowedCheckoutOrigins.has(new URL(redirectUrl).origin)) {
         return { ok: false, code: 'unsafe_redirect', message: 'The payment provider returned an invalid address.' };

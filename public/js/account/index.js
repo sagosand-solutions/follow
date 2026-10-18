@@ -48,6 +48,6 @@ export function testStrip(c) {
     'section',
     { class: 'mock', 'aria-label': t('mock.label') },
     h('p', { class: 'mock__title' }, t('mock.title')),
-    h('div', { class: 'mock__controls' }, h('label', { for: 'mock-scenario' }, t('mock.scenario')), select, toggle('mock-providers', t('mock.allProviders'), () => c.state.providersOn.apple, (on) => Object.keys(c.state.providersOn).forEach((k) => { c.state.providersOn[k] = on || k === 'email' || k === 'google'; })), toggle('mock-checkout', t('mock.checkoutOn'), () => c.state.checkoutEnabled, (on) => { c.state.checkoutEnabled = on; }), toggle('mock-chapters', t('mock.chaptersOn'), () => c.state.chapterCount !== null, (on) => { c.state.chapterCount = on ? 2 : null; }), confirm),
+    h('div', { class: 'mock__controls' }, h('label', { for: 'mock-scenario' }, t('mock.scenario')), select, toggle('mock-providers', t('mock.allProviders'), () => c.state.providersOn.apple, (on) => Object.keys(c.state.providersOn).forEach((k) => { c.state.providersOn[k] = on || k === 'email' || k === 'google'; })), toggle('mock-checkout', t('mock.checkoutOn'), () => c.state.checkoutEnabled, (on) => { c.state.checkoutEnabled = on; }), toggle('mock-chapters', t('mock.chaptersOn'), () => c.state.chapterCount !== null, (on) => { c.state.chapterCount = on ? 2 : null; }), toggle('mock-overlay', t('mock.overlayOn'), () => c.state.checkoutMode === 'overlay', (on) => { c.state.checkoutMode = on ? 'overlay' : 'redirect'; }), confirm),
   );
 }

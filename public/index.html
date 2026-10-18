@@ -7,65 +7,68 @@
 <meta name="description" content="Learn to read code, not just write it. An open source platform for learning to read and understand code.">
 <title>Learn to read code</title>
 <meta name="theme-color" content="#0b1020">
-<link rel="stylesheet" href="css/tokens.css?v=39">
-<link rel="stylesheet" href="css/base.css?v=39">
-<link rel="stylesheet" href="css/components.css?v=39">
+<link rel="stylesheet" href="css/tokens.css?v=40">
+<link rel="stylesheet" href="css/base.css?v=40">
+<link rel="stylesheet" href="css/components.css?v=40">
 <!-- Release version: keep every ?v= below, in the import map and on the two entry links, identical. -->
 <script type="importmap">
   {
     "imports": {
-      "./js/account/client.js": "./js/account/client.js?v=39",
-      "./js/account/http-client.js": "./js/account/http-client.js?v=39",
-      "./js/account/index.js": "./js/account/index.js?v=39",
-      "./js/account/model.js": "./js/account/model.js?v=39",
-      "./js/account/premium.js": "./js/account/premium.js?v=39",
-      "./js/answers.js": "./js/answers.js?v=39",
-      "./js/components/code-block.js": "./js/components/code-block.js?v=39",
-      "./js/components/map.js": "./js/components/map.js?v=39",
-      "./js/components/summary.js": "./js/components/summary.js?v=39",
-      "./js/components/step-player.js": "./js/components/step-player.js?v=39",
-      "./js/components/study.js": "./js/components/study.js?v=39",
-      "./js/components/ui.js": "./js/components/ui.js?v=39",
-      "./js/catalog.js": "./js/catalog.js?v=39",
-      "./js/components/catalog-card.js": "./js/components/catalog-card.js?v=39",
-      "./js/scoring/challenge.js": "./js/scoring/challenge.js?v=39",
-      "./js/scoring/model.js": "./js/scoring/model.js?v=39",
-      "./js/scoring/mock.js": "./js/scoring/mock.js?v=39",
-      "./js/components/score-ui.js": "./js/components/score-ui.js?v=39",
-      "./js/components/result-card.js": "./js/components/result-card.js?v=39",
-      "./js/views/profile.js": "./js/views/profile.js?v=39",
-      "./js/views/leaderboard.js": "./js/views/leaderboard.js?v=39",
-      "./js/course-nav.js": "./js/course-nav.js?v=39",
-      "./js/config.js": "./js/config.js?v=39",
-      "./js/data.js": "./js/data.js?v=39",
-      "./js/dom.js": "./js/dom.js?v=39",
-      "./js/highlight.js": "./js/highlight.js?v=39",
-      "./js/i18n.js": "./js/i18n.js?v=39",
-      "./js/moments.js": "./js/moments.js?v=39",
-      "./js/progress.js": "./js/progress.js?v=39",
-      "./js/review.js": "./js/review.js?v=39",
-      "./js/question-check.js": "./js/question-check.js?v=39",
-      "./js/router.js": "./js/router.js?v=39",
-      "./js/seen.js": "./js/seen.js?v=39",
-      "./js/shuffle.js": "./js/shuffle.js?v=39",
-      "./js/store.js": "./js/store.js?v=39",
-      "./js/text.js": "./js/text.js?v=39",
-      "./js/theme.js": "./js/theme.js?v=39",
-      "./js/trace.js": "./js/trace.js?v=39",
-      "./js/views/account.js": "./js/views/account.js?v=39",
-      "./js/views/about.js": "./js/views/about.js?v=39",
-      "./js/views/course.js": "./js/views/course.js?v=39",
-      "./js/views/errors.js": "./js/views/errors.js?v=39",
-      "./js/views/home.js": "./js/views/home.js?v=39",
-      "./js/views/lesson-end.js": "./js/views/lesson-end.js?v=39",
-      "./js/views/lesson.js": "./js/views/lesson.js?v=39",
-      "./js/views/notfound.js": "./js/views/notfound.js?v=39",
-      "./js/views/question.js": "./js/views/question.js?v=39",
-      "./js/views/review.js": "./js/views/review.js?v=39"
+      "./js/account/checkout-flow.js": "./js/account/checkout-flow.js?v=40",
+      "./js/account/client.js": "./js/account/client.js?v=40",
+      "./js/account/http-client.js": "./js/account/http-client.js?v=40",
+      "./js/account/index.js": "./js/account/index.js?v=40",
+      "./js/account/model.js": "./js/account/model.js?v=40",
+      "./js/account/outcome.js": "./js/account/outcome.js?v=40",
+      "./js/account/overlay-shim.js": "./js/account/overlay-shim.js?v=40",
+      "./js/account/premium.js": "./js/account/premium.js?v=40",
+      "./js/answers.js": "./js/answers.js?v=40",
+      "./js/components/code-block.js": "./js/components/code-block.js?v=40",
+      "./js/components/map.js": "./js/components/map.js?v=40",
+      "./js/components/summary.js": "./js/components/summary.js?v=40",
+      "./js/components/step-player.js": "./js/components/step-player.js?v=40",
+      "./js/components/study.js": "./js/components/study.js?v=40",
+      "./js/components/ui.js": "./js/components/ui.js?v=40",
+      "./js/catalog.js": "./js/catalog.js?v=40",
+      "./js/components/catalog-card.js": "./js/components/catalog-card.js?v=40",
+      "./js/scoring/challenge.js": "./js/scoring/challenge.js?v=40",
+      "./js/scoring/model.js": "./js/scoring/model.js?v=40",
+      "./js/scoring/mock.js": "./js/scoring/mock.js?v=40",
+      "./js/components/score-ui.js": "./js/components/score-ui.js?v=40",
+      "./js/components/result-card.js": "./js/components/result-card.js?v=40",
+      "./js/views/profile.js": "./js/views/profile.js?v=40",
+      "./js/views/leaderboard.js": "./js/views/leaderboard.js?v=40",
+      "./js/course-nav.js": "./js/course-nav.js?v=40",
+      "./js/config.js": "./js/config.js?v=40",
+      "./js/data.js": "./js/data.js?v=40",
+      "./js/dom.js": "./js/dom.js?v=40",
+      "./js/highlight.js": "./js/highlight.js?v=40",
+      "./js/i18n.js": "./js/i18n.js?v=40",
+      "./js/moments.js": "./js/moments.js?v=40",
+      "./js/progress.js": "./js/progress.js?v=40",
+      "./js/review.js": "./js/review.js?v=40",
+      "./js/question-check.js": "./js/question-check.js?v=40",
+      "./js/router.js": "./js/router.js?v=40",
+      "./js/seen.js": "./js/seen.js?v=40",
+      "./js/shuffle.js": "./js/shuffle.js?v=40",
+      "./js/store.js": "./js/store.js?v=40",
+      "./js/text.js": "./js/text.js?v=40",
+      "./js/theme.js": "./js/theme.js?v=40",
+      "./js/trace.js": "./js/trace.js?v=40",
+      "./js/views/account.js": "./js/views/account.js?v=40",
+      "./js/views/about.js": "./js/views/about.js?v=40",
+      "./js/views/course.js": "./js/views/course.js?v=40",
+      "./js/views/errors.js": "./js/views/errors.js?v=40",
+      "./js/views/home.js": "./js/views/home.js?v=40",
+      "./js/views/lesson-end.js": "./js/views/lesson-end.js?v=40",
+      "./js/views/lesson.js": "./js/views/lesson.js?v=40",
+      "./js/views/notfound.js": "./js/views/notfound.js?v=40",
+      "./js/views/question.js": "./js/views/question.js?v=40",
+      "./js/views/review.js": "./js/views/review.js?v=40"
     }
   }
 </script>
-<script type="module" src="js/main.js?v=39"></script>
+<script type="module" src="js/main.js?v=40"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
