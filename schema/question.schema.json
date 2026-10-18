@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Question contract v0.1",
-  "description": "Static interchange contract for one code-reading question, as plain-text JSON. JSON Schema enforces field presence, types, value domains and score-dependent shape. Identifier uniqueness, score counts, cross-file references and other semantic rules are enforced by the validator, not here.",
+  "title": "Question contract v0.1 and v0.2",
+  "description": "Static interchange contract for one code-reading question, as plain-text JSON. Version 0.1 is the legacy standard question (five to eight options, no answer_profile). Version 0.2 requires an explicit answer_profile: standard (five to eight options) or beginner-practice (exactly four options: one full, one half, two zero-credit; local practice only, never scored on a server). Nothing is inferred and there is no fallback between versions or profiles. JSON Schema enforces field presence, types, value domains and score-dependent shape. Identifier uniqueness, score counts, cross-file references and other semantic rules are enforced by the validator, not here.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -23,7 +23,16 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1"
+      "enum": [
+        "0.1",
+        "0.2"
+      ]
+    },
+    "answer_profile": {
+      "enum": [
+        "standard",
+        "beginner-practice"
+      ]
     },
     "id": {
       "$ref": "#/$defs/questionId"
@@ -74,8 +83,6 @@
     },
     "options": {
       "type": "array",
-      "minItems": 5,
-      "maxItems": 8,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/option"
@@ -99,6 +106,92 @@
       ]
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "0.1"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "answer_profile"
+          ]
+        },
+        "properties": {
+          "options": {
+            "minItems": 5,
+            "maxItems": 8
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "0.2"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "required": [
+          "answer_profile"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "answer_profile": {
+                  "const": "standard"
+                }
+              },
+              "required": [
+                "answer_profile"
+              ]
+            },
+            "then": {
+              "properties": {
+                "options": {
+                  "minItems": 5,
+                  "maxItems": 8
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "answer_profile": {
+                  "const": "beginner-practice"
+                }
+              },
+              "required": [
+                "answer_profile"
+              ]
+            },
+            "then": {
+              "properties": {
+                "options": {
+                  "minItems": 4,
+                  "maxItems": 4
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
   "$defs": {
     "questionId": {
       "type": "string",

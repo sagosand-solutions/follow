@@ -286,8 +286,13 @@ def _export(root, args, add, issues_seen):
         cid, info = entry["id"], courses[entry["id"]]
         first = info["course"]["levels"][0]["lessons"][0]["questions"][0]
         fields = ("id", "type", "level", "difficulty", "concepts")
-        index = {"data_version": 1, "onboarding_question": first,
-                 "questions": [{field: info["questions"][qid][field] for field in fields} for qid in sorted(info["questions"])]}
+
+        def entry_for(qid):
+            question = info["questions"][qid]
+            # Every entry states its answer profile explicitly (a legacy 0.1 document is standard by its contract), so a reader
+            # never has to assume one: a missing or unknown profile is refused by the client, never defaulted.
+            return {**{field: question[field] for field in fields}, "answer_profile": question.get("answer_profile", "standard")}
+        index = {"data_version": 2, "onboarding_question": first, "questions": [entry_for(qid) for qid in sorted(info["questions"])]}
         index_name, concepts_name = derived_names(cid)
         outputs[f"public/data/{index_name}"] = serialize(index)
         outputs[f"public/data/{concepts_name}"] = serialize(info["map"])

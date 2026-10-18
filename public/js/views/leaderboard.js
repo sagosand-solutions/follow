@@ -3,10 +3,10 @@
 // server's own row and neighbours come with the API). Behind CONFIG.scoringUi.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { loadCourses } from '../data.js';
+import { loadCourses, loadAnswerProfiles } from '../data.js';
 import { store } from '../progress.js';
 import { mockBoard } from '../scoring/mock.js';
-import { RULES, firstTries, courseScore, totalPoints, sharedRanks, boardWindow, formatPoints, weekStart } from '../scoring/model.js';
+import { RULES, firstTries, scoreWithProfiles, totalPoints, sharedRanks, boardWindow, formatPoints, weekStart } from '../scoring/model.js';
 import { eyebrow } from '../components/ui.js';
 import { rulesList } from '../components/score-ui.js';
 import { errorNode } from './errors.js';
@@ -24,16 +24,20 @@ export function readBoardQuery(hash, courseIds) {
 
 const queryString = (s) => `#/leaderboard?list=${s.list}&period=${s.period}&course=${s.course}`;
 
-// The reader's own points from this browser for this period and course (free questions only), or null.
-function ownPoints(state, entries, records, now) {
+// The reader's own points from this browser for this period and course (free questions only), or null. `profiles` holds each
+// course's validated answer profiles (index -> Map, or null when unreadable): practice questions never count, and a course whose
+// profiles are unknown gives no points at all (null), never a guess.
+function ownPoints(state, entries, records, now, profiles) {
   if (state.list !== 'free') return null;
   const first = [...firstTries(records).values()];
   const inWindow = state.period === 'week' ? first.filter((r) => r.t >= weekStart(now)) : first;
-  const scores = entries.map((e) => ({ id: e.id, ...courseScore(e.course, inWindow) }));
+  const scores = entries.map((e, i) => ({ id: e.id, ...scoreWithProfiles(e.course, inWindow, RULES, null, profiles[i]) }));
   const picked = state.course === 'all' ? scores : scores.filter((s) => s.id === state.course);
-  const answered = picked.reduce((a, s) => a + s.answered, 0);
+  if (picked.some((s) => s.unavailable)) return null;
+  const counted = picked.filter((s) => !s.practiceOnly);
+  const answered = counted.reduce((a, s) => a + s.answered, 0);
   if (!answered) return null;
-  return totalPoints(picked);
+  return totalPoints(counted);
 }
 
 function radios(name, values, current, legend, onPick) {
@@ -84,13 +88,14 @@ export async function leaderboardView() {
   }
   const state = readBoardQuery(globalThis.location.hash, entries.map((e) => e.id));
   const slot = h('div', { class: 'board-slot' });
+  const profiles = await Promise.all(entries.map((e) => loadAnswerProfiles(e.id)));
 
   const draw = () => {
     const now = Date.now();
-    const pools = entries.filter((e) => state.course === 'all' || e.id === state.course).map((e) => courseScore(e.course, []).pool);
+    const pools = entries.map((e, i) => ({ e, score: scoreWithProfiles(e.course, [], RULES, null, profiles[i]) })).filter(({ e }) => state.course === 'all' || e.id === state.course).map(({ score }) => score.pool);
     const pool = pools.reduce((a, n) => a + n, 0);
     const board = mockBoard({ family: state.list, window: state.period, course: state.course, pool });
-    const mine = ownPoints(state, entries, store.answers(), now);
+    const mine = ownPoints(state, entries, store.answers(), now, profiles);
     const ranked = sharedRanks(board.rows);
     const shown = boardWindow(ranked, null, { top: 10 });
     const courseTitle = state.course === 'all' ? t('board.course.all') : entries.find((e) => e.id === state.course).course.title;

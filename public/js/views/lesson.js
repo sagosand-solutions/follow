@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { findCourseOf, loadQuestion, loadConcepts, flattenLessons } from '../data.js';
+import { findCourseOf, loadQuestion, loadConcepts, flattenLessons, loadAnswerProfiles } from '../data.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { store } from '../progress.js';
 import { errorNode } from './errors.js';
@@ -97,7 +97,9 @@ export async function lessonView({ id }) {
     const { next, buildsOn } = lessonEnding(course, lesson.id);
     // The result moment sits at the end of the course's last lesson once every question has a first try.
     const scoring = CONFIG.scoringUi && !next ? await import('../components/result-card.js') : null;
-    if (scoring && scoring.courseFinished(course, store.answers())) {
+    // The validated answer profiles of the course: without them (or for a practice-only course) there is no result moment.
+    const profiles = scoring ? await loadAnswerProfiles(course.id) : null;
+    if (scoring && scoring.courseFinished(course, store.answers(), profiles)) {
       // "Right now" is checked against every question of the course as it is today (null when one cannot load).
       const all = flattenLessons(course).flatMap((e) => e.lesson.questions);
       const loaded = await Promise.all(all.map((qid) => loadQuestion(qid).catch(() => null)));
@@ -108,7 +110,7 @@ export async function lessonView({ id }) {
             return !!cur && cur.outcome === 'answered' && cur.score === 1;
           }
         : null;
-      parts.push(scoring.resultCard(course, store.answers(), isRightNow));
+      parts.push(scoring.resultCard(course, store.answers(), isRightNow, profiles));
     }
     const reviewCount = reviewQueue(course, store.answers()).length;
     parts.push(

@@ -10,7 +10,8 @@ exposure map. An ``official`` question must also carry an explicit
 ``previously_exposed`` attestation; a known-exposed question is refused, and the
 builder never claims to detect an unknown leak.
 
-Each pool question is read through the hash-checked manifest and validated against
+Each pool question is read through the hash-checked manifest and must be a standard-profile question (legacy 0.1, or 0.2
+``standard``; the four-option beginner-practice profile is refused), then validated against
 the official question JSON Schema plus the static score rule (one full, one half
 and at least three zero-credit options; booleans are not scores) before anything
 is written. This needs the ``jsonschema`` library; the tool fails closed if it is
@@ -317,8 +318,29 @@ def _load_question_validator(schema_path=None):
     return Draft202012Validator(schema)
 
 
+def _require_standard_profile(question_id: str, question: dict) -> None:
+    """Only a standard-profile question may enter a scoring pool.
+
+    A legacy 0.1 document (no ``answer_profile``) or a 0.2 document that says ``standard`` is eligible. The four-option
+    beginner-practice profile, an unknown version or profile, a profile on 0.1 or a missing profile on 0.2 is refused
+    with a clear error before anything is written. Nothing is inferred from the id, level, course, licence or option
+    count, and this runs before (and independently of) the schema, so a trusted-input schema override cannot admit one.
+    """
+    version = question.get("schema_version")
+    profile = question.get("answer_profile")
+    eligible = (version == "0.1" and "answer_profile" not in question) or (version == "0.2" and profile == "standard")
+    options = question.get("options")
+    if not eligible or not isinstance(options, list) or not 5 <= len(options) <= 8:
+        shown = f"schema_version {version!r}" + (f", answer_profile {profile!r}" if "answer_profile" in question else "")
+        raise CatalogBuildError(
+            f"question {question_id!r} ({shown}) is not eligible for a scoring pool: only the standard answer profile "
+            "(five to eight options) is scored; practice questions are never pooled"
+        )
+
+
 def _validate_question(question_id: str, data: object, family: str, validator) -> None:
     question = _require_object(data, f"question {question_id!r}")
+    _require_standard_profile(question_id, question)
     errors = sorted(validator.iter_errors(question), key=lambda error: list(error.absolute_path))
     if errors:
         first = errors[0]

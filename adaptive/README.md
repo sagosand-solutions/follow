@@ -169,3 +169,10 @@ The policy is a simulation of a transparent rule, not evidence that the rule
 improves learning. It has no item parameters or ability update. Practice,
 placement, and exam outcomes are not combined into one score. Human review,
 pilot/retention evidence, and any UI integration are separate future gates.
+
+## Answer profiles
+
+The policy reads only its own bank and history; it does not read a question document, so it is independent of the question
+schema version and of the `answer_profile` (standard or the four-option `beginner-practice`). It carries no option-count or
+guessing parameter, and nothing here claims that a four-option and a five-option question are equivalent evidence. A bank item
+built from a practice question would need its own editorial decision first.

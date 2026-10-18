@@ -1,8 +1,9 @@
 {
-  "data_version": 1,
+  "data_version": 2,
   "onboarding_question": "m1-assignment-snapshot",
   "questions": [
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.values",
         "py.assignment"
@@ -13,6 +14,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.iteration",
         "py.numeric-operators",
@@ -25,6 +27,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.assignment",
         "py.lists",
@@ -36,6 +39,7 @@
       "type": "equivalence"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.lists",
         "py.booleans",
@@ -48,6 +52,7 @@
       "type": "crashing-input"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.booleans",
         "py.functions",
@@ -59,6 +64,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.numeric-operators"
       ],
@@ -68,6 +74,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.functions",
         "py.scope",
@@ -79,6 +86,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.comprehensions",
         "py.iteration",
@@ -91,6 +99,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.assignment",
         "py.iteration",
@@ -103,6 +112,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.default-arguments",
         "py.functions",
@@ -117,6 +127,7 @@
       "type": "equivalence"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.dictionaries",
         "py.booleans",
@@ -129,6 +140,7 @@
       "type": "equivalence"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.dictionaries",
         "py.iteration",
@@ -140,6 +152,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.generators",
         "py.iterators",
@@ -152,6 +165,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.functions",
         "py.iterators",
@@ -164,6 +178,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.generators",
         "py.iterators",
@@ -175,6 +190,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.complexity",
         "py.iteration",
@@ -187,6 +203,7 @@
       "type": "complexity"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.modules",
         "py.assignment"
@@ -197,6 +214,7 @@
       "type": "ai-review"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.classes",
         "py.mutation-aliasing",
@@ -208,6 +226,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.iterators",
         "py.iteration",
@@ -219,6 +238,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.functions",
         "py.lists"
@@ -229,6 +249,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.lists"
       ],
@@ -238,6 +259,7 @@
       "type": "crashing-input"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.numeric-operators"
       ],
@@ -247,6 +269,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.strings",
         "py.booleans",
@@ -258,6 +281,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.functions",
         "py.scope",
@@ -269,6 +293,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.complexity",
         "py.lists",
@@ -280,6 +305,7 @@
       "type": "complexity"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.functions",
         "py.scope",
@@ -292,6 +318,7 @@
       "type": "remove-line"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.assignment",
         "py.iteration",
@@ -304,6 +331,7 @@
       "type": "remove-line"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.assignment",
         "py.lists",
@@ -315,6 +343,7 @@
       "type": "equivalence"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.functions",
         "py.default-arguments",
@@ -327,6 +356,7 @@
       "type": "ai-review"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.complexity",
         "py.functions",
@@ -340,6 +370,7 @@
       "type": "complexity"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.values",
         "py.strings",
@@ -351,6 +382,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.strings"
       ],
@@ -360,6 +392,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.strings"
       ],
@@ -369,6 +402,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "py.exceptions"
       ],

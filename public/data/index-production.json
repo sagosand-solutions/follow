@@ -1,8 +1,9 @@
 {
-  "data_version": 1,
+  "data_version": 2,
   "onboarding_question": "prod-timeout-does-not-cancel-the-work",
   "questions": [
     {
+      "answer_profile": "standard",
       "concepts": [
         "prod.messaging",
         "py.lists"
@@ -13,6 +14,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "prod.backoff-idempotency",
         "prod.timeouts-retries",
@@ -24,6 +26,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "prod.timeouts-retries",
         "py.exceptions"
@@ -34,6 +37,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "prod.workflows-deploy",
         "py.lists"
@@ -44,6 +48,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "prod.timeouts-retries",
         "py.exceptions"

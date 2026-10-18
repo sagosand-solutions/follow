@@ -80,8 +80,8 @@ class ExportTests(unittest.TestCase):
         self.assertIn("Static-only", output)
         self.assertIn("execution skipped", output)
         index = json.loads(self.outputs[0].read_bytes())
-        expected = {"data_version": 1, "onboarding_question": "zulu-question", "questions": [
-            {field: q[field] for field in ("id", "type", "level", "difficulty", "concepts")}
+        expected = {"data_version": 2, "onboarding_question": "zulu-question", "questions": [
+            {**{field: q[field] for field in ("id", "type", "level", "difficulty", "concepts")}, "answer_profile": "standard"}
             for q in (self.intermediate, self.beginner)]}
         self.assertEqual(index, expected)
         self.assertEqual(json.loads(self.outputs[1].read_bytes()), self.map)

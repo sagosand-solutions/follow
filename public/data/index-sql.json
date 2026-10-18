@@ -1,8 +1,9 @@
 {
-  "data_version": 1,
+  "data_version": 2,
   "onboarding_question": "sql-equals-null-matches-nothing",
   "questions": [
     {
+      "answer_profile": "standard",
       "concepts": [
         "sql.joining-grouping"
       ],
@@ -12,6 +13,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "sql.app-access"
       ],
@@ -21,6 +23,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "sql.transactions-schema"
       ],
@@ -30,6 +33,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "sql.joining-grouping"
       ],
@@ -39,6 +43,7 @@
       "type": "output"
     },
     {
+      "answer_profile": "standard",
       "concepts": [
         "sql.querying"
       ],

@@ -18,7 +18,7 @@ import { usableTraces } from '../trace.js';
 import { changedToFit } from '../moments.js';
 import { createSeenFlag } from '../seen.js';
 import { premiumState } from '../account/premium.js';
-import { checkQuestion } from '../question-check.js';
+import { checkQuestion, isPractice } from '../question-check.js';
 
 const UNKNOWN = '__unknown';
 const LETTERS = 'ABCDEFGH';
@@ -63,7 +63,8 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   const where = course ? findLessonOf(course, id) : null;
   const root = h('div', { class: 'question' });
   // Local question and review flows stay local; only the explicit challenge route uses server scoring.
-  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null };
+  // A beginner-practice question (explicit profile only) is local practice: no points line, no challenge, never a leaderboard.
+  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null, practice: isPractice(q) };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
@@ -146,8 +147,8 @@ function draw(ctx, prev, stale = false) {
     meta.append(progressBar(where.lesson.questions, q.id));
   }
   header.append(meta);
-  if (CONFIG.scoringUi && !ctx.reviewMode) header.append(h('a', { class: 'button button--secondary button--small', href: `#/challenge/${encodeURIComponent(q.id)}` }, t('score.challenge.open')));
-  const chips = h('p', { class: 'chips' }, h('span', { class: 'chip' }, t(`type.${q.type}`)), q.level ? h('span', { class: 'chip' }, t(`level.${q.level}`)) : null);
+  if (CONFIG.scoringUi && !ctx.reviewMode && !ctx.practice) header.append(h('a', { class: 'button button--secondary button--small', href: `#/challenge/${encodeURIComponent(q.id)}` }, t('score.challenge.open')));
+  const chips = h('p', { class: 'chips' }, h('span', { class: 'chip' }, t(`type.${q.type}`)), q.level ? h('span', { class: 'chip' }, t(`level.${q.level}`)) : null, ctx.practice ? h('span', { class: 'chip' }, t('q.practice')) : null);
 
   // Study layer: notes for the concepts this question practises, in a sheet that keeps the question in place.
   const known = ctx.concepts ? ctx.concepts.concepts || [] : [];
@@ -193,7 +194,7 @@ function draw(ctx, prev, stale = false) {
   }
   group.append(h('hr', { class: 'options__divider' }));
   // Scoring (behind CONFIG.scoringUi): the first try counts, so the cost of each choice is said before it is made.
-  const firstTry = !!ctx.scoring && !ctx.reviewMode && !store.latest(q.id);
+  const firstTry = !!ctx.scoring && !ctx.practice && !ctx.reviewMode && !store.latest(q.id);
   const unsureText = firstTry ? [t('q.unsure'), h('span', { class: 'option__sub' }, t('score.unsure.sub'))] : t('q.unsure');
   const unknownRow = mkOption(UNKNOWN, null, unsureText, 'option--unsure');
   if (answered && prev.outcome === 'unknown') unknownRow.querySelector('input').checked = true;
@@ -247,11 +248,11 @@ function draw(ctx, prev, stale = false) {
   });
 
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
-  const scoreLine = ctx.scoring && !answered ? ctx.scoring.tryLine(firstTry) : null;
+  const scoreLine = ctx.scoring && !ctx.practice && !answered ? ctx.scoring.tryLine(firstTry) : null;
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, scoreLine, answered ? null : actions, feedback, sourceFor(q));
   const noteNode = showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
-  if (firstTry && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
-  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
+  if (firstTry && !ctx.practice && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
   if (answered) {
@@ -413,7 +414,7 @@ function renderFeedback(ctx, container, prev, letters) {
 
   // 1. The verdict, kept short: what you chose and the named misconception. The reasons come after the way on.
   if (unknown) {
-    frag.push(h('section', { class: 'verdict verdict--unsure' }, verdictHeading('unsure', t('verdict.unsure'), t('points.none')), h('p', {}, t('q.noticeUnsure'))));
+    frag.push(h('section', { class: 'verdict verdict--unsure' }, verdictHeading('unsure', t('verdict.unsure'), ctx.practice ? '' : t('points.none')), h('p', {}, t('q.noticeUnsure'))));
   } else {
     const v = verdictOf(chosen.score);
     const chip = chosen.score !== 1 && chosen.misconception ? h('p', { class: 'chips' }, h('span', { class: 'chip chip--misc' }, t('q.misconception', { title: misconceptionTitle(ctx, chosen.misconception) }))) : null;
@@ -421,14 +422,14 @@ function renderFeedback(ctx, container, prev, letters) {
       h(
         'section',
         { class: `verdict verdict--${v.kind}` },
-        verdictHeading(v.icon, v.word, v.points, ctx.fresh),
+        verdictHeading(v.icon, v.word, ctx.practice ? '' : v.points, ctx.fresh),
         h('p', { class: 'fb__answer' }, h('span', { class: 'fb__letter' }, t('q.letter', { letter: letters.get(chosen.id) })), ' ', h('span', {}, renderInline(chosen.text))),
         chip,
       ),
     );
   }
   // Scoring: the first try's points in neutral ink next to the verdict; any later try is practice.
-  if (ctx.scoring) frag.push(h('p', { class: 'score-delta small' }, prev.attempt === 1 ? t('score.delta', { delta: ctx.scoring.formatDelta(ctx.scoring.pointsFor(prev, ctx.scoring.RULES)) }) : t('score.line.practice')));
+  if (ctx.scoring && !ctx.practice) frag.push(h('p', { class: 'score-delta small' }, prev.attempt === 1 ? t('score.delta', { delta: ctx.scoring.formatDelta(ctx.scoring.pointsFor(prev, ctx.scoring.RULES)) }) : t('score.line.practice')));
 
   // 2. The way on sits right under the verdict, before any explanation.
   frag.push(navActions(ctx));
@@ -479,5 +480,5 @@ function renderFeedback(ctx, container, prev, letters) {
 // Local practice always shows its own points; the server-graded challenge has its own view (scoring/challenge.js).
 function verdictHeading(iconName, word, points, fresh = false) {
   const mark = iconName === 'correct' || iconName === 'partial' ? momentIcon(iconName, fresh) : icon(iconName);
-  return h('h2', { class: 'verdict__title', tabindex: '-1' }, mark, h('span', {}, word), h('span', { class: 'verdict__points' }, ` · ${points}`));
+  return h('h2', { class: 'verdict__title', tabindex: '-1' }, mark, h('span', {}, word), points ? h('span', { class: 'verdict__points' }, ` · ${points}`) : null);
 }

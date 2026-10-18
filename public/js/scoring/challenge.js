@@ -3,7 +3,8 @@ import { t } from '../i18n.js';
 import { renderInline, renderText } from '../text.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { courseHref } from '../catalog.js';
-import { loadCourses } from '../data.js';
+import { loadCourses, loadQuestion } from '../data.js';
+import { isPractice } from '../question-check.js';
 import { CONFIG } from '../config.js';
 import { getClient } from '../account/index.js';
 
@@ -39,7 +40,17 @@ function scoreLabel(attempt) {
   return `${labels[attempt?.outcome] || 'Answer recorded'}${value === undefined ? '' : ` · ${value}`}`;
 }
 
+// True when the PUBLIC question document says beginner-practice. A document that cannot be loaded (a premium question, an offline
+// browser, a malformed file) is left to the server, whose own gate refuses a practice question; nothing is guessed from the id.
+async function isPracticeQuestion(id) {
+  try { return isPractice(await loadQuestion(id)); } catch { return false; }
+}
+
 export async function challengeQuestionView({ id }) {
+  // A practice question is never scored: no scoring request, with the flag on or off.
+  if (await isPracticeQuestion(id)) {
+    return message('Practice only', 'This is a practice question. It is never scored and never on a leaderboard. Your local practice progress has not been changed.', h('a', { href: `#/q/${encodeURIComponent(id)}` }, 'Back to the question'));
+  }
   if (!CONFIG.accountsApi) return message('Scoring unavailable', 'The scoring service is not configured. Your local practice progress has not been changed.');
   let client;
   try { client = getClient(); } catch { return message('Scoring unavailable', 'The scoring service could not be initialized.'); }
