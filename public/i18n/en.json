@@ -96,7 +96,7 @@
   "course.import.error.invalid-json": "This file is not valid JSON.",
   "course.import.error.invalid-format": "This file is not a progress export from this site.",
   "course.import.error.too-large": "This file is too large to import (the limit is 1 MB).",
-  "course.import.error.unreadable": "This file could not be read. Please try again.",
+  "course.import.error.unreadable": "This file could not be read. Try choosing it again.",
   "course.reset": "Start over",
   "course.reset.confirmTitle": "Start over?",
   "course.reset.confirmText": "This removes all your answers from this browser. This cannot be undone. Export your progress first if you want to keep a copy.",
