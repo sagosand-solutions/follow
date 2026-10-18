@@ -144,4 +144,3 @@ test('reopening an answered practice question keeps the practice presentation (r
 // The scoring profile and free leaderboard views are registered only with CONFIG.scoringUi on and are server-only; the
 // local/mock branches were removed. The 027 isolation (practice excluded, unknown profiles unavailable) is enforced and
 // tested in the scoring model: web-tests/answer-profile.test.mjs and web-tests/scoring.test.mjs.
-

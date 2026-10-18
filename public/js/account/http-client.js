@@ -30,8 +30,8 @@ const fullMatch = (re, value) => typeof value === 'string' && re.test(value) && 
 const exactKeys = (value, keys) => !!value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join() === keys.join();
 
 // The ONLY scoring scopes the server contract accepts: exactly `total`, or a full `course:<id>` where the id starts with a
-// lowercase letter and is 1..64 characters of [a-z0-9-]. `fullMatch` also refuses a trailing line break (JS `$` allows one).
-// Shared by scoringMe and scoringLeaderboards so both speak the server's format; the server uses the same shape.
+// lowercase letter and is 1..64 characters of [a-z0-9-]. `fullMatch` also checks the matched length as defence in depth
+// (JS `$` without the m flag already matches only at the very end). Shared by scoringMe and scoringLeaderboards.
 const COURSE_SCOPE = /^course:[a-z][a-z0-9-]{0,63}$/;
 export const validScope = (scope) => scope === 'total' || fullMatch(COURSE_SCOPE, scope);
 

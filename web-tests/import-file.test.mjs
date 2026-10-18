@@ -24,3 +24,16 @@ test('a missing or shapeless file is refused as invalid', async () => {
     assert.deepEqual(await readImportFile(bad), { ok: false, error: 'invalid-format' }, String(bad));
   }
 });
+
+test('the import limit is exactly 1 MiB, as the user-facing message promises', () => {
+  assert.equal(MAX_IMPORT_BYTES, 1_048_576);
+});
+
+test('course.js reads through readImportFile before touching the store, never file.text() directly', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../public/js/views/course.js', import.meta.url), 'utf8');
+  assert.match(source, /readImportFile\(file\)/);
+  assert.match(source, /store\.importJson\(read\.text\)/);
+  assert.doesNotMatch(source, /file\.text\(\)/);
+  assert.doesNotMatch(source, /store\.importJson\(await /);
+});
