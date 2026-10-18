@@ -4,6 +4,7 @@ import { loadCourse, loadCatalog } from '../data.js';
 import { reviewHref, DEFAULT_COURSE } from '../catalog.js';
 import { premiumNote } from '../components/catalog-card.js';
 import { store } from '../progress.js';
+import { readImportFile } from '../import-file.js';
 import { refresh } from '../router.js';
 import { errorNode } from './errors.js';
 import { notFoundView } from './notfound.js';
@@ -72,7 +73,13 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files && fileInput.files[0];
     if (!file) return;
-    const result = store.importJson(await file.text());
+    const read = await readImportFile(file);
+    if (!read.ok) {                                  // refused before reading, or unreadable: no store change
+      message.textContent = t(`course.import.error.${read.error}`);
+      fileInput.value = '';
+      return;
+    }
+    const result = store.importJson(read.text);
     message.textContent = result.ok ? (result.imported ? t('course.import.ok', { count: result.imported }) : t('course.import.none')) : t(`course.import.error.${result.error}`);
     fileInput.value = '';
     if (result.ok && result.imported) {

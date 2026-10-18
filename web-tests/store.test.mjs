@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStore } from '../public/js/store.js';
+import { createStore, MAX_IMPORT_BYTES } from '../public/js/store.js';
 
 function fakeStorage(initial = {}) {
   const data = { ...initial };
@@ -133,4 +133,15 @@ test('import errors are codes, not prose', () => {
   const s = mk(fakeStorage());
   assert.equal(s.importJson('nope').error, 'invalid-json');
   assert.equal(s.importJson('{}').error, 'invalid-format');
+});
+
+test('an import over the byte limit is refused before parsing, leaving progress intact', () => {
+  const s = mk(fakeStorage(), () => 1);
+  s.recordAnswer({ questionId: 'q1', optionId: 'a', score: 1 });
+  const before = JSON.stringify(s.answers());
+  assert.deepEqual(s.importJson('x'.repeat(MAX_IMPORT_BYTES + 1)), { ok: false, error: 'too-large' });   // one byte over
+  assert.equal(JSON.stringify(s.answers()), before);
+  assert.equal(s.importJson('\u00e9'.repeat(MAX_IMPORT_BYTES / 2 + 1)).error, 'too-large');             // multibyte counts as bytes
+  assert.equal(s.importJson('x'.repeat(MAX_IMPORT_BYTES)).error, 'invalid-json');                       // exactly the limit reaches validation
+  assert.equal(s.importJson(null).error, 'invalid-json');                                               // a non-string is not a bypass
 });

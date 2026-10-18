@@ -3,6 +3,14 @@
 const OUTCOMES = ['answered', 'unknown'];
 const SCORES = [0, 0.5, 1];
 
+// An import file is capped in BYTES, not in JavaScript characters: a multibyte character is several bytes. The guard runs on
+// the raw text before JSON.parse, so a caller cannot bypass the file-size check with a huge string.
+export const MAX_IMPORT_BYTES = 1_048_576;
+export function utf8Bytes(text) {
+  if (typeof TextEncoder === 'function') return new TextEncoder().encode(text).length;
+  return unescape(encodeURIComponent(text)).length;
+}
+
 export function safeLocalStorage() {
   try {
     const s = globalThis.localStorage;
@@ -151,6 +159,8 @@ export function createStore({ storage = safeLocalStorage(), prefix, now = () => 
   };
 
   store.importJson = (text) => {
+    if (typeof text !== 'string') return { ok: false, error: 'invalid-json' };
+    if (utf8Bytes(text) > MAX_IMPORT_BYTES) return { ok: false, error: 'too-large' };
     let incoming;
     try {
       incoming = JSON.parse(text);
