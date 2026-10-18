@@ -226,3 +226,16 @@ async function createFakeClientPremium() {
   const { createFakeClient } = await import('../public/js/account/client.js');
   return createFakeClient().premiumQuestion('prod-x');
 }
+
+test('scoringMe sends the validated scope and refuses a bad scope without any fetch', async () => {
+  const mock = mockFetch([ok({ points: 0 })]);
+  const c = createHttpClient({ baseUrl: '/api', fetchImpl: mock.fetchImpl });
+  assert.equal((await c.scoringMe({ family: 'free', window: 'week', scope: 'course:a-1' })).ok, true);
+  assert.equal(mock.calls[0].url, '/api/scoring/me?family=free&scope=course%3Aa-1&window=week');
+  const before = mock.calls.length;
+  for (const scope of ['course:A', 'course:a_b', 'course:a.b', 'course:' + 'a'.repeat(65), 'total ', '', null, 7]) {
+    assert.equal((await c.scoringMe({ family: 'free', scope })).code, 'invalid_request', `scoringMe ${String(scope)}`);
+    assert.equal((await c.scoringLeaderboards({ family: 'free', scope })).code, 'invalid_request', `boards ${String(scope)}`);
+  }
+  assert.equal(mock.calls.length, before, 'a refused scope never reaches the network');
+});
