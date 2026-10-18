@@ -113,6 +113,12 @@ button.chip:hover { background: var(--surface-2); }
 }
 @media (forced-colors: active) {
   .button, .theme-select, .chip { border: 1px solid ButtonText; }
+  /* The primary action stays visibly first: filled with the system's button text colour, inverted. */
+  .button--primary { forced-color-adjust: none; background: ButtonText; color: ButtonFace; border-color: ButtonText; }
+  .button--primary:hover { background: Highlight; color: HighlightText; border-color: Highlight; }
+  .button.button--primary:focus-visible { outline-color: Highlight; }
+  /* :root outranks the components' own disabled looks (for example sign-in providers), which would otherwise show theme colours here. */
+  :root .button[aria-disabled="true"], :root .button--primary:disabled { forced-color-adjust: none; background: Canvas; color: GrayText; border-color: GrayText; }
   .brand__mark span { background: CanvasText; }
 }
 
