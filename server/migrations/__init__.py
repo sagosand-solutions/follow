@@ -251,4 +251,98 @@ MIGRATIONS: tuple[tuple[int, tuple[str, ...]], ...] = (
             """,
         ),
     ),
+    (
+        5,
+        (
+            """
+            CREATE TABLE paddle_operations (
+                id TEXT PRIMARY KEY,
+                purchase_id TEXT NOT NULL UNIQUE REFERENCES purchases(id),
+                environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'live')),
+                state TEXT NOT NULL CHECK (state IN ('planned', 'request_sent', 'bound', 'unknown', 'abandoned')),
+                provider_txn_id TEXT UNIQUE,
+                late_txn_id TEXT UNIQUE,
+                created_at REAL NOT NULL,
+                request_sent_at REAL,
+                bound_at REAL,
+                CHECK ((state = 'bound') = (provider_txn_id IS NOT NULL))
+            )
+            """,
+            """
+            CREATE TRIGGER paddle_operations_binding_is_immutable BEFORE UPDATE ON paddle_operations
+            WHEN NEW.id IS NOT OLD.id OR NEW.purchase_id IS NOT OLD.purchase_id OR NEW.environment IS NOT OLD.environment
+              OR NEW.created_at IS NOT OLD.created_at
+              OR (OLD.provider_txn_id IS NOT NULL AND NEW.provider_txn_id IS NOT OLD.provider_txn_id)
+              OR (OLD.late_txn_id IS NOT NULL AND NEW.late_txn_id IS NOT OLD.late_txn_id)
+            BEGIN
+                SELECT RAISE(ABORT, 'paddle_operations binding is immutable');
+            END
+            """,
+            """
+            CREATE TABLE paddle_txn_reservations (
+                txn_id TEXT PRIMARY KEY,
+                operation_id TEXT NOT NULL UNIQUE REFERENCES paddle_operations(id),
+                kind TEXT NOT NULL CHECK (kind IN ('bound', 'late'))
+            )
+            """,
+            """
+            CREATE TABLE paddle_events (
+                environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'live')),
+                event_id TEXT NOT NULL,
+                transaction_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload_digest TEXT NOT NULL,
+                occurred_at TEXT NOT NULL,
+                received_at REAL NOT NULL,
+                state TEXT NOT NULL CHECK (state IN ('pending', 'settled')),
+                PRIMARY KEY (environment, event_id)
+            )
+            """,
+            "CREATE INDEX idx_paddle_events_txn ON paddle_events (environment, transaction_id)",
+            """
+            CREATE TRIGGER paddle_events_evidence_is_immutable BEFORE UPDATE ON paddle_events
+            WHEN NEW.environment IS NOT OLD.environment OR NEW.event_id IS NOT OLD.event_id
+              OR NEW.transaction_id IS NOT OLD.transaction_id OR NEW.event_type IS NOT OLD.event_type
+              OR NEW.payload_digest IS NOT OLD.payload_digest OR NEW.occurred_at IS NOT OLD.occurred_at
+              OR NEW.received_at IS NOT OLD.received_at OR (OLD.state = 'settled' AND NEW.state = 'pending')
+            BEGIN
+                SELECT RAISE(ABORT, 'paddle_events evidence is immutable');
+            END
+            """,
+            """
+            CREATE TABLE paddle_reconcile (
+                purchase_id TEXT PRIMARY KEY REFERENCES purchases(id),
+                attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+                next_attempt_at REAL NOT NULL,
+                lease_until REAL,
+                owner TEXT,
+                generation INTEGER NOT NULL DEFAULT 0 CHECK (generation >= 0),
+                pending_seq INTEGER NOT NULL DEFAULT 0 CHECK (pending_seq >= 0),
+                claimed_seq INTEGER NOT NULL DEFAULT 0 CHECK (claimed_seq >= 0),
+                reason TEXT NOT NULL DEFAULT 'transport' CHECK (reason IN ('transport', 'await_event', 'reconcile', 'proof')),
+                wait_deadline REAL,
+                last_error TEXT CHECK (last_error IS NULL OR last_error IN ('transport', 'timeout', 'malformed', 'rejected', 'unexpected')),
+                state TEXT NOT NULL CHECK (state IN ('due', 'manual'))
+            )
+            """,
+            """
+            CREATE TABLE purchase_transitions (
+                id TEXT PRIMARY KEY,
+                purchase_id TEXT NOT NULL REFERENCES purchases(id),
+                from_state TEXT NOT NULL,
+                to_state TEXT NOT NULL,
+                from_revision INTEGER NOT NULL,
+                to_revision INTEGER NOT NULL,
+                cause TEXT NOT NULL CHECK (cause IN ('verified_event', 'reconcile')),
+                event_provider TEXT,
+                event_id TEXT,
+                snapshot_digest TEXT,
+                created_at REAL NOT NULL,
+                CHECK ((cause = 'verified_event') = (event_id IS NOT NULL)),
+                CHECK ((cause = 'reconcile') = (snapshot_digest IS NOT NULL AND length(snapshot_digest) = 64))
+            )
+            """,
+            "CREATE INDEX idx_purchase_transitions_purchase ON purchase_transitions (purchase_id, created_at)",
+        ),
+    ),
 )

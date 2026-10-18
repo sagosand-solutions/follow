@@ -83,6 +83,7 @@ class AuthoritativeState:
     items: tuple                       # tuple[Item, ...]
     adjustments: tuple                 # tuple[Adjustment, ...]
     fetched_at: float
+    complete: bool = False             # True only when every adjustment page was read (no truncation gap)
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,7 @@ class Expected:
     price_id: str
     quantity: int
     currency_code: str
+    transaction_id: str | None = None  # the transaction BOUND to this purchase; the snapshot must be for exactly it
     total_minor: int | None = None     # None until the legal amount/tax policy (P1) is decided
     total_field: str = "grand_total"
 

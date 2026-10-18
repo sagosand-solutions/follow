@@ -58,6 +58,14 @@ def decide(state_before: str, snapshot: AuthoritativeState, expected: Expected) 
         return Decision("none", "already terminal")
     if state_before not in ("pending", "paid"):
         return Decision("reconcile", "unknown current state")
+    # 0. The snapshot must be COMPLETE and for exactly the bound transaction, for every kind of transition
+    #    (refund and cancel too); anything else is manual reconciliation, never a decision.
+    if snapshot.environment != expected.environment:
+        return Decision("reconcile", "snapshot is for another environment")
+    if snapshot.complete is not True:
+        return Decision("reconcile", "snapshot is not complete")
+    if not isinstance(expected.transaction_id, str) or snapshot.transaction_id != expected.transaction_id:
+        return Decision("reconcile", "snapshot is not for the bound transaction")
     # 1. Validate EVERY adjustment against the documented domains before any rule can skip or accept it.
     for adjustment in snapshot.adjustments:
         if (adjustment.action not in ADJUSTMENT_ACTIONS or adjustment.status not in ADJUSTMENT_STATUSES
