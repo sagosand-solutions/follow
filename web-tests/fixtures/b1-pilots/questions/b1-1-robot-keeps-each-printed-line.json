@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-1-robot-keeps-each-printed-line",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.12,
+  "concepts": [
+    "py.values",
+    "py.strings"
+  ],
+  "prompt": "What appears on the robot's tiny screen?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "print(\"GO\")\nprint(\"GO\")\nprint(2)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "quotes-show",
+      "text": "`\"GO\"` then `\"GO\"` then `2`. print keeps the quote marks around both words.",
+      "score": 0,
+      "feedback": "Those marks belong to the code, not the screen. Each text print writes GO without its surrounding quotes.",
+      "misconception": "py.print-keeps-the-source-quote-marks"
+    },
+    {
+      "id": "last-only",
+      "text": "`2`. Only the final print stays on the screen.",
+      "score": 0,
+      "feedback": "A new print adds a line rather than replacing the earlier lines. The two GO lines stay above 2.",
+      "misconception": "py.only-the-last-print-remains-visible"
+    },
+    {
+      "id": "counts-earlier-lines",
+      "text": "`GO` then `GO` then `2`. A number print counts the earlier screen lines.",
+      "score": 0.5,
+      "feedback": "There are two earlier lines, so 2 matches here. Replacing the last line with print(7) shows 7, not a line count.",
+      "misconception": "py.integer-print-counts-earlier-screen-lines",
+      "partial_reason": "Right: these three screen lines. Wrong: print counts earlier output instead of reading its number; print(7) still shows 7 after the two GO lines."
+    },
+    {
+      "id": "in-order",
+      "text": "`GO` then `GO` then `2`. Each print adds a line; the text stays as written.",
+      "score": 1,
+      "feedback": "The first two print lines each write GO. The last print writes 2 below them.",
+      "misconception": null
+    }
+  ],
+  "explanation": "Read from the top: the first print writes GO, the second adds another GO, and the last writes 2. Quotes mark text in code; they are not printed around it.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "hand-specified",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "GO\nGO\n2\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Compare the exact displayed complete program with the specified literal stdout. A matching key alone does not prove a distractor rule or a half-credit generalization.",
+    "limitations": "Small deterministic whole-number/text fixtures only, no imports or host interactions. Trusted-local execution is not a sandbox. Difficulty and attraction remain uncalibrated; content, vocabulary and publication need separate review."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

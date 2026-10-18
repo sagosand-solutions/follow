@@ -232,6 +232,7 @@
 .verdict { padding: var(--s-4) var(--s-5); border-radius: var(--radius); border: 2px solid currentColor; display: grid; gap: var(--s-3); color: var(--ink); animation: slide-in 240ms var(--ease) both; }
 .verdict__title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--text-lg); }
 .verdict__points { font-weight: 500; }
+.verdict__sub { margin: 0; font-weight: 600; color: var(--ink); }
 .verdict--correct { background: var(--outcome-right-bg); border-color: var(--outcome-right); }
 .verdict--correct .verdict__title, .verdict--correct .fb__heading { color: var(--outcome-right); }
 .verdict--partial { background: var(--outcome-partial-bg); border-color: var(--outcome-partial); }
@@ -327,6 +328,7 @@
 .sp-controls .button:disabled { opacity: 0.45; cursor: not-allowed; }
 .sp-counter { margin-inline-start: auto; color: var(--stage-muted); font-size: var(--text-sm); }
 .sp-now { font-weight: 700; font-size: var(--text-lg); line-height: 1.3; }
+.sp-now code { background: var(--stage-bg); color: var(--stage-ink); border: 1px solid var(--stage-line); font-weight: 600; }
 .sp-frame { color: var(--stage-muted); }
 .sp-picker { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .sp-picker .chip { background: transparent; color: var(--stage-ink); border: 1px solid var(--stage-muted); }
@@ -430,6 +432,10 @@
 .note__icon { grid-row: 1 / 3; color: var(--accent-attention-text); font-size: 1.5rem; font-weight: 900; line-height: 1; }
 .note__title { margin: 0; font-weight: 800; }
 .note__text { margin: 0; color: var(--muted); }
+.note--fold { display: block; padding-block: 0; }
+.note--fold > summary { display: flex; align-items: center; min-height: var(--tap); cursor: pointer; }
+.note--fold > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.note--fold[open] > .note__text { padding-block-end: var(--s-2); }
 .source { display: grid; gap: var(--s-1); padding: var(--s-4) var(--s-5); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .source__title { margin: 0; font-size: var(--text-base); }
 .source__text { margin: 0; color: var(--muted); font-size: var(--text-sm); }

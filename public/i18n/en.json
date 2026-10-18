@@ -470,5 +470,21 @@
   "path.soon.1.title": "Read like a computer",
   "path.soon.1.text": "Never programmed? Three to six lines at a time, one idea per question, with the step player in the middle.",
   "path.soon.2.title": "Small programs from everyday life",
-  "path.soon.2.text": "A shopping list, a password check, a guessing game, a budget: short programs you can follow line by line."
+  "path.soon.2.text": "A shopping list, a password check, a guessing game, a budget: short programs you can follow line by line.",
+  "step.say.changes": "Line {line}: {changes}.",
+  "step.say.new": "{name} now holds {value}",
+  "step.say.changed": "{name} changes from {old} to {value}",
+  "step.say.itPrints": "it prints {out}",
+  "step.say.printsOnly": "Line {line} prints {out}. No variable changes.",
+  "step.say.none": "Line {line} runs. No variable changes.",
+  "step.say.and": ", and ",
+  "step.say.comma": ", ",
+  "step.say.then": " then ",
+  "step.say.emptyLine": "an empty line",
+  "step.say.next": "Next step: line {line}.",
+  "q.note.how": "How to answer",
+  "q.practice.sub.correct": "You read it the way the computer does.",
+  "q.practice.sub.partial": "Part of your reasoning fits. Watch the rest run, line by line.",
+  "q.practice.sub.wrong": "Not quite. Watch it run, line by line.",
+  "q.practice.sub.unsure": "Good call to check. Watch it run, line by line."
 }

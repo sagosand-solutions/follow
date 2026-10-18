@@ -7,6 +7,7 @@ import { t } from '../i18n.js';
 import { buildMoments, momentState, clampStep } from '../trace.js';
 import { FIRST_RUN_STEPS, FIRST_RUN_INTERVAL_MS } from '../moments.js';
 import { setActiveLine } from './code-block.js';
+import { narrate, tokensText } from '../narrate.js';
 
 function describe(step, moment = null) {
   const main = step.function === '<module>';
@@ -26,7 +27,9 @@ const frameName = (step) => (step.function === '<module>' ? t('step.module') : s
 // traces: [{ id, label, trace, figure }] one per traced snippet; figure is its code block.
 // options.firstRun: the first time in this browser, the first few steps play by themselves (never with reduced motion),
 // then the player waits. options.onFirstRunDone() is called once the moment is over (skipped, interrupted or finished).
-export function createStepPlayer(traces, { firstRun = false, onFirstRunDone = () => {} } = {}) {
+// options.narrate: beginner practice; each completed line gets one plain sentence built from the recording (narrate.js) in
+// place of "Ran line N." Where the recording cannot prove the sentence, the usual one stays.
+export function createStepPlayer(traces, { firstRun = false, onFirstRunDone = () => {}, narrate: narrated = false } = {}) {
   // each entry also carries `input`: { stdin, total } from bindCase
   const all = traces.map((x) => ({ ...x, moments: buildMoments(x.trace) }));
   let which = 0;
@@ -76,7 +79,9 @@ export function createStepPlayer(traces, { firstRun = false, onFirstRunDone = ()
     first.disabled = index === 0;
     back.disabled = index === 0;
     next.disabled = index === moments.length - 1;
-    now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : moment.kind === 'interrupted' ? t('step.interrupted', { line: step.line, next: moment.after.line }) : describe(step, moment);
+    const said = narrated ? narrate(cur.trace, moments, index) : null;
+    if (said) now.replaceChildren(...said.map((tok) => (tok.code !== undefined ? h('code', {}, tok.code) : document.createTextNode(tok.text))));
+    else now.textContent = moment.kind === 'ran' ? (state.mode === 'after' ? t('step.ran', { line: step.line }) : t('step.ranEnd', { line: step.line })) : moment.kind === 'interrupted' ? t('step.interrupted', { line: step.line, next: moment.after.line }) : describe(step, moment);
     frame.textContent = t('step.frame', { fn: frameName(step), depth: step.depth }) + (state.scope ? ` · ${t(`step.scope.${state.scope}`)}` : '');
     const rowNodes = (rows) => rows.map((r) => h('tr', { class: r.change === 'same' ? null : `sp-${r.change}` }, h('th', { scope: 'row' }, r.name), h('td', {}, h('code', {}, r.value), r.change === 'same' ? null : h('span', { class: 'sp-tag' }, t(`step.${r.change}`)))));
     const v3 = !!state.scope;
@@ -116,7 +121,7 @@ export function createStepPlayer(traces, { firstRun = false, onFirstRunDone = ()
       const flagged = (list) => list.filter((r) => r.change !== 'same').map((r) => `${r.name} = ${r.value} (${t(`step.${r.change}`)})`);
       const changed = flagged(mainRows);
       const changedG = showGlobals ? flagged(globalRows) : [];
-      live.textContent = [`${t('step.counter', { n: index + 1, total: moments.length })}.`, `${now.textContent}`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', changedG.length ? `${t('step.changedGlobals', { list: changedG.join(', ') })}.` : '', omittedNote.textContent, state.added ? `${t('step.printed', { text: state.added.replace(/\n/g, '↵') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
+      live.textContent = [`${t('step.counter', { n: index + 1, total: moments.length })}.`, said ? tokensText(said) : `${now.textContent}`, changed.length ? `${t('step.changedList', { list: changed.join(', ') })}.` : '', changedG.length ? `${t('step.changedGlobals', { list: changedG.join(', ') })}.` : '', omittedNote.textContent, state.added ? `${t('step.printed', { text: state.added.replace(/\n/g, '↵') })}.` : '', last ? endNote.textContent : ''].filter(Boolean).join(' ');
     }
   }
 
