@@ -180,7 +180,23 @@ class TestSchemaSelfValidation(unittest.TestCase):
             mutate(doc)
             return list(validator.iter_errors(doc))
         course = lambda doc: doc["courses"][0]
-        self.assertTrue(broken(lambda d: course(d).update(id="java")), "unknown course id")
+        self.assertEqual(broken(lambda d: course(d).update(id="read-like-a-computer", concept_map="schema/concepts/read-like-a-computer-v0.json")), [], "a course id follows a rule, not a list")
+        for bad_id in ("Java", "java_", "a--b", "-a", "a-", "x" * 41, "", "a b", 5):
+            self.assertTrue(broken(lambda d: course(d).update(id=bad_id)), f"course id {bad_id!r}")
+        self.assertEqual(broken(lambda d: course(d).pop("premium")), [], "premium is optional: a free beginner course promises nothing")
+        self.assertEqual(broken(lambda d: course(d).update(audience="beginner", path_step=1)), [])
+        self.assertEqual(broken(lambda d: course(d).update(audience="experienced", path_step=3)), [])
+        self.assertEqual(broken(lambda d: course(d).update(path_step=3)), [], "step 3 may carry no audience (python)")
+        for step in (1, 2):
+            self.assertTrue(broken(lambda d: course(d).update(path_step=step)), f"step {step} must say beginner")
+            self.assertTrue(broken(lambda d: course(d).update(path_step=step, audience="experienced")), f"step {step} is not for experienced")
+            self.assertEqual(broken(lambda d: course(d).update(path_step=step, audience="beginner")), [])
+        for field, bad in (("audience", "advanced"), ("audience", None), ("path_step", 0), ("path_step", 4), ("path_step", True), ("path_step", "1"), ("path_step", 2.5)):
+            self.assertTrue(broken(lambda d: course(d).update({field: bad})), f"{field}={bad!r}")
+        self.assertEqual(broken(lambda d: d.update(courses=[copy.deepcopy(d["courses"][0]) for _ in range(8)])), [], "room for eight courses")
+        self.assertTrue(broken(lambda d: d.update(courses=[copy.deepcopy(d["courses"][0]) for _ in range(9)])), "but not unlimited")
+        self.assertTrue(broken(lambda d: course(d).update(concept_map="schema/concepts/Sql-v0.json")))
+        self.assertTrue(broken(lambda d: course(d).update(concept_map="schema/concepts/sql-v1.json")))
         self.assertTrue(broken(lambda d: course(d).update(language="sql")), "language stays python")
         self.assertTrue(broken(lambda d: course(d).update(description="x" * 161)), "description is at most 160 characters")
         self.assertEqual(broken(lambda d: course(d).update(description="x" * 160)), [])
@@ -194,16 +210,40 @@ class TestSchemaSelfValidation(unittest.TestCase):
         self.assertTrue(broken(lambda d: d.update(data_version=2)))
         self.assertTrue(broken(lambda d: d.update(courses=[])))
 
-    def test_course_schema_accepts_the_three_courses_and_only_python_as_language(self):
+    def test_course_schema_accepts_courses_by_id_rule_and_only_python_as_language(self):
         validator = build_validator(COURSE_SCHEMA_PATH)
         lesson = {"id": "l1", "title": "L", "builds_on": [], "questions": ["some-question"]}
         for cid in ("python", "production", "sql"):
             doc = {"id": cid, "title": "T", "language": "python", "levels": [{"level": "beginner", "title": "B", "lessons": [lesson]}]}
             self.assertEqual(list(validator.iter_errors(doc)), [], cid)
-        for bad in ({"id": "java"}, {"language": "sql"}, {"id": ""}):
+        for bad in ({"id": "Java"}, {"id": "a_b"}, {"language": "sql"}, {"id": ""}):
             doc = {"id": "sql", "title": "T", "language": "python", "levels": [{"level": "beginner", "title": "B", "lessons": [lesson]}]}
             doc.update(bad)
             self.assertTrue(list(validator.iter_errors(doc)), bad)
+
+    def test_course_schema_lesson_fields_for_beginner_courses(self):
+        validator = build_validator(COURSE_SCHEMA_PATH)
+        intro = {"id": "w1", "before_question_ids": ["some-question"], "term": "print", "explanation": "Shows a value.", "example": "print(1)"}
+        def doc(**fields):
+            lesson = {"id": "l1", "title": "L", "builds_on": [], "questions": ["some-question"], **fields}
+            return {"id": "read-like-a-computer", "title": "T", "language": "python", "levels": [{"level": "beginner", "title": "B", "lessons": [lesson]}]}
+        def errors(**fields):
+            return list(validator.iter_errors(doc(**fields)))
+        self.assertEqual(errors(practice_summary="reading what `print` shows", introductions=[intro]), [])
+        self.assertEqual(errors(), [], "both fields are optional")
+        for bad in ("", "x" * 81, " a", "a ", "a\nb", "a\tb", "a\u2028b", 5, None):
+            self.assertTrue(errors(practice_summary=bad), f"practice_summary {bad!r}")
+        self.assertEqual(errors(practice_summary="x" * 80), [])
+        old_shape = {k: v for k, v in intro.items() if k != "before_question_ids"} | {"before_question_id": "some-question"}
+        mutations = {"old single key": old_shape, "no questions": {**intro, "before_question_ids": []}, "repeated question": {**intro, "before_question_ids": ["some-question"] * 2},
+                     "not a list": {**intro, "before_question_ids": "some-question"}, "bad question id": {**intro, "before_question_ids": ["Bad Id"]},
+                     "extra key": {**intro, "html": "<b>"}, "bad id": {**intro, "id": "a b"}, "long term": {**intro, "term": "x" * 61},
+                     "long explanation": {**intro, "explanation": "x" * 241}, "long example": {**intro, "example": "x" * 241}, "edge space": {**intro, "term": "a "}}
+        for label, item in mutations.items():
+            self.assertTrue(errors(introductions=[item]), label)
+        self.assertEqual(errors(introductions=[{**intro, "term": "x" * 60, "explanation": "y" * 240, "example": "z" * 240}]), [])
+        self.assertTrue(errors(introductions=[]), "an empty list says nothing: leave the field out")
+        self.assertTrue(errors(introductions=[intro] * 9), "at most eight cards in a lesson")
 
     def test_public_course_vocabularies_are_valid_and_listed(self):
         validator = build_validator(MAP_SCHEMA_PATH)
