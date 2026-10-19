@@ -33,6 +33,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            validator/requirements.txt
+            server/requirements.txt
       - name: Install validator dependencies
         run: python -m pip install -r validator/requirements.txt -r server/requirements.txt
       - name: Validator tests
@@ -53,6 +57,20 @@ jobs:
         run: python -m validator export --check
       - name: Traces match question code (static, nothing executed)
         run: python -m validator trace --check
+      # Informative only: prints a coverage report so a trend is visible. It never
+      # fails the build and has no threshold; the test steps above are the gate.
+      # One leg only: coverage re-runs all three suites, and the 3.11 interpreter
+      # traces with sys.settrace (2-4x slower), which could approach the job
+      # timeout; 3.14 uses sys.monitoring and stays cheap.
+      - name: Coverage report (informative, no threshold, 3.14 leg only)
+        if: matrix.python == '3.14'
+        continue-on-error: true
+        run: |
+          python -m pip install coverage==7.16.2
+          coverage run -m unittest discover -s validator/tests
+          coverage run -a -m unittest discover -s schema/tests
+          coverage run -a -m unittest discover -s server/tests
+          coverage report -m
 
   web:
     name: Web tests
@@ -69,3 +87,8 @@ jobs:
         run: |
           # A glob, not a directory: Node 24 treats a directory argument as a module path.
           node --test 'web-tests/*.test.mjs'
+      # Informative only: prints Node's built-in coverage so a trend is visible. It
+      # never fails the build and has no threshold; the web test step above is the gate.
+      - name: Web test coverage report (informative, no threshold)
+        continue-on-error: true
+        run: node --test --experimental-test-coverage 'web-tests/*.test.mjs'
