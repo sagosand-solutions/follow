@@ -89,14 +89,23 @@ test('practice_summary: a short plain fragment or nothing', () => {
   assert.equal(extras.practiceSummary({}), null);
 });
 
-test('introductions: exact shape, a question in the lesson, unique ids, in order', () => {
+test('introductions: exact shape, a list of questions in the lesson, unique ids, in order; one card can come back', () => {
   assert.deepEqual(extras.introductionsFor(lesson('b1-2'), 'b1-2-a-pocket-uses-its-latest-number').map((x) => x.id), ['B12-I1', 'B12-I3']);
   assert.deepEqual(extras.introductionsFor(lesson('b1-2'), 'b1-2-reading-a-second-pocket-keeps-its-number').map((x) => x.id), ['B12-I5']);
+  const [q1, q2] = lesson('b1-2').questions;
   const base = lesson('b1-2').introductions[0];
   const mk = (list) => extras.introductions({ questions: lesson('b1-2').questions, introductions: list }).map((x) => x.id);
+  const reused = { questions: [q1, q2], introductions: [{ ...base, before_question_ids: [q1, q2] }, lesson('b1-2').introductions[2]] };
+  assert.deepEqual(extras.introductionsFor(reused, q2).map((x) => x.id), ['B12-I1', 'B12-I5'], 'the same card before both questions, in lesson order');
+  assert.deepEqual(mk([base]), ['B12-I1']);
   assert.deepEqual(mk([base, { ...base, term: 'Again' }]), [], 'an id used twice is nobody’s');
   assert.deepEqual(mk([{ ...base, extra: 1 }]), []);
-  assert.deepEqual(mk([{ ...base, before_question_id: 'b1-1-robot-keeps-each-printed-line' }]), [], 'question outside the lesson');
+  assert.deepEqual(mk([{ ...base, before_question_ids: ['b1-1-robot-keeps-each-printed-line'] }]), [], 'question outside the lesson');
+  assert.deepEqual(mk([{ ...base, before_question_ids: [] }]), [], 'an empty list');
+  assert.deepEqual(mk([{ ...base, before_question_ids: [q1, q1] }]), [], 'a question listed twice');
+  assert.deepEqual(mk([{ ...base, before_question_ids: q1 }]), [], 'a single id is not a list');
+  const { before_question_ids: _, ...singular } = base;
+  assert.deepEqual(mk([{ ...singular, before_question_id: q1 }]), [], 'the old singular field is not read');
   assert.deepEqual(mk([{ ...base, term: 'x'.repeat(61) }]), []);
   assert.deepEqual(mk([{ ...base, id: 'bad id' }]), []);
   assert.deepEqual(mk([{ ...base, example: 7 }]), []);

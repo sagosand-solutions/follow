@@ -18,21 +18,27 @@
           "introductions": [
             {
               "id": "B11-I1",
-              "before_question_id": "b1-1-robot-keeps-each-printed-line",
+              "before_question_ids": [
+                "b1-1-robot-keeps-each-printed-line"
+              ],
               "term": "Text and numbers in print",
               "explanation": "print writes its given text or number. Source quote marks are not printed; capital and small letters stay as written.",
               "example": "print(\"Go\") shows Go; print(2) shows 2."
             },
             {
               "id": "B11-I3",
-              "before_question_id": "b1-1-robot-keeps-each-printed-line",
+              "before_question_ids": [
+                "b1-1-robot-keeps-each-printed-line"
+              ],
               "term": "One line per print",
               "explanation": "Read top to bottom: each print adds a line without clearing earlier lines. In choices, then means the next screen line, not printed text.",
               "example": "GO then 2 means GO on one line and 2 on the next."
             },
             {
               "id": "B11-I5",
-              "before_question_id": "b1-1-robot-leaves-unprinted-values-quiet",
+              "before_question_ids": [
+                "b1-1-robot-leaves-unprinted-values-quiet"
+              ],
               "term": "Valid but quiet / bare value",
               "explanation": "A value on its own is valid code but does not write a screen line. Print adds lines in order without clearing earlier ones; then means the next line in choices.",
               "example": "Bare 8 and bare \"WAIT\" stay quiet; print(\"WAIT\") shows WAIT."
@@ -50,21 +56,27 @@
           "introductions": [
             {
               "id": "B12-I1",
-              "before_question_id": "b1-2-a-pocket-uses-its-latest-number",
+              "before_question_ids": [
+                "b1-2-a-pocket-uses-its-latest-number"
+              ],
               "term": "Give a name a number (assignment)",
               "explanation": "Assignment stores a number quietly. An unquoted name tells print which number to read; quoted text writes its word.",
               "example": "pocket = 1 stores 1; print(pocket) reads 1; print(\"pocket\") writes pocket."
             },
             {
               "id": "B12-I3",
-              "before_question_id": "b1-2-a-pocket-uses-its-latest-number",
+              "before_question_ids": [
+                "b1-2-a-pocket-uses-its-latest-number"
+              ],
               "term": "The latest number for each name",
               "explanation": "A new assignment replaces only that name's number, not earlier screen lines.",
               "example": "After pocket = 2 and spare = 9, print(pocket) still shows 2."
             },
             {
               "id": "B12-I5",
-              "before_question_id": "b1-2-reading-a-second-pocket-keeps-its-number",
+              "before_question_ids": [
+                "b1-2-reading-a-second-pocket-keeps-its-number"
+              ],
               "term": "Read another pocket now",
               "explanation": "blue = red reads red's number now. Later changing red leaves blue alone; either name can still receive a new number.",
               "example": "If red holds 4, blue = red gives blue 4; red = 9 later leaves blue at 4."

@@ -6,7 +6,8 @@ view. They are not part of any course or of the site data. `web-tests/b1-practic
 any change to these files fails the tests until the pins are updated on purpose.
 
 `course.json` is a small course built from the same four questions, with the lesson fields the beginner course pages read
-(`practice_summary` and `introductions`), taken word for word from the authors' lesson notes. It is a fixture, not a course.
+(`practice_summary` and `introductions`), taken word for word from the authors' lesson notes; each introduction's single question
+becomes a one-item `before_question_ids` list. It is a fixture, not a course.
 
 Licence: each question states its own licence (CC-BY-SA-4.0); the traces and `course.json` are derived from that material
 under the same licence.
