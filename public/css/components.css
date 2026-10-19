@@ -432,6 +432,18 @@
 .note__icon { grid-row: 1 / 3; color: var(--accent-attention-text); font-size: 1.5rem; font-weight: 900; line-height: 1; }
 .note__title { margin: 0; font-weight: 800; }
 .note__text { margin: 0; color: var(--muted); }
+.new-word { display: grid; gap: var(--s-1); padding: var(--s-2) var(--s-4) var(--s-3); border: 1px solid var(--line); border-inline-start: 4px solid var(--accent-attention); border-radius: var(--radius-sm); background: var(--surface); }
+.new-word > * { margin: 0; }
+.new-word__label { font-size: var(--text-sm); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-attention-text); }
+.new-word__list { display: grid; gap: var(--s-2); margin: 0; }
+.new-word__term { font-weight: 800; }
+.new-word__text { margin: 0; font-size: var(--text-sm); line-height: 1.45; }
+.new-word__example { display: block; color: var(--muted); }
+.practised { margin: 0; font-weight: 600; }
+.lesson-card__practised { display: block; font-size: var(--text-sm); }
+.course-end { display: grid; gap: var(--s-3); padding: var(--s-5); border: 2px solid var(--accent-attention); border-radius: var(--radius); background: var(--surface); }
+.course-end > * { margin: 0; }
+@media (forced-colors: active) { .new-word, .course-end { border-color: CanvasText; } }
 .already-code .note__title { font-size: var(--text-base); }
 .already-code .note__text a { color: var(--ink); font-weight: 700; }
 .path__skip { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: var(--text-sm); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }

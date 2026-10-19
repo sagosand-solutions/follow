@@ -3,6 +3,8 @@ import { t } from '../i18n.js';
 import { loadCourse, loadCatalog } from '../data.js';
 import { reviewHref, DEFAULT_COURSE } from '../catalog.js';
 import { premiumNote, alreadyCodeSign } from '../components/catalog-card.js';
+import { practisedLine, courseEndCard } from '../components/beginner.js';
+import { practiceSummary, courseFinished } from '../lesson-extras.js';
 import { store } from '../progress.js';
 import { readImportFile } from '../import-file.js';
 import { refresh } from '../router.js';
@@ -58,6 +60,7 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
               h('span', { class: 'lesson-card__title', id: `card-title-${lesson.id}` }, lesson.title),
               h('span', { class: 'lesson-card__status', id: `card-status-${lesson.id}` }, status),
               summaryNode(lesson.summary, 'lesson-card__summary', 'span'),
+              state === 'all' ? practisedLine(practiceSummary(lesson), 'practised lesson-card__practised', 'span') : null,
               cells(lesson.questions, nextId),
               h('span', { class: 'visually-hidden' }, summaryText(lesson.questions)),
             ),
@@ -137,6 +140,8 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
   const shortcuts = picks.length
     ? h('details', { class: 'hero__shortcuts' }, h('summary', {}, t('home.shortcuts.lead')), h('div', { class: 'hero__shortcut-links' }, ...picks.map((s) => h('a', { href: `#/lesson/${s.id}` }, t('home.shortcuts.start', { title: s.title })))))
     : null;
+  // A finished beginner course says so first, with the next step on the path.
+  const ending = courseFinished(course, (qid) => !!store.latest(qid)) ? await courseEndCard(course, entry, catalog) : null;
   const continueText = target ? t('course.continue.text', { lesson: target.lessonTitle, n: target.position, total: target.total }) : null;
   const continueCard = target
     ? h(
@@ -150,6 +155,6 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
 
   return {
     title: course.title || t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(entry && entry.audience === 'beginner' ? (entry.premium ? t('course.eyebrow.beginner') : t('course.eyebrow.beginnerFree')) : id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), entry && entry.audience === 'beginner' ? alreadyCodeSign(catalog) : null, continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(entry && entry.audience === 'beginner' ? (entry.premium ? t('course.eyebrow.beginner') : t('course.eyebrow.beginnerFree')) : id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), entry && entry.audience === 'beginner' ? alreadyCodeSign(catalog) : null, ending, continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
   };
 }

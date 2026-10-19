@@ -6,6 +6,8 @@ import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
 import { loadQuestion, findCourseOf, loadConcepts, loadTrace, findLessonOf, loadCatalog } from '../data.js';
 import { alreadyCodeSign } from '../components/catalog-card.js';
+import { newWordCards } from '../components/beginner.js';
+import { introductionsFor } from '../lesson-extras.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { CONFIG } from '../config.js';
 import { navigate, refresh } from '../router.js';
@@ -73,7 +75,7 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   const root = h('div', { class: 'question' });
   // Local question and review flows stay local; only the explicit challenge route uses server scoring.
   // A beginner-practice question (explicit profile only) is local practice: no points line, no challenge, never a leaderboard.
-  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null, practice: isPractice(q), sign };
+  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null, practice: isPractice(q), sign, intros: where ? introductionsFor(where.lesson, q.id) : [] };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
@@ -265,7 +267,7 @@ function draw(ctx, prev, stale = false) {
     ? [ctx.where && ctx.where.position === 0 ? noteBox({ title: t('q.note.title'), text: t('q.note.text') }) : h('details', { class: 'note note--fold' }, h('summary', { class: 'note__title' }, t('q.note.how')), h('p', { class: 'note__text' }, t('q.note.title'), ' ', t('q.note.text')))]
     : showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
   if (firstTry && !ctx.practice && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
-  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...(ctx.sign ? [ctx.sign] : []), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...(ctx.sign ? [ctx.sign] : []), ...newWordCards(ctx.intros), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
   if (answered) {
