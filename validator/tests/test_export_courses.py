@@ -310,15 +310,14 @@ class BeginnerDataTests(CourseFixture):
     B1 = "read-like-a-computer"
 
     def add_beginner(self, **entry):
-        """The beginner course: its own copy of the shared Python vocabulary, two questions in one lesson."""
-        self.copy(core.ROOT / "schema/concepts/python-v0.json", self.root / "schema/concepts" / f"{self.B1}-v0.json")
+        """The beginner course: it reads the shared Python vocabulary, named explicitly in its catalog entry. Two questions in one lesson."""
         self.maps[self.B1] = self.maps["python"]
         self.add_course(self.B1, [("b1-first", "py.values", "beginner"), ("b1-second", "py.values", "beginner")])
         course = self.courses[self.B1]
         course["levels"][0]["lessons"] = [{"id": "b1-l1", "title": "Lesson one", "builds_on": [], "questions": ["b1-first", "b1-second"]}]
         self.write(self.data / "courses" / f"{self.B1}.json", course)
         row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
-        row.update(audience="beginner", path_step=1, **entry)
+        row.update(audience="beginner", path_step=1, concept_map="schema/concepts/python-v0.json", **entry)
         row.pop("premium", None)
         self.write(self.data / "catalog.json", self.catalog)
 
@@ -427,7 +426,7 @@ class BeginnerDataTests(CourseFixture):
         self.add_beginner()
         self.add_course(self.B1, [("b1-first", "py.values", "intermediate")])
         row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
-        row.update(audience="beginner", path_step=1)
+        row.update(audience="beginner", path_step=1, concept_map="schema/concepts/python-v0.json")
         self.write(self.data / "catalog.json", self.catalog)
         self.refused("onboarding-level")
         self.setUp()
@@ -437,16 +436,48 @@ class BeginnerDataTests(CourseFixture):
         self.write(self.data / "catalog.json", self.catalog)
         self.refused("start_question")
 
-    def test_an_unlisted_course_may_use_only_the_shared_python_vocabulary(self):
+    def test_a_course_without_a_map_of_its_own_names_the_python_map_and_there_is_no_fallback(self):
         self.add_beginner()
-        sql = self.maps["sql"]
-        self.write(self.root / "schema/concepts" / f"{self.B1}-v0.json", sql)
-        self.maps[self.B1] = sql
-        self.add_course(self.B1, [("b1-first", "sql.querying", "beginner")])
+        code, output = self.run_export()
+        self.assertEqual(code, 0, output)
+        # the derived vocabulary is the python map itself, and python's own files are not touched by sharing it
+        self.assertEqual(json.loads((self.data / f"concepts-{self.B1}.json").read_text(encoding="utf-8")), self.maps["python"])
+        self.assertEqual((self.data / "concepts.json").read_bytes(), exporter.serialize(self.maps["python"]))
         row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
-        row.update(audience="beginner", path_step=1)
-        self.write(self.data / "catalog.json", self.catalog)
-        self.refused("course-prefix")
+        for label, mutate in {
+            "its own map file": lambda r: r.update(concept_map=f"schema/concepts/{self.B1}-v0.json"),
+            "another course's map": lambda r: r.update(concept_map="schema/concepts/sql-v0.json"),
+            "no reference at all": lambda r: r.pop("concept_map"),
+            "a path outside the maps": lambda r: r.update(concept_map="../python-v0.json"),
+        }.items():
+            with self.subTest(label):
+                self.setUp()
+                self.add_beginner()
+                mutate(next(c for c in self.catalog["courses"] if c["id"] == self.B1))
+                self.write(self.data / "catalog.json", self.catalog)
+                self.copy(core.ROOT / "schema/concepts/python-v0.json", self.root / "schema/concepts" / f"{self.B1}-v0.json")
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("/courses/3/concept_map", output)
+
+    def test_the_courses_with_their_own_map_cannot_borrow_the_python_map(self):
+        for cid in ("production", "sql"):
+            with self.subTest(cid):
+                self.setUp()
+                next(c for c in self.catalog["courses"] if c["id"] == cid)["concept_map"] = "schema/concepts/python-v0.json"
+                self.write(self.data / "catalog.json", self.catalog)
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("catalog-map", output)
+
+    def test_a_course_on_the_shared_map_still_uses_only_python_concepts(self):
+        self.add_beginner()
+        question = json.loads((self.data / "questions" / "b1-first.json").read_text(encoding="utf-8"))
+        question["concepts"] = ["prod.timeouts-retries"]
+        self.write(self.data / "questions" / "b1-first.json", question)
+        code, output = self.run_export()
+        self.assertEqual(code, 1, output)
+        self.assertIn("b1-first", output)
 
     def test_practice_summary_is_short_plain_text(self):
         for bad in ("", "x" * 81, " lead", "trail ", "two\nlines", "tab\there", "\ufefflead", "trail\u00a0", 5, None, ["x"], "\u2028x"):

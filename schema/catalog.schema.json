@@ -96,7 +96,8 @@
         },
         "concept_map": {
           "type": "string",
-          "pattern": "^schema/concepts/[a-z0-9]+(?:-[a-z0-9]+)*-v0\\.json$"
+          "pattern": "^schema/concepts/[a-z0-9]+(?:-[a-z0-9]+)*-v0\\.json$",
+          "description": "The course vocabulary. python, production and sql name their own file; every other course names the shared Python map, schema/concepts/python-v0.json (the exporter checks which)."
         },
         "audience": {
           "enum": [

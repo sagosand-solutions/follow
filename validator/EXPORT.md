@@ -144,14 +144,16 @@ When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the
 (python, production, sql and any further course whose id follows the rule `[a-z0-9]+(-[a-z0-9]+)*`, at most 40 characters; at most
 8 courses); without a catalog it is the original single Python course, unchanged.
 
-- The catalog entry names the course vocabulary (`schema/concepts/<id>-v0.json`), the course file is
+- The catalog entry names the course vocabulary (`concept_map`, required, no fallback): `schema/concepts/<id>-v0.json` for python,
+  production and sql, and for every other course (a beginner course) exactly `schema/concepts/python-v0.json`, the shared Python map
+  (`catalog-map` otherwise; the derived `concepts-<id>.json` is then a copy of it, regenerated and checked like the others). The course file is
   `public/data/courses/<id>.json` (its `id` must equal the catalog id), and `free_questions` and `start_question` must match
   the course file (`catalog-count`, `catalog-start`). `premium.questions` is set by hand (the private repository is never read).
 - Every question is validated against the vocabulary of the **one** course that lists it. A question in two courses
   (`question-in-two-courses`) or in none (`orphan-question`), a course without a vocabulary or course file, and a duplicate
   or non-python catalog are errors.
 - Prefix rule (`course-prefix`): python may use `py.` only; production `prod.` and `py.`; sql `sql.` and `py.`; any other course
-  (a beginner course) `py.` only; for vocabulary ids, prerequisites, misconception references and a question's concepts and
+  (a beginner course, on the shared Python map) `py.` only; for vocabulary ids, prerequisites, misconception references and a question's concepts and
   misconceptions.
 - Labels for the home page, all optional: `audience` (`beginner` or `experienced`) says who a course is for, and `path_step`
   (an integer 1-3) puts a course on the beginner path. A step belongs to one course (`duplicate-path-step`). `premium` is

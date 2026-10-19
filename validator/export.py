@@ -18,6 +18,14 @@ PUBLIC_LICENSE = "CC-BY-SA-4.0"
 # a beginner course, may use the shared Python vocabulary only.
 COURSE_PREFIXES = {"python": ("py",), "production": ("prod", "py"), "sql": ("sql", "py")}
 DEFAULT_PREFIXES = ("py",)
+# The three courses that have a vocabulary of their own. Any other course (a beginner course) reads Python, so it must say so:
+# its catalog entry names the Python map. There is no fallback: the field is required and must be exactly one of these.
+OWN_MAP_COURSES = frozenset({"python", "production", "sql"})
+SHARED_MAP = "schema/concepts/python-v0.json"
+
+
+def expected_map(course_id):
+    return f"schema/concepts/{course_id}-v0.json" if course_id in OWN_MAP_COURSES else SHARED_MAP
 LEGACY_ENTRY = {"id": "python", "concept_map": "schema/concepts/python-v0.json"}
 
 
@@ -222,8 +230,8 @@ def _catalog_entries(root, schema_dir, add):
             if step in steps:
                 found.append(Issue("duplicate-path-step", f"/courses/{i}/path_step", f"Path step {step} is already taken by the course at /courses/{steps[step]}; a step belongs to one course"))
             steps.setdefault(step, i)
-        if isinstance(entry, dict) and entry.get("concept_map") != f"schema/concepts/{cid}-v0.json":
-            found.append(Issue("catalog-map", f"/courses/{i}/concept_map", f"Expected schema/concepts/{cid}-v0.json"))
+        if isinstance(entry, dict) and entry.get("concept_map") != expected_map(cid):
+            found.append(Issue("catalog-map", f"/courses/{i}/concept_map", f"Expected {expected_map(cid)}"))
     if not found and "python" not in seen:
         found.append(Issue("catalog-python", "/courses", "The catalog must list the python course"))
     for issue in found:
