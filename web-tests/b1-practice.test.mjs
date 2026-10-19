@@ -120,6 +120,10 @@ test('no sentence where the recording cannot prove it: unsafe frame, names left 
   const trace = traceOf('b1-2-a-pocket-uses-its-latest-number');
   const m = buildMoments(trace);
   assert.equal(narrate(trace, [{ ...m[0], safe: false }], 0), null);
+  const same = rec('', [['line', 1, { x: '1' }, 0], ['return', 1, { x: '2' }, 0]]);
+  const sm = buildMoments(same);
+  assert.equal(tokensText(narrate(same, sm, 0)), 'Line 1: x changes from 1 to 2.');
+  assert.equal(narrate(same, [{ ...sm[0], safe: false }], 0), null, 'not provably the same frame: no diff, so no claim');
   assert.equal(narrate(trace, m, m.length - 1), null, 'the end event keeps the player sentence');
   const v3 = (scope, omitted) => ({ ...rec('', []), steps: [
     { depth: 0, event: 'call', function: '<module>', line: 1, locals: {}, globals: {}, locals_omitted: 0, globals_omitted: 0, scope: 'module', frame_id: 1, stdout_len: 0 },
@@ -190,4 +194,28 @@ test('after answering a practice question, the player mounted from its recorded 
   assert.ok(now, 'the player is mounted from the pinned trace');
   assert.equal(text(now), 'Line 1: red now holds 4.');
   store.reset();
+});
+
+test('"No variable changes" only with proof: not after a del, an incomplete before, a value cut short, or a 0.2 function frame', () => {
+  // del y: y is gone after line 2 and no row says so
+  assert.deepEqual(said(rec('', [['line', 1, { x: '1', y: '2' }, 0], ['line', 2, { x: '1' }, 0], ['return', 2, { x: '1' }, 0]])).slice(0, 1), [null]);
+  assert.equal(said(rec('ok\n', [['line', 1, { y: '2' }, 0], ['return', 1, {}, 3]]))[0], 'Line 1 prints ok.', 'output still told, without the claim');
+  // a value cut short by the recorder can hide a change
+  const long = '[1, 2, 3, 4, 5, 6, 7, 8, …]';
+  assert.equal(said(rec('', [['line', 1, { xs: long }, 0], ['return', 1, { xs: long }, 0]]))[0], null);
+  assert.equal(said(rec('', [['line', 1, { s: "'wait...'" }, 0], ['return', 1, { s: "'wait...'" }, 0]]))[0], null);
+  // format 0.2 inside a function: only the frame's locals are recorded, a global may change unseen
+  const inFn = { ...rec('', []), steps: [
+    { depth: 0, event: 'call', function: '<module>', line: 1, locals: {}, stdout_len: 0 },
+    { depth: 1, event: 'call', function: 'bump', line: 1, locals: {}, stdout_len: 0 },
+    { depth: 1, event: 'line', function: 'bump', line: 3, locals: {}, stdout_len: 0 },
+    { depth: 1, event: 'return', function: 'bump', line: 3, locals: {}, stdout_len: 0, value: 'None' }] };
+  assert.ok(said(inFn).every((x) => x === null), 'no claim in a 0.2 function frame');
+  // format 0.3: a "before" with names left out proves nothing about them
+  const v3 = (beforeOmitted) => ({ ...rec('', []), steps: [
+    { depth: 0, event: 'call', function: '<module>', line: 1, locals: {}, globals: {}, locals_omitted: 0, globals_omitted: 0, scope: 'module', frame_id: 1, stdout_len: 0 },
+    { depth: 0, event: 'line', function: '<module>', line: 1, locals: {}, globals: { a: '1' }, locals_omitted: 0, globals_omitted: beforeOmitted, scope: 'module', frame_id: 1, stdout_len: 0 },
+    { depth: 0, event: 'return', function: '<module>', line: 1, locals: {}, globals: { a: '1' }, locals_omitted: 0, globals_omitted: 0, scope: 'module', frame_id: 1, stdout_len: 0 }] });
+  assert.equal(said(v3(0))[0], 'Line 1 runs. No variable changes.');
+  assert.equal(said(v3(1))[0], null);
 });

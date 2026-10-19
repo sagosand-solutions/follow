@@ -37,6 +37,20 @@ function printed(added) {
   return lines.flatMap((line, i) => [...(i ? [{ text: t('step.say.then') }] : []), line === '' ? { text: t('step.say.emptyLine') } : code(line)]);
 }
 
+// "No variable changes" is a claim about every variable, so it needs proof beyond an empty diff: the same names before and
+// after (a `del` leaves no row behind), a complete "before" (no names left out of it), whole values (a value cut short with
+// an ellipsis can hide a change), and in format 0.2 the module frame, whose variables are the globals (a function frame
+// records only its locals, so a `global` change would not show).
+const CUT = /…|\.\.\./;
+function nothingElseChanged(moment, rows, before) {
+  const { step } = moment;
+  if (!before || Object.keys(before).length !== rows.length) return false;
+  if ((step.locals_omitted || 0) > 0 || (step.globals_omitted || 0) > 0) return false;
+  if (rows.some((r) => CUT.test(r.value)) || Object.values(before).some((v) => CUT.test(String(v)))) return false;
+  if (!step.scope && step.function !== '<module>') return false;
+  return true;
+}
+
 export function narrate(trace, moments, index) {
   const moment = moments[index];
   if (!moment || moment.kind !== 'ran' || !moment.after || !moment.safe) return null;
@@ -50,12 +64,14 @@ export function narrate(trace, moments, index) {
     ? fill(t('step.say.new'), { name: code(r.name), value: code(r.value) })
     : fill(t('step.say.changed'), { name: code(r.name), old: code(before[r.name]), value: code(r.value) })));
   let tokens;
-  if (!changes.length && !state.added) tokens = fill(t('step.say.none'), { line });
-  else if (!changes.length) tokens = fill(t('step.say.printsOnly'), { line, out: printed(state.added) });
+  const quiet = !changes.length && nothingElseChanged(moment, rows, before);
+  if (!changes.length && !state.added) tokens = quiet ? fill(t('step.say.none'), { line }) : null;
+  else if (!changes.length) tokens = fill(quiet ? t('step.say.printsOnly') : t('step.say.prints'), { line, out: printed(state.added) });
   else {
     const parts = state.added ? [...changes, fill(t('step.say.itPrints'), { out: printed(state.added) })] : changes;
     tokens = fill(t('step.say.changes'), { line, changes: list(parts) });
   }
+  if (!tokens) return null;
   const next = moments[index + 1];
   if (next && next.kind === 'ran' && next.step.depth === moment.step.depth && next.step.function === moment.step.function && next.step.line !== line + 1) {
     tokens.push({ text: ' ' }, ...fill(t('step.say.next'), { line: next.step.line }));

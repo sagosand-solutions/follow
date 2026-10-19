@@ -475,6 +475,7 @@
   "step.say.new": "{name} now holds {value}",
   "step.say.changed": "{name} changes from {old} to {value}",
   "step.say.itPrints": "it prints {out}",
+  "step.say.prints": "Line {line} prints {out}.",
   "step.say.printsOnly": "Line {line} prints {out}. No variable changes.",
   "step.say.none": "Line {line} runs. No variable changes.",
   "step.say.and": ", and ",
