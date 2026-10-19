@@ -30,7 +30,7 @@ export function rankText(me) {
   if (me.moderation === 'hidden') return t('rank.hidden');
   const place = { place: me.rank.value, total: me.rank.participants };
   if (me.rank.kind === 'actual') return t('rank.actual', place);
-  if (me.rank.kind === 'hypothetical') return t('rank.hypothetical', place);
+  if (me.rank.kind === 'hypothetical') return me.rank.participants === 1 ? t('rank.hypothetical.one', place) : t('rank.hypothetical', place);
   return me.scope_score === null ? t('rank.noScore') : t('rank.none');
 }
 

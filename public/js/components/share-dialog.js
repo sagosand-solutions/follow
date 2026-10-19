@@ -14,7 +14,8 @@ export const canShowAlias = (me, alias) => !!me && me.published === true && me.m
 export function shareParts({ me, listLabel, scopeLabel, alias = null }) {
   const week = weekText(me.window, { timeZone: 'UTC' });
   const place = { place: me.rank.value, total: me.rank.participants };
-  const rank = me.rank.kind === 'actual' ? t('share.actual', place) : me.rank.kind === 'hypothetical' ? t('share.hypothetical', place) : t('share.unranked');
+  const hypothetical = () => (me.rank.participants === 1 ? t('share.hypothetical.one', place) : t('share.hypothetical', place));
+  const rank = me.rank.kind === 'actual' ? t('share.actual', place) : me.rank.kind === 'hypothetical' ? hypothetical() : t('share.unranked');
   return {
     product: CONFIG.productName || t('site.brand'),
     alias: canShowAlias(me, alias) ? alias : null,
@@ -57,6 +58,7 @@ export function drawShareImage(parts, doc = document) {
 
 // Open the dialog. It closes and empties its preview as soon as who is signed in changes, and every action checks that first.
 export function openShareDialog({ me, listLabel, scopeLabel, alias = null, client }) {
+  if (!canShare(me)) return null;                       // the button guards this too; without a score there is nothing to share
   const gen = client.authGeneration();
   const opener = document.activeElement;
   const withAlias = canShowAlias(me, alias);

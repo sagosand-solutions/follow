@@ -6,7 +6,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { loadCourses } from '../data.js';
 import { refresh } from '../router.js';
-import { eyebrow } from '../components/ui.js';
+import { eyebrow, pluralTemplate } from '../components/ui.js';
 import { placementBlock, weekLine, focusPlaceNext, takePlaceFocus } from '../components/score-ui.js';
 import { parseMe, parsePage, sameSnapshot, localScore, loadedRange } from '../scoring/board.js';
 import { openShareDialog } from '../components/share-dialog.js';
@@ -18,10 +18,14 @@ const PERIODS = ['week', 'all'];
 const PAGE = 50;
 const AROUND = 5;                                        // the server's own cursor starts two places above you: 2 + you + 2
 
-export function readBoardQuery(hash, courseIds) {
+// The course in the address is only a request: it is used when the scoring catalog itself lists it (see below), never
+// because the site happens to have a course with that id.
+const SCORING_COURSE = /^[a-z][a-z0-9-]{0,63}$/;
+export function readBoardQuery(hash) {
   const q = new URLSearchParams((hash || '').split('?')[1] || '');
   const pick = (value, allowed, fallback) => (allowed.includes(value) ? value : fallback);
-  return { list: pick(q.get('list'), LISTS, 'challenge'), period: pick(q.get('period'), PERIODS, 'week'), course: pick(q.get('course'), ['all', ...courseIds], 'all') };
+  const course = q.get('course');
+  return { list: pick(q.get('list'), LISTS, 'challenge'), period: pick(q.get('period'), PERIODS, 'week'), course: course && SCORING_COURSE.test(course) ? course : 'all' };
 }
 
 const queryString = (s) => `#/leaderboard?list=${s.list}&period=${s.period}&course=${s.course}`;
@@ -76,10 +80,10 @@ export async function leaderboardView(params, depth = 0) {
   const fail = (text, before = null) => { const s = statusLine(text); return shell([before, s], () => s.focus()); };
   if (!CONFIG.accountsApi) return fail(t('lb.notConfigured'));
   let courses;
-  try { courses = await loadCourses(); } catch { return fail(t('lb.coursesFailed')); }
+  try { courses = await loadCourses(); } catch { courses = []; }   // titles only: a course id stays readable as text
   const client = getClient();
   if (client.mock !== false || typeof client.scoringLeaderboards !== 'function') return fail(t('lb.notConfigured'));
-  const query = readBoardQuery(globalThis.location.hash, courses.map((e) => e.id));
+  const query = readBoardQuery(globalThis.location.hash);
   const state = stateOf(query);
   const gen = client.authGeneration();
   // Who is signed in changed while an answer was on the way: drop everything and ask again as the new reader.
@@ -89,15 +93,28 @@ export async function leaderboardView(params, depth = 0) {
   const signedIn = account?.signed_in === true;
   const change = (key, value) => { query[key] = value; globalThis.location.hash = queryString(query).slice(1); };
   const controls = h('div', { class: 'board-controls' }, radios('list', LISTS, query.list, t('board.list.label'), (v) => change('list', v)), radios('period', PERIODS, query.period, t('board.period.label'), (v) => change('period', v)));
-  const courseSelect = h('select', { class: 'theme-select board-course', 'aria-label': t('board.course.label') }, h('option', { value: 'all' }, t('board.course.all')), courses.map((e) => h('option', { value: e.id }, e.course.title)));
-  courseSelect.value = query.course;
-  courseSelect.addEventListener('change', () => change('course', courseSelect.value));
-  controls.append(courseSelect);
 
-  const page = first.ok ? parsePage(first) : null;
-  if (!page) return fail(t('rank.unavailable'), controls);
   // Your own answer is optional (a reader who never played may have none), but when it is there it must match the page.
   const me = meAnswer.ok ? parseMe(meAnswer) : null;
+  // The course filter comes only from the scoring catalog: the course ids of your own /scoring/me for this family and
+  // catalog version. A course it does not list (unknown, gone after a catalog change, or no answer to check against) is not
+  // shown: the address falls back to all courses, without a new history entry.
+  const scoringCourses = me ? me.courses.map((c) => c.course_id) : null;
+  if (query.course !== 'all' && !(scoringCourses && scoringCourses.includes(query.course))) {
+    if (depth >= 2) return fail(t('rank.unavailable'));
+    globalThis.history?.replaceState?.(null, '', queryString({ ...query, course: 'all' }));
+    if (!globalThis.history?.replaceState) globalThis.location.hash = queryString({ ...query, course: 'all' }).slice(1);
+    return leaderboardView(params, depth + 1);
+  }
+  const titleOf = (id) => courses.find((e) => e.id === id)?.course.title || id;
+  if (scoringCourses && scoringCourses.length) {
+    const courseSelect = h('select', { class: 'theme-select board-course', 'aria-label': t('board.course.label') }, h('option', { value: 'all' }, t('board.course.all')), scoringCourses.map((id) => h('option', { value: id }, titleOf(id))));
+    courseSelect.value = query.course;
+    courseSelect.addEventListener('change', () => change('course', courseSelect.value));
+    controls.append(courseSelect);
+  }
+  const page = first.ok ? parsePage(first) : null;
+  if (!page) return fail(t('rank.unavailable'), controls);
   if (meAnswer.ok && !me) return fail(t('rank.unavailable'), controls);
   const stale = () => { const s = staleBlock(); return shell([controls, s.node], () => s.focus.focus()); };
   if (me && !sameSnapshot(me, page)) return stale();
@@ -110,7 +127,7 @@ export async function leaderboardView(params, depth = 0) {
     if (!own || !sameSnapshot(me, own) || !own.entries.some((e) => e.me)) return stale();
   }
 
-  const courseTitle = query.course === 'all' ? t('board.course.all') : courses.find((e) => e.id === query.course)?.course.title || query.course;
+  const courseTitle = query.course === 'all' ? t('board.course.all') : titleOf(query.course);
   const caption = t('lb.caption', { list: t(`board.list.${query.list}`), period: t(`board.period.${query.period}`), course: courseTitle, catalog: page.catalog_version, rules: page.rules_version });
   const table = boardTable(caption, page.entries);
   const tbody = table.querySelector('tbody');
@@ -159,7 +176,7 @@ export async function leaderboardView(params, depth = 0) {
   const alias = (page.entries.find((e) => e.me) || own?.entries.find((e) => e.me))?.alias || null;
   const onShare = () => openShareDialog({ me, listLabel: t(`board.list.${query.list}`), scopeLabel: courseTitle, alias, client });
   const place = me ? h('section', { class: 'score-card' }, h('h2', {}, t('lb.yours')), placementBlock({ me, signedIn, onPublish: publish(true), onUnpublish: publish(false), onShare })) : null;
-  const view = shell([controls, place, page.entries.length ? section : statusLine(t('lb.empty')), ownBlock], null, [h('p', { class: 'lead' }, t('lb.participants', { n: page.participants })), weekLine(page.window)]);
+  const view = shell([controls, place, page.entries.length ? section : statusLine(t('lb.empty')), ownBlock], null, [h('p', { class: 'lead' }, pluralTemplate(page.participants, t('lb.participants.one', { n: page.participants }), t('lb.participants', { n: page.participants }))), weekLine(page.window)]);
   view.after = () => { watchAuth(client, '#/leaderboard'); takePlaceFocus(view.node); };
   return view;
 }

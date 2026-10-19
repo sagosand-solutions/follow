@@ -474,6 +474,7 @@
   "rank.score": "Your score: {score} points",
   "rank.actual": "Place {place} of {total}",
   "rank.hypothetical": "For comparison: {total} readers are on this list, and this score would place {place}. You are not on the list.",
+  "rank.hypothetical.one": "For comparison: {total} reader is on this list, and this score would place {place}. You are not on the list.",
   "rank.none": "No ranking for this list yet.",
   "rank.noScore": "No ranked answers in this list yet.",
   "rank.hidden": "Your entry is hidden from public lists.",
@@ -485,6 +486,7 @@
   "rank.week": "This week: {from} – {to} (UTC). Resets {day} at {time} your time ({zone}).",
   "lb.caption": "{list} list · {period} · {course} · catalog {catalog} · rules {rules}",
   "lb.participants": "{n} published participants",
+  "lb.participants.one": "{n} published participant",
   "lb.yours": "Your place on this list",
   "lb.you": "You",
   "lb.yourPlace": "Your place",
@@ -495,7 +497,6 @@
   "lb.restart": "Start from the top",
   "lb.empty": "Nobody is on this list yet.",
   "lb.notConfigured": "The scoring service is not configured. No local scores or sample rankings are shown.",
-  "lb.coursesFailed": "Course data could not be loaded.",
   "profile.server.lead": "Points from first tries, checked on the server. What you learn in this browser stays separate.",
   "profile.server.title": "{list} score",
   "profile.server.counts": "{n} of {pool} questions answered · catalog {catalog} · rules {rules}",
@@ -529,6 +530,7 @@
   "share.points": "{score} points",
   "share.actual": "place {place} of {total}",
   "share.hypothetical": "not on the list (for comparison: place {place}, with {total} readers on it)",
+  "share.hypothetical.one": "not on the list (for comparison: place {place}, with {total} reader on it)",
   "share.unranked": "unranked",
   "share.versions": "catalog {catalog} · rules {rules}"
 }

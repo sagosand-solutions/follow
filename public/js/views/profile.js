@@ -28,7 +28,7 @@ export async function profileView(params, depth = 0) {
   if (client.mock !== false || typeof client.scoringMe !== 'function') return fail(t('lb.notConfigured'));
   let courses = [];
   try { courses = await loadCourses(); } catch { /* ids remain visible below */ }
-  const query = readBoardQuery(globalThis.location.hash, []);
+  const query = readBoardQuery(globalThis.location.hash);
   const state = { family: query.list === 'free' ? 'free' : 'official', scope: 'total', window: query.period };
   const gen = client.authGeneration();
   const again = () => (depth < 2 ? profileView(params, depth + 1) : fail(t('rank.unavailable')));

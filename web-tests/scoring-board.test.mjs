@@ -35,6 +35,8 @@ globalThis.document = { createElement: (t) => new Node(t), createTextNode: (text
 let clipboard = [];
 Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText: async (text) => { clipboard.push(text); } } }, configurable: true });
 globalThis.location = { hash: '#/leaderboard', pathname: '/' };
+let replaced = [];
+globalThis.history = { replaceState(_s, _t, url) { replaced.push(url); globalThis.location.hash = url; } };
 globalThis.window = { addEventListener() {}, scrollTo() {} };
 
 // ---- fixtures (team-free copies of the plan's derived numbers) ----
@@ -450,4 +452,45 @@ test('no name box for a reader who is not on the list; no share without a score,
   const count = document.body.children.length;
   await off.fire('click');
   assert.equal(document.body.children.length, count, 'no dialog');
+});
+
+// ---- the course filter comes from the scoring catalog, never from the site's course list ----
+const options = (node) => node.all((n) => n.tag === 'option').map((o) => [o.attrs.value, text(o)]);
+
+test('course filter: the courses of your own /scoring/me, titled by a known id or shown as the id', async () => {
+  const few = meKim({ courses: [courses[0], { course_id: 'dev-intro', points: 0, score_display: '0.00', answered: 0, pool: 6 }] });
+  serve({ me: () => reply(200, few) });
+  const { node } = await leaderboardView();
+  assert.deepEqual(options(node), [['all', 'All courses'], ['python', 'Python: reading code'], ['dev-intro', 'dev-intro']]);
+});
+
+test('a course the scoring catalog does not list (or no list at all) falls back to all courses, without a history entry', async () => {
+  replaced = [];
+  serve({ me: () => reply(200, meKim()) });
+  globalThis.location.hash = '#/leaderboard?list=challenge&period=week&course=not-a-course';
+  let view = await leaderboardView();
+  assert.deepEqual(replaced, ['#/leaderboard?list=challenge&period=week&course=all']);
+  assert.match(text(view.node.find((n) => n.tag === 'caption')), /All courses/);
+  // signed out with no scoring identity: there is no authoritative list, so no course filter and no course scope
+  replaced = [];
+  serve({ account: signedOut, me: signedOut });
+  globalThis.location.hash = '#/leaderboard?list=challenge&period=week&course=sql';
+  view = await leaderboardView();
+  assert.deepEqual(replaced, ['#/leaderboard?list=challenge&period=week&course=all']);
+  assert.equal(view.node.all((n) => n.tag === 'select').length, 0);
+  assert.ok(calls.filter((c) => c.url.includes('/leaderboards')).at(-1).url.includes('scope=total'));
+  globalThis.location.hash = '#/leaderboard';
+});
+
+test('one reader: singular words, and no share dialog without a score', async () => {
+  const lone = meKim({ rank: { kind: 'hypothetical', value: 2, participants: 1 }, published: false, own_cursor: null });
+  serve({ me: () => reply(200, lone), boards: () => reply(200, pageTop({ participants: 1, entries: [row(1, 'ada', '250.00')], next_cursor: null }, false)) });
+  const { node } = await leaderboardView();
+  assert.match(text(node), /1 published participant(?!s)/);
+  assert.match(text(node), /For comparison: 1 reader is on this list, and this score would place 2\./);
+  assert.match(share.shareText(share.shareParts({ me: board.parseMe(lone), listLabel: 'Official', scopeLabel: 'All courses' })), /with 1 reader on it\)/);
+  const none = board.parseMe(meKim({ scope_score: null, rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null }));
+  const before = document.body.children.length;
+  assert.equal(share.openShareDialog({ me: none, listLabel: 'Official', scopeLabel: 'All courses', client: { authGeneration: () => 0, onAuthChange: () => () => {} } }), null);
+  assert.equal(document.body.children.length, before);
 });
