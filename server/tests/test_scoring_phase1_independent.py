@@ -7,10 +7,15 @@ grupper i denna fil markeras nedan; övriga grupper (S1–S7) läggs till i samm
 
 Grupper: [x] S8   [ ] S1  [ ] S2  [ ] S3  [ ] S4  [ ] S5  [ ] S6  [ ] S7
 """
+import json
+import os
 import re
+import shutil
 import sqlite3
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from server.tests.scoring_support import build_scoring_fixture
 from server.tests.support import json_body
@@ -151,6 +156,92 @@ class S8LockUnchangedTests(S8Base):
         self.assertEqual(self.fx.answer(issue, "Wrong", user="u1", key="t" * 16)[0], 200)
         self.assertEqual(self.fx.issue("py-free-f01", user="u1")[0][0], 409)
         self.assertEqual(self.rows("SELECT COUNT(*) FROM first_attempts WHERE question_id = 'py-free-f01'"), [(1,)])
+
+
+class S4CursorTests(S8Base):
+    """Mutation: trust str.isdigit()/int() on cursor parts, or skip the revision check -> a tampered/older cursor is accepted."""
+
+    def preferences(self, user, nickname, family="free", opt_in=True):
+        return self.fx.post("/scoring/preferences", {"family": family, "opt_in": opt_in, "nickname": nickname}, user)
+
+    def play(self, user, qids):
+        for q in qids:
+            _, issue = self.fx.issue(q, user=user)
+            key = (user + q).replace("-", "").ljust(16, "k")[:16]
+            self.assertEqual(self.fx.answer(issue, "Right", user=user, key=key)[0], 200, q)
+
+    def board(self, user=None, **query):
+        from urllib.parse import urlencode
+        return self.fx.get("/leaderboards", user=user, query=urlencode(query).encode())
+
+    def published_board(self):
+        self.assertEqual(self.preferences("u1", "AAA")[0], 200)
+        self.assertEqual(self.preferences("u2", "BBB")[0], 200)
+        self.play("u1", self.fx.questions["free"][:2])
+        self.play("u2", self.fx.questions["free"][:1])
+        body = json_body(self.board(family="free", scope="total", window="all", limit=1))
+        self.assertIsNotNone(body["next_cursor"])
+        return body
+
+    def test_a_tampered_or_misshapen_cursor_is_invalid(self):
+        offset, revision, signature = self.published_board()["next_cursor"].split(".")
+        for bad in ("", "a.b", f"{int(offset) + 1}.{revision}.{signature}", f"{offset}.{revision}.{'z' * 24}",
+                    f"{offset}.{revision}.{signature}.extra"):
+            response = self.board(family="free", scope="total", window="all", limit=1, cursor=bad)
+            self.assertEqual((response[0], json_body(response)["error"]["code"]), (400, "invalid"), bad)
+
+    def test_non_ascii_digits_in_a_cursor_part_are_invalid_never_a_server_error(self):
+        for offset, revision in (("²", "1"), ("１", "1"), ("1", "١"), ("١", "١"), ("1²", "1"), ("1", "2٣")):
+            response = self.board(family="free", scope="total", window="all", limit=1, cursor=f"{offset}.{revision}.{'a' * 24}")
+            self.assertEqual((response[0], json_body(response)["error"]["code"]), (400, "invalid"), (offset, revision))
+
+    def test_a_cursor_from_an_older_board_revision_is_stale(self):
+        cursor = self.published_board()["next_cursor"]
+        self.play("u2", self.fx.questions["free"][1:2])          # a later published answer bumps this (version, window)
+        response = self.board(family="free", scope="total", window="all", limit=1, cursor=cursor)
+        self.assertEqual((response[0], json_body(response)["error"]["code"]), (409, "stale_cursor"))
+
+
+class S9DevModeTests(unittest.TestCase):
+    """Mutation: keep the production refusal only in main(), or serve the in-memory dev source / real content -> a dev app runs in prod."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix="k3-033-dev-"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def test_production_is_refused_before_any_side_effect(self):
+        from server import dev, dev_scoring
+        for value in ("production", " Production ", "PRODUCTION\n", "\tproduction"):
+            for scoring in (True, False):
+                with mock.patch.dict(os.environ, {"APP_ENV": value}), \
+                        mock.patch.object(dev_scoring, "write_pools") as write, mock.patch.object(dev_scoring, "seed_accounts") as seed, \
+                        mock.patch.object(dev, "Database") as database, mock.patch.object(dev, "create_app") as create:
+                    with self.assertRaises(dev.DevRefused):
+                        dev.build_dev_app(port=8123, db_path=str(self.root / "a.db"),
+                                          scoring_dir=str(self.root / "pools") if scoring else None)
+                    for called in (write, seed, database, create):
+                        called.assert_not_called()
+        self.assertFalse((self.root / "pools").exists())
+
+    def test_the_dev_pool_is_synthetic_labelled_private_and_off_without_the_flag(self):
+        from server import dev, dev_scoring
+        with mock.patch.dict(os.environ, {"APP_ENV": "development"}):
+            app, settings = dev.build_dev_app(port=8123, db_path=str(self.root / "a.db"), scoring_dir=str(self.root / "pools"))
+        self.assertEqual(len(app.state.dev_scoring), 3, "three seeded readers")
+        self.assertTrue(settings.scoring.free_manifest and not settings.scoring.dev_source,
+                        "the private manifest, never the in-memory dev source")
+        self.assertNotIn("public", settings.scoring.free_manifest)
+        entries = [e for family in ("official", "free")
+                   for e in json.loads((self.root / "pools" / family / "manifest.json").read_text())["entries"]]
+        self.assertGreater(len(entries), 10)
+        for entry in entries:
+            self.assertTrue(entry["id"].startswith("dev-"), entry["id"])
+        for path in (self.root / "pools").rglob("*.txt"):
+            self.assertIn(dev_scoring.LABEL, path.read_text(encoding="utf-8"), "every question says it is synthetic")
+        with mock.patch.dict(os.environ, {"APP_ENV": "development"}):
+            app2, settings2 = dev.build_dev_app(port=8123, db_path=str(self.root / "b.db"))
+        self.assertFalse(settings2.scoring.any(), "without --scoring nothing is switched on")
+        self.assertIsNone(app2.state.dev_scoring)
 
 
 if __name__ == "__main__":
