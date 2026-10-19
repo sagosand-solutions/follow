@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tests for the development runner: production is refused and the mock-mode app
 answers a GET over the shared origin (task: dev-runner)."""
 from __future__ import annotations

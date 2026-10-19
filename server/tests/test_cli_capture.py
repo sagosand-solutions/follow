@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """run_cli_captured: garbage from earlier tests never lands in the captured stderr, and the command's own output still does."""
 import gc
 import sqlite3

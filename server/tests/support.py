@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Shared test support for the 020 HTTP tests: a dependency-free ASGI client and
 fixtures built on temporary databases and synthetic private content."""
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Paddle bookkeeping tables: operations, verified-event evidence with bounded orphan queue, reconcile leases."""
 import sqlite3
 import tempfile

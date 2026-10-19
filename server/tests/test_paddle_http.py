@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Paddle configuration, checkout and webhook routes over a scripted injected transport (sandbox/test only)."""
 import asyncio
 import dataclasses

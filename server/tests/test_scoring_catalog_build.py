@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tests for the generic scoring-catalog builder.
 
 All content here is synthetic: no private question, path or metadata is read or

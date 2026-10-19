@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Atomic payment-event apply: dedup, fencing, transition policy, CAS, grant/revoke and event row are one effect."""
 import sqlite3
 import tempfile
