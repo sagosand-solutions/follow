@@ -244,5 +244,46 @@ class S9DevModeTests(unittest.TestCase):
         self.assertIsNone(app2.state.dev_scoring)
 
 
+class S5RankTests(unittest.TestCase):
+    """Mutation: ROW_NUMBER instead of RANK, or a hypothetical 0 for an empty scope -> ties break and an empty scope looks ranked."""
+
+    def setUp(self):
+        self.fx, tmp = build_scoring_fixture(users=("u1", "u2", "u3", "u4"), free=(("py-free", 3),))
+        self.addCleanup(tmp.cleanup)
+
+    def publish(self, user, nickname):
+        self.assertEqual(self.fx.post("/scoring/preferences", {"family": "free", "opt_in": True, "nickname": nickname}, user)[0], 200)
+
+    def answer(self, user, q, correct):
+        _, issue = self.fx.issue(q, user=user)
+        key = (user + q + "x").replace("-", "").ljust(16, "k")[:16]
+        self.assertEqual(self.fx.answer(issue, "Right" if correct else "Wrong", user=user, key=key)[0], 200)
+
+    def board(self, **query):
+        from urllib.parse import urlencode
+        return json_body(self.fx.get("/leaderboards", user=None, query=urlencode(query).encode()))
+
+    def me(self, user, **query):
+        from urllib.parse import urlencode
+        return json_body(self.fx.get("/scoring/me", user=user, query=urlencode(query).encode()))
+
+    def test_equal_exact_scores_share_a_rank_and_the_next_row_is_third(self):
+        for user, nickname in (("u1", "One"), ("u2", "Two"), ("u3", "Three")):
+            self.publish(user, nickname)
+        self.answer("u1", "py-free-f00", True)
+        self.answer("u2", "py-free-f00", True)
+        self.answer("u3", "py-free-f00", False)
+        entries = self.board(family="free", scope="total", window="all", limit=10)["entries"]
+        self.assertEqual(sorted(e["rank"] for e in entries), [1, 1, 3], "a tie shares the rank and the next row skips to third")
+        ranks = {e["alias"]: e for e in entries}
+        self.assertEqual(ranks["One"]["points"], ranks["Two"]["points"], "the two tied rows have identical exact scores")
+
+    def test_no_attempt_in_a_scope_is_none_not_a_hypothetical_zero(self):
+        self.publish("u4", "Four")                              # published, but no attempt in free
+        body = self.me("u4", family="free")
+        self.assertEqual(body["rank"], {"kind": "none", "value": None, "participants": 0})
+        self.assertIsNone(body["scope_score"], "an empty scope is never reported as a hypothetical zero")
+
+
 if __name__ == "__main__":
     unittest.main()
