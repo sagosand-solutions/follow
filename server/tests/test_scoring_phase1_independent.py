@@ -476,5 +476,86 @@ class S1AnonymityTests(S8Base):
         self.assertEqual((second[0], json_body(second)["error"]["code"]), (409, "claim_conflict"))
 
 
+class _QueryCounter:
+    """Counts the DML statements of the requests made inside the context, by tracing every connection the app opens."""
+
+    def __enter__(self):
+        import server.db as db
+        self._db = db
+        self._orig = db.connect
+        self.statements = []
+        seen = self.statements
+
+        def wrapped(path, **kwargs):
+            conn = self._orig(path, **kwargs)
+            conn.set_trace_callback(seen.append)
+            return conn
+
+        db.connect = wrapped
+        return self
+
+    def __exit__(self, *exc):
+        self._db.connect = self._orig
+
+    def dml(self):
+        return [s for s in self.statements if s.strip().upper().startswith(("SELECT", "INSERT", "UPDATE", "DELETE"))]
+
+
+class S6QueryBudgetTests(unittest.TestCase):
+    """Mutation: a second COUNT for the participants of an empty page, or a per-row alias query -> the count stops being constant."""
+
+    def setUp(self):
+        self.fx, tmp = build_scoring_fixture(users=tuple(f"u{i}" for i in range(1, 9)), free=(("py-free", 5),))
+        self.addCleanup(tmp.cleanup)
+
+    def publish_and_answer(self, user):
+        self.assertEqual(self.fx.post("/scoring/preferences", {"family": "free", "opt_in": True, "nickname": f"N{user}"}, user)[0], 200)
+        _, issue = self.fx.issue(self.fx.questions["free"][0], user=user)
+        self.assertEqual(self.fx.answer(issue, "Right", user=user, key=(user + "k").ljust(16, "k")[:16])[0], 200)
+
+    def board(self, **query):
+        from urllib.parse import urlencode
+        return self.fx.get("/leaderboards", user=None, query=urlencode(query).encode())
+
+    def test_the_query_count_is_constant_for_an_empty_one_row_and_a_full_page(self):
+        with _QueryCounter() as counter:
+            self.board(family="free", scope="total", window="all", limit=50)
+        empty = len(counter.dml())
+        self.publish_and_answer("u1")
+        with _QueryCounter() as counter:
+            self.board(family="free", scope="total", window="all", limit=1)
+        one = len(counter.dml())
+        self.publish_and_answer("u2")
+        with _QueryCounter() as counter:
+            self.board(family="free", scope="total", window="all", limit=50)
+        full = len(counter.dml())
+        self.assertEqual(empty, one, "an empty page costs what a one-row page costs")
+        self.assertEqual(one, full, "a full page costs what a one-row page costs")
+
+    def test_board_revision_is_bound_to_the_family_and_moves_both_windows(self):
+        official = lambda: json_body(self.fx.get("/leaderboards", user=None, query=b"family=official&scope=total&window=all"))["board_revision"]
+        free_all = lambda: json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all"))["board_revision"]
+        free_week = lambda: json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=week"))["board_revision"]
+        self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all")       # create/open both versions
+        self.fx.get("/leaderboards", user=None, query=b"family=official&scope=total&window=all")
+        official_before, free_all_before, free_week_before = official(), free_all(), free_week()
+
+        self.publish_and_answer("u1")
+        self.assertEqual(official(), official_before, "a free preference/answer does not touch the official board")
+        self.assertGreater(int(free_all()), int(free_all_before), "a published answer moves the free board (all)")
+        self.assertGreater(int(free_week()), int(free_week_before), "a published answer moves the free board (week)")
+
+    def test_an_own_row_beyond_the_first_page_is_reachable_through_its_own_cursor(self):
+        for i in range(1, 9):
+            self.publish_and_answer(f"u{i}")
+        me = json_body(self.fx.get("/scoring/me", user="u8", query=b"family=free"))
+        self.assertIsNotNone(me["own_cursor"], "an own row past the first page has its own cursor")
+        from urllib.parse import urlencode
+        page = json_body(self.fx.get("/leaderboards", user="u8",
+                                     query=urlencode({"family": "free", "scope": "total", "window": "all", "limit": 5,
+                                                      "cursor": me["own_cursor"]}).encode()))
+        self.assertTrue(any(e.get("is_me") for e in page["entries"]), "the fetched page holds the reader's own row")
+
+
 if __name__ == "__main__":
     unittest.main()
