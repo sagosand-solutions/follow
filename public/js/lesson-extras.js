@@ -9,7 +9,7 @@
 const INTRO_KEYS = ['before_question_ids', 'example', 'explanation', 'id', 'term'];
 const INTRO_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const LIMITS = { term: 60, explanation: 240, example: 240 };
-const plain = (value, max) => typeof value === 'string' && value.trim() === value && value.length > 0 && value.length <= max && !/[\u0000-\u001f\u007f]/.test(value);
+const plain = (value, max) => typeof value === 'string' && value.trim() === value && value.length > 0 && value.length <= max && !/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(value);
 
 export const SUMMARY_MAX = 80;
 

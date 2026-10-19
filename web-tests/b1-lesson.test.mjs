@@ -85,7 +85,7 @@ const fresh = (catalog = catalogWith()) => { catalogFile = catalog; data.clearDa
 
 test('practice_summary: a short plain fragment or nothing', () => {
   assert.equal(extras.practiceSummary(lesson('b1-2')), 'following the numbers held by named pockets');
-  for (const bad of ['x'.repeat(81), ' leading space', 'two\nlines', '', 42, null]) assert.equal(extras.practiceSummary({ practice_summary: bad }), null, JSON.stringify(bad));
+  for (const bad of ['x'.repeat(81), ' leading space', 'two\nlines', 'a\u0085b', 'a\u2028b', 'a\u2029b', '', 42, null]) assert.equal(extras.practiceSummary({ practice_summary: bad }), null, JSON.stringify(bad));
   assert.equal(extras.practiceSummary({}), null);
 });
 
