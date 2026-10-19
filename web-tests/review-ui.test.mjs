@@ -42,12 +42,32 @@ test('the queue empties to nothing and nextReview returns null, advances in cour
   assert.equal(nextReview(queue, 'q2', course).questionId, 'q3', 'the current item left the queue: continue after its place');
 });
 
-test('the review routes are wired and the queue module keeps no DOM or storage dependency', async () => {
-  // Two properties a behaviour test cannot show: the router wiring in the entry point, and the queue module's own lack of a
-  // store or DOM. Both are static invariants of the source, checked here on purpose (not behaviour).
-  const main = await readFile(new URL('../public/js/main.js', import.meta.url), 'utf8');
+test('the view wiring for every review entry point is pinned (justified source checks)', async () => {
+  // These are the three view-level guards the previous file carried. They cannot be behaviour-tested here without rendering the
+  // views (the browser-only DOM stack); each one kills a real regression mutant, so they stay, grouped and justified. The queue
+  // rules themselves are covered by the behaviour tests above. Rule: a guard is only removed once a behaviour test kills the same mutant.
+  const read = (path) => readFile(new URL(`../public/js/${path}`, import.meta.url), 'utf8');
+  const [main, view, home, course, lesson, question] = await Promise.all([
+    read('main.js'), read('views/review.js'), read('views/home.js'), read('views/course.js'), read('views/lesson.js'), read('views/question.js'),
+  ]);
+  // router wiring (main.js cannot be imported in a test)
   assert.match(main, /registerRoute\('\/review', reviewView\)/);
   assert.match(main, /registerRoute\('\/course\/:id\/review', reviewView\)/);
-  const pure = await readFile(new URL('../public/js/review.js', import.meta.url), 'utf8');
-  assert.doesNotMatch(pure, /localStorage|createStore|store\./, 'the queue rules carry no storage dependency');
+  // the review view: the queue is derived from progress, the empty state exists and the question view is opened in review mode
+  assert.match(view, /reviewQueue\(course, store\.answers\(\)\)/);       // mutant: ignore progress -> dies here
+  assert.match(view, /queue\.length === 0/);                             // mutant: drop the empty state -> dies here
+  assert.match(view, /questionView\(\{ id: current\.questionId, course, reviewMode: true \}\)/);
+  // the three entry points only offer the link with a positive count, from home, course and lesson end
+  for (const source of [home, course, lesson]) {
+    assert.match(source, /reviewCount > 0/);                             // mutant: always/never show -> dies here
+    assert.match(source, /href: reviewHref\(/);
+    assert.match(source, /t\('review\.button', \{ count: reviewCount \}\)/);
+  }
+  assert.match(home, /if \(answeredCount > 0\)/);
+  // the question view navigates to the next review item after an answer
+  assert.match(question, /nextReview\(reviewQueue\(ctx\.course, store\.answers\(\)\), q\.id, ctx\.course\)/);   // mutant: never advance -> dies here
+  assert.match(question, /review\.position/);
+  // the queue rules still carry no DOM or storage dependency (a negative property, not behaviour)
+  const pure = await read('review.js');
+  assert.doesNotMatch(pure, /localStorage|createStore|store\./);
 });
