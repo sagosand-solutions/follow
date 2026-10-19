@@ -305,6 +305,286 @@ class ExportIsTheGateTests(CourseFixture):
         self.assertIn("--concept-map schema/concepts/sql-v0.json", readme, "author examples per course are documented")
 
 
+class BeginnerDataTests(CourseFixture):
+    """037: catalog labelling (audience, path_step), course ids by rule, and the optional lesson fields of beginner courses."""
+    B1 = "read-like-a-computer"
+
+    def add_beginner(self, **entry):
+        """The beginner course: it reads the shared Python vocabulary, named explicitly in its catalog entry. Two questions in one lesson."""
+        self.maps[self.B1] = self.maps["python"]
+        self.add_course(self.B1, [("b1-first", "py.values", "beginner"), ("b1-second", "py.values", "beginner")])
+        course = self.courses[self.B1]
+        course["levels"][0]["lessons"] = [{"id": "b1-l1", "title": "Lesson one", "builds_on": [], "questions": ["b1-first", "b1-second"]}]
+        self.write(self.data / "courses" / f"{self.B1}.json", course)
+        row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
+        row.update(audience="beginner", path_step=1, concept_map="schema/concepts/python-v0.json", **entry)
+        row.pop("premium", None)
+        self.write(self.data / "catalog.json", self.catalog)
+
+    def lesson(self, **fields):
+        course = self.courses[self.B1]
+        course["levels"][0]["lessons"][0].update(fields)
+        self.write(self.data / "courses" / f"{self.B1}.json", course)
+
+    def refused(self, needle):
+        code, output = self.run_export()
+        self.assertEqual(code, 1, output)
+        self.assertIn(needle, output)
+
+    def intro(self, **fields):
+        return {"id": "w1", "before_question_ids": ["b1-first"], "term": "print", "explanation": "Shows a value on the screen.", "example": "print(1)", **fields}
+
+    def test_a_beginner_course_with_labelling_and_lesson_fields_exports(self):
+        self.add_beginner()
+        self.lesson(practice_summary="reading what `print` shows", introductions=[self.intro(before_question_ids=["b1-first", "b1-second"])])
+        code, output = self.run_export()
+        self.assertEqual(code, 0, output)
+        self.assertEqual(self.run_export("--check")[0], 0)
+        self.assertTrue((self.data / f"index-{self.B1}.json").exists())
+
+    def test_labelling_changes_no_derived_file(self):
+        self.assertEqual(self.run_export()[0], 0)
+        before = {p.name: p.read_bytes() for p in self.data.glob("*.json") if p.name != "catalog.json"}
+        self.catalog["courses"][0].update(path_step=3)
+        for row in self.catalog["courses"][1:]:
+            row["audience"] = "experienced"
+        self.write(self.data / "catalog.json", self.catalog)
+        self.assertEqual(self.run_export()[0], 0)
+        self.assertEqual({p.name: p.read_bytes() for p in self.data.glob("*.json") if p.name != "catalog.json"}, before)
+
+    def test_audience_and_path_step_values_are_closed(self):
+        for field, value in (("audience", "advanced"), ("audience", "Beginner"), ("audience", None), ("audience", True),
+                             ("path_step", 0), ("path_step", 4), ("path_step", -1), ("path_step", True), ("path_step", "1"), ("path_step", 1.5), ("path_step", None)):
+            with self.subTest(field=field, value=value):
+                self.setUp()
+                self.catalog["courses"][0][field] = value
+                self.write(self.data / "catalog.json", self.catalog)
+                self.refused(f"/courses/0/{field}")
+
+    def test_the_first_two_path_steps_are_for_beginners_and_must_say_so(self):
+        for step in (1, 2):
+            for audience in (None, "experienced"):
+                with self.subTest(step=step, audience=audience):
+                    self.setUp()
+                    self.catalog["courses"][0]["path_step"] = step
+                    if audience:
+                        self.catalog["courses"][0]["audience"] = audience
+                    self.write(self.data / "catalog.json", self.catalog)
+                    code, output = self.run_export()
+                    self.assertEqual(code, 1, output)
+                    self.assertIn("/courses/0", output)
+            self.setUp()
+            self.catalog["courses"][0].update(path_step=step, audience="beginner")
+            self.write(self.data / "catalog.json", self.catalog)
+            self.assertEqual(self.run_export()[0], 0)
+        for audience in (None, "beginner", "experienced"):
+            with self.subTest(step=3, audience=audience):
+                self.setUp()
+                self.catalog["courses"][0]["path_step"] = 3
+                if audience:
+                    self.catalog["courses"][0]["audience"] = audience
+                self.write(self.data / "catalog.json", self.catalog)
+                self.assertEqual(self.run_export()[0], 0)
+
+    def test_a_path_step_belongs_to_one_course(self):
+        self.catalog["courses"][0]["path_step"] = 3
+        self.catalog["courses"][1]["path_step"] = 3
+        self.write(self.data / "catalog.json", self.catalog)
+        self.refused("duplicate-path-step")
+
+    def test_course_ids_follow_a_rule_not_a_list(self):
+        self.add_beginner()
+        self.assertEqual(self.run_export()[0], 0)
+        for bad in ("Read", "a--b", "-a", "a-", "a_b", "a b", "../x", "x" * 41, ""):
+            with self.subTest(bad):
+                self.setUp()
+                self.catalog["courses"][1]["id"] = bad
+                self.write(self.data / "catalog.json", self.catalog)
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("/courses/1/id", output)
+
+    def test_the_catalog_has_room_for_more_courses_but_not_unlimited(self):
+        spare = {k: v for k, v in self.catalog["courses"][1].items()}
+        self.catalog["courses"] += [{**spare, "id": f"extra-{i}"} for i in range(5)]
+        self.write(self.data / "catalog.json", self.catalog)
+        code, output = self.run_export()
+        self.assertNotIn("/courses:", output)
+        self.catalog["courses"] += [{**spare, "id": f"more-{i}"} for i in range(3)]
+        self.write(self.data / "catalog.json", self.catalog)
+        self.refused("/courses")
+
+    def test_premium_is_optional_for_a_free_beginner_course_but_never_a_promise(self):
+        self.add_beginner()
+        self.assertEqual(self.run_export()[0], 0)
+        row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
+        row["premium"] = {"status": "available", "questions": 3}
+        self.write(self.data / "catalog.json", self.catalog)
+        self.refused("premium/status")
+
+    def test_a_beginner_course_starts_with_a_beginner_question_and_a_start_question(self):
+        self.add_beginner()
+        self.add_course(self.B1, [("b1-first", "py.values", "intermediate")])
+        row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
+        row.update(audience="beginner", path_step=1, concept_map="schema/concepts/python-v0.json")
+        self.write(self.data / "catalog.json", self.catalog)
+        self.refused("onboarding-level")
+        self.setUp()
+        self.add_beginner()
+        row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
+        del row["start_question"]
+        self.write(self.data / "catalog.json", self.catalog)
+        self.refused("start_question")
+
+    def test_a_course_without_a_map_of_its_own_names_the_python_map_and_there_is_no_fallback(self):
+        self.add_beginner()
+        code, output = self.run_export()
+        self.assertEqual(code, 0, output)
+        # the derived vocabulary is the python map itself, and python's own files are not touched by sharing it
+        self.assertEqual(json.loads((self.data / f"concepts-{self.B1}.json").read_text(encoding="utf-8")), self.maps["python"])
+        self.assertEqual((self.data / "concepts.json").read_bytes(), exporter.serialize(self.maps["python"]))
+        row = next(c for c in self.catalog["courses"] if c["id"] == self.B1)
+        for label, mutate in {
+            "its own map file": lambda r: r.update(concept_map=f"schema/concepts/{self.B1}-v0.json"),
+            "another course's map": lambda r: r.update(concept_map="schema/concepts/sql-v0.json"),
+            "no reference at all": lambda r: r.pop("concept_map"),
+            "a path outside the maps": lambda r: r.update(concept_map="../python-v0.json"),
+        }.items():
+            with self.subTest(label):
+                self.setUp()
+                self.add_beginner()
+                mutate(next(c for c in self.catalog["courses"] if c["id"] == self.B1))
+                self.write(self.data / "catalog.json", self.catalog)
+                self.copy(core.ROOT / "schema/concepts/python-v0.json", self.root / "schema/concepts" / f"{self.B1}-v0.json")
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("/courses/3/concept_map", output)
+
+    def test_the_courses_with_their_own_map_cannot_borrow_the_python_map(self):
+        for cid in ("production", "sql"):
+            with self.subTest(cid):
+                self.setUp()
+                next(c for c in self.catalog["courses"] if c["id"] == cid)["concept_map"] = "schema/concepts/python-v0.json"
+                self.write(self.data / "catalog.json", self.catalog)
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("catalog-map", output)
+
+    def test_a_course_on_the_shared_map_still_uses_only_python_concepts(self):
+        self.add_beginner()
+        question = json.loads((self.data / "questions" / "b1-first.json").read_text(encoding="utf-8"))
+        question["concepts"] = ["prod.timeouts-retries"]
+        self.write(self.data / "questions" / "b1-first.json", question)
+        code, output = self.run_export()
+        self.assertEqual(code, 1, output)
+        self.assertIn("b1-first", output)
+
+    def test_practice_summary_is_short_plain_text(self):
+        for bad in ("", "x" * 81, " lead", "trail ", "two\nlines", "tab\there", "\ufefflead", "trail\u00a0", 5, None, ["x"], "\u2028x"):
+            with self.subTest(bad):
+                self.setUp()
+                self.add_beginner()
+                self.lesson(practice_summary=bad)
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("practice_summary", output)
+        self.setUp()
+        self.add_beginner()
+        self.lesson(practice_summary="x" * 80)
+        self.assertEqual(self.run_export()[0], 0)
+
+    def test_lengths_count_the_way_the_client_counts_them(self):
+        # JavaScript counts UTF-16 units: an astral character is two. 41 of them are 82 units, over the 80 the client allows.
+        self.add_beginner()
+        self.lesson(practice_summary="\U0001F600" * 41)
+        self.refused("practice_summary")
+        self.lesson(practice_summary="\U0001F600" * 40)
+        self.assertEqual(self.run_export()[0], 0)
+        self.lesson(introductions=[self.intro(term="\U0001F600" * 31)])
+        self.refused("term")
+        # One unit over each limit, with few enough characters that the schema's own count lets it through.
+        edge = "\U0001F600"
+        for name, limit in (("practice_summary", 80), ("term", 60), ("explanation", 240), ("example", 240)):
+            with self.subTest(name):
+                over = edge * (limit // 2) + "a"   # limit + 1 units, fewer than limit code points
+                fits = edge * (limit // 2)                # exactly limit units
+                for value, ok in ((fits, True), (over, False)):
+                    if name == "practice_summary":
+                        self.lesson(practice_summary=value, introductions=[self.intro()])
+                    else:
+                        self.lesson(practice_summary="fine", introductions=[self.intro(**{name: value})])
+                    code, output = self.run_export()
+                    self.assertEqual(code, 0 if ok else 1, f"{name} {len(value.encode('utf-16-le')) // 2} units: {output}")
+                    if not ok:
+                        self.assertIn("lesson-text", output)
+
+    def test_an_introduction_has_exactly_its_keys(self):
+        for label, mutate in {
+            "old single-question key": lambda i: (i.pop("before_question_ids"), i.update(before_question_id="b1-first")),
+            "extra key": lambda i: i.update(note="x"),
+            "missing term": lambda i: i.pop("term"),
+            "missing example": lambda i: i.pop("example"),
+            "missing id": lambda i: i.pop("id"),
+        }.items():
+            with self.subTest(label):
+                self.setUp()
+                self.add_beginner()
+                item = self.intro()
+                mutate(item)
+                self.lesson(introductions=[item])
+                self.refused("introductions")
+
+    def test_introduction_values_are_closed(self):
+        cases = {
+            "id with a space": {"id": "w 1"}, "id too long": {"id": "a" * 65}, "id leading dot": {"id": ".a"}, "id not a string": {"id": 1},
+            "empty list of questions": {"before_question_ids": []}, "question list not a list": {"before_question_ids": "b1-first"},
+            "question repeated in the list": {"before_question_ids": ["b1-first", "b1-first"]},
+            "term too long": {"term": "x" * 61}, "explanation too long": {"explanation": "x" * 241}, "example too long": {"example": "x" * 241},
+            "blank term": {"term": ""}, "edge space": {"explanation": " padded"}, "control character": {"example": "a\u0007b"}, "line break": {"explanation": "a\nb"},
+            "not text": {"term": ["print"]},
+        }
+        for label, change in cases.items():
+            with self.subTest(label):
+                self.setUp()
+                self.add_beginner()
+                self.lesson(introductions=[self.intro(**change)])
+                code, output = self.run_export()
+                self.assertEqual(code, 1, output)
+                self.assertIn("introductions", output)
+        self.setUp()
+        self.add_beginner()
+        self.lesson(introductions=[self.intro(term="x" * 60, explanation="y" * 240, example="z" * 240)])
+        self.assertEqual(self.run_export()[0], 0)
+
+    def test_an_introduction_belongs_to_questions_of_its_own_lesson(self):
+        self.add_beginner()
+        self.lesson(introductions=[self.intro(before_question_ids=["b1-first", "py-first"])])
+        self.refused("introduction-question")
+        self.lesson(introductions=[self.intro(before_question_ids=["b1-nowhere"])])
+        self.refused("introduction-question")
+
+    def test_an_introduction_id_is_used_once_in_a_lesson(self):
+        self.add_beginner()
+        self.lesson(introductions=[self.intro(), self.intro(term="other")])
+        self.refused("duplicate-introduction")
+        self.lesson(introductions=[self.intro(), self.intro(id="w2", term="other")])
+        self.assertEqual(self.run_export()[0], 0)
+
+    def test_introductions_list_is_bounded(self):
+        self.add_beginner()
+        self.lesson(introductions=[self.intro(id=f"w{i}") for i in range(9)])
+        self.refused("introductions")
+        self.lesson(introductions=[])
+        self.refused("introductions")
+
+    def test_lesson_fields_are_text_only_markup_is_data_not_html(self):
+        # The client renders these as text; the data layer keeps them verbatim and does not strip or rewrite them.
+        self.add_beginner()
+        self.lesson(practice_summary="reading <b>bold</b> & `code`")
+        self.assertEqual(self.run_export()[0], 0)
+        self.assertIn("<b>bold</b>", (self.data / "courses" / f"{self.B1}.json").read_text(encoding="utf-8"))
+
+
 class RealRepositoryTests(unittest.TestCase):
     def test_the_real_maps_are_closed_and_share_python_entries_verbatim(self):
         python = json.loads((core.ROOT / "schema/concepts/python-v0.json").read_text(encoding="utf-8"))
@@ -324,6 +604,14 @@ class RealRepositoryTests(unittest.TestCase):
                     self.assertEqual(py_m.get(m["id"]), m)
             self.assertEqual(core.validate_map(data), [])
             self.assertEqual(exporter.prefix_issues(cid, map_data=data), [])
+
+    def test_the_real_catalog_is_labelled_the_way_the_architect_decided(self):
+        catalog = json.loads((core.ROOT / "public/data/catalog.json").read_text(encoding="utf-8"))
+        rows = {c["id"]: c for c in catalog["courses"]}
+        self.assertEqual((rows["python"].get("audience"), rows["python"].get("path_step")), (None, 3), "python: on the path, no audience pill")
+        for cid in ("production", "sql"):
+            self.assertEqual((rows[cid].get("audience"), rows[cid].get("path_step")), ("experienced", None), cid)
+        self.assertNotIn("read-like-a-computer", rows, "the beginner course is not published before the B1 release is decided")
 
     def test_the_real_catalog_and_export_are_consistent(self):
         stream = io.StringIO()
