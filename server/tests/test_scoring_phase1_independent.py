@@ -285,5 +285,107 @@ class S5RankTests(unittest.TestCase):
         self.assertIsNone(body["scope_score"], "an empty scope is never reported as a hypothetical zero")
 
 
+class S3LifecycleTests(S8Base):
+    """Mutation: skip the frozen-version/retired check on a new answer, or drop the replay path -> a withdrawn issue is answered."""
+
+    def pool_cli(self, *argv):
+        import contextlib
+        import io
+        from server import pool
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+            return pool.main(["--db", self.fx.path, *argv])
+
+    def answer_key(self, key):
+        _, issue = self.fx.issue(self.fx.questions["free"][0], user="u1")
+        return issue, key
+
+    def test_a_frozen_version_withdraws_open_issues_and_refuses_new_ones(self):
+        free = self.fx.questions["free"]
+        _, receipt = self.fx.issue(free[0], user="u1")
+        key = "k" * 16
+        first = self.fx.answer(receipt, "Right", user="u1", key=key)
+        self.assertEqual(first[0], 200)
+        _, open_issue = self.fx.issue(free[1], user="u1")                 # stays open
+        version = self.rows("SELECT id FROM ranking_versions WHERE family = 'free'")[0][0]
+
+        self.assertEqual(self.pool_cli("freeze", "--version", version, "--reason", "season-end"), 0)
+
+        # a new issue on the frozen version is unavailable
+        self.assertEqual(self.fx.issue(free[2], user="u2")[0][0], 503)
+        # the issue withdrawn by the freeze cannot be answered
+        self.assertEqual((self.fx.answer(open_issue, "Right", user="u1", key="z" * 16)[0]), 409)
+        # but a verified replay of an accepted answer still works, exactly once (no new effect)
+        before = self.rows("SELECT COUNT(*) FROM first_attempts")
+        replayed = self.fx.answer(receipt, "Right", user="u1", key=key)
+        self.assertEqual(replayed[0], 200)
+        self.assertTrue(json_body(replayed)["replayed"])
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM first_attempts"), before)
+
+    def test_retire_needs_the_version_frozen_first_and_keeps_history_and_replay(self):
+        free = self.fx.questions["free"]
+        # freeze every open version, then retire
+        _, receipt = self.fx.issue(free[0], user="u1")
+        self.assertEqual(self.fx.answer(receipt, "Right", user="u1", key="k" * 16)[0], 200)
+        version = self.rows("SELECT id FROM ranking_versions WHERE family = 'free'")[0][0]
+        self.assertNotEqual(self.pool_cli("retire", "--question", free[4], "--release", "rel-2", "--reason", "exposed",
+                                          "--operator", "op-1"), 0, "retire is refused while a version is still open")
+        self.assertEqual(self.pool_cli("freeze", "--version", version, "--reason", "season-end"), 0)
+        self.assertEqual(self.pool_cli("retire", "--question", free[4], "--release", "rel-2", "--reason", "exposed",
+                                       "--operator", "op-1"), 0)
+        self.assertEqual(self.rows("SELECT state FROM pool_questions WHERE question_id = ?", (free[4],)), [("retired",)])
+        # history is untouched and a replay still answers
+        self.assertEqual(self.fx.answer(receipt, "Right", user="u1", key="k" * 16)[0], 200)
+
+
+class S7ModerateTests(S8Base):
+    """Mutation: ignore moderation_state in the list/population, or let a dry run change state -> a hidden reader returns."""
+
+    def pub(self, user, nickname):
+        self.assertEqual(self.fx.post("/scoring/preferences", {"family": "free", "opt_in": True, "nickname": nickname}, user)[0], 200)
+
+    def play(self, user, q):
+        _, issue = self.fx.issue(q, user=user)
+        key = (user + q).replace("-", "").ljust(16, "k")[:16]
+        self.assertEqual(self.fx.answer(issue, "Right", user=user, key=key)[0], 200)
+
+    def aliases(self):
+        body = json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all&limit=50"))
+        return [e["alias"] for e in body["entries"]]
+
+    def principal(self, user):
+        return self.rows("SELECT id FROM scoring_principals WHERE user_id = ?", (user,))[0][0]
+
+    def moderate(self, *argv):
+        import contextlib
+        import io
+        from server import moderate
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+            return moderate.main(["--db", self.fx.path, *argv])
+
+    def test_a_dry_run_changes_nothing_and_write_hides_the_reader_for_good(self):
+        self.pub("u1", "One")
+        self.play("u1", self.fx.questions["free"][0])
+        pid = self.principal("u1")
+        self.assertIn("One", self.aliases())
+
+        self.assertEqual(self.moderate("hide", "--principal", pid, "--family", "free", "--reason", "abuse",
+                                       "--operator", "op-1", "--dry-run"), 0)
+        self.assertIn("One", self.aliases(), "a dry run changes nothing")
+        self.assertEqual(self.rows("SELECT moderation_state FROM leaderboard_preferences WHERE principal_id = ?", (pid,)), [("ok",)])
+
+        self.assertEqual(self.moderate("hide", "--principal", pid, "--family", "free", "--reason", "abuse",
+                                       "--operator", "op-1", "--write"), 0)
+        self.assertNotIn("One", self.aliases(), "a hidden reader leaves the list")
+        self.assertEqual(self.rows("SELECT moderation_state FROM leaderboard_preferences WHERE principal_id = ?", (pid,)), [("hidden",)])
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM scoring_moderation_audit"), [(1,)])
+        # a new alias does not restore publishing
+        self.pub("u1", "Renamed")
+        self.assertNotIn("Renamed", self.aliases())
+        # private history is preserved
+        self.assertEqual(len(json_body(self.fx.get("/scoring/me", user="u1", query=b"family=free"))["attempts"]), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
