@@ -1,0 +1,59 @@
+{
+  "question_id": "b1-1-robot-keeps-each-printed-line",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "hand-specified",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "d1f3e63589d69a27f48b0b74f084626384f64be902edd0feafaa4d871210aaf8",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "GO\nGO\n2\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {},
+          "stdout_len": 3
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {},
+          "stdout_len": 6
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 3,
+          "locals": {},
+          "stdout_len": 8,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

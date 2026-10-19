@@ -193,6 +193,28 @@ def _parser() -> argparse.ArgumentParser:
     binding = c.add_mutually_exclusive_group()
     binding.add_argument("--expect-digest", help="with --underlay: the digest from the release decision (required for a release check)")
     binding.add_argument("--unbound", action="store_true", help="with --underlay: integrity only, NOT a release check (self-tests)")
+    xi = sub.add_parser("export-inventory", help="write the live pool (ids, hashes, states, lifecycle events) from a READ-ONLY database open")
+    xi.add_argument("--out", required=True)
+    bl = sub.add_parser("build-ledger", help="compose the next pool ledger (check-release re-verifies it independently)")
+    bl.add_argument("--release-id", required=True)
+    bl.add_argument("--out", required=True)
+    bl.add_argument("--previous", help="the previous ledger (omit for a first ledger)")
+    bl.add_argument("--inventory", help="the database inventory (required with --previous)")
+    bl.add_argument("--catalog", action="append", default=[], required=True, help="an open version's scoring catalog (repeatable)")
+    vl = sub.add_parser("verify-ledger", help="verify the trusted ledger history, and optionally that --ledger is its valid successor")
+    vl.add_argument("--trusted-checkout", required=True)
+    vl.add_argument("--ledger")
+    td = sub.add_parser("tree-digest", help="print the git tree id and the artifact digest of a public tree")
+    td.add_argument("--public-root", required=True)
+    cr = sub.add_parser("check-release", help="the release gate: every binding must hold; there is no unbound mode")
+    cr.add_argument("--trusted-checkout", required=True, help="a separate checkout of the trusted ref: pool-ledger/ and release-decisions/")
+    cr.add_argument("--release-id", required=True)
+    cr.add_argument("--ledger", required=True)
+    cr.add_argument("--public-root", required=True)
+    cr.add_argument("--candidate", required=True)
+    cr.add_argument("--catalog", action="append", default=[], required=True)
+    cr.add_argument("--inventory")
+    cr.add_argument("--git-repo", help="a checkout of the candidate: its <commit>:public must be the decision's tree")
     e = sub.add_parser("export-underlay", help="write ids, hashes and states of the protected pool (no content)")
     e.add_argument("--out", required=True)
     e.add_argument("--catalog", action="append", default=[], help="a frozen scoring catalog artifact (repeatable); default: the database")
@@ -230,6 +252,55 @@ def _static_command(args) -> int:
     return 0
 
 
+def _ledger_commands(args) -> int:
+    from . import pool_artifact, pool_ledger, pool_release
+    from .models import ContentError
+    from .scoring_catalog import load_catalog
+    try:
+        if args.command == "export-inventory":
+            document = pool_release.export_inventory(args.db)
+            pool_ledger.write_new(document, args.out)
+            print(f"inventory written: {len(document['questions'])} question(s), {len(document['events'])} event(s), digest {document['digest']}")
+        elif args.command == "build-ledger":
+            if (args.previous is None) != (args.inventory is None):
+                raise PoolError("--previous and --inventory go together (a first ledger has neither)")
+            try:
+                catalogs = [load_catalog(path) for path in args.catalog]
+            except ContentError:
+                raise PoolError("a scoring catalog could not be loaded or has an exposure gap") from None
+            previous = pool_ledger.load_ledger(args.previous) if args.previous else None
+            inventory = pool_ledger.load_inventory(args.inventory) if args.inventory else None
+            document = pool_ledger.compose(args.release_id, previous, inventory, catalogs)
+            pool_ledger.write_new(document, args.out)
+            print(f"ledger written: seq {document['seq']}, digest {document['digest']}")
+        elif args.command == "verify-ledger":
+            history = pool_ledger.load_history(args.trusted_checkout)
+            if args.ledger:
+                candidate = pool_ledger.load_ledger(args.ledger)
+                if not history:
+                    raise PoolError("there is no trusted history to continue")
+                pool_ledger.verify_step(history[-1], candidate)
+            print(f"ledger history valid: {len(history)} ledger(s)" + (", candidate continues it" if args.ledger else ""))
+        elif args.command == "tree-digest":
+            tree = pool_artifact.read_tree(args.public_root)
+            print(f"tree {tree['tree_id']}\nartifact {tree['artifact_sha256']}\nfiles {len(tree['files'])}")
+        else:
+            result = pool_release.check_release(trusted_dir=args.trusted_checkout, release_id=args.release_id, ledger_path=args.ledger,
+                                                public_root=args.public_root, candidate=args.candidate, catalog_paths=args.catalog,
+                                                inventory_path=args.inventory, git_repo=args.git_repo)
+            for rel, qid, how in result["findings"]:
+                print(f"{rel}: {qid} ({how})", file=sys.stderr)
+            if result["findings"]:
+                print(f"{len(result['findings'])} finding(s): protected questions must not appear in the release tree", file=sys.stderr)
+                return 1
+            r = result["receipt"]
+            print(f"release gate OK: release {r['release_id']} seq {r['seq']} ledger {r['ledger']} tree {r['tree']} artifact {r['artifact']} "
+                  f"protected {r['protected']} files {r['files']}")
+    except (pool_ledger.LedgerError, pool_artifact.ArtifactError) as exc:
+        raise PoolError(str(exc)) from None
+    return 0
+
+
 def _export_command(args) -> int:
     from . import pool_underlay
     try:
@@ -255,6 +326,8 @@ def main(argv=None, *, clock=time.time) -> int:
             return _static_command(args)
         if args.command == "export-underlay":
             return _export_command(args)
+        if args.command in ("export-inventory", "build-ledger", "verify-ledger", "tree-digest", "check-release"):
+            return _ledger_commands(args)
         db = _database(args.db)
         try:
             now = clock()

@@ -6,6 +6,7 @@
       "free_questions": 34,
       "id": "python",
       "language": "python",
+      "path_step": 3,
       "premium": {
         "questions": 153,
         "status": "coming-soon"
@@ -14,6 +15,7 @@
       "title": "Python: reading code"
     },
     {
+      "audience": "experienced",
       "concept_map": "schema/concepts/production-v0.json",
       "description": "Read the code behind timeouts, retries, idempotency, queues and sagas.",
       "free_questions": 5,
@@ -27,6 +29,7 @@
       "title": "Production patterns: reading code"
     },
     {
+      "audience": "experienced",
       "concept_map": "schema/concepts/sql-v0.json",
       "description": "Read SQL and the Python around it: NULL, joins, grouping, transactions and the N+1 trap.",
       "free_questions": 5,

@@ -200,6 +200,25 @@ Aliases are also checked against a small versioned list (`server/blocklist/alias
 folding and a look-alike fold; a missing or malformed list stops start-up. It is a courtesy filter with stated limits, not a claim
 of abuse safety.
 
+### Release gate (private pipeline; this repository holds only the tool and synthetic tests)
+
+`python -m server.pool check-release` is the only check a scoring release may rely on; it has no unbound or fallback mode. It refuses
+(exit 2) unless every binding holds, and reports (exit 1) a protected question found in the exact tree. What it binds, from trusted to
+candidate: the **trusted history** (a separate checkout of the protected private branch: `pool-ledger/ledger-NNNNNN.json`, a chain
+verified from the first ledger) and the Architect's **release decision** (`release-decisions/<release>.json`, read from that same
+checkout, never from the candidate); the candidate **ledger**, whose digest, counts and previous digest the decision pins; the
+**open versions** (scoring catalogs by file digest, listed in the decision, which must equal the ranked set); an optional-but-required-after-the-first
+**database inventory** (`export-inventory`, from a checkpointed snapshot opened read-only and immutable; a snapshot with unapplied
+journal data is refused); and the **public tree**, recomputed from the scanned bytes as the git tree id plus a separate artifact digest and
+compared with the decision (`--git-repo` also checks `<commit>:public`). The ledger keeps every question ever registered, in either
+family, for good: ranked, then retired, then free, never back and never removed, and every change between two ledgers must be
+explained by a complete ordered chain of valid lifecycle events with the references that were used (a free release needs clone,
+licence and exposure references that the decision approved for that exact id and hash). Only ranked and retired questions are
+protected. `build-ledger` composes the next ledger deterministically; `check-release` re-verifies it independently. A first ledger
+(built from catalogs, no database) is accepted only with the decision's explicit no-prior-history attestation and no earlier ledger
+in the trusted history. Real inventories, ledgers and decisions stay in the private repository; public CI runs only the synthetic
+self-tests, and the integration that makes this a required check before any deploy is a separate, externally configured step.
+
 ### Rolling scoring back (operator runbook)
 
 There is no command and no database guard that stops an older binary, so rollback is a procedure: stop the service and every worker or

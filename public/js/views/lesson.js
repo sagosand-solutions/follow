@@ -1,6 +1,6 @@
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
-import { findCourseOf, loadQuestion, loadConcepts, flattenLessons, loadAnswerProfiles } from '../data.js';
+import { findCourseOf, loadQuestion, loadConcepts, flattenLessons, loadAnswerProfiles, loadCatalog } from '../data.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { store } from '../progress.js';
 import { errorNode } from './errors.js';
@@ -9,6 +9,8 @@ import { cells } from '../components/map.js';
 import { eyebrow, facts, pluralTemplate } from '../components/ui.js';
 import { summaryNode } from '../components/summary.js';
 import { lessonEnding } from './lesson-end.js';
+import { practisedLine, courseEndCard } from '../components/beginner.js';
+import { practiceSummary, courseFinished } from '../lesson-extras.js';
 import { reviewQueue } from '../review.js';
 import { CONFIG } from '../config.js';
 
@@ -92,6 +94,8 @@ export async function lessonView({ id }) {
       parts[0].classList.add('lesson-done');
       const heading = parts[0].querySelector('h1');
       if (heading) heading.insertAdjacentElement('afterend', h('p', { class: 'lesson-done__line' }, t('moment.lessonDone')));
+      const practised = practisedLine(practiceSummary(lesson), 'practised lesson-done__practised');
+      if (practised) parts[0].append(practised);
     }
     // End of a finished lesson: where to go next and what builds on this lesson.
     const { next, buildsOn } = lessonEnding(course, lesson.id);
@@ -111,6 +115,12 @@ export async function lessonView({ id }) {
           }
         : null;
       parts.push(scoring.resultCard(course, store.answers(), isRightNow, profiles));
+    }
+    // The last lesson of a finished beginner course ends with the course-end card.
+    if (!next && courseFinished(course, (qid) => !!store.latest(qid))) {
+      const catalog = await loadCatalog();
+      const ending = await courseEndCard(course, catalog ? catalog.find((c) => c.id === course.id) : null, catalog);
+      if (ending) parts.push(ending);
     }
     const reviewCount = reviewQueue(course, store.answers()).length;
     parts.push(

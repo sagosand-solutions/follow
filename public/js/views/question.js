@@ -4,7 +4,10 @@ import { renderText, renderInline } from '../text.js';
 import { seededShuffle, questionSeed } from '../shuffle.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
-import { loadQuestion, findCourseOf, loadConcepts, loadTrace, findLessonOf } from '../data.js';
+import { loadQuestion, findCourseOf, loadConcepts, loadTrace, findLessonOf, loadCatalog } from '../data.js';
+import { alreadyCodeSign } from '../components/catalog-card.js';
+import { newWordCards } from '../components/beginner.js';
+import { introductionsFor } from '../lesson-extras.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { CONFIG } from '../config.js';
 import { navigate, refresh } from '../router.js';
@@ -61,10 +64,18 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
     /* misconception titles fall back to ids */
   }
   const where = course ? findLessonOf(course, id) : null;
+  // "Already write code?" once in a beginner course: above the first question of its first lesson, not on every question.
+  let sign = null;
+  const firstLesson = course && course.levels && course.levels[0] && course.levels[0].lessons[0];
+  if (where && firstLesson && where.lesson.id === firstLesson.id && where.position === 0) {
+    const catalog = await loadCatalog();
+    const entry = catalog ? catalog.find((c) => c.id === course.id) : null;
+    if (entry && entry.audience === 'beginner') sign = alreadyCodeSign(catalog);
+  }
   const root = h('div', { class: 'question' });
   // Local question and review flows stay local; only the explicit challenge route uses server scoring.
   // A beginner-practice question (explicit profile only) is local practice: no points line, no challenge, never a leaderboard.
-  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null, practice: isPractice(q) };
+  const ctx = { q, where, concepts, root, course, reviewMode, scoring: null, practice: isPractice(q), sign, intros: where ? introductionsFor(where.lesson, q.id) : [] };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);
@@ -250,9 +261,13 @@ function draw(ctx, prev, stale = false) {
   const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
   const scoreLine = ctx.scoring && !ctx.practice && !answered ? ctx.scoring.tryLine(firstTry) : null;
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, scoreLine, answered ? null : actions, feedback, sourceFor(q));
-  const noteNode = showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
+  // Practice: the whole instruction on the first question of a lesson, otherwise one line that opens to it, so it is always there
+  // (direct links, zoom) and the code and all four options still fit on a phone.
+  const noteNode = ctx.practice
+    ? [ctx.where && ctx.where.position === 0 ? noteBox({ title: t('q.note.title'), text: t('q.note.text') }) : h('details', { class: 'note note--fold' }, h('summary', { class: 'note__title' }, t('q.note.how')), h('p', { class: 'note__text' }, t('q.note.title'), ' ', t('q.note.text')))]
+    : showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
   if (firstTry && !ctx.practice && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
-  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
+  root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...(ctx.sign ? [ctx.sign] : []), ...newWordCards(ctx.intros), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
   if (answered) mountStepper(q, stageBox, snippets);
   if (answered) {
@@ -286,7 +301,7 @@ async function mountStepper(q, box, figures) {
   const list = (await usableTraces(q, file)).map(({ index, trace, input }) => ({ id: q.snippets[index].id, input, label: q.snippets[index].label || t('step.snippetN', { n: index + 1 }), trace, figure: figures[index] }));
   if (!list.length || !box.isConnected) return;
   const seen = createSeenFlag('first-run');
-  const player = createStepPlayer(list, { firstRun: !seen.isSeen(), onFirstRunDone: () => seen.markSeen() });
+  const player = createStepPlayer(list, { firstRun: !seen.isSeen(), onFirstRunDone: () => seen.markSeen(), narrate: isPractice(q) });
   box.append(player);
   // A pointer under the verdict, so the first-time reader finds the player (it lives next to the code).
   const after = box.closest('.question') ? box.closest('.question').querySelector('#feedback .q-next') : null;
@@ -414,7 +429,7 @@ function renderFeedback(ctx, container, prev, letters) {
 
   // 1. The verdict, kept short: what you chose and the named misconception. The reasons come after the way on.
   if (unknown) {
-    frag.push(h('section', { class: 'verdict verdict--unsure' }, verdictHeading('unsure', t('verdict.unsure'), ctx.practice ? '' : t('points.none')), h('p', {}, t('q.noticeUnsure'))));
+    frag.push(h('section', { class: 'verdict verdict--unsure' }, verdictHeading('unsure', t('verdict.unsure'), ctx.practice ? '' : t('points.none')), ctx.practice ? practiceLine('unsure') : null, h('p', {}, t('q.noticeUnsure'))));
   } else {
     const v = verdictOf(chosen.score);
     const chip = chosen.score !== 1 && chosen.misconception ? h('p', { class: 'chips' }, h('span', { class: 'chip chip--misc' }, t('q.misconception', { title: misconceptionTitle(ctx, chosen.misconception) }))) : null;
@@ -423,6 +438,7 @@ function renderFeedback(ctx, container, prev, letters) {
         'section',
         { class: `verdict verdict--${v.kind}` },
         verdictHeading(v.icon, v.word, ctx.practice ? '' : v.points, ctx.fresh),
+        ctx.practice ? practiceLine(v.kind) : null,
         h('p', { class: 'fb__answer' }, h('span', { class: 'fb__letter' }, t('q.letter', { letter: letters.get(chosen.id) })), ' ', h('span', {}, renderInline(chosen.text))),
         chip,
       ),
@@ -475,6 +491,12 @@ function renderFeedback(ctx, container, prev, letters) {
   if (q.explanation) more.push(h('section', { class: 'explanation' }, h('h3', { class: 'fb__heading' }, t('q.explanation')), h('div', { class: 'prose' }, renderText(q.explanation))));
   if (more.length) frag.push(h('details', { class: 'read-more' }, h('summary', {}, t('q.readMore')), h('div', { class: 'read-more__body' }, ...more)));
   container.replaceChildren(...frag);
+}
+
+// Beginner practice has no points line; a warm line under the verdict says what to do next instead (never praise of mastery).
+function practiceLine(kind) {
+  const text = kind === 'correct' ? t('q.practice.sub.correct') : kind === 'partial' ? t('q.practice.sub.partial') : kind === 'wrong' ? t('q.practice.sub.wrong') : t('q.practice.sub.unsure');
+  return h('p', { class: 'verdict__sub' }, text);
 }
 
 // Local practice always shows its own points; the server-graded challenge has its own view (scoring/challenge.js).

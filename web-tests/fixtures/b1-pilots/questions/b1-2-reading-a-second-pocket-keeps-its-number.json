@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-2-reading-a-second-pocket-keeps-its-number",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.2,
+  "concepts": [
+    "py.values",
+    "py.assignment"
+  ],
+  "prompt": "What does the robot show from its blue pocket?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "red = 4\nblue = red\nred = 9\nprint(blue)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "keeps-following",
+      "text": "`9`. blue keeps following red, including its later changes.",
+      "score": 0,
+      "feedback": "Line 2 reads red at that moment, when it holds 4. The later change to red does not give blue a new number.",
+      "misconception": "py.assignment-is-equation"
+    },
+    {
+      "id": "name-not-number",
+      "text": "`blue`. print writes the name blue instead of reading its pocket.",
+      "score": 0,
+      "feedback": "The unquoted name blue tells print which pocket to read. Its number is 4.",
+      "misconception": "py.print-shows-an-unquoted-name-literally"
+    },
+    {
+      "id": "first-forever",
+      "text": "`4`. Names keep their first number, ignoring later assignments.",
+      "score": 0.5,
+      "feedback": "The 4 matches, but a name can receive a new number. Adding blue = 6 before the print would show 6, not 4.",
+      "misconception": "py.first-binding-is-permanent",
+      "partial_reason": "Right: blue holds 4 here. Wrong: names always keep their first number; assigning blue = 6 would replace it."
+    },
+    {
+      "id": "read-once",
+      "text": "`4`. blue gets 4 from red; changing red later leaves blue alone.",
+      "score": 1,
+      "feedback": "Read line 2 while red holds 4. Only red changes on line 3, so the print still reads 4 from blue.",
+      "misconception": null
+    }
+  ],
+  "explanation": "At blue = red, the current number in red is 4, so blue receives 4. The later red = 9 changes red only; print(blue) shows 4.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "hand-specified",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "4\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Compare the exact displayed complete program with the specified literal stdout. A matching key alone does not prove a distractor rule or a half-credit generalization.",
+    "limitations": "Small deterministic whole-number/text fixtures only, no imports or host interactions. Trusted-local execution is not a sandbox. Difficulty and attraction remain uncalibrated; content, vocabulary and publication need separate review."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}
