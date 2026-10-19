@@ -249,7 +249,7 @@ class ExportTests(unittest.TestCase):
                 self.assert_invalid_unchanged("schema")
 
     def test_course_structural_contract(self):
-        variants = [None, [], {**self.course, "id": "other"}, {**self.course, "language": "other"},
+        variants = [None, [], {**self.course, "id": "Other"}, {**self.course, "id": "other_course"}, {**self.course, "language": "other"},
                     {**self.course, "levels": []}, {**self.course, "levels": self.course["levels"] * 2}]
         for path in ((), ("levels", 0), ("levels", 0, "lessons", 0)):
             original = self.course
@@ -271,6 +271,10 @@ class ExportTests(unittest.TestCase):
             with self.subTest(course=course):
                 self.write(self.course_path, course)
                 self.assert_invalid_unchanged("schema")
+
+    def test_a_well_formed_other_course_id_is_a_mismatch_not_a_schema_error(self):
+        self.write(self.course_path, {**self.course, "id": "other"})
+        self.assert_invalid_unchanged("course-id")
 
     def test_course_reference_and_dependency_failures(self):
         changes = [

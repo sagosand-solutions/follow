@@ -26,7 +26,7 @@ grants no rights by itself. The public site export accepts only
 |---|---|
 | `question.schema.json` | JSON Schema (draft 2020-12) for one question. |
 | `concept-map.schema.json` | JSON Schema (draft 2020-12) for the shared concept map. |
-| `catalog.schema.json` | JSON Schema for `public/data/catalog.json`, the public course catalog (python, production, sql). `free_questions` is checked against the course file by the exporter; `premium.questions` is set by hand and promises no date or price. |
+| `catalog.schema.json` | JSON Schema for `public/data/catalog.json`, the public course catalog (courses by id rule, at most 8). `free_questions` is checked against the course file by the exporter; `premium.questions` is set by hand and promises no date or price, and `premium` may be left out. Optional `audience` and `path_step` (1-3, one course each) label courses for the home page. |
 | `concepts/production-v0.json`, `concepts/sql-v0.json` | Public vocabularies of the free trial courses: only the concepts and misconceptions their free questions use, closed under prerequisites, copied verbatim from the private overlay maps (`py.*` entries equal python-v0). MIT, like python-v0. |
 | `concepts/python-v0.json` | Python concept map: 20 concepts and 122 misconceptions; the original 18 concepts and 106 misconceptions remain unchanged. |
 | `trace.schema.json` | JSON Schema (draft 2020-12) for precomputed trace schema 0.2. |

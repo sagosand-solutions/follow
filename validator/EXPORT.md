@@ -141,7 +141,8 @@ implied. There is no additional runtime dependency beyond the core validator.
 ## Courses (catalog mode)
 
 When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the export covers every course it lists
-(python, production, sql); without a catalog it is the original single Python course, unchanged.
+(python, production, sql and any further course whose id follows the rule `[a-z0-9]+(-[a-z0-9]+)*`, at most 40 characters; at most
+8 courses); without a catalog it is the original single Python course, unchanged.
 
 - The catalog entry names the course vocabulary (`schema/concepts/<id>-v0.json`), the course file is
   `public/data/courses/<id>.json` (its `id` must equal the catalog id), and `free_questions` and `start_question` must match
@@ -149,10 +150,22 @@ When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the
 - Every question is validated against the vocabulary of the **one** course that lists it. A question in two courses
   (`question-in-two-courses`) or in none (`orphan-question`), a course without a vocabulary or course file, and a duplicate
   or non-python catalog are errors.
-- Prefix rule (`course-prefix`): python may use `py.` only; production `prod.` and `py.`; sql `sql.` and `py.`; for vocabulary
-  ids, prerequisites, misconception references and a question's concepts and misconceptions.
+- Prefix rule (`course-prefix`): python may use `py.` only; production `prod.` and `py.`; sql `sql.` and `py.`; any other course
+  (a beginner course) `py.` only; for vocabulary ids, prerequisites, misconception references and a question's concepts and
+  misconceptions.
+- Labels for the home page, all optional: `audience` (`beginner` or `experienced`) says who a course is for, and `path_step`
+  (an integer 1-3) puts a course on the beginner path. A step belongs to one course (`duplicate-path-step`). `premium` is
+  optional too, so a free beginner course states no promise. Neither label changes any derived file. The real catalog marks
+  python `path_step: 3` (no audience) and production and sql `experienced`.
 - Lesson ids are unique across ALL courses (`lesson-in-two-courses`): the client finds a lesson's course by its id, so production and sql lessons carry their course prefix (e.g. `prod-timeouts`, `sql-null-logic`).
-- The first-question-is-beginner rule applies to the python course only.
+- The first-question-is-beginner rule applies to the python course and to every course with `audience: beginner`.
+- Optional lesson fields of beginner courses (`schema/course.schema.json`): `practice_summary` (plain text, at most 80
+  characters) and `introductions` (1-8 cards `{id, before_question_ids, term, explanation, example}`, term at most 60 and
+  explanation and example at most 240 characters; no control character, no space at either end). The exporter adds what the
+  schema cannot say: every `before_question_ids` entry is a question of the same lesson (`introduction-question`), an
+  introduction id is used once per lesson (`duplicate-introduction`), and lengths and edge spaces are counted the way the
+  browser counts them, in UTF-16 units and with JavaScript's idea of a space (`lesson-text`). The fields are carried
+  unchanged and shown as text, never as markup.
 - Derived files: python keeps `index.json` and `concepts.json` **byte for byte**; the other courses write
   `index-<id>.json` and `concepts-<id>.json`. `--check` compares all of them.
 - Static only, no code is executed; `validator.trace --check` already covers every question in the flat directory.

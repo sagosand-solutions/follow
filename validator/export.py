@@ -14,8 +14,10 @@ from .core import (ContentError, InputLimitError, Issue, QuestionBudget, SetupEr
 ROOT = core.ROOT
 LEVELS = {"beginner": 0, "intermediate": 1, "advanced": 2}
 PUBLIC_LICENSE = "CC-BY-SA-4.0"
-# Concept-id prefixes each course may use (its own, plus the shared Python vocabulary).
+# Concept-id prefixes each course may use (its own, plus the shared Python vocabulary). A course not listed here, such as
+# a beginner course, may use the shared Python vocabulary only.
 COURSE_PREFIXES = {"python": ("py",), "production": ("prod", "py"), "sql": ("sql", "py")}
+DEFAULT_PREFIXES = ("py",)
 LEGACY_ENTRY = {"id": "python", "concept_map": "schema/concepts/python-v0.json"}
 
 
@@ -30,7 +32,7 @@ def _prefix_of(identifier):
 
 def prefix_issues(course_id, *, map_data=None, question=None):
     """Concept and misconception ids of a course vocabulary or question must use the course's allowed prefixes."""
-    allowed = COURSE_PREFIXES.get(course_id, ())
+    allowed = COURSE_PREFIXES.get(course_id, DEFAULT_PREFIXES)
     found = []
     if map_data is not None:
         for i, concept in enumerate(map_data.get("concepts", [])):
@@ -70,6 +72,46 @@ def _question_paths(directory):
     return sorted(paths)
 
 
+# Characters the client's String.trim() removes (ECMAScript WhiteSpace and LineTerminator), so a value the schema accepts is
+# never silently dropped by the client for its edges.
+JS_SPACE = frozenset("\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff")
+# Beginner lesson text limits, counted in UTF-16 units like the client's string length.
+LESSON_TEXT_MAX = {"practice_summary": 80, "term": 60, "explanation": 240, "example": 240}
+
+
+def _units(text):
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _text_issues(value, path, name):
+    """The client's plain-text rules for a lesson text, beyond the schema: no JS-trimmable edge, length in UTF-16 units."""
+    found = []
+    if value[:1] in JS_SPACE or value[-1:] in JS_SPACE:
+        found.append(Issue("lesson-text", path, f"{name} must not start or end with a space"))
+    if _units(value) > LESSON_TEXT_MAX[name]:
+        found.append(Issue("lesson-text", path, f"{name} is longer than {LESSON_TEXT_MAX[name]} characters as the browser counts them"))
+    return found
+
+
+def lesson_field_issues(lesson, path):
+    """Optional beginner fields of one lesson (the schema has checked their shape)."""
+    found = []
+    if "practice_summary" in lesson:
+        found += _text_issues(lesson["practice_summary"], f"{path}/practice_summary", "practice_summary")
+    ids = {}
+    for k, intro in enumerate(lesson.get("introductions", [])):
+        where = f"{path}/introductions/{k}"
+        if intro["id"] in ids:
+            found.append(Issue("duplicate-introduction", where + "/id", f"Introduction id {intro['id']!r} is already used in this lesson (at {ids[intro['id']]})"))
+        ids.setdefault(intro["id"], where)
+        for m, qid in enumerate(intro["before_question_ids"]):
+            if qid not in lesson["questions"]:
+                found.append(Issue("introduction-question", f"{where}/before_question_ids/{m}", f"Question {qid} is not in this lesson"))
+        for name in ("term", "explanation", "example"):
+            found += _text_issues(intro[name], f"{where}/{name}", name)
+    return found
+
+
 def validate_course(course, questions, *, schema_dir=None, onboarding_beginner=True):
     """Validate course shape then cross-corpus consistency; never execute snippets."""
     issues = core._schema(course, "course.schema.json", schema_dir=schema_dir)
@@ -93,6 +135,7 @@ def validate_course(course, questions, *, schema_dir=None, onboarding_beginner=T
             if identifier in lessons:
                 issues.append(Issue("duplicate-lesson", lesson_path + "/id", f"Repeated lesson ID: {identifier}"))
             lessons[identifier], locations[identifier] = lesson, lesson_path
+            issues += lesson_field_issues(lesson, lesson_path)
             for k, qid in enumerate(lesson["questions"]):
                 qpath = f"{lesson_path}/questions/{k}"
                 if qid not in questions:
@@ -168,12 +211,17 @@ def _catalog_entries(root, schema_dir, add):
         return [LEGACY_ENTRY], None
     catalog = load_json(path)
     found = core._schema(catalog, "catalog.schema.json", schema_dir=schema_dir)
-    seen = set()
+    seen, steps = set(), {}
     for i, entry in enumerate(catalog.get("courses", []) if isinstance(catalog, dict) else []):
         cid = entry.get("id") if isinstance(entry, dict) else None
         if cid in seen:
             found.append(Issue("duplicate-course", f"/courses/{i}/id", f"Repeated course id: {cid}"))
         seen.add(cid)
+        step = entry.get("path_step") if isinstance(entry, dict) else None
+        if isinstance(step, int) and not isinstance(step, bool):
+            if step in steps:
+                found.append(Issue("duplicate-path-step", f"/courses/{i}/path_step", f"Path step {step} is already taken by the course at /courses/{steps[step]}; a step belongs to one course"))
+            steps.setdefault(step, i)
         if isinstance(entry, dict) and entry.get("concept_map") != f"schema/concepts/{cid}-v0.json":
             found.append(Issue("catalog-map", f"/courses/{i}/concept_map", f"Expected schema/concepts/{cid}-v0.json"))
     if not found and "python" not in seen:
@@ -264,11 +312,12 @@ def _export(root, args, add, issues_seen):
             exit_code = 2
     # Avoid semantic cascades into malformed question/map structures.
     had_issues = bool(issues_seen)
+    audiences = {entry["id"]: entry.get("audience") for entry in entries}
     for cid, info in courses.items():
         if not info["ok"]:
             continue
         found = (core._schema(info["course"], "course.schema.json", schema_dir=schema_dir) if had_issues
-                 else validate_course(info["course"], info["questions"], schema_dir=schema_dir, onboarding_beginner=(cid == "python")))
+                 else validate_course(info["course"], info["questions"], schema_dir=schema_dir, onboarding_beginner=(cid == "python" or audiences.get(cid) == "beginner")))
         for issue in found:
             add(info["course_path"], issue)
     if catalog_file is not None and not issues_seen:
