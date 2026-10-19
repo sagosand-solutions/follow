@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-1-robot-leaves-unprinted-values-quiet",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.16,
+  "concepts": [
+    "py.values",
+    "py.strings"
+  ],
+  "prompt": "What reaches the robot's screen?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "print(\"GO\")\n8\nprint(\"STOP\")\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "every-value",
+      "text": "`GO` then `8` then `STOP`. Every value shows itself, with or without print.",
+      "score": 0,
+      "feedback": "At line 2, 8 is read but not printed. The two print lines write GO and STOP.",
+      "misconception": "py.bare-literals-display-themselves-in-programs"
+    },
+    {
+      "id": "last-only",
+      "text": "`STOP`. Only the last print remains.",
+      "score": 0,
+      "feedback": "The last print adds STOP below the earlier GO. It does not clear that first line.",
+      "misconception": "py.only-the-last-print-remains-visible"
+    },
+    {
+      "id": "text-auto",
+      "text": "`GO` then `STOP`. Bare text shows itself; bare numbers do not.",
+      "score": 0.5,
+      "feedback": "The two shown lines match, but bare text stays quiet too. Replacing line 2 with \"WAIT\" still prints only GO then STOP.",
+      "misconception": "py.only-bare-text-displays-itself",
+      "partial_reason": "Right: GO then STOP. Wrong: quoted text prints itself; a bare \"WAIT\" also stays off the screen."
+    },
+    {
+      "id": "print-only",
+      "text": "`GO` then `STOP`. Only print writes these two screen lines.",
+      "score": 1,
+      "feedback": "GO comes from line 1 and STOP from line 3. The middle value does not write a screen line.",
+      "misconception": null
+    }
+  ],
+  "explanation": "Line 1 writes GO. The bare 8 does not write to the screen in this complete program, and line 3 adds STOP.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "hand-specified",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "GO\nSTOP\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Compare the exact displayed complete program with the specified literal stdout. A matching key alone does not prove a distractor rule or a half-credit generalization.",
+    "limitations": "Small deterministic whole-number/text fixtures only, no imports or host interactions. Trusted-local execution is not a sandbox. Difficulty and attraction remain uncalibrated; content, vocabulary and publication need separate review."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}
