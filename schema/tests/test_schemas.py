@@ -186,6 +186,11 @@ class TestSchemaSelfValidation(unittest.TestCase):
         self.assertEqual(broken(lambda d: course(d).pop("premium")), [], "premium is optional: a free beginner course promises nothing")
         self.assertEqual(broken(lambda d: course(d).update(audience="beginner", path_step=1)), [])
         self.assertEqual(broken(lambda d: course(d).update(audience="experienced", path_step=3)), [])
+        self.assertEqual(broken(lambda d: course(d).update(path_step=3)), [], "step 3 may carry no audience (python)")
+        for step in (1, 2):
+            self.assertTrue(broken(lambda d: course(d).update(path_step=step)), f"step {step} must say beginner")
+            self.assertTrue(broken(lambda d: course(d).update(path_step=step, audience="experienced")), f"step {step} is not for experienced")
+            self.assertEqual(broken(lambda d: course(d).update(path_step=step, audience="beginner")), [])
         for field, bad in (("audience", "advanced"), ("audience", None), ("path_step", 0), ("path_step", 4), ("path_step", True), ("path_step", "1"), ("path_step", 2.5)):
             self.assertTrue(broken(lambda d: course(d).update({field: bad})), f"{field}={bad!r}")
         self.assertEqual(broken(lambda d: d.update(courses=[copy.deepcopy(d["courses"][0]) for _ in range(8)])), [], "room for eight courses")

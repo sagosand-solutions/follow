@@ -362,6 +362,31 @@ class BeginnerDataTests(CourseFixture):
                 self.write(self.data / "catalog.json", self.catalog)
                 self.refused(f"/courses/0/{field}")
 
+    def test_the_first_two_path_steps_are_for_beginners_and_must_say_so(self):
+        for step in (1, 2):
+            for audience in (None, "experienced"):
+                with self.subTest(step=step, audience=audience):
+                    self.setUp()
+                    self.catalog["courses"][0]["path_step"] = step
+                    if audience:
+                        self.catalog["courses"][0]["audience"] = audience
+                    self.write(self.data / "catalog.json", self.catalog)
+                    code, output = self.run_export()
+                    self.assertEqual(code, 1, output)
+                    self.assertIn("/courses/0", output)
+            self.setUp()
+            self.catalog["courses"][0].update(path_step=step, audience="beginner")
+            self.write(self.data / "catalog.json", self.catalog)
+            self.assertEqual(self.run_export()[0], 0)
+        for audience in (None, "beginner", "experienced"):
+            with self.subTest(step=3, audience=audience):
+                self.setUp()
+                self.catalog["courses"][0]["path_step"] = 3
+                if audience:
+                    self.catalog["courses"][0]["audience"] = audience
+                self.write(self.data / "catalog.json", self.catalog)
+                self.assertEqual(self.run_export()[0], 0)
+
     def test_a_path_step_belongs_to_one_course(self):
         self.catalog["courses"][0]["path_step"] = 3
         self.catalog["courses"][1]["path_step"] = 3
