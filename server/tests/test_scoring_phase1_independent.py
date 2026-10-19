@@ -18,7 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 from server.tests.scoring_support import build_scoring_fixture
-from server.tests.support import json_body
+from server.tests.support import ORIGIN, call, json_body
 
 # 032 step 9's file is the author's; this one is the independent proof and must stay self-contained.
 SET_TABLES = ("challenge_sets", "challenge_set_questions", "set_participants", "set_attempts")
@@ -419,6 +419,61 @@ class S2ExposureTests(S8Base):
         self.assertEqual(self.static(root), 0, "a clean public tree passes")
         (root / "leak.json").write_text(json.dumps({"copied": protected}), encoding="utf-8")
         self.assertEqual(self.static(root), 1, "a protected id in the scanned bytes is a finding")
+
+
+class S1AnonymityTests(S8Base):
+    """Mutation: let an anonymous reader publish, count a moved anonymous attempt, or accept a second claim -> anonymity leaks rank."""
+
+    def anon_issue(self, anon, q):
+        return self.fx.anon_post(f"/scoring/questions/{q}/issue", {}, anon)
+
+    def anon_answer(self, anon, q):
+        issue = json_body(self.anon_issue(anon, q))
+        option = next(o for o in issue["question"]["options"] if o["text"].startswith("Right"))
+        return self.fx.anon_post("/scoring/answers", {"issue_id": issue["issue_id"], "outcome": "answer",
+                                                      "option_id": option["option_id"], "idempotency_key": "a" * 16}, anon)
+
+    def claim(self, user, anon):
+        session = self.fx.cookies[user]
+        return call(self.fx.app, "POST", "/scoring/claim",
+                    headers={"origin": ORIGIN, "cookie": f"session={session[0]}; {anon[0]}", "x-csrf-token": session[1]},
+                    body=b"{}")
+
+    def test_an_anonymous_reader_can_never_publish(self):
+        anon = self.fx.anonymous()
+        before = self.rows("SELECT COUNT(*) FROM leaderboard_preferences")
+        response = self.fx.anon_post("/scoring/preferences", {"family": "free", "opt_in": True, "nickname": "Anon"}, anon)
+        self.assertEqual((response[0], json_body(response)["error"]["code"]), (401, "no-session"))
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM leaderboard_preferences"), before, "no preference row was written")
+
+    def test_an_anonymous_attempt_is_never_in_the_published_list(self):
+        anon = self.fx.anonymous()
+        self.assertEqual(self.anon_answer(anon, self.fx.questions["free"][0])[0], 200)
+        board = json_body(self.fx.get("/leaderboards", user=None, query=b"family=free&scope=total&window=all&limit=50"))
+        self.assertEqual(board["participants"], 0, "an anonymous attempt does not create a participant")
+        self.assertEqual([e["alias"] for e in board["entries"]], [])
+
+    def test_claim_moves_the_attempt_without_ranking_it_and_refuses_a_second_claim(self):
+        anon = self.fx.anonymous()
+        q = self.fx.questions["free"][0]
+        self.assertEqual(self.anon_answer(anon, q)[0], 200)
+        self.assertGreaterEqual(self.rows("SELECT COUNT(*) FROM anonymous_units")[0][0], 1)
+
+        response = self.claim("u1", anon)
+        self.assertEqual(response[0], 200)
+        body = json_body(response)
+        self.assertGreaterEqual(body["moved"], 1, "the free attempt moved to the account")
+        self.assertEqual(self.rows("SELECT COUNT(*) FROM anonymous_units"), [(0,)], "the source rows are gone")
+
+        me = json_body(self.fx.get("/scoring/me", user="u1", query=b"family=free"))
+        moved = [a for a in me["attempts"] if a["question_id"] == q]
+        self.assertEqual(len(moved), 1)
+        self.assertFalse(moved[0]["rank_eligible"], "a moved anonymous attempt is never rank-eligible")
+        self.assertIsNone(me["scope_score"], "the moved attempt does not count in the scope")
+        self.assertTrue(all(c["answered"] == 0 for c in me["courses"]))
+
+        second = self.claim("u1", anon)
+        self.assertEqual((second[0], json_body(second)["error"]["code"]), (409, "claim_conflict"))
 
 
 if __name__ == "__main__":
