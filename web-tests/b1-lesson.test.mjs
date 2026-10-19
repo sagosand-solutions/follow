@@ -180,7 +180,7 @@ test('the next step links only to a course that loads', async () => {
 });
 
 test('a course that is not for beginners has no end card and no practised line', async () => {
-  fresh({ ...realCatalog, courses: [{ ...B1, audience: 'experienced', path_step: undefined }, ...realCatalog.courses] });
+  fresh({ ...realCatalog, courses: [{ ...B1, audience: 'experienced', path_step: undefined }, ...realCatalog.courses.map(({ audience, path_step, ...rest }) => rest)] });
   answerAll(course.levels[0].lessons.flatMap((l) => l.questions));
   const page = (await courseView({ id: course.id })).node;
   assert.equal(page.all((n) => n.className === 'course-end').length, 0);
