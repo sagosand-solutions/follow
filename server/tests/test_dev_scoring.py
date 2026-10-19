@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """server.dev --scoring: a SYNTHETIC protected pool and seeded test accounts, development only.
 
 Negative first: production and a mixed content source are refused, nothing real is used, and the pool is private and labelled.

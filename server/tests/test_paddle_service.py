@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Paddle orchestration over a scripted injected transport: checkout creation, webhook evidence and fenced reconcile."""
 import tempfile
 import unittest

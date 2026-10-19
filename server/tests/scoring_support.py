@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Fixtures for the 023 scoring tests: synthetic questions, catalogs and an app with scoring on."""
 from __future__ import annotations
 

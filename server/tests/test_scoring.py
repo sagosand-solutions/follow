@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """023 scoring server: catalog, points, issue/answer lock, gate, claim, lists, flags."""
 import copy
 import json

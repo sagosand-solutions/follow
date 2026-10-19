@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Offline Paddle building blocks: signature, envelope, host/key policy and the state decision (synthetic only).
 
 Every vector here is constructed locally with a synthetic secret. It proves self-consistency, not compatibility with
