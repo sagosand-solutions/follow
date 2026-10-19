@@ -10,7 +10,8 @@ const site = new URL('../public/data/', import.meta.url);
 const realCatalog = JSON.parse(readFileSync(new URL('catalog.json', site), 'utf8'));
 const course = JSON.parse(readFileSync(new URL('course.json', fixtures), 'utf8'));
 const B1 = { id: course.id, title: course.title, description: 'No programming experience needed.', language: 'python', free_questions: 4, start_question: 'b1-1-robot-keeps-each-printed-line', audience: 'beginner', path_step: 1 };
-const catalogWith = (...extra) => ({ ...realCatalog, courses: [B1, ...extra, ...realCatalog.courses.map((c) => ({ ...c, audience: 'experienced' }))] });
+// The decided marking: Python is the path's last step with no audience pill; Production and SQL are for people who already code.
+const catalogWith = (...extra) => ({ ...realCatalog, courses: [B1, ...extra, ...realCatalog.courses.map((c) => (c.id === 'python' ? { ...c, path_step: 3 } : { ...c, audience: 'experienced' }))] });
 
 class Node {
   constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.className = ''; this.handlers = {}; this.parent = null; this.checked = false; this.hidden = false; this.textContent = ''; this.dataset = {}; this.style = {}; }

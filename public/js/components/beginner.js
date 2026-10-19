@@ -5,6 +5,7 @@ import { t } from '../i18n.js';
 import { renderInline } from '../text.js';
 import { courseHref } from '../catalog.js';
 import { loadCourse } from '../data.js';
+import { forPeopleWhoCode } from './catalog-card.js';
 
 // A whole translated sentence with one {slot} filled by nodes.
 function sentence(template, slot, nodes) {
@@ -46,7 +47,7 @@ export async function courseEndCard(course, entry, catalog) {
   }
   if (next && nextLoads) parts.push(h('p', {}, h('a', { class: 'button button--primary', href: courseHref(next.id) }, t('end.next', { title: next.title }))));
   else if (step && soonTitle(step + 1)) parts.push(h('p', { class: 'muted' }, t('end.nextSoon', { title: soonTitle(step + 1) })));
-  const more = catalog ? catalog.find((e) => e.audience === 'experienced') : null;
+  const more = forPeopleWhoCode(catalog)[0] || null;
   if (more) parts.push(h('p', {}, t('end.more'), ' ', h('a', { href: courseHref(more.id) }, more.title)));
   return h('section', { class: 'course-end', 'aria-labelledby': 'course-end-title' }, ...parts);
 }

@@ -48,10 +48,14 @@ function courseCard(entry, courses, tag = 'li', extraClass = '') {
   );
 }
 
-// "Already write code?": a calm note that points people who can already program to the courses for them. The links are
-// the catalog's courses marked `experienced`, in catalog order; nothing when there are none.
+// The courses for people who already code, from the catalog only: those marked `experienced`, and a course on the path that
+// is not a beginner course (the path's last step carries no audience pill, because it is both). In catalog order.
+export const forPeopleWhoCode = (entries) => (entries || []).filter((e) => e.audience === 'experienced' || (e.pathStep !== null && e.pathStep !== undefined && e.audience !== 'beginner'));
+
+// "Already write code?": a calm note that points people who can already program to the courses for them; nothing when
+// there are none.
 export function alreadyCodeSign(entries) {
-  const deeper = (entries || []).filter((e) => e.audience === 'experienced');
+  const deeper = forPeopleWhoCode(entries);
   if (!deeper.length) return null;
   const links = deeper.flatMap((e, i) => [i ? ' · ' : null, h('a', { href: courseHref(e.id) }, e.title)]);
   return h('section', { class: 'note already-code', 'aria-labelledby': 'already-code-title' }, h('span', { class: 'note__icon', 'aria-hidden': 'true' }, '→'), h('h2', { class: 'note__title', id: 'already-code-title' }, t('sign.title')), h('p', { class: 'note__text' }, t('sign.text'), ' ', ...links));

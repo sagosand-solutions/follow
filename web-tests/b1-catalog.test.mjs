@@ -13,7 +13,8 @@ const B1 = { id: 'read-like-a-computer', title: 'Read like a computer', descript
 const b1Course = { id: B1.id, title: B1.title, language: 'python', levels: [{ level: 'beginner', title: 'Read like a computer', lessons: [
   { id: 'b1-1', title: 'The robot prints', questions: ['b1-1-robot-keeps-each-printed-line', 'b1-1-robot-leaves-unprinted-values-quiet'] },
   { id: 'b1-2', title: 'Pockets', questions: ['b1-2-a-pocket-uses-its-latest-number', 'b1-2-reading-a-second-pocket-keeps-its-number'] }] }] };
-const marked = (courses) => courses.map((c) => ({ ...c, audience: 'experienced' }));
+// The decided marking: Python is the path's last step with no audience pill; Production and SQL are for people who already code.
+const marked = (courses) => courses.map((c) => (c.id === 'python' ? { ...c, path_step: 3 } : { ...c, audience: 'experienced' }));
 
 class Node {
   constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.className = ''; this.handlers = {}; this.parent = null; this.checked = false; this.hidden = false; this.textContent = ''; this.dataset = {}; this.style = {}; }
@@ -98,6 +99,7 @@ test('the path from the catalog: the beginner course is step 1 with Start and �
   assert.match(text(steps[0]), /For beginners/);
   assert.match(text(steps[1]), /Coming soon/);
   assert.match(text(steps[2]), /Python: reading code/);
+  assert.doesNotMatch(text(steps[2]), /For beginners|already code/, 'the path’s last step carries no audience pill');
   const start = steps[0].all((n) => n.tag === 'a' && text(n) === 'Start')[0];
   assert.equal(start.attrs.href, '#/q/b1-1-robot-keeps-each-printed-line');
   assert.match(start.className, /button--primary/, 'the main button for a reader with no answers');
@@ -128,10 +130,10 @@ test('no audience, no pill; a path course that is not loaded gets no link; the r
   assert.equal(without.all((n) => n.tag === 'a' && /#\/q\//.test(n.attrs.href || '')).length, 0);
 });
 
-test('“Already write code?” lists only courses marked for people who already code, in catalog order', () => {
-  const entries = parseCatalog({ ...realCatalog, courses: [B1, { ...realCatalog.courses[2], audience: 'experienced' }, realCatalog.courses[1], { ...realCatalog.courses[0], audience: 'experienced' }] });
+test('“Already write code?” lists the courses marked for people who already code and the path’s non-beginner step, in catalog order', () => {
+  const entries = parseCatalog({ ...realCatalog, courses: [B1, { ...realCatalog.courses[2], audience: 'experienced' }, realCatalog.courses[1], { ...realCatalog.courses[0], path_step: 3 }] });
   const sign = alreadyCodeSign(entries);
-  assert.deepEqual(sign.all((n) => n.tag === 'a').map((a) => a.attrs.href), ['#/course/sql', '#/course']);
+  assert.deepEqual(sign.all((n) => n.tag === 'a').map((a) => a.attrs.href), ['#/course/sql', '#/course'], 'production has neither mark: not listed');
   assert.match(text(sign), /^→Already write code\?This course starts from zero\. You will get more from:/);
   assert.equal(alreadyCodeSign(parseCatalog(realCatalog)), null);
 });
