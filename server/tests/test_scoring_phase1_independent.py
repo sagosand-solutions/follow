@@ -387,5 +387,39 @@ class S7ModerateTests(S8Base):
         self.assertEqual(len(json_body(self.fx.get("/scoring/me", user="u1", query=b"family=free"))["attempts"]), 1)
 
 
+class S2ExposureTests(S8Base):
+    """Mutation: add the solution/score to the issue DTO, or let check-static miss a protected id -> facit leaks before the answer."""
+
+    def static(self, root):
+        import contextlib
+        import io
+        from server import pool
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+            return pool.main(["--db", self.fx.path, "check-static", "--public-root", str(root)])
+
+    def test_the_issue_dto_never_carries_the_solution_or_any_scoring(self):
+        _, issue = self.fx.issue(self.fx.questions["free"][0], user="u1")
+        self.assertNotIn("solution", issue)
+        for option in issue["question"]["options"]:
+            self.assertEqual(set(option), {"option_id", "text"}, "an option carries no score, feedback or misconception")
+        for secret in ("score", "feedback", "misconception", "content_sha256", "solution"):
+            self.assertNotIn(secret, json.dumps(issue))
+
+    def test_the_answer_response_is_the_only_place_with_a_solution_field(self):
+        _, issue = self.fx.issue(self.fx.questions["free"][0], user="u1")
+        body = json_body(self.fx.answer(issue, "Right", user="u1", key="k" * 16))
+        self.assertIn("solution", body, "the solution field exists, after the commit")
+
+    def test_check_static_refuses_a_protected_id_in_a_public_file_and_passes_a_clean_tree(self):
+        protected = self.rows("SELECT question_id FROM pool_questions WHERE state IN ('ranked', 'retired') LIMIT 1")[0][0]
+        root = Path(tempfile.mkdtemp(prefix="k3-033-static-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        (root / "index.html").write_text("<!doctype html><p>clean</p>", encoding="utf-8")
+        self.assertEqual(self.static(root), 0, "a clean public tree passes")
+        (root / "leak.json").write_text(json.dumps({"copied": protected}), encoding="utf-8")
+        self.assertEqual(self.static(root), 1, "a protected id in the scanned bytes is a finding")
+
+
 if __name__ == "__main__":
     unittest.main()
