@@ -50,7 +50,7 @@ export function mapHttpError(status, body) {
   if (status === 404 || code === 'not-found') return { ok: false, code: 'not_found', message: 'This item is unavailable.' };
   if (status === 429 || code === 'throttled') return { ok: false, code: 'rate_limited', message: 'Too many attempts. Please wait before trying again.' };
   if (status === 409 || code === 'stale-policy' || code === 'identity-conflict') {
-    const scoringCode = ['expired', 'stale', 'locked', 'idempotency_conflict', 'claim_conflict'].includes(code) ? code : 'conflict';
+    const scoringCode = ['expired', 'stale', 'stale_cursor', 'locked', 'idempotency_conflict', 'claim_conflict'].includes(code) ? code : 'conflict';
     const error = { ok: false, code: scoringCode, message: scoringCode === 'locked' ? 'This question has already been answered.' : 'This has changed. Please review and try again.' };
     if (body?.attempt && typeof body.attempt === 'object') error.attempt = body.attempt;
     return error;
@@ -66,10 +66,21 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     : []);
   let preauthCsrfToken = null;
   let sessionCsrfToken = null;
+  // The authentication generation: it rises whenever who is signed in may have changed (sign-out, account deletion, a session
+  // that ended, another account on /me). A view keeps the number it started with and drops any answer that arrives later.
+  let authGen = 0;
+  let lastUser;                                         // undefined until the first /me; then a user id or null (signed out)
+  const authListeners = new Set();
+  const bumpAuth = () => { authGen += 1; for (const fn of [...authListeners]) fn(authGen); };
+  const seeUser = (id) => { if (lastUser !== undefined && lastUser !== id) bumpAuth(); lastUser = id; };
   const base = baseUrl.replace(/\/$/, '');
   const sessionCsrfPaths = new Set(['/checkout', '/logout', '/account/delete']);
 
-  async function request(path, { method = 'GET', body, csrf = false } = {}) {
+  // `gen`: the authentication generation the caller's data belongs to. When it is given and who is signed in has changed
+  // since (also while the CSRF token was being fetched), nothing is sent: an action shown for one reader is never sent with
+  // another reader's session.
+  async function request(path, { method = 'GET', body, csrf = false, gen } = {}) {
+    const startGen = authGen;
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (csrf) {
@@ -89,6 +100,7 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       }
       headers['X-CSRF-Token'] = token;
     }
+    if (gen !== undefined && gen !== authGen) return { ok: false, code: 'stale_auth', message: RETRY };
     let response;
     try {
       response = await fetchImpl(`${base}${path}`, {
@@ -103,13 +115,19 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     try { data = await response.json(); } catch { data = null; }
     if (!response.ok) {
       const error = mapHttpError(response.status, data);
-      if (error.code === 'signed_out') sessionCsrfToken = null;
+      if (error.code === 'signed_out') { sessionCsrfToken = null; seeUser(null); }
       return error;
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
       return { ok: false, code: 'invalid_response', message: BAD_RESPONSE };
     }
-    if (path === '/me') sessionCsrfToken = typeof data.csrf_token === 'string' ? data.csrf_token : null;
+    if (path === '/me') {
+      // An answer to a /me sent before a sign-out or an account change is about a reader who is gone: its token and its
+      // user are never installed.
+      if (authGen !== startGen) return { ok: false, code: 'stale_auth', message: RETRY };
+      sessionCsrfToken = typeof data.csrf_token === 'string' ? data.csrf_token : null;
+      seeUser(typeof data.user?.id === 'string' ? data.user.id : null);
+    }
     if (path === '/auth/csrf') preauthCsrfToken = typeof data.csrf_token === 'string' ? data.csrf_token : null;
     return { ok: true, data };
   }
@@ -119,6 +137,8 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
   };
   return {
     mock: false,
+    authGeneration: () => authGen,
+    onAuthChange(fn) { authListeners.add(fn); return () => authListeners.delete(fn); },
     async me() {
       const r = await request('/me');
       if (!r.ok) return r.code === 'signed_out' ? { signed_in: false, identities: [] } : r;
@@ -199,6 +219,13 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       const r = await request(`/leaderboards?${query}`);
       return r.ok ? { ok: true, ...r.data } : r;
     },
+    // Publish (or stop publishing) this account's score on one family's lists. The server keeps the alias it already has.
+    // `gen` binds the request to the reader the button was shown to (see request()).
+    async scoringPreference({ family, opt_in, gen }) {
+      if (!['official', 'free'].includes(family) || typeof opt_in !== 'boolean' || !Number.isInteger(gen)) return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
+      const r = await request('/scoring/preferences', { method: 'POST', csrf: true, body: { family, opt_in }, gen });
+      return r.ok ? { ok: true, ...r.data } : r;
+    },
     async checkout({ product_id, policy_version, acknowledgements }) {
       const data = await result('/checkout', { method: 'POST', csrf: true, body: { product_id, policy_version, acknowledgements } });
       if (data?.ok === false) return data;
@@ -213,13 +240,13 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
     },
     async logout() {
       const data = await result('/logout', { method: 'POST', csrf: true });
-      if (data?.ok === true) sessionCsrfToken = null;
+      if (data?.ok === true) { sessionCsrfToken = null; lastUser = null; bumpAuth(); }
       return data;
     },
     async exportData() { return result('/account/export'); },
     async deleteAccount() {
       const data = await result('/account/delete', { method: 'POST', csrf: true });
-      if (data?.ok === true) sessionCsrfToken = null;
+      if (data?.ok === true) { sessionCsrfToken = null; lastUser = null; bumpAuth(); }
       return data;
     },
   };

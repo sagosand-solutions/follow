@@ -129,7 +129,8 @@ test('server challenge view never reads or writes local scoring and submits only
   assert.doesNotMatch(source, /store\.record|localStorage|sessionStorage|pointsFor\(/);
   const profile = await readFile(new URL('../public/js/views/profile.js', import.meta.url), 'utf8');
   const board = await readFile(new URL('../public/js/views/leaderboard.js', import.meta.url), 'utf8');
-  assert.match(profile, /client\.scoringMe\(\{ family: 'official'/);
+  assert.match(profile, /family: query\.list === 'free' \? 'free' : 'official'/);
+  assert.match(profile, /client\.scoringMe\(state\)/);
   assert.match(board, /client\.scoringLeaderboards\(/);
 });
 
@@ -144,7 +145,7 @@ test('with the flag off no scoring module is imported statically (it would be fe
 
 test('no casino words in the scoring copy', async () => {
   const en = JSON.parse(await readFile(new URL('../public/i18n/en.json', import.meta.url), 'utf8'));
-  const text = Object.entries(en).filter(([k]) => /^(score|profile|board|result)\./.test(k)).map(([, v]) => v).join(' ').toLowerCase();
+  const text = Object.entries(en).filter(([k]) => /^(score|profile|board|result|rank|lb)\./.test(k)).map(([, v]) => v).join(' ').toLowerCase();
   for (const word of ['nobody can', 'never lose', 'streak', 'penalty', 'lost', 'hurry', 'only today', 'limited', 'jackpot', 'win big']) assert.ok(!text.includes(word), word);
 });
 
