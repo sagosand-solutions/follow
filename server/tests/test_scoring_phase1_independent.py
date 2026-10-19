@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""033 — Fas 1, oberoende bevis. Grupp S8: set är ett kontrakt utan API, och första-försökslåset kan inte kringgås.
+"""Independent phase 1 tests for the scoring pool: the real routes, the operator CLIs and the database.
 
-Denna svit är skriven oberoende av K1:s steg 9-fil: den bevisar kontraktet via rutter och DB och namnger i varje test
-den mutation som måste få testet att FALLA. Endast syntetiska data; inga produktionsfiler ändras. Implementerade
-grupper i denna fil markeras nedan; övriga grupper (S1–S7) läggs till i samma fil.
-
-Grupper: [x] S8   [ ] S1  [ ] S2  [ ] S3  [ ] S4  [ ] S5  [ ] S6  [ ] S7
+One class per scenario group. Each test names the mutation that must make it fail; the suite is written from the contract,
+never from the implementation. All data is synthetic and no production file is changed by these tests.
 """
 import json
 import os
@@ -20,7 +17,7 @@ from unittest import mock
 from server.tests.scoring_support import build_scoring_fixture
 from server.tests.support import ORIGIN, call, json_body
 
-# 032 step 9's file is the author's; this one is the independent proof and must stay self-contained.
+# These tests pin the set contract on their own and must stay self-contained.
 SET_TABLES = ("challenge_sets", "challenge_set_questions", "set_participants", "set_attempts")
 SERVER = Path(__file__).resolve().parents[1]
 
@@ -190,10 +187,16 @@ class S4CursorTests(S8Base):
             response = self.board(family="free", scope="total", window="all", limit=1, cursor=bad)
             self.assertEqual((response[0], json_body(response)["error"]["code"]), (400, "invalid"), bad)
 
-    def test_non_ascii_digits_in_a_cursor_part_are_invalid_never_a_server_error(self):
-        for offset, revision in (("²", "1"), ("１", "1"), ("1", "١"), ("١", "١"), ("1²", "1"), ("1", "2٣")):
-            response = self.board(family="free", scope="total", window="all", limit=1, cursor=f"{offset}.{revision}.{'a' * 24}")
-            self.assertEqual((response[0], json_body(response)["error"]["code"]), (400, "invalid"), (offset, revision))
+    def test_non_ascii_digits_that_spell_the_same_number_are_invalid(self):
+        offset, revision, signature = self.published_board()["next_cursor"].split(".")
+        arabic = lambda s: "".join(chr(0x0660 + int(c)) for c in s)
+        fullwidth = lambda s: "".join(chr(0xFF10 + int(c)) for c in s)
+        # The REAL signature is kept, so a check that reaches int()/compare_digest sees the same number and would accept it.
+        for tail in (f"{arabic(offset)}.{revision}", f"{fullwidth(offset)}.{revision}",
+                     f"{offset}.{arabic(revision)}", f"{offset}.{fullwidth(revision)}",
+                     f"{arabic(offset)}.{fullwidth(revision)}"):
+            response = self.board(family="free", scope="total", window="all", limit=1, cursor=f"{tail}.{signature}")
+            self.assertEqual((response[0], json_body(response)["error"]["code"]), (400, "invalid"), tail)
 
     def test_a_cursor_from_an_older_board_revision_is_stale(self):
         cursor = self.published_board()["next_cursor"]
@@ -206,7 +209,7 @@ class S9DevModeTests(unittest.TestCase):
     """Mutation: keep the production refusal only in main(), or serve the in-memory dev source / real content -> a dev app runs in prod."""
 
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp(prefix="k3-033-dev-"))
+        self.root = Path(tempfile.mkdtemp(prefix="scoring-independent-dev-"))
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
 
     def test_production_is_refused_before_any_side_effect(self):
@@ -413,7 +416,7 @@ class S2ExposureTests(S8Base):
 
     def test_check_static_refuses_a_protected_id_in_a_public_file_and_passes_a_clean_tree(self):
         protected = self.rows("SELECT question_id FROM pool_questions WHERE state IN ('ranked', 'retired') LIMIT 1")[0][0]
-        root = Path(tempfile.mkdtemp(prefix="k3-033-static-"))
+        root = Path(tempfile.mkdtemp(prefix="scoring-independent-static-"))
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)
         (root / "index.html").write_text("<!doctype html><p>clean</p>", encoding="utf-8")
         self.assertEqual(self.static(root), 0, "a clean public tree passes")
@@ -477,7 +480,13 @@ class S1AnonymityTests(S8Base):
 
 
 class _QueryCounter:
-    """Counts the DML statements of the requests made inside the context, by tracing every connection the app opens."""
+    """Counts every statement a request runs, by tracing each connection the app opens.
+
+    ``WITH`` queries count too (the page query is a ``WITH``); only transaction control is excluded, so a second page query
+    or an extra aggregate cannot hide. Each entry is judged on its own, not relative to another page size.
+    """
+
+    _TXN = ("BEGIN", "COMMIT", "SAVEPOINT", "RELEASE")
 
     def __enter__(self):
         import server.db as db
@@ -497,12 +506,17 @@ class _QueryCounter:
     def __exit__(self, *exc):
         self._db.connect = self._orig
 
-    def dml(self):
-        return [s for s in self.statements if s.strip().upper().startswith(("SELECT", "INSERT", "UPDATE", "DELETE"))]
+    def budget(self):
+        """Every statement the request ran, except transaction control."""
+        return [s for s in self.statements if s.strip().upper().split(None, 1)[0] not in self._TXN]
+
+    def ranking(self):
+        """The one statement that ranks the pool (it reads ``standings``)."""
+        return [s for s in self.budget() if "standings" in s.lower()]
 
 
 class S6QueryBudgetTests(unittest.TestCase):
-    """Mutation: a second COUNT for the participants of an empty page, or a per-row alias query -> the count stops being constant."""
+    """Mutation: a second COUNT for the participants of an empty page, or a per-row alias query -> the budget stops being fixed."""
 
     def setUp(self):
         self.fx, tmp = build_scoring_fixture(users=tuple(f"u{i}" for i in range(1, 9)), free=(("py-free", 5),))
@@ -517,20 +531,21 @@ class S6QueryBudgetTests(unittest.TestCase):
         from urllib.parse import urlencode
         return self.fx.get("/leaderboards", user=None, query=urlencode(query).encode())
 
-    def test_the_query_count_is_constant_for_an_empty_one_row_and_a_full_page(self):
+    def budget(self, **query):
         with _QueryCounter() as counter:
-            self.board(family="free", scope="total", window="all", limit=50)
-        empty = len(counter.dml())
+            self.board(**query)
+        return len(counter.budget()), len(counter.ranking())
+
+    def test_the_query_budget_is_absolute_and_fixed_for_an_empty_one_row_and_a_full_page(self):
+        # an empty pool still runs the one ranking statement, and nothing else in addition
+        self.assertEqual(self.budget(family="free", scope="total", window="all", limit=50), (4, 1), "the empty page's own budget")
         self.publish_and_answer("u1")
-        with _QueryCounter() as counter:
-            self.board(family="free", scope="total", window="all", limit=1)
-        one = len(counter.dml())
+        self.assertEqual(self.budget(family="free", scope="total", window="all", limit=1), (4, 1), "a one-row page")
         self.publish_and_answer("u2")
-        with _QueryCounter() as counter:
-            self.board(family="free", scope="total", window="all", limit=50)
-        full = len(counter.dml())
-        self.assertEqual(empty, one, "an empty page costs what a one-row page costs")
-        self.assertEqual(one, full, "a full page costs what a one-row page costs")
+        self.assertEqual(self.budget(family="free", scope="total", window="all", limit=50), (4, 1), "a full page")
+        # a real page cursor (a later page) still costs exactly one ranking statement
+        cursor = json_body(self.board(family="free", scope="total", window="all", limit=1))["next_cursor"]
+        self.assertEqual(self.budget(family="free", scope="total", window="all", limit=1, cursor=cursor), (4, 1))
 
     def test_board_revision_is_bound_to_the_family_and_moves_both_windows(self):
         official = lambda: json_body(self.fx.get("/leaderboards", user=None, query=b"family=official&scope=total&window=all"))["board_revision"]
