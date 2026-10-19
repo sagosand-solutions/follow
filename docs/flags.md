@@ -15,7 +15,7 @@ not read from the URL, browser storage, or the environment.
 | `scoringUi` | `false` | Server-backed scoring screens: profile (points/standing), leaderboards, and the per-question challenge link. | Needs `accountsApi` pointing at a real server and the server's `SCORING_*` flags on. No local, sample, or mock fallback: the views report "not configured" when the API is unset. |
 | `accountsUi` | `false` | Account screens (sign-in, premium, checkout) and the quiet header account link. | Server-backed accounts need a real `accountsApi`; without it the screens run on the in-browser test client. |
 | `accountsApi` | `null` | Base URL of the accounts/scoring API. `null` disables the HTTP client. | When `null`, the account client is the local test client and the scoring views stay off. |
-| `accountsOverlay` | `null` | The development stand-in for the payment provider's checkout window (`dev-shim`). | Needs `accountsUi` on and a development environment. Only ever set in `public/js/config.js`; never from the URL or storage. |
+| `accountsOverlay` | `null` | The development stand-in for the payment provider's checkout window, enabled only by the value `dev-shim`. | Development only; never set it in a release. No code checks the environment: the client only compares the value to `dev-shim`. Only ever set in `public/js/config.js`; never from the URL or storage. |
 
 ## Server flags
 
@@ -33,7 +33,7 @@ runner sets its own in-process values and never reads a real secret.
 | `SCORING_CLAIM_ENABLED` | `false` | Claiming an anonymous profile into a signed-in account. | Requires `SCORING_ENABLED`. |
 | `SCORING_PUBLISH_ENABLED` | `false` | Opting into shared leaderboards (with a nickname) and reading them. | Requires `SCORING_ENABLED`. |
 | `SCORING_DEV_SOURCE` | `false` | Serving the protected free pool from an in-memory map instead of the private manifest. | Requires `SCORING_ENABLED`; test/development only and refused in production. |
-| `SCORING_FREE_CONTENT_ROOT` | unset | Root directory of the private free-pool content. | Set together with `SCORING_FREE_MANIFEST`; requires `SCORING_ENABLED` and excludes `SCORING_DEV_SOURCE`. Must not be a path under the public site. |
+| `SCORING_FREE_CONTENT_ROOT` | unset | Root directory of the private free-pool content. | Set together with `SCORING_FREE_MANIFEST`; requires `SCORING_ENABLED` and excludes `SCORING_DEV_SOURCE`. Operational rule: keep it outside the public site. Config does not check the path; the static leak check (`python -m server.pool check-static` against the public files) fails if a protected question appears there. |
 | `SCORING_FREE_MANIFEST` | unset | Hash-checked manifest listing the private free-pool files. | Set together with `SCORING_FREE_CONTENT_ROOT`; same constraints. |
 
 ### Payments
@@ -43,8 +43,8 @@ runner sets its own in-process values and never reads a real secret.
 | `PAYMENTS_PROVIDER` | `mock` | Selects the payment provider implementation. | One of `mock` or `paddle`. With `mock`, no other `PADDLE_*` variable may be set. |
 | `PADDLE_ENV` | unset | The Paddle environment. | Only `sandbox` is supported; only valid with `PAYMENTS_PROVIDER=paddle`. |
 | `PADDLE_API_KEY` | unset | Paddle API key. | Secret. Used once at startup for the environment and key-prefix check, and never stored. Only valid with `PAYMENTS_PROVIDER=paddle`. |
-| `PADDLE_ENDPOINT_SECRET` | unset | Paddle webhook signature secret. | Secret, at least 16 characters. Kept redacted everywhere. Only valid with `PAYMENTS_PROVIDER=paddle`. |
-| `PADDLE_PRODUCTS` | unset | JSON map of product id to price, quantity, and currency. | Strict JSON; each entry needs `price_id`, `quantity`, and `currency_code` (optional `total_minor`, `total_field`). Only valid with `PAYMENTS_PROVIDER=paddle`. |
+| `PADDLE_ENDPOINT_SECRET` | unset | Paddle webhook signature secret. | Secret, at least 16 characters, and must not equal `PADDLE_API_KEY`. Kept redacted everywhere. Only valid with `PAYMENTS_PROVIDER=paddle`. |
+| `PADDLE_PRODUCTS` | unset | JSON map of product id to price, quantity, and currency. | Strict JSON; each entry needs `price_id`, `quantity`, and `currency_code` (optional `total_minor`, `total_field`), and `quantity` must be exactly `1`. Only valid with `PAYMENTS_PROVIDER=paddle`. |
 
 ## Production
 
