@@ -486,5 +486,13 @@
   "q.practice.sub.correct": "You read it the way the computer does.",
   "q.practice.sub.partial": "Part of your reasoning fits. Watch the rest run, line by line.",
   "q.practice.sub.wrong": "Not quite. Watch it run, line by line.",
-  "q.practice.sub.unsure": "Good call to check. Watch it run, line by line."
+  "q.practice.sub.unsure": "Good call to check. Watch it run, line by line.",
+  "catalog.audience.beginner": "For beginners",
+  "catalog.audience.experienced": "For people who already code",
+  "path.start": "Start",
+  "path.skip": "Already write code? Skip ahead to the courses",
+  "sign.title": "Already write code?",
+  "sign.text": "This course starts from zero. You will get more from:",
+  "course.eyebrow.beginner": "Beginner course",
+  "course.eyebrow.beginnerFree": "Beginner course · Free"
 }

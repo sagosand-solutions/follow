@@ -5,9 +5,14 @@ const COURSE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const DEFAULT_COURSE = 'python';
 
 const count = (n) => (Number.isInteger(n) && n >= 0 ? n : null);
+const AUDIENCES = ['beginner', 'experienced'];
+const PATH_STEPS = [1, 2, 3];
 
 // data/catalog.json -> a clean list, or null when the file is unusable (callers then behave as a one-course site).
 // Entries with a bad id, title or description are skipped; the premium status is kept only when it is a known one.
+// `audience` (beginner | experienced) and `path_step` (1-3, an integer used by one course only) are optional and kept only
+// when valid: an unknown audience is no audience, never one guessed from a name or a level, and a step claimed twice is
+// nobody's step.
 export function parseCatalog(raw) {
   if (!raw || typeof raw !== 'object' || raw.data_version !== 1 || !Array.isArray(raw.courses)) return null;
   const seen = new Set();
@@ -17,8 +22,14 @@ export function parseCatalog(raw) {
     if (typeof c.title !== 'string' || !c.title || typeof c.description !== 'string') continue;
     seen.add(c.id);
     const premium = c.premium && c.premium.status === 'coming-soon' ? { status: 'coming-soon', questions: count(c.premium.questions) } : null;
-    courses.push({ id: c.id, title: c.title, description: c.description, free: count(c.free_questions), premium, start: typeof c.start_question === 'string' ? c.start_question : null });
+    courses.push({
+      id: c.id, title: c.title, description: c.description, free: count(c.free_questions), premium, start: typeof c.start_question === 'string' ? c.start_question : null,
+      audience: AUDIENCES.includes(c.audience) ? c.audience : null, pathStep: PATH_STEPS.includes(c.path_step) ? c.path_step : null,
+    });
   }
+  const claims = new Map();
+  for (const c of courses) if (c.pathStep !== null) claims.set(c.pathStep, (claims.get(c.pathStep) || 0) + 1);
+  for (const c of courses) if (claims.get(c.pathStep) > 1) c.pathStep = null;
   return courses.length ? courses : null;
 }
 

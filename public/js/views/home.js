@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { loadIndex, loadCourses, loadCatalog, loadQuestion, allQuestionIds } from '../data.js';
 import { activeCourse, courseHref, reviewHref, freeTotal } from '../catalog.js';
-import { catalogSection } from '../components/catalog-card.js';
+import { catalogSection, firstQuestionOf } from '../components/catalog-card.js';
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
@@ -73,7 +73,11 @@ export async function homeView() {
     if (reviewCount > 0) actions.append(h('a', { class: 'button button--secondary button--block', href: reviewHref(active ? active.id : undefined) }, t('review.button', { count: reviewCount })));
   } else {
     intro.push(h('p', { class: 'lead' }, t('home.lead')));
-    if (index && index.onboarding_question) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${index.onboarding_question}` }, t('home.start')));
+    // A new visitor starts with the beginner course on the path when there is one (and it loads), else the onboarding question.
+    const beginner = catalog ? catalog.find((e) => e.audience === 'beginner' && e.pathStep === 1) : null;
+    const beginnerCourse = beginner ? entries.find((e) => e.id === beginner.id) : null;
+    const firstId = beginnerCourse ? firstQuestionOf(beginner, beginnerCourse.course) : index && index.onboarding_question;
+    if (firstId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${firstId}` }, t('home.start')));
     // With a course catalog right below, a second "browse" button would only push the cards down.
     if (!catalog || catalog.length < 2 || !(index && index.onboarding_question)) actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: browseHref }, t('home.browse')));
     // Honest storage facts; never a promise the current storage mode cannot keep.
