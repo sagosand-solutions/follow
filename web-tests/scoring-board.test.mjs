@@ -491,6 +491,105 @@ test('one reader: singular words, and no share dialog without a score', async ()
   assert.match(share.shareText(share.shareParts({ me: board.parseMe(lone), listLabel: 'Official', scopeLabel: 'All courses' })), /with 1 reader on it\)/);
   const none = board.parseMe(meKim({ scope_score: null, rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null }));
   const before = document.body.children.length;
-  assert.equal(share.openShareDialog({ me: none, listLabel: 'Official', scopeLabel: 'All courses', client: { authGeneration: () => 0, onAuthChange: () => () => {} } }), null);
+  assert.equal(share.openShareDialog({ me: none, listLabel: 'Official', scopeLabel: 'All courses', client: { authGeneration: () => 0, onAuthChange: () => () => {} }, gen: 0 }), null);
   assert.equal(document.body.children.length, before);
+});
+
+// ---- actions are bound to the reader they were shown to (deferred answers) ----
+const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; };
+const posts = () => calls.filter((c) => c.method === 'POST' && c.url.endsWith('/scoring/preferences')).length;
+
+test('a change of reader empties the old view at once; its Publish, Stop publishing and Share never act for the new reader', async () => {
+  const { getClient } = await import('../public/js/account/index.js');
+  const client = getClient();
+  serve({ account: signedIn('u-kim'), me: () => reply(200, meNotPublished()), boards: () => reply(200, pageTop({}, false)) });
+  await client.me();
+  const old = await leaderboardView();
+  old.after();
+  const [publish] = buttons(old.node, 'Publish my score');
+  const [share] = buttons(old.node, 'Share my score');
+  serve({ account: signedIn('u-kim'), me: () => reply(200, meKim()), boards: () => reply(200, pageTop()) });
+  const published = await leaderboardView();
+  published.after();
+  const [stop] = buttons(published.node, 'Stop publishing my score');
+  routes['/scoring/preferences'] = () => reply(200, { family: 'official', opted_in: true, alias: 'x' });
+  // count calls to the client too: the view must not even ask (the client's own check is a second, separate layer)
+  const original = client.scoringPreference;
+  let asked = 0;
+  client.scoringPreference = (args) => { asked += 1; return original(args); };
+  // another account appears while these views are still on the page
+  routes['/me'] = signedIn('u-other');
+  await client.me();
+  assert.match(text(published.node), /^Loading the lists for whoever is signed in now…$/, 'emptied synchronously, before any reload');
+  const dialogs = document.body.children.length;
+  for (const button of [publish, stop, share]) await button.fire('click');
+  assert.equal(posts(), 0, 'no scoring POST from an old view');
+  assert.equal(asked, 0, 'the old view does not even ask the client');
+  client.scoringPreference = original;
+  assert.equal(document.body.children.length, dialogs, 'no share preview of the old reader');
+  // a fresh view for the new reader works
+  serve({ account: signedIn('u-other'), me: () => reply(200, meNotPublished()), boards: () => reply(200, pageTop({}, false)) });
+  routes['/scoring/preferences'] = () => reply(200, { family: 'official', opted_in: true, alias: 'y' });
+  const fresh = await leaderboardView();
+  await buttons(fresh.node, 'Publish my score')[0].fire('click');
+  assert.equal(posts(), 1);
+  await buttons(fresh.node, 'Share my score')[0].fire('click');
+  assert.equal(document.body.children.length, dialogs + 1);
+  document.body.children.at(-1).close();
+});
+
+test('a reader change while the CSRF token is fetched stops the POST; a late /me after sign-out installs nothing', async () => {
+  const c = createHttpClient({ baseUrl: '/api' });
+  calls = [];
+  routes = { '/me': signedIn('u-a'), '/logout': () => reply(200, { ok: true }), '/scoring/preferences': () => reply(200, { opted_in: true }) };
+  await c.me();
+  await c.logout();
+  const gen = c.authGeneration();
+  // the token must be fetched again; while it is on the way, another account signs in
+  const pending = deferred();
+  routes['/me'] = () => pending.promise;
+  const sent = c.scoringPreference({ family: 'official', opt_in: true, gen });
+  pending.resolve(signedIn('u-b')());
+  assert.equal((await sent).code, 'stale_auth');
+  assert.equal(posts(), 0, 'nothing sent with the new reader’s token');
+  // a /me sent before a sign-out answers after it: its token and user are dropped
+  const late = deferred();
+  routes['/me'] = () => late.promise;
+  const asked = c.me();
+  await c.logout();
+  const afterLogout = c.authGeneration();
+  late.resolve(signedIn('u-b')());
+  assert.equal((await asked).code, 'stale_auth');
+  assert.equal(c.authGeneration(), afterLogout, 'no new reader installed by the late answer');
+  routes['/me'] = signedOut;
+  const r = await c.scoringPreference({ family: 'official', opt_in: true, gen: afterLogout });
+  assert.equal(r.code, 'signed_out', 'the late token was not kept: a fresh /me was needed and refused');
+  assert.equal(posts(), 0);
+  assert.equal((await c.scoringPreference({ family: 'official', opt_in: true })).code, 'invalid_request', 'a POST without a generation is refused');
+});
+
+test('the profile too: after a change of reader its old buttons do nothing', async () => {
+  const { getClient } = await import('../public/js/account/index.js');
+  const client = getClient();
+  serve({ account: signedIn('u-kim'), me: () => reply(200, meNotPublished()) });
+  await client.me();
+  globalThis.location.hash = '#/profile?list=challenge&period=week';
+  const view = await profileView();
+  view.after();
+  const [publish] = buttons(view.node, 'Publish my score');
+  const [share] = buttons(view.node, 'Share my score');
+  const original = client.scoringPreference;
+  let asked = 0;
+  client.scoringPreference = (args) => { asked += 1; return original(args); };
+  routes['/me'] = signedIn('u-other');
+  await client.me();
+  assert.match(text(view.node), /^Loading the lists for whoever is signed in now…$/);
+  const dialogs = document.body.children.length;
+  await publish.fire('click');
+  await share.fire('click');
+  client.scoringPreference = original;
+  globalThis.location.hash = '#/leaderboard';
+  assert.equal(asked, 0);
+  assert.equal(posts(), 0);
+  assert.equal(document.body.children.length, dialogs);
 });

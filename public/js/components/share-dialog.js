@@ -56,10 +56,12 @@ export function drawShareImage(parts, doc = document) {
   return canvas;
 }
 
-// Open the dialog. It closes and empties its preview as soon as who is signed in changes, and every action checks that first.
-export function openShareDialog({ me, listLabel, scopeLabel, alias = null, client }) {
+// Open the dialog. It closes and empties its preview as soon as who is signed in changes.
+// `gen` is the authentication generation `me` was read in. If who is signed in has changed since, nothing opens; every action
+// checks it again.
+export function openShareDialog({ me, listLabel, scopeLabel, alias = null, client, gen }) {
   if (!canShare(me)) return null;                       // the button guards this too; without a score there is nothing to share
-  const gen = client.authGeneration();
+  if (!Number.isInteger(gen) || client.authGeneration() !== gen) return null;
   const opener = document.activeElement;
   const withAlias = canShowAlias(me, alias);
   const preview = h('p', { class: 'share__preview', id: 'share-preview' });

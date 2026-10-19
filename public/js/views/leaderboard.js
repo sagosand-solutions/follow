@@ -60,10 +60,14 @@ export function boardTable(caption, entries) {
 const stateOf = (q) => ({ family: q.list === 'free' ? 'free' : 'official', scope: q.course === 'all' ? 'total' : `course:${q.course}`, window: q.period });
 
 // One subscription for the whole view: a sign-in elsewhere, a sign-out or an ended session redraws the list for the new reader.
+// The old view is emptied at once, before the new one loads, so no score or button of the previous reader stays usable.
 let stopWatching = null;
-export function watchAuth(client, route) {
+export function watchAuth(client, route, node) {
   if (stopWatching) stopWatching();
-  stopWatching = client.onAuthChange(() => { if ((globalThis.location.hash || '').startsWith(route)) refresh(); });
+  stopWatching = client.onAuthChange(() => {
+    if (node) node.replaceChildren(h('p', { class: 'lb-status', role: 'status' }, t('lb.readerChanged')));
+    if ((globalThis.location.hash || '').startsWith(route)) refresh();
+  });
 }
 
 const statusLine = (text) => h('p', { class: 'lb-status', role: 'status', tabindex: '-1' }, text);
@@ -169,14 +173,15 @@ export async function leaderboardView(params, depth = 0) {
   const ownBlock = own ? h('section', { class: 'score-card' }, h('p', { class: 'board__gap', 'aria-hidden': 'true' }, '…'), boardTable(t('lb.yourPlace'), own.entries)) : null;
 
   const publish = (optIn) => async () => {
-    const r = await client.scoringPreference({ family: state.family, opt_in: optIn });
+    if (client.authGeneration() !== gen) return { ok: false, code: 'stale_auth' };
+    const r = await client.scoringPreference({ family: state.family, opt_in: optIn, gen });
     if (r.ok) { focusPlaceNext(); refresh(); }
     return r;
   };
   const alias = (page.entries.find((e) => e.me) || own?.entries.find((e) => e.me))?.alias || null;
-  const onShare = () => openShareDialog({ me, listLabel: t(`board.list.${query.list}`), scopeLabel: courseTitle, alias, client });
+  const onShare = () => openShareDialog({ me, listLabel: t(`board.list.${query.list}`), scopeLabel: courseTitle, alias, client, gen });
   const place = me ? h('section', { class: 'score-card' }, h('h2', {}, t('lb.yours')), placementBlock({ me, signedIn, onPublish: publish(true), onUnpublish: publish(false), onShare })) : null;
   const view = shell([controls, place, page.entries.length ? section : statusLine(t('lb.empty')), ownBlock], null, [h('p', { class: 'lead' }, pluralTemplate(page.participants, t('lb.participants.one', { n: page.participants }), t('lb.participants', { n: page.participants }))), weekLine(page.window)]);
-  view.after = () => { watchAuth(client, '#/leaderboard'); takePlaceFocus(view.node); };
+  view.after = () => { watchAuth(client, '#/leaderboard', view.node); takePlaceFocus(view.node); };
   return view;
 }

@@ -76,7 +76,11 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
   const base = baseUrl.replace(/\/$/, '');
   const sessionCsrfPaths = new Set(['/checkout', '/logout', '/account/delete']);
 
-  async function request(path, { method = 'GET', body, csrf = false } = {}) {
+  // `gen`: the authentication generation the caller's data belongs to. When it is given and who is signed in has changed
+  // since (also while the CSRF token was being fetched), nothing is sent: an action shown for one reader is never sent with
+  // another reader's session.
+  async function request(path, { method = 'GET', body, csrf = false, gen } = {}) {
+    const startGen = authGen;
     const headers = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (csrf) {
@@ -96,6 +100,7 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       }
       headers['X-CSRF-Token'] = token;
     }
+    if (gen !== undefined && gen !== authGen) return { ok: false, code: 'stale_auth', message: RETRY };
     let response;
     try {
       response = await fetchImpl(`${base}${path}`, {
@@ -117,6 +122,9 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       return { ok: false, code: 'invalid_response', message: BAD_RESPONSE };
     }
     if (path === '/me') {
+      // An answer to a /me sent before a sign-out or an account change is about a reader who is gone: its token and its
+      // user are never installed.
+      if (authGen !== startGen) return { ok: false, code: 'stale_auth', message: RETRY };
       sessionCsrfToken = typeof data.csrf_token === 'string' ? data.csrf_token : null;
       seeUser(typeof data.user?.id === 'string' ? data.user.id : null);
     }
@@ -212,9 +220,10 @@ export function createHttpClient({ baseUrl, checkoutOrigins = [], fetchImpl = gl
       return r.ok ? { ok: true, ...r.data } : r;
     },
     // Publish (or stop publishing) this account's score on one family's lists. The server keeps the alias it already has.
-    async scoringPreference({ family, opt_in }) {
-      if (!['official', 'free'].includes(family) || typeof opt_in !== 'boolean') return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
-      const r = await request('/scoring/preferences', { method: 'POST', csrf: true, body: { family, opt_in } });
+    // `gen` binds the request to the reader the button was shown to (see request()).
+    async scoringPreference({ family, opt_in, gen }) {
+      if (!['official', 'free'].includes(family) || typeof opt_in !== 'boolean' || !Number.isInteger(gen)) return { ok: false, code: 'invalid_request', message: 'Choose a scoring list.' };
+      const r = await request('/scoring/preferences', { method: 'POST', csrf: true, body: { family, opt_in }, gen });
       return r.ok ? { ok: true, ...r.data } : r;
     },
     async checkout({ product_id, policy_version, acknowledgements }) {

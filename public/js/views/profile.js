@@ -41,7 +41,9 @@ export async function profileView(params, depth = 0) {
   // not an error.
   if (!answer.ok && (answer.code === 'signed_out' || answer.code === 'not_found')) {
     const note = h('p', { class: 'lb-status', role: 'status', tabindex: '-1' }, answer.code === 'not_found' || (!signedIn && state.family === 'official') ? t('profile.server.signIn') : t('profile.server.none'));
-    return shell([controls, h('section', { class: 'score-card' }, note, signedIn ? null : h('p', {}, h('a', { href: '#/signin' }, t('nav.signin'))))], () => watchAuth(client, '#/profile'));
+    const quiet = shell([controls, h('section', { class: 'score-card' }, note, signedIn ? null : h('p', {}, h('a', { href: '#/signin' }, t('nav.signin'))))]);
+    quiet.after = () => watchAuth(client, '#/profile', quiet.node);
+    return quiet;
   }
   if (!answer.ok) return fail(t('rank.unavailable'), controls);
   const me = parseMe(answer);
@@ -62,14 +64,15 @@ export async function profileView(params, depth = 0) {
 
   const titleFor = (id) => courses.find((entry) => entry.id === id)?.course.title || id;
   const publish = (optIn) => async () => {
-    const r = await client.scoringPreference({ family: state.family, opt_in: optIn });
+    if (client.authGeneration() !== gen) return { ok: false, code: 'stale_auth' };
+    const r = await client.scoringPreference({ family: state.family, opt_in: optIn, gen });
     if (r.ok) { focusPlaceNext(); refresh(); }
     return r;
   };
   const boardHref = `#/leaderboard?list=${query.list}&period=${query.period}&course=all`;
   const listName = t(`board.list.${query.list}`);
   const alias = own?.entries.find((e) => e.me)?.alias || null;
-  const onShare = () => openShareDialog({ me, listLabel: listName, scopeLabel: t('board.course.all'), alias, client });
+  const onShare = () => openShareDialog({ me, listLabel: listName, scopeLabel: t('board.course.all'), alias, client, gen });
   const scoreCard = h('section', { class: 'score-card score-card--challenge' },
     h('h2', {}, t('profile.server.title', { list: listName })),
     bigNumber(localScore(me.total.score_display), t('profile.challenge.unit')),
@@ -89,6 +92,6 @@ export async function profileView(params, depth = 0) {
     h('tbody', {}, recent.map((a) => h('tr', {}, h('th', { scope: 'row' }, titleFor(a.course_id)), h('td', {}, t(`profile.outcome.${a.outcome}`)), h('td', {}, day(a.accepted_at)), h('td', {}, a.rank_eligible ? t('profile.recent.ranked') : t('profile.recent.practice'))))))) : null;
   const local = h('section', { class: 'score-card' }, h('h2', {}, t('profile.learned.title')), h('p', {}, t('profile.server.local', { n: store.answers().length })));
   const view = shell([controls, scoreCard, ownCard, byCourse, history, local]);
-  view.after = () => { watchAuth(client, '#/profile'); takePlaceFocus(view.node); };
+  view.after = () => { watchAuth(client, '#/profile', view.node); takePlaceFocus(view.node); };
   return view;
 }
