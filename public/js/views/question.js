@@ -6,6 +6,7 @@ import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
 import { loadQuestion, findCourseOf, loadConcepts, loadTrace, findLessonOf, loadCatalog } from '../data.js';
 import { alreadyCodeSign } from '../components/catalog-card.js';
+import { renderArtifact } from '../components/artifact.js';
 import { newWordCards } from '../components/beginner.js';
 import { introductionsFor } from '../lesson-extras.js';
 import { courseHref, reviewHref } from '../catalog.js';
@@ -174,7 +175,7 @@ function draw(ctx, prev, stale = false) {
 
   const title = h('h1', { id: 'q-title', class: q.prompt.length > 90 ? 'question__title question__title--long' : 'question__title' }, renderInline(q.prompt));
 
-  const snippets = q.snippets.map((s) =>
+  const snippets = (q.snippets || []).map((s) =>
     renderCodeBlock({
       source: s.code,
       language: q.language || 'python',
@@ -258,7 +259,9 @@ function draw(ctx, prev, stale = false) {
     submit();
   });
 
-  const stageBox = h('div', { class: 'q-stage', role: snippets.length > 1 ? 'group' : null, 'aria-label': snippets.length > 1 ? t('q.code') : null }, ...snippets);
+  // Text artifacts (0.3) come after the code, as plain text blocks: not code, not traced, not run.
+  const artifacts = (q.artifacts || []).map((a) => renderArtifact(a));
+  const stageBox = h('div', { class: 'q-stage', role: snippets.length + artifacts.length > 1 ? 'group' : null, 'aria-label': snippets.length + artifacts.length > 1 ? t('q.code') : null }, ...snippets, ...artifacts);
   const scoreLine = ctx.scoring && !ctx.practice && !answered ? ctx.scoring.tryLine(firstTry) : null;
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, scoreLine, answered ? null : actions, feedback, sourceFor(q));
   // Practice: the whole instruction on the first question of a lesson, otherwise one line that opens to it, so it is always there
@@ -269,7 +272,7 @@ function draw(ctx, prev, stale = false) {
   if (firstTry && !ctx.practice && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
   root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...(ctx.sign ? [ctx.sign] : []), ...newWordCards(ctx.intros), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
-  if (answered) mountStepper(q, stageBox, snippets);
+  if (answered && snippets.length) mountStepper(q, stageBox, snippets);
   if (answered) {
     renderFeedback(ctx, feedback, prev, letters);
   }

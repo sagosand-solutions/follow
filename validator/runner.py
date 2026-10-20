@@ -173,7 +173,7 @@ def verify_question(question, runner: Runner, limits=None):
     """Return (issues, infrastructure_failure); injectable without spawning processes."""
     from .core import Issue
     limits = limits or Limits()
-    snippets = {s["id"]: s["code"] for s in question["snippets"]}
+    snippets = {s["id"]: s["code"] for s in question.get("snippets", [])}
     issues, infrastructure = [], False
     for i, case in enumerate(question["verification"]["cases"]):
         result = runner.run(snippets[case["snippet_id"]], case["stdin"], limits)

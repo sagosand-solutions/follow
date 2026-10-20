@@ -122,7 +122,7 @@ class AnswerProfileExportTests(unittest.TestCase):
             "practice on the legacy version": mutated(question(), id="bad-question", answer_profile="beginner-practice"),
             "missing profile in 0.2": {k: v for k, v in practice("bad-question").items() if k != "answer_profile"},
             "unknown profile": mutated(practice("bad-question"), answer_profile="premium"),
-            "unknown version": mutated(practice("bad-question"), schema_version="0.3"),
+            "unknown version": mutated(practice("bad-question"), schema_version="0.4"),
             "practice with five options": mutated(practice("bad-question"), options=[option(i, s) for i, s in enumerate((1, 0.5, 0, 0, 0))]),
             "standard with four options": mutated(standard("bad-question"), options=[option(i, s) for i, s in enumerate((1, 0.5, 0, 0))]),
             "practice with a wrong distribution": mutated(practice("bad-question"), options=[option(i, s) for i, s in enumerate((1, 0.5, 0.5, 0))]),

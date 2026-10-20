@@ -14,7 +14,6 @@
     "difficulty",
     "concepts",
     "prompt",
-    "snippets",
     "options",
     "explanation",
     "verification",
@@ -25,7 +24,8 @@
     "schema_version": {
       "enum": [
         "0.1",
-        "0.2"
+        "0.2",
+        "0.3"
       ]
     },
     "answer_profile": {
@@ -38,7 +38,10 @@
       "$ref": "#/$defs/questionId"
     },
     "language": {
-      "const": "python"
+      "enum": [
+        "python",
+        "text"
+      ]
     },
     "locale": {
       "const": "en"
@@ -81,6 +84,15 @@
         "$ref": "#/$defs/snippet"
       }
     },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/artifact"
+      }
+    },
     "options": {
       "type": "array",
       "uniqueItems": true,
@@ -120,8 +132,17 @@
       },
       "then": {
         "not": {
-          "required": [
-            "answer_profile"
+          "anyOf": [
+            {
+              "required": [
+                "answer_profile"
+              ]
+            },
+            {
+              "required": [
+                "artifacts"
+              ]
+            }
           ]
         },
         "properties": {
@@ -129,14 +150,20 @@
             "minItems": 5,
             "maxItems": 8
           }
-        }
+        },
+        "required": [
+          "snippets"
+        ]
       }
     },
     {
       "if": {
         "properties": {
           "schema_version": {
-            "const": "0.2"
+            "enum": [
+              "0.2",
+              "0.3"
+            ]
           }
         },
         "required": [
@@ -189,6 +216,82 @@
             }
           }
         ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "0.2"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
+      },
+      "then": {
+        "not": {
+          "required": [
+            "artifacts"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "language": {
+            "const": "python"
+          }
+        },
+        "required": [
+          "language"
+        ]
+      },
+      "then": {
+        "required": [
+          "snippets"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "language": {
+            "const": "text"
+          }
+        },
+        "required": [
+          "language"
+        ]
+      },
+      "then": {
+        "required": [
+          "artifacts"
+        ],
+        "not": {
+          "required": [
+            "snippets"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "snippets"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "cases": {
+                "minItems": 1
+              }
+            }
+          }
+        }
       }
     }
   ],
@@ -382,7 +485,6 @@
         },
         "cases": {
           "type": "array",
-          "minItems": 1,
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/case"
@@ -475,6 +577,174 @@
           "minLength": 1
         }
       }
+    },
+    "artifact": {
+      "description": "Display-only text (never executed, never a trace): schema_version 0.3 only. sha256 is over the UTF-8 bytes of text exactly as stored (no BOM, no normalisation, no line-ending changes); provenance binds it to the output of an authoring fixture.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "format",
+        "text",
+        "sha256",
+        "provenance"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localId"
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "diff",
+            "http-transcript",
+            "test-report",
+            "policy"
+          ]
+        },
+        "format": {
+          "enum": [
+            "plain",
+            "unified-diff",
+            "http-1.1-transcript"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "not": {
+            "pattern": "[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]"
+          }
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "not": {
+            "pattern": "[\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u2028\\u2029]"
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fixture_id",
+            "fixture_output_sha256"
+          ],
+          "properties": {
+            "fixture_id": {
+              "$ref": "#/$defs/localId"
+            },
+            "fixture_output_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "text"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "format": {
+                "const": "plain"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "diff"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "format": {
+                "const": "unified-diff"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "http-transcript"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "format": {
+                "const": "http-1.1-transcript"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "test-report"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "format": {
+                "const": "plain"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "policy"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "format": {
+                "const": "plain"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

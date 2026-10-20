@@ -59,17 +59,18 @@ marked optional.
 
 | Field | Type | Rule |
 |---|---|---|
-| `schema_version` | string | `"0.1"` (the legacy standard question) or `"0.2"` (explicit answer profile). Any other value is refused. |
-| `answer_profile` | string | **Required in 0.2, forbidden in 0.1.** `standard` (5 to 8 options) or `beginner-practice` (exactly 4 options). Never inferred. |
+| `schema_version` | string | `"0.1"` (the legacy standard question), `"0.2"` (explicit answer profile) or `"0.3"` (0.2 plus text artifacts, below). Any other value is refused. |
+| `answer_profile` | string | **Required in 0.2 and 0.3, forbidden in 0.1.** `standard` (5 to 8 options) or `beginner-practice` (exactly 4 options). Never inferred. |
 | `id` | string | Matches `^[a-z][a-z0-9-]{2,79}$`. |
-| `language` | string | Constant `"python"`. |
+| `language` | string | `"python"` (code is shown and verified). `"text"` only in 0.3, for a question that shows text artifacts and no code. |
 | `locale` | string | Constant `"en"`. |
 | `type` | string | One of `output`, `crashing-input`, `remove-line`, `equivalence`, `complexity`, `ai-review`. |
 | `level` | string | One of `beginner`, `intermediate`, `advanced`. |
 | `difficulty` | number | Author's relative estimate in `0..1` (0 easiest). Not a calibrated probability. |
 | `concepts` | array | Nonempty, unique concept IDs, each matching `^(py\|prod\|sql)\.[a-z][a-z0-9-]*$`. |
 | `prompt` | string | Nonempty plain text. States all assumptions and the actual question. |
-| `snippets` | array | Nonempty array of Snippet objects. The first snippet is the primary displayed code. |
+| `snippets` | array | Nonempty array of Snippet objects. The first snippet is the primary displayed code. Required in 0.1 and 0.2; in 0.3 required when `language` is `python` and forbidden when it is `text`. |
+| `artifacts` | array | 0.3 only: 1 to 3 text Artifact objects (below). Required when `language` is `text`; forbidden in 0.1 and 0.2. |
 | `options` | array | Option objects: 5 to 8 for `0.1` and `0.2` `standard`; exactly 4 for `0.2` `beginner-practice`. |
 | `explanation` | string | Nonempty plain text giving the correct conclusion. |
 | `verification` | object | A Verification object (below). |
@@ -110,6 +111,61 @@ Source line count is computed with `splitlines`; an empty final segment after a
 terminal newline is not an extra source line. Later snippets are visible
 variants or examples. A `remove-line` question represents the removed line as a
 second, actually displayed snippet when its behavior is tested.
+
+### Text artifacts (0.3)
+
+A text artifact is **display text that is never run**: a diff, an HTTP transcript, a test report, a policy or plain text. It is not a
+snippet, never gets a trace, and is never labelled as passing a run. A question that uses artifacts is `schema_version "0.3"`, so a
+reader that does not know 0.3 refuses the question instead of silently dropping the text. `0.1` and `0.2` questions are unchanged.
+
+| Field | Type | Rule |
+|---|---|---|
+| `id` | string | Local ID, unique among the question's snippets and artifacts. |
+| `kind` | string | `text`, `diff`, `http-transcript`, `test-report` or `policy`. |
+| `format` | string | Fixed by the kind: `unified-diff` for `diff`, `http-1.1-transcript` for `http-transcript`, `plain` otherwise. |
+| `text` | string | 1 to 4000 code points and at most 80 lines. Line breaks are `\n` only; no carriage return, no control characters other than tab and newline, no U+2028/2029, no lone surrogate. |
+| `sha256` | string | 64 lower-case hex: the SHA-256 of the UTF-8 bytes of `text` exactly as stored (no BOM, no normalisation, no line-ending change, no trimming). |
+| `provenance` | object | Exactly `fixture_id` (local ID) and `fixture_output_sha256` (64 lower-case hex): the hash of the bytes the authoring fixture produced. |
+| `label` | string | Optional, at most 80 characters. |
+
+No other key is allowed, so an artifact cannot carry a URL, a source, markup or anything that runs. The exporter adds what a schema
+cannot say: `artifact-hash` (`sha256` is the hash of `text`), `artifact-binding` (the fixture output hash is the same bytes as the
+shown text), `artifact-limits`, `artifact-text`, `artifact-id` and `artifact-url`. **URLs:** the text may name a URL only if its host
+is reserved (`example.com`, `.net`, `.org`, any `*.example`, `*.test`, `*.invalid`, `localhost`, `127.0.0.1`, or an address in
+`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`), without credentials; anything else is `artifact-url`.
+
+**How verification binds.** A snippet is bound by a *case*: `snippet_id` + `stdin` + expected `stdout` and `exit_code`, run by the
+runner. An artifact is bound by its *fixture*: the authoring harness (outside any reader or server path) produces the bytes, and the
+question records their hash as `provenance.fixture_output_sha256`; the exporter requires it to equal the hash of the shown text, and
+`validator.artifacts.verify_artifact_fixture(question, artifact_id, fixture_bytes)` re-checks a fixture's current bytes. If the
+fixture output changes and the question is not updated (or the other way round), that is a binding error.
+
+**Readers.** The browser shows each artifact as one block of literal text (never parsed as markup or markdown, no link, image or
+request). `validator trace` expects no trace for a text-only question and treats a trace file for one as an orphan. The server's
+scoring pool does not carry artifacts yet: the pool builder and the service refuse any 0.3 question.
+
+**Migration.** Nothing to do for existing questions. To use artifacts, set `schema_version` to `"0.3"`, keep the `answer_profile`, add
+`artifacts` (and `language: "text"` with no `snippets` for a text-only question), and record each fixture's output hash. A minimal
+text-only question differs from a 0.2 one only in these fields:
+
+```json
+{
+  "schema_version": "0.3",
+  "answer_profile": "standard",
+  "language": "text",
+  "artifacts": [
+    {
+      "id": "change",
+      "kind": "diff",
+      "format": "unified-diff",
+      "text": "--- a/total.py\n+++ b/total.py\n@@ -1,2 +1,2 @@\n def total(xs):\n-    return sum(xs)\n+    return sum(xs) + 1\n",
+      "sha256": "<sha256 of the text above, UTF-8>",
+      "provenance": { "fixture_id": "total-change", "fixture_output_sha256": "<same value>" }
+    }
+  ],
+  "verification": { "status": "specified", "cases": [], "rationale": "The diff is the fixture's output." }
+}
+```
 
 ### Option
 
@@ -158,7 +214,7 @@ the code was executed as part of static validation.
 | Field | Type | Rule |
 |---|---|---|
 | `status` | string | Constant `"specified"`. It declares that cases are specified, not that the question passed review. |
-| `cases` | array | Nonempty, unique Case objects. |
+| `cases` | array | Unique Case objects; nonempty whenever the question has snippets (a text-only question has none). |
 | `rationale` | string | Nonempty. How the cases support the correct answer and what they cannot establish. |
 | `limitations` | string | Optional, nonempty. Known gaps. |
 

@@ -567,5 +567,11 @@
   "share.hypothetical.one": "not on the list (for comparison: place {place}, with {total} reader on it)",
   "share.unranked": "unranked",
   "share.versions": "catalog {catalog} · rules {rules}",
-  "lb.readerChanged": "Loading the lists for whoever is signed in now…"
+  "lb.readerChanged": "Loading the lists for whoever is signed in now…",
+  "artifact.kind.text": "Text",
+  "artifact.kind.diff": "Change (diff)",
+  "artifact.kind.http-transcript": "HTTP transcript",
+  "artifact.kind.test-report": "Test report",
+  "artifact.kind.policy": "Policy",
+  "artifact.note": "Shown as text. Nothing here is run."
 }

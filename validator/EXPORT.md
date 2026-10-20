@@ -171,3 +171,15 @@ When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the
 - Derived files: python keeps `index.json` and `concepts.json` **byte for byte**; the other courses write
   `index-<id>.json` and `concepts-<id>.json`. `--check` compares all of them.
 - Static only, no code is executed; `validator.trace --check` already covers every question in the flat directory.
+
+## Text artifacts (schema 0.3)
+
+A 0.3 question may carry `artifacts`: display-only text (see `schema/README.md`, "Text artifacts"). The export validates them with
+the question and fails closed:
+
+- `artifact-hash`: `sha256` is not the SHA-256 of the UTF-8 bytes of `text` exactly as stored.
+- `artifact-binding`: `provenance.fixture_output_sha256` is not the same hash, so the shown text is not the fixture's output.
+- `artifact-limits` (more than 80 lines), `artifact-text` (not encodable as UTF-8), `artifact-id` (also a snippet id), `artifact-url`
+  (a URL whose host is not reserved for tests).
+- A text-only question is indexed like any other (profile included) but has no snippets, so `validator trace` generates no trace
+  for it and `trace --check` reports a trace file for it as an orphan. Artifacts are never executed.

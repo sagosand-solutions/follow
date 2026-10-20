@@ -272,8 +272,8 @@ def validate_question(question, map_data, *, schema_dir=None):
     for i, ref in enumerate(question["concepts"]):
         if ref not in concepts:
             issues.append(Issue("unknown-concept", f"/concepts/{i}", f"Unknown concept: {ref}"))
-    for field in ("snippets", "options"):
-        issues += _duplicates(question[field], field)
+    for field in ("snippets", "artifacts", "options"):
+        issues += _duplicates(question.get(field, []), field)
     cases = question["verification"]["cases"]
     issues += _duplicates(cases, "verification/cases")
     scores = [o["score"] for o in question["options"]]
@@ -302,9 +302,9 @@ def validate_question(question, map_data, *, schema_dir=None):
                 issues.append(Issue("untagged-misconception", path + "/misconception", "Misconception must relate to a tagged concept"))
             if (score == 0.5) != ("partial_reason" in option):
                 issues.append(Issue("partial-reason", path, "Only half credit requires partial_reason"))
-    snippets = {s["id"]: s for s in question["snippets"]}
+    snippets = {s["id"]: s for s in question.get("snippets", [])}
     covered = set()
-    for i, snippet in enumerate(question["snippets"]):
+    for i, snippet in enumerate(question.get("snippets", [])):
         for j, line in enumerate(snippet.get("highlight_lines", [])):
             if line > len(snippet["code"].splitlines()):
                 issues.append(Issue("line-range", f"/snippets/{i}/highlight_lines/{j}", "Line exceeds displayed source"))
@@ -315,7 +315,9 @@ def validate_question(question, map_data, *, schema_dir=None):
         covered.add(case["snippet_id"])
         if case["expected"]["exit_code"] != 0 and "stderr_contains" not in case["expected"]:
             issues.append(Issue("crash-evidence", path + "/expected", "Nonzero expected exit requires stderr_contains"))
-    for i, snippet in enumerate(question["snippets"]):
+    for i, snippet in enumerate(question.get("snippets", [])):
         if snippet["id"] not in covered:
             issues.append(Issue("unverified-snippet", f"/snippets/{i}", "Every displayed snippet needs a case"))
+    from . import artifacts
+    issues += artifacts.artifact_issues(question)
     return _ordered(issues)

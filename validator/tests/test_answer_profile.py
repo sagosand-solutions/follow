@@ -61,7 +61,7 @@ class AnswerProfileValidatorTests(unittest.TestCase):
         legacy_with_profile = {**question(), "answer_profile": "standard"}
         legacy_with_practice = {**question(), "answer_profile": "beginner-practice"}
         unknown_profile = {**practice(), "answer_profile": "premium"}
-        unknown_version = {**practice(), "schema_version": "0.3"}
+        unknown_version = {**practice(), "schema_version": "0.4"}
         for name, q in {"missing": no_profile, "on legacy (standard)": legacy_with_profile, "on legacy (practice)": legacy_with_practice,
                         "unknown profile": unknown_profile, "unknown version": unknown_version}.items():
             with self.subTest(name):
