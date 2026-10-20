@@ -132,13 +132,18 @@ No other key is allowed, so an artifact cannot carry a URL, a source, markup or 
 cannot say: `artifact-hash` (`sha256` is the hash of `text`), `artifact-binding` (the fixture output hash is the same bytes as the
 shown text), `artifact-limits`, `artifact-text`, `artifact-id` and `artifact-url`. **URLs:** the text may name a URL only if its host
 is reserved (`example.com`, `.net`, `.org`, any `*.example`, `*.test`, `*.invalid`, `localhost`, `127.0.0.1`, or an address in
-`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`), without credentials; anything else is `artifact-url`.
+`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`; names match on whole labels, not substrings), without credentials; anything
+else is `artifact-url`. This is a content rule, not a network control: nothing ever fetches a URL named in an artifact, not even a
+reserved one. A relative request target (`GET /items HTTP/1.1`) or a `Host:` header is not a URL and stays allowed text.
 
 **How verification binds.** A snippet is bound by a *case*: `snippet_id` + `stdin` + expected `stdout` and `exit_code`, run by the
-runner. An artifact is bound by its *fixture*: the authoring harness (outside any reader or server path) produces the bytes, and the
-question records their hash as `provenance.fixture_output_sha256`; the exporter requires it to equal the hash of the shown text, and
-`validator.artifacts.verify_artifact_fixture(question, artifact_id, fixture_bytes)` re-checks a fixture's current bytes. If the
-fixture output changes and the question is not updated (or the other way round), that is a binding error.
+runner. An artifact is bound by its *fixture*: the authoring harness (outside any reader or server path) writes the bytes the fixture
+produced to `content/fixtures/artifacts/<fixture_id>.out`, and the question records their hash as `provenance.fixture_output_sha256`.
+Two hash fields in a question prove nothing by themselves, so the export reads the file: it must exist (the id is a name, never a
+path; the directory is fixed; a symlink on the way stops the export), be at most 20000 bytes, and hash to the recorded value, which
+must also be the hash of the shown text (`artifact-fixture`, `artifact-binding`, `artifact-hash`). If the fixture output changes and
+the question is not updated, or the other way round, the export fails. `validator.artifacts.verify_artifact_fixture(question,
+artifact_id, fixture_bytes)` is the same check for the harness.
 
 **Readers.** The browser shows each artifact as one block of literal text (never parsed as markup or markdown, no link, image or
 request). `validator trace` expects no trace for a text-only question and treats a trace file for one as an orphan. The server's

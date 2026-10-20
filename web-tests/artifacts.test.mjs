@@ -143,6 +143,17 @@ test('rendering: the text is the text, exactly, as one inert text node', () => {
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('rendering: an author label is text too, in the caption and in the region name', () => {
+  const label = '<img src=x onerror=alert(1)> & <b>';
+  const node = renderArtifact(art('x\n', 'text', 'change', { label }));
+  assert.equal(check(textOnly([art('x\n', 'text', 'change', { label })])), null, 'a label with angle brackets is still only text');
+  const caption = node.all((n) => (n.className || '').includes('artifact__label'))[0];
+  assert.equal(caption.text(), label);
+  assert.equal(caption.children.length, 1);
+  assert.equal(caption.children[0].tag, undefined, 'a text node');
+  for (const tag of ['img', 'b', 'a', 'script']) assert.equal(node.all((n) => n.tag === tag).length, 0, tag);
+});
+
 test('rendering: every kind gets its own label and the same inert treatment', () => {
   const labels = new Set();
   for (const kind of Object.keys(KIND_FORMAT)) {

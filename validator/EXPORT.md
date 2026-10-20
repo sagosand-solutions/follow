@@ -178,7 +178,10 @@ A 0.3 question may carry `artifacts`: display-only text (see `schema/README.md`,
 the question and fails closed:
 
 - `artifact-hash`: `sha256` is not the SHA-256 of the UTF-8 bytes of `text` exactly as stored.
-- `artifact-binding`: `provenance.fixture_output_sha256` is not the same hash, so the shown text is not the fixture's output.
+- `artifact-binding`: `provenance.fixture_output_sha256` is not the same hash, or the bytes of the fixture output file do not hash to it, so the
+  shown text is not the fixture's output. The export reads `content/fixtures/artifacts/<fixture_id>.out` (fixed directory, the id is a
+  name and never a path, no symlink on the way, at most 20000 bytes); a missing or oversized file is `artifact-fixture`, and a symlink
+  stops the export with a setup error.
 - `artifact-limits` (more than 80 lines), `artifact-text` (not encodable as UTF-8), `artifact-id` (also a snippet id), `artifact-url`
   (a URL whose host is not reserved for tests).
 - A text-only question is indexed like any other (profile included) but has no snippets, so `validator trace` generates no trace

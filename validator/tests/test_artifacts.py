@@ -196,6 +196,16 @@ class ArtifactRejectTests(unittest.TestCase):
         q["verification"]["cases"] = [{"id": "one", "snippet_id": "nowhere", "stdin": "", "expected": {"stdout": "1\n", "exit_code": 0}}]
         self.refused(q, "unknown-snippet")
 
+    def test_no_network_is_ever_touched_for_a_url_named_in_the_text(self):
+        import socket
+        from unittest import mock
+        text = "GET https://example.com/a HTTP/1.1\nHost: localhost\n\nsee http://127.0.0.1:8000/ and http://evil.net/x\n"
+        with mock.patch.object(socket, "socket", side_effect=AssertionError("no network")), \
+                mock.patch.object(socket, "getaddrinfo", side_effect=AssertionError("no DNS")), \
+                mock.patch("subprocess.Popen", side_effect=AssertionError("no process")):
+            issues = validate_question(text_only(artifact(text, "http-transcript")), PYTHON_MAP)
+        self.assertEqual([i.code for i in issues], ["artifact-url"], "the unreserved URL is a finding, found without a lookup")
+
     def test_a_case_cannot_be_bound_to_an_artifact(self):
         q = text_only()
         q["verification"]["cases"] = [{"id": "one", "snippet_id": "change", "stdin": "", "expected": {"stdout": "x", "exit_code": 0}}]
@@ -226,10 +236,17 @@ class FixtureBindingTests(unittest.TestCase):
 
 
 class ExportAndTraceTests(CourseFixture):
-    """A text-only question inside a course: exported, indexed, never traced."""
+    """A text-only question inside a course: exported only against the fixture's real output bytes, indexed, never traced."""
     QID = "diff-reading-one"
+    FIXTURE = "content/fixtures/artifacts/fixture-one.out"
 
-    def add_text_question(self, **over):
+    def write_fixture(self, data=DIFF.encode("utf-8"), name="fixture-one"):
+        target = self.root / "content/fixtures/artifacts" / f"{name}.out"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        return target
+
+    def add_text_question(self, fixture=True, **over):
         q = text_only(id=self.QID, **over)
         q["options"] = make_question(self.maps["python"], self.QID, "py.values")["options"]
         self.write(self.data / "questions" / f"{self.QID}.json", q)
@@ -239,7 +256,14 @@ class ExportAndTraceTests(CourseFixture):
         row = next(c for c in self.catalog["courses"] if c["id"] == "python")
         row["free_questions"] = 2
         self.write(self.data / "catalog.json", self.catalog)
+        if fixture:
+            self.write_fixture()
         return q
+
+    def refuses(self, needle, code=1):
+        got, output = self.run_export()
+        self.assertEqual(got, code, output)
+        self.assertIn(needle, output)
 
     def test_a_text_only_question_exports_and_is_indexed(self):
         self.add_text_question()
@@ -249,6 +273,54 @@ class ExportAndTraceTests(CourseFixture):
         entry = next(e for e in index["questions"] if e["id"] == self.QID)
         self.assertEqual(entry["answer_profile"], "standard")
         self.assertEqual(self.run_export("--check")[0], 0)
+
+    def test_the_export_reads_the_fixture_bytes_and_nothing_else_is_proof(self):
+        # matching hash fields in the question are not enough: with no fixture file the export stops
+        self.add_text_question(fixture=False)
+        self.refuses("artifact-fixture")
+        # the file exists but its bytes are not the recorded output: the smallest change, a line ending, a BOM, a missing newline
+        for label, data in {"changed byte": DIFF.replace("+1", "+2").encode(), "CRLF": DIFF.replace("\n", "\r\n").encode(), "BOM": b"\xef\xbb\xbf" + DIFF.encode(),
+                            "no final newline": DIFF.rstrip("\n").encode(), "empty": b"", "NFD instead of NFC": "caf\u00e9\n".encode()}.items():
+            with self.subTest(label):
+                self.write_fixture(data)
+                self.refuses("artifact-binding")
+        self.write_fixture()
+        self.assertEqual(self.run_export()[0], 0, "restoring the real output makes the same question pass")
+
+    def test_the_fixture_is_found_only_in_the_trusted_directory_by_id(self):
+        self.add_text_question(fixture=False)
+        elsewhere = self.root / "elsewhere"
+        elsewhere.mkdir()
+        (elsewhere / "fixture-one.out").write_bytes(DIFF.encode("utf-8"))
+        (self.root / "content/fixtures").mkdir(parents=True, exist_ok=True)
+        self.refuses("artifact-fixture")                              # a file outside content/fixtures/artifacts does not count
+        # a path in place of an id is a schema error long before any file is opened
+        q = text_only(id=self.QID)
+        q["artifacts"][0]["provenance"]["fixture_id"] = "../elsewhere/fixture-one"
+        q["options"] = make_question(self.maps["python"], self.QID, "py.values")["options"]
+        self.write(self.data / "questions" / f"{self.QID}.json", q)
+        self.refuses("schema")
+
+    def test_a_symlink_on_the_way_to_the_fixture_stops_the_export(self):
+        real = self.root / "real-fixtures"
+        real.mkdir()
+        (real / "fixture-one.out").write_bytes(DIFF.encode("utf-8"))
+        self.add_text_question(fixture=False)
+        (self.root / "content/fixtures").mkdir(parents=True)
+        (self.root / "content/fixtures/artifacts").symlink_to(real, target_is_directory=True)
+        self.refuses("symlink", code=2)
+        (self.root / "content/fixtures/artifacts").unlink()
+        self.write_fixture()
+        self.assertEqual(self.run_export()[0], 0)
+        target = self.root / self.FIXTURE
+        target.unlink()
+        target.symlink_to(real / "fixture-one.out")
+        self.refuses("symlink", code=2)
+
+    def test_an_oversized_fixture_is_refused_before_it_is_read_whole(self):
+        self.add_text_question()
+        self.write_fixture(b"x" * 20001)
+        self.refuses("artifact-fixture")
 
     def test_the_export_refuses_a_wrong_hash_or_binding_or_a_url(self):
         for label, mutate in {
@@ -280,6 +352,35 @@ class ExportAndTraceTests(CourseFixture):
         with redirect_stdout(stream):
             trace.main(["--check", "--root", str(self.root)])
         self.assertIn(f"{stray}: orphan trace", stream.getvalue())
+
+
+class OnePolicyTwoImplementationsTests(unittest.TestCase):
+    """The reserved hosts and the limits exist in Python and in JavaScript; they must be the same lists, not two lists."""
+
+    def js(self):
+        return (ROOT / "public/js/artifacts.js").read_text(encoding="utf-8")
+
+    def test_the_reserved_suffixes_and_documentation_nets_are_identical(self):
+        import re
+        source = self.js()
+        suffixes = re.search(r"RESERVED_SUFFIXES = \[(.*?)\];", source).group(1)
+        self.assertEqual(re.findall(r"'([^']+)'", suffixes), list(artifacts._RESERVED_SUFFIXES))
+        nets = re.search(r"DOCUMENTATION_NETS = \[(.*?)\];\n", source, re.S).group(1)
+        js_nets = [tuple(int(n) for n in group.split(",")) for group in re.findall(r"\[([0-9, ]+)\]", nets)]
+        py_nets = [tuple(int(o) for o in str(net.network_address).split(".")[:3]) for net in artifacts._DOC_NETS]
+        self.assertEqual(js_nets, py_nets)
+
+    def test_the_limits_are_identical(self):
+        import re
+        source = self.js()
+        limits = dict(re.findall(r"(\w+): (\d+)", re.search(r"ARTIFACT_LIMITS = \{(.*?)\}", source).group(1)))
+        self.assertEqual(int(limits["lines"]), artifacts.MAX_LINES)
+        self.assertEqual(int(limits["chars"]), 4000)
+        self.assertEqual(int(limits["count"]), 3)
+        schema = json.loads((ROOT / "schema/question.schema.json").read_text(encoding="utf-8"))
+        item = schema["$defs"]["artifact"]["properties"]
+        self.assertEqual((item["text"]["maxLength"], schema["properties"]["artifacts"]["maxItems"], item["label"]["maxLength"]),
+                         (int(limits["chars"]), int(limits["count"]), int(limits["label"])))
 
 
 if __name__ == "__main__":

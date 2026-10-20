@@ -12,7 +12,11 @@
     "ftp://files.example.net/f",
     "https://sub.example.example/",
     "Host: example.com (see https://example.com).",
-    "no url here, only words like http and example.com"
+    "no url here, only words like http and example.com",
+    "HTTPS://API.EXAMPLE.COM/x",
+    "https://Example.Com:8080/",
+    "GET /api/items?id=1 HTTP/1.1\nHost: shop.example.org",
+    "GET /a HTTP/1.1\nHost: github.com"
   ],
   "refused": [
     "GET https://github.com/x",
@@ -33,6 +37,12 @@
     "http://user@api.example.com/x",
     "http://me:pw@host.example.org/",
     "https://a@b.test/",
-    "https://example.com@evil.net/"
+    "https://example.com@evil.net/",
+    "https://ex\u00e4mple.com/",
+    "https://example\u3002com/",
+    "https://example.com.evil.net:443/",
+    "https://EXAMPLE.COM.EVIL.NET/",
+    "https://notexample.com/",
+    "https://xn--example.com/"
   ]
 }
