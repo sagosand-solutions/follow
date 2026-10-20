@@ -42,7 +42,7 @@ const SIGN = { true: '\u2212', false: '+' };
 // One new word: its term is a disclosure button (aria-expanded, aria-controls) with a visible + or − just before it, and the
 // explanation and example below it, in line with the term. The button's name is the term; the state is announced from aria-expanded, so the sign itself is hidden.
 function wordItem(x, isOpen, onToggle) {
-  const panelId = `new-word-${x.id}`;
+  const panelId = `new-word-panel-${x.id}`;   // its own prefix: no word id can make it equal the label's id
   const sign = h('span', { class: 'new-word__sign', 'aria-hidden': 'true' }, SIGN[isOpen]);
   const panel = h('div', { class: 'new-word__text', id: panelId, hidden: !isOpen }, h('p', {}, renderInline(x.explanation)), h('p', { class: 'new-word__example' }, ...sentence(t('intro.example'), 'example', renderInline(x.example))));
   const button = h('button', { type: 'button', class: 'new-word__toggle', 'aria-expanded': String(isOpen), 'aria-controls': panelId }, sign, h('span', { class: 'new-word__term' }, renderInline(x.term)));

@@ -159,7 +159,8 @@ test('each new word is a disclosure: a real button with aria-expanded and aria-c
       assert.equal(w.button.attrs.type, 'button');
       assert.equal(w.item.children[0].tag, 'h3', 'the term is a heading under "New words"');
       assert.equal(w.button.attrs['aria-controls'], w.panel.attrs.id);
-      assert.match(w.panel.attrs.id, /^new-word-B12-I[13]$/);
+      assert.match(w.panel.attrs.id, /^new-word-panel-B12-I[13]$/);
+      assert.notEqual(w.panel.attrs.id, 'new-word-label');
       assert.equal(w.button.all((n) => n.className === 'new-word__sign')[0].attrs['aria-hidden'], 'true', 'the state is announced from aria-expanded, not from the sign');
       assert.deepEqual([w.open, w.hidden, w.sign], [true, false, '−'], 'open the first time');
     }
@@ -178,7 +179,8 @@ test('new words open the first time the reader meets them and fold after that; t
   const storage = memoryStorage();
   globalThis.localStorage = storage;
   const reused = reusedCourse();
-  const state = async (id) => Object.fromEntries(words((await questionView({ id, course: reused })).node).map((w) => [w.term, w.open]));
+  // Each word's panel is hidden exactly when its button says it is folded, in both states.
+  const state = async (id) => Object.fromEntries(words((await questionView({ id, course: reused })).node).map((w) => { assert.equal(w.hidden, !w.open, `${w.term}: panel hidden iff folded`); return [w.term, w.open]; }));
   try {
     assert.deepEqual(await state(P1), { 'Give a name a number (assignment)': true, 'The latest number for each name': true }, 'first visit: open');
     assert.deepEqual(await state(P1), { 'Give a name a number (assignment)': false, 'The latest number for each name': false }, 'a revisit: folded');
