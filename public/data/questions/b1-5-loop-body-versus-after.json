@@ -1,0 +1,71 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-5-loop-body-versus-after",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.35,
+  "concepts": [
+    "py.iteration"
+  ],
+  "prompt": "A robot takes laps. What is printed, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "for lap in range(2):\n    print(\"beep\")\nprint(\"done\")\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "body-once",
+      "text": "`beep` then `done`. The body runs one time in total.",
+      "score": 0,
+      "feedback": "A loop runs its body once per lap: range(2) gives two laps, so beep is printed twice before done. Next step: follow the loop lap by lap.",
+      "misconception": "py.a-loop-body-runs-once"
+    },
+    {
+      "id": "indentation-ignored",
+      "text": "`beep` then `done` then `beep` then `done`. done belongs to the loop.",
+      "score": 0,
+      "feedback": "done sits outside the loop \u2014 its indentation puts it after the loop, not in the body. Next step: match each print to the indentation that owns it.",
+      "misconception": "py.indentation-does-not-matter"
+    },
+    {
+      "id": "first-line-only",
+      "text": "`beep` then `beep` then `done`. Only the first indented line repeats.",
+      "score": 0.5,
+      "feedback": "The output here is right, but every indented line repeats: with print(\"stamp\") added under the for, a real run gives beep, stamp, beep, stamp, done.",
+      "misconception": "py.a-loop-repeats-only-its-first-indented-line",
+      "partial_reason": "Correct: two beeps and one done here. Incorrect: that only the first indented line repeats; all indented lines run on every lap."
+    },
+    {
+      "id": "beeps-then-done",
+      "text": "`beep` then `beep` then `done`. One beep per lap; done runs once.",
+      "score": 1,
+      "feedback": "Correct. range(2) gives two laps, the body prints beep on each, and done comes once when the loop has finished.",
+      "misconception": null
+    }
+  ],
+  "explanation": "range(2) gives two laps (turns 0 and 1). The indented print(\"beep\") runs once per lap, so beep appears twice. print(\"done\") is not indented, so it runs a single time after the loop.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "beep\nbeep\ndone\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for the 027-supported grind. AUTHOR-DRAFT/AWAITING-027; no validator pass is claimed by this draft."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

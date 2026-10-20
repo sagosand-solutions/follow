@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-5-robot-laps-count",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.iteration",
+    "py.assignment"
+  ],
+  "prompt": "The little robot counts its laps. What does it print at the end?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "laps = 0\nfor turn in range(4):\n    laps = laps + 1\nprint(laps)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "end-counted",
+      "text": "`5`. range(4) counts the end too: the robot makes five laps.",
+      "score": 0,
+      "feedback": "range(4) stops before 4, so the turns are 0, 1, 2 and 3 \u2014 four laps. Next step: read range as \"0 up to (not including) 4\".",
+      "misconception": "py.range-stop-inclusive"
+    },
+    {
+      "id": "no-update",
+      "text": "`0`. laps = laps + 1 is not a real update, so laps stays 0.",
+      "score": 0,
+      "feedback": "laps = laps + 1 is a real update: the old laps is read, 1 is added, and the new number is stored back. Next step: follow the pocket lap by lap.",
+      "misconception": "py.a-self-update-is-not-possible"
+    },
+    {
+      "id": "counts-from-one",
+      "text": "`4`. Four laps; laps ends at 4, and turn takes 1 through 4.",
+      "score": 0.5,
+      "feedback": "The count is right, but range starts at 0: print(turn) inside the body would show 0, 1, 2, 3.",
+      "misconception": "py.range-counts-from-one",
+      "partial_reason": "Correct: four laps and a final 4. Incorrect: that turn runs 1, 2, 3, 4; printing turn shows 0, 1, 2, 3."
+    },
+    {
+      "id": "four-laps",
+      "text": "`4`. range(4) gives turns 0\u20133, four laps; laps grows by one.",
+      "score": 1,
+      "feedback": "Correct. The pocket starts at 0 and gains 1 on each of the four turns, so the print shows 4.",
+      "misconception": null
+    }
+  ],
+  "explanation": "range(4) gives the turn numbers 0, 1, 2 and 3 \u2014 it starts at 0 and stops before 4. The body runs once per turn, and laps = laps + 1 adds 1 each time: 1, 2, 3, 4. The print after the loop runs once and shows 4.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "4\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for the 027-supported grind. AUTHOR-DRAFT/AWAITING-027; no validator pass is claimed by this draft."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

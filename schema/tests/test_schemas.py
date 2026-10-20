@@ -341,7 +341,7 @@ class TestSeedConceptMap(unittest.TestCase):
 
     def test_seed_map_counts(self):
         self.assertEqual(len(self.map["concepts"]), 20)
-        self.assertEqual(len(self.map["misconceptions"]), 122)
+        self.assertEqual(len(self.map["misconceptions"]), 172)
         expected = {
             "py.slice-stop-is-count", "py.slice-mutates-source", "py.index-upper-bound-inclusive",
             "py.all-strings-truthy", "py.string-content-is-truth-value", "py.if-else-both-run",
@@ -404,7 +404,7 @@ class TestSeedConceptMap(unittest.TestCase):
 
     def test_approved_122_extension_is_exact_and_additive(self):
         added_concepts = self.map["concepts"][18:]
-        added_misconceptions = self.map["misconceptions"][106:]
+        added_misconceptions = self.map["misconceptions"][106:122]
         self.assertEqual({item["id"] for item in added_concepts}, {"py.modules", "py.classes"})
         self.assertEqual(
             {item["id"] for item in added_misconceptions},
@@ -424,6 +424,12 @@ class TestSeedConceptMap(unittest.TestCase):
         ):
             actual = hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
             self.assertEqual(actual, expected)
+
+    def test_approved_b1_vocabulary_extension_is_exact_and_additive(self):
+        b1_records = self.map["misconceptions"][122:]
+        self.assertEqual(len(b1_records), 50)
+        actual = hashlib.sha256(json.dumps(b1_records, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(actual, "931158a5a124773b6e902f7690612c95fe986c8b2599283a1c3644b3392ebb5e")
 
     def test_seed_map_referential_integrity(self):
         concepts = self.map["concepts"]

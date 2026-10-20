@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-6-stamp-repeats-the-text",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.35,
+  "concepts": [
+    "py.strings",
+    "py.values"
+  ],
+  "prompt": "The stamp machine repeats a text. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "coin = \"5\"\nplate = coin * 3\nprint(plate)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "counts-as-number",
+      "text": "`15`. Text with digits is counted as a number: 5 times 3 is 15.",
+      "score": 0,
+      "feedback": "coin holds text \u2014 the quotes decide. * stamps copies of the text: \"555\". Next step: check the quotes before the operation.",
+      "misconception": "py.numeric-strings-auto-coerce"
+    },
+    {
+      "id": "quotes-shown",
+      "text": "`\"555\"`. The print shows the text with its quotation marks.",
+      "score": 0,
+      "feedback": "print shows the text itself, without quotation marks \u2014 the quotes in the code only mark where the text starts and stops, and they are not part of the stored text. Next step: read the quotes as text markers.",
+      "misconception": "py.print-shows-quotes-for-text"
+    },
+    {
+      "id": "n-characters",
+      "text": "`555`. The stamp repeats the text; the result has n characters.",
+      "score": 0.5,
+      "feedback": "The result here is right, but the length is not the stamp count: \"ab\" * 3 gives \"ababab\", six characters.",
+      "misconception": "py.a-stamp-yields-exactly-n-characters",
+      "partial_reason": "Correct: three stamped copies of \"5\". Incorrect: that the result always gets exactly n characters; its length is n times the text's own length."
+    },
+    {
+      "id": "stamped-copies",
+      "text": "`555`. * stamps three copies of the text; print shows the text.",
+      "score": 1,
+      "feedback": "Correct. coin is text, so * stamps three copies and print shows the stored text without quotes.",
+      "misconception": null
+    }
+  ],
+  "explanation": "coin is text, because its value sits in quotation marks. coin * 3 stamps three copies into plate: \"555\". print shows the stored text without quotation marks: 555.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "555\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for the 027-supported grind. AUTHOR-DRAFT/AWAITING-027; no validator pass is claimed by this draft."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

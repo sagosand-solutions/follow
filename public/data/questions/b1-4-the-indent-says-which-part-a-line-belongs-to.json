@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-4-the-indent-says-which-part-a-line-belongs-to",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.35,
+  "concepts": [
+    "py.conditionals"
+  ],
+  "prompt": "The robot opens door 3. Some lines belong to the else part. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "door = 3\nif door == 3:\n    print(\"open\")\nelse:\n    print(\"closed\")\n    print(\"sorry\")\nprint(\"done\")\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "sorry-in-else",
+      "text": "`open` then `done`. Both lines under else are skipped.",
+      "score": 1,
+      "feedback": "Right. closed and sorry are both pushed in under else, so both are skipped when the if is True.",
+      "misconception": null
+    },
+    {
+      "id": "sorry-follows-if",
+      "text": "`open` then `sorry` then `done`. A line after the if joins it.",
+      "score": 0,
+      "feedback": "The indent shows which part a line belongs to. sorry is pushed in under else, not under the if.",
+      "misconception": "py.a-line-joins-the-if-by-position"
+    },
+    {
+      "id": "only-unindented",
+      "text": "`done`. Only the line that is not pushed in runs.",
+      "score": 0,
+      "feedback": "Pushed-in lines run when their part runs. Here the if part runs, so open is printed.",
+      "misconception": "py.only-unindented-lines-run"
+    },
+    {
+      "id": "else-never-runs",
+      "text": "`open` then `done`. Lines under else never run in any program.",
+      "score": 0.5,
+      "feedback": "Lines under else do run when the if is False. With door = 2 this program prints closed, sorry, done.",
+      "misconception": "py.else-lines-never-run",
+      "partial_reason": "Correct: open, done. Incorrect: that else lines never run; they run when the if is False."
+    }
+  ],
+  "explanation": "door is 3, so the if part runs and prints open. closed and sorry are pushed in under else, so they are skipped. done is not pushed in, so it runs.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "open\ndone\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

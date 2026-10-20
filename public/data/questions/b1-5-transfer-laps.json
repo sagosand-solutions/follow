@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-5-transfer-laps",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.45,
+  "concepts": [
+    "py.iteration",
+    "py.assignment"
+  ],
+  "prompt": "The robot trains with laps and prints as it goes. What is printed, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "laps = 0\nfor turn in range(4):\n    laps = laps + 1\n    print(laps)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "grows-then-shows",
+      "text": "`1` then `2` then `3` then `4`. Each lap grows laps by one; the print shows it.",
+      "score": 1,
+      "feedback": "Right. The print runs once per lap and shows the pocket after its update: 1, 2, 3, 4.",
+      "misconception": null
+    },
+    {
+      "id": "shows-before-update",
+      "text": "`0` then `1` then `2` then `3`. The print shows laps from before the update.",
+      "score": 0,
+      "feedback": "The update runs first: by the time the print runs, laps already holds the new number.",
+      "misconception": "py.a-body-print-shows-the-value-before-the-update"
+    },
+    {
+      "id": "counts-the-end",
+      "text": "`1` then `2` then `3` then `4` then `5`. range(4) counts the end too: five laps.",
+      "score": 0,
+      "feedback": "range(4) stops before 4: there are four laps, so the prints show 1, 2, 3, 4.",
+      "misconception": "py.range-stop-inclusive"
+    },
+    {
+      "id": "mirrors-turn",
+      "text": "`1` then `2` then `3` then `4`. laps just shows which lap the robot is making.",
+      "score": 0.5,
+      "feedback": "Change the update to laps = laps + 2: the prints show 2, 4, 6, 8 — they follow the pocket, not the lap number.",
+      "misconception": "py.the-counter-is-the-lap-number",
+      "partial_reason": "Correct: 1, 2, 3, 4. Incorrect: that laps just shows the lap number; it shows the pocket's values."
+    }
+  ],
+  "explanation": "On every lap the update grows laps by one and the print then shows the pocket: 1, 2, 3, 4. turn takes the turn numbers 0, 1, 2 and 3, but nothing here prints turn.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "1\n2\n3\n4\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The transfer changes the reading demand (output is read during the laps, not only at the end). The half gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027-pilot follow-up batch: submitted together with an inspected validator run and traces (see self-review). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

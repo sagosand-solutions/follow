@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-2-a-pocket-uses-its-latest-number",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.16,
+  "concepts": [
+    "py.values",
+    "py.assignment"
+  ],
+  "prompt": "What does the robot show after changing its pocket?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "pocket = 2\npocket = 5\nprint(pocket)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "first-stays",
+      "text": "`2`. The first assignment fixes pocket at 2 forever.",
+      "score": 0,
+      "feedback": "A later assignment can replace the number. Line 2 puts 5 in pocket before it is read.",
+      "misconception": "py.first-binding-is-permanent"
+    },
+    {
+      "id": "name-not-number",
+      "text": "`pocket`. print shows the name, not the number held there.",
+      "score": 0,
+      "feedback": "Without quotes, pocket tells print where to look. That pocket now holds 5.",
+      "misconception": "py.print-shows-an-unquoted-name-literally"
+    },
+    {
+      "id": "last-anywhere",
+      "text": "`5`. print picks the last number, no matter which name.",
+      "score": 0.5,
+      "feedback": "The 5 matches here, but print reads the named pocket. Adding spare = 9 before the print would still show 5, not 9.",
+      "misconception": "py.print-uses-the-last-number-written",
+      "partial_reason": "Right: 5 here. Wrong: the last number assigned to any name is printed; spare = 9 would not change pocket."
+    },
+    {
+      "id": "latest-for-name",
+      "text": "`5`. The latest assignment puts 5 in pocket before print.",
+      "score": 1,
+      "feedback": "Line 1 puts 2 in pocket, then line 2 replaces it with 5. The print reads that latest number.",
+      "misconception": null
+    }
+  ],
+  "explanation": "The second assignment replaces the number in pocket. At print(pocket), the current number is 5, so the screen gets 5.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "hand-specified",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "5\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Compare the exact displayed complete program with the specified literal stdout. A matching key alone does not prove a distractor rule or a half-credit generalization.",
+    "limitations": "Small deterministic whole-number/text fixtures only, no imports or host interactions. Trusted-local execution is not a sandbox. Difficulty and attraction remain uncalibrated; content, vocabulary and publication need separate review."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

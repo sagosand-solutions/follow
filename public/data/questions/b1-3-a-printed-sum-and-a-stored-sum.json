@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-3-a-printed-sum-and-a-stored-sum",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.35,
+  "concepts": [
+    "py.assignment",
+    "py.values"
+  ],
+  "prompt": "A robot prints a sum of coins and later updates its coins. The printed lines are shown in order. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "coins = 4\nprint(coins + 2)\ncoins = coins + 2\nprint(coins)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "show-then-store",
+      "text": "`6` then `6`. The first print only shows 4 + 2; the update stores it.",
+      "score": 1,
+      "feedback": "Right. print shows 6 and leaves coins at 4. The update then stores 6, so the last print shows 6 too.",
+      "misconception": null
+    },
+    {
+      "id": "print-stores-it",
+      "text": "`6` then `8`. The first print stores 6 in coins, and the update adds 2 more.",
+      "score": 0,
+      "feedback": "print only shows. coins is still 4 when the update runs, so it becomes 6, not 8.",
+      "misconception": "py.print-stores-what-it-shows"
+    },
+    {
+      "id": "update-needs-print",
+      "text": "`6` then `4`. An update changes coins only if it is printed.",
+      "score": 0,
+      "feedback": "The update line stores 6 in coins by itself. The last print then reads 6.",
+      "misconception": "py.an-update-needs-a-print-to-take-effect"
+    },
+    {
+      "id": "second-repeats",
+      "text": "`6` then `6`. The last print repeats the sum of the first one.",
+      "score": 0.5,
+      "feedback": "The last print reads coins, which the update set to 6. If the update said coins + 5, it would show 9, not 6.",
+      "misconception": "py.the-second-print-repeats-the-first",
+      "partial_reason": "Correct: 6 then 6. Incorrect: that the last print repeats the first sum; it reads the stored coins."
+    }
+  ],
+  "explanation": "coins is 4. print(coins + 2) shows 6 and stores nothing. The update works out 4 + 2 and stores 6 in coins, so the last print shows 6.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "6\n6\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

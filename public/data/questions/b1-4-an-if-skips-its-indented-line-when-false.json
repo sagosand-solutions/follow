@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-4-an-if-skips-its-indented-line-when-false",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.conditionals",
+    "py.booleans"
+  ],
+  "prompt": "The robot opens a special door only for door 3. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "door = 2\nif door == 3:\n    print(\"three\")\nprint(\"done\")\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "skips-then-done",
+      "text": "`done`. The if is False, so its indented line is skipped.",
+      "score": 1,
+      "feedback": "Right. The indented line belongs to the if and runs only when its condition is True; the last line always runs.",
+      "misconception": null
+    },
+    {
+      "id": "body-always-runs",
+      "text": "`three` then `done`. The indented line always runs.",
+      "score": 0,
+      "feedback": "The if decides whether its indented line runs. Here door is 2, so the condition is False and three is not printed.",
+      "misconception": "py.if-body-always-runs"
+    },
+    {
+      "id": "false-stops-all",
+      "text": "Nothing is printed. A False if stops the whole program, even after it.",
+      "score": 0,
+      "feedback": "A False if skips only its own indented line. The last line is not part of it, so done is printed.",
+      "misconception": "py.false-if-stops-the-program"
+    },
+    {
+      "id": "indent-never-runs",
+      "text": "`done`. Python never runs an indented line under an if.",
+      "score": 0.5,
+      "feedback": "Indented lines do run when the if is True. With door = 3 this program prints three, then done.",
+      "misconception": "py.indented-lines-never-run",
+      "partial_reason": "Correct: done. Incorrect: that indented lines never run; they run when their if is True."
+    }
+  ],
+  "explanation": "door is 2, so door == 3 is False. The indented print(\"three\") belongs to the if and is skipped. print(\"done\") is not indented, so it runs and the program prints done.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "done\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

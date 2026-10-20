@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-6-build-a-word",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.35,
+  "concepts": [
+    "py.strings",
+    "py.assignment"
+  ],
+  "prompt": "A word machine builds a text and measures it. What is printed, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "line = \"ab\"\nline = line + \"c\"\nprint(line)\nprint(len(line))\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "stored-finished-text",
+      "text": "`abc` then `3`. The glue stores its new text in line; len counts the characters.",
+      "score": 1,
+      "feedback": "Right. Each glue stores its new text in line: ab, then abc. len measures that finished text: three characters.",
+      "misconception": null
+    },
+    {
+      "id": "measures-name",
+      "text": "`abc` then `4`. len measures the word line written in the code.",
+      "score": 0,
+      "feedback": "len does not read the name in the code. It measures the text stored in line: abc is three characters.",
+      "misconception": "py.len-reads-the-name-in-the-code"
+    },
+    {
+      "id": "counts-quotes",
+      "text": "`abc` then `5`. len also counts the quotation marks around the text.",
+      "score": 0,
+      "feedback": "The quotation marks belong to the code, not to the stored text: abc is three characters.",
+      "misconception": "py.len-counts-the-quotes"
+    },
+    {
+      "id": "glues-from-first",
+      "text": "`abc` then `3`. The glue works from line's first value, and not the current one.",
+      "score": 0.5,
+      "feedback": "Add line = line + \"d\": the print shows abcd, not abd — every glue works from the current text.",
+      "misconception": "py.update-works-from-the-first-value",
+      "partial_reason": "Correct: abc, then 3. Incorrect: that the glue starts from line's first value; it works from the current text."
+    }
+  ],
+  "explanation": "line starts as ab. line = line + \"c\" glues the current text and c, and stores abc back in line. print shows the stored text, and len measures it: three characters.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "abc\n3\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The half gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027-pilot follow-up batch: submitted together with an inspected validator run and traces (see self-review). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

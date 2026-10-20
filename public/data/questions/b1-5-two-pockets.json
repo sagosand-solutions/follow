@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-5-two-pockets",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.35,
+  "concepts": [
+    "py.iteration",
+    "py.assignment"
+  ],
+  "prompt": "The robot counts laps and sets a sign. What is printed, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "laps = 0\nsign = \"go\"\nfor turn in range(3):\n    laps = laps + 1\n    sign = \"stop\"\nprint(laps)\nprint(sign)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "counter-and-last-set",
+      "text": "`3` then `stop`. laps grows one step per lap; sign keeps its last set value.",
+      "score": 1,
+      "feedback": "Right. The body runs once per lap: laps grows 1, 2, 3, and sign is set to stop on every lap, so it holds stop after the loop.",
+      "misconception": null
+    },
+    {
+      "id": "counts-the-end",
+      "text": "`4` then `stop`. range(3) also counts the end, so the robot makes four laps.",
+      "score": 0,
+      "feedback": "range(3) stops before 3: the turns are 0, 1 and 2 — three laps. laps ends at 3.",
+      "misconception": "py.range-stop-inclusive"
+    },
+    {
+      "id": "no-real-update",
+      "text": "`0` then `stop`. laps = laps + 1 is not a real update, so laps stays 0.",
+      "score": 0,
+      "feedback": "The update is real: the old laps is read, 1 is added, and the new number is stored back. laps ends at 3.",
+      "misconception": "py.a-self-update-is-not-possible"
+    },
+    {
+      "id": "changes-wait",
+      "text": "`3` then `stop`. range(3) starts at 1, so the robot counts laps 1, 2 and 3.",
+      "score": 0.5,
+      "feedback": "print(turn) in the body shows 0, 1 and 2 — range starts at 0. The pocket still gains one step on each of the three laps.",
+      "misconception": "py.range-counts-from-one",
+      "partial_reason": "Correct: 3, stop. Incorrect: that range(3) starts at 1; the turns are 0, 1 and 2, and print(turn) in the body would show them."
+    }
+  ],
+  "explanation": "The body runs once per lap: laps = laps + 1 grows the pocket 1, 2, 3, and sign = \"stop\" sets the sign each lap. After the loop, the two prints show 3 and stop.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "3\nstop\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The half gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027-pilot follow-up batch: submitted together with an inspected validator run and traces (see self-review). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

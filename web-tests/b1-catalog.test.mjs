@@ -2,21 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-// Beginner labelling in the catalog, on the home path, on the course page and once in the first lesson, from catalog data
-// only (`audience`, `path_step`). The beginner course is a fixture built from the pinned pilot questions; the other courses
-// and their files are the site's real data.
+// Beginner labelling and entry points use the live catalog, course, and question files. Synthetic catalogs remain only for
+// parser and negative/fallback cases.
 const strings = JSON.parse(readFileSync(new URL('../public/i18n/en.json', import.meta.url), 'utf8'));
-const pilots = new URL('./fixtures/b1-pilots/questions/', import.meta.url);
 const site = new URL('../public/data/', import.meta.url);
 const realCatalog = JSON.parse(readFileSync(new URL('catalog.json', site), 'utf8'));
+const B1 = realCatalog.courses.find((course) => course.id === 'read-like-a-computer');
+assert.ok(B1, 'live catalog contains the B1 course');
+const b1Course = JSON.parse(readFileSync(new URL(`courses/${B1.id}.json`, site), 'utf8'));
+const startQuestion = JSON.parse(readFileSync(new URL(`questions/${B1.start_question}.json`, site), 'utf8'));
 // The negative cases use their own catalog without the beginner fields, never the live one (which is marked).
 const bareCatalog = { ...realCatalog, courses: realCatalog.courses.map(({ audience, path_step, ...rest }) => rest) };
-const B1 = { id: 'read-like-a-computer', title: 'Read like a computer', description: 'No programming experience needed. You read short programs and predict what the computer does, one line at a time.', language: 'python', free_questions: 4, start_question: 'b1-1-robot-keeps-each-printed-line', audience: 'beginner', path_step: 1 };
-const b1Course = { id: B1.id, title: B1.title, language: 'python', levels: [{ level: 'beginner', title: 'Read like a computer', lessons: [
-  { id: 'b1-1', title: 'The robot prints', questions: ['b1-1-robot-keeps-each-printed-line', 'b1-1-robot-leaves-unprinted-values-quiet'] },
-  { id: 'b1-2', title: 'Pockets', questions: ['b1-2-a-pocket-uses-its-latest-number', 'b1-2-reading-a-second-pocket-keeps-its-number'] }] }] };
-// The decided marking: Python is the path's last step with no audience pill; Production and SQL are for people who already code.
-const marked = (courses) => courses.map((c) => (c.id === 'python' ? { ...c, path_step: 3 } : { ...c, audience: 'experienced' }));
 
 class Node {
   constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.className = ''; this.handlers = {}; this.parent = null; this.checked = false; this.hidden = false; this.textContent = ''; this.dataset = {}; this.style = {}; }
@@ -62,8 +58,6 @@ globalThis.fetch = async (url) => {
   const path = String(url).replace(/^(.*\/)?data\//, '').replace(/\?.*$/, '');
   let body = null;
   if (path === 'catalog.json') body = catalogFile;
-  else if (path === `courses/${B1.id}.json`) body = b1Course;
-  else if (path.startsWith('questions/b1-')) { try { body = JSON.parse(readFileSync(new URL(path.slice('questions/'.length), pilots), 'utf8')); } catch { body = null; } }
   else { try { body = JSON.parse(readFileSync(new URL(path, site), 'utf8')); } catch { body = null; } }
   return body ? { ok: true, status: 200, async json() { return body; } } : { ok: false, status: 404, async json() { return {}; } };
 };
@@ -89,11 +83,11 @@ test('the catalog keeps a valid audience and path step and nothing else', () => 
   assert.deepEqual(parsed.map((c) => [c.id, c.audience, c.pathStep]), [['a', 'beginner', 1], ['b', null, null], ['c', 'experienced', null], ['d', null, null], ['e', null, null], ['f', null, null]]);
 });
 
-const courseMap = async (entries) => new Map(await Promise.all(entries.filter((e) => e.id !== 'missing').map(async (e) => [e.id, e.id === B1.id ? b1Course : JSON.parse(readFileSync(new URL(`courses/${e.id}.json`, site), 'utf8'))])));
+const courseMap = async (entries) => new Map(await Promise.all(entries.filter((e) => e.id !== 'missing').map(async (e) => [e.id, JSON.parse(readFileSync(new URL(`courses/${e.id}.json`, site), 'utf8'))])));
 
 test('the path from the catalog: the beginner course is step 1 with Start and “Skip ahead”; every card says who it is for', async () => {
   store.reset();
-  const entries = parseCatalog({ ...realCatalog, courses: [B1, ...marked(realCatalog.courses)] });
+  const entries = parseCatalog(realCatalog);
   const node = catalogSection(entries, await courseMap(entries));
   const steps = node.all((n) => n.className.split(' ').includes('path__step'));
   assert.equal(steps.length, 3);
@@ -103,7 +97,7 @@ test('the path from the catalog: the beginner course is step 1 with Start and �
   assert.match(text(steps[2]), /Python: reading code/);
   assert.doesNotMatch(text(steps[2]), /For beginners|already code/, 'the path’s last step carries no audience pill');
   const start = steps[0].all((n) => n.tag === 'a' && text(n) === 'Start')[0];
-  assert.equal(start.attrs.href, '#/q/b1-1-robot-keeps-each-printed-line');
+  assert.equal(start.attrs.href, `#/q/${B1.start_question}`);
   assert.match(start.className, /button--primary/, 'the main button for a reader with no answers');
   const deeper = node.all((n) => n.attrs.id === 'path-deeper')[0];
   assert.equal(text(deeper), 'Go deeper');
@@ -140,34 +134,44 @@ test('“Already write code?” lists the courses marked for people who already 
   assert.equal(alreadyCodeSign(parseCatalog(bareCatalog)), null);
 });
 
-test('the live catalog as marked: Production and SQL for people who already code, Python on the path without a pill', async () => {
+test('the live catalog marks Read like a computer as step 1 and keeps the other course labels', async () => {
   store.reset();
   const live = parseCatalog(realCatalog);
-  assert.deepEqual(live.map((c) => [c.id, c.audience, c.pathStep]), [['python', null, 3], ['production', 'experienced', null], ['sql', 'experienced', null]]);
+  assert.deepEqual(live.map((c) => [c.id, c.audience, c.pathStep]), [['python', null, 3], ['production', 'experienced', null], ['sql', 'experienced', null], ['read-like-a-computer', 'beginner', 1]]);
   const node = catalogSection(live, await courseMap(live));
   const steps = node.all((n) => n.className.split(' ').includes('path__step'));
-  assert.deepEqual(steps.map((s) => /Coming soon/.test(text(s))), [true, true, false], 'no beginner course in the catalog yet');
+  assert.deepEqual(steps.map((s) => /Coming soon/.test(text(s))), [false, true, false], 'step 1 loads, step 2 remains coming soon, and Python remains step 3');
+  assert.match(text(steps[0]), /Read like a computer|For beginners/);
+  assert.match(text(steps[2]), /Python: reading code/);
   assert.doesNotMatch(text(steps[2]), /For beginners|already code/);
   const deeper = node.all((n) => n.tag === 'li' && n.className === 'course-card');
   assert.deepEqual(deeper.map((c) => /For people who already code/.test(text(c))), [true, true]);
-  assert.equal(node.all((n) => n.tag === 'button').length, 0, 'no skip button without a beginner course');
   assert.deepEqual(alreadyCodeSign(live).all((n) => n.tag === 'a').map((a) => a.attrs.href), ['#/course', '#/course/production', '#/course/sql']);
 });
 
 test('the beginner course page: “Beginner course · Free” and the sign; other course pages unchanged', async () => {
-  withCatalog({ ...realCatalog, courses: [B1, ...marked(realCatalog.courses)] });
+  withCatalog(realCatalog);
+  store.reset();
   const { courseView } = await import('../public/js/views/course.js');
   const page = (await courseView({ id: B1.id })).node;
   assert.match(text(page), /Beginner course · Free/);
   assert.ok(page.all((n) => n.className === 'note already-code')[0]);
+  const firstLesson = b1Course.levels[0].lessons[0];
+  assert.equal(firstLesson.questions[0], B1.start_question, 'the course data begins at the catalog start question');
+  assert.ok(page.all((n) => n.tag === 'a' && n.attrs.href === `#/lesson/${firstLesson.id}`).length, 'the course page links to its first real lesson');
+  const { lessonView } = await import('../public/js/views/lesson.js');
+  const lessonPage = (await lessonView({ id: firstLesson.id })).node;
+  const firstQuestionLink = lessonPage.all((n) => n.tag === 'a' && n.attrs.href.startsWith('#/q/'))[0];
+  assert.equal(firstQuestionLink.attrs.href, `#/q/${B1.start_question}`, 'the course page route reaches the catalog start question');
   const sql = (await courseView({ id: 'sql' })).node;
   assert.doesNotMatch(text(sql), /Beginner course|Already write code/);
+  store.reset();
 });
 
 test('the sign once in the first lesson: above its first question only', async () => {
-  withCatalog({ ...realCatalog, courses: [B1, ...marked(realCatalog.courses)] });
+  withCatalog(realCatalog);
   const { questionView } = await import('../public/js/views/question.js');
-  const first = (await questionView({ id: 'b1-1-robot-keeps-each-printed-line', course: b1Course })).node;
+  const first = (await questionView({ id: B1.start_question, course: b1Course })).node;
   assert.equal(first.all((n) => n.className === 'note already-code').length, 1);
   for (const id of ['b1-1-robot-leaves-unprinted-values-quiet', 'b1-2-a-pocket-uses-its-latest-number']) {
     const other = (await questionView({ id, course: b1Course })).node;
@@ -175,12 +179,25 @@ test('the sign once in the first lesson: above its first question only', async (
   }
 });
 
+test('direct link: the live B1 start question renders with its beginner-practice profile and four choices', async () => {
+  withCatalog(realCatalog);
+  store.reset();
+  const { questionView } = await import('../public/js/views/question.js');
+  const node = (await questionView({ id: B1.start_question })).node;
+  assert.equal(startQuestion.answer_profile, 'beginner-practice');
+  assert.match(text(node.all((n) => n.className === 'chips')[0]), /Practice/);
+  const group = node.all((n) => n.className === 'options')[0];
+  const choices = group.all((n) => n.tag === 'input' && n.attrs.name === 'answer');
+  assert.equal(choices.filter((choice) => choice.attrs.value !== '__unknown').length, 4);
+  assert.equal(choices.filter((choice) => choice.attrs.value === '__unknown').length, 1);
+});
+
 test('home: a new visitor’s main button starts the beginner course', async () => {
-  withCatalog({ ...realCatalog, courses: [B1, ...marked(realCatalog.courses)] });
+  withCatalog(realCatalog);
   store.reset();
   const { homeView } = await import('../public/js/views/home.js');
   const home = (await homeView()).node;
   const hero = home.all((n) => n.className === 'hero')[0];
   const main = hero.all((n) => n.tag === 'a' && /button--primary/.test(n.className))[0];
-  assert.equal(main.attrs.href, '#/q/b1-1-robot-keeps-each-printed-line');
+  assert.equal(main.attrs.href, `#/q/${B1.start_question}`);
 });

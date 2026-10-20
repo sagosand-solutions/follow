@@ -1,0 +1,107 @@
+{
+  "question_id": "b1-6-glue-versus-count",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "11eb5c1102212ab32030f991213d7c56511887d0b88815f172a054d2c6699db2",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "23\n5\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "first": "'2'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "first": "'2'",
+            "second": "'3'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "first": "'2'",
+            "plate": "'23'",
+            "second": "'3'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "count": "5",
+            "first": "'2'",
+            "plate": "'23'",
+            "second": "'3'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "count": "5",
+            "first": "'2'",
+            "plate": "'23'",
+            "second": "'3'"
+          },
+          "stdout_len": 3
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "count": "5",
+            "first": "'2'",
+            "plate": "'23'",
+            "second": "'3'"
+          },
+          "stdout_len": 5,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

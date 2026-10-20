@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-2-two-pockets-hold-their-own",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.25,
+  "concepts": [
+    "py.values",
+    "py.assignment"
+  ],
+  "prompt": "The robot fills two pockets. What appears on the screen, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "pocket = 2\nspare = 9\nprint(pocket)\nprint(spare)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "each-reads-its-own",
+      "text": "`2` then `9`. pocket holds 2 and spare holds 9; print reads each pocket.",
+      "score": 1,
+      "feedback": "Right. Each assignment stored a number in its own name, and each print reads the pocket it is given.",
+      "misconception": null
+    },
+    {
+      "id": "last-written-anywhere",
+      "text": "`9` then `9`. print shows the last number written anywhere.",
+      "score": 0,
+      "feedback": "print(pocket) reads the pocket named pocket, not the program's last number. pocket holds 2.",
+      "misconception": "py.print-uses-the-last-number-written"
+    },
+    {
+      "id": "names-literal",
+      "text": "`pocket` then `spare`. print writes the name instead of reading the pocket.",
+      "score": 0,
+      "feedback": "An unquoted name tells print which pocket to read. The screen gets the numbers 2 and 9.",
+      "misconception": "py.print-shows-an-unquoted-name-literally"
+    },
+    {
+      "id": "first-binding",
+      "text": "`2` then `9`. Names keep their first number, so each print shows it.",
+      "score": 0.5,
+      "feedback": "Add pocket = 6 before the prints: the screen shows 6 then 9 — a new assignment replaces the pocket's number.",
+      "misconception": "py.first-binding-is-permanent",
+      "partial_reason": "Right: 2, then 9. Wrong: that names keep their first number; a new assignment replaces it."
+    }
+  ],
+  "explanation": "pocket = 2 stores 2 and spare = 9 stores 9. print(pocket) reads 2 and print(spare) reads 9: two lines, in order.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "2\n9\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The half gives the same output as the correct one with a false rule (the first-binding rule coincides here); its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Small deterministic whole-number/text fixture with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-4-an-else-runs-when-the-if-is-false",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.conditionals",
+    "py.booleans"
+  ],
+  "prompt": "The robot says open for door 3 and closed for any other door. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "door = 2\nif door == 3:\n    print(\"open\")\nelse:\n    print(\"closed\")\nprint(\"done\")\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "else-picks-closed",
+      "text": "`closed` then `done`. The if is False, so the else line runs.",
+      "score": 1,
+      "feedback": "Right. Exactly one of the two indented lines runs. Here door is 2, so it is the else line.",
+      "misconception": null
+    },
+    {
+      "id": "both-branches",
+      "text": "`open` then `closed` then `done`. Both indented lines run, one after the other.",
+      "score": 0,
+      "feedback": "else runs only when the if is False, and then the if line is skipped. Only one of the two runs.",
+      "misconception": "py.if-else-both-run"
+    },
+    {
+      "id": "else-after-if",
+      "text": "`done`. The else line runs only after the if line has run.",
+      "score": 0,
+      "feedback": "else runs when the if question is False. Here the if line is skipped, so the else line runs.",
+      "misconception": "py.else-needs-the-if-line-to-run-first"
+    },
+    {
+      "id": "else-for-smaller",
+      "text": "`closed` then `done`. else is for numbers below the one in the if.",
+      "score": 0.5,
+      "feedback": "else runs for every number that is not 3. With door = 5 the else line would still run and print closed.",
+      "misconception": "py.else-is-for-the-smaller-numbers",
+      "partial_reason": "Correct: closed, done. Incorrect: that else is for smaller numbers; it runs whenever the if is False."
+    }
+  ],
+  "explanation": "door is 2, so door == 3 is False and the if line is skipped. The else line runs and prints closed. The last line is not indented, so it always runs: done.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "closed\ndone\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

@@ -1,0 +1,1620 @@
+{
+  "concepts": [
+    {
+      "id": "py.values",
+      "level": "beginner",
+      "prerequisites": [],
+      "title": "Values and basic types"
+    },
+    {
+      "id": "py.assignment",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Names and assignment"
+    },
+    {
+      "id": "py.numeric-operators",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Numeric operators"
+    },
+    {
+      "id": "py.booleans",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Booleans and truthiness"
+    },
+    {
+      "id": "py.conditionals",
+      "level": "beginner",
+      "prerequisites": [
+        "py.booleans"
+      ],
+      "title": "Conditional statements"
+    },
+    {
+      "id": "py.strings",
+      "level": "beginner",
+      "prerequisites": [
+        "py.values"
+      ],
+      "title": "Strings"
+    },
+    {
+      "id": "py.lists",
+      "level": "beginner",
+      "prerequisites": [
+        "py.assignment"
+      ],
+      "title": "Lists"
+    },
+    {
+      "id": "py.iteration",
+      "level": "beginner",
+      "prerequisites": [
+        "py.conditionals",
+        "py.lists"
+      ],
+      "title": "Iteration over sequences"
+    },
+    {
+      "id": "py.functions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.assignment",
+        "py.conditionals"
+      ],
+      "title": "Functions"
+    },
+    {
+      "id": "py.scope",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions"
+      ],
+      "title": "Name scope and lookup"
+    },
+    {
+      "id": "py.mutation-aliasing",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.lists",
+        "py.functions"
+      ],
+      "title": "Mutation and aliasing"
+    },
+    {
+      "id": "py.dictionaries",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.lists",
+        "py.iteration"
+      ],
+      "title": "Dictionaries"
+    },
+    {
+      "id": "py.exceptions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.conditionals"
+      ],
+      "title": "Exceptions"
+    },
+    {
+      "id": "py.comprehensions",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.iteration"
+      ],
+      "title": "Comprehensions"
+    },
+    {
+      "id": "py.default-arguments",
+      "level": "advanced",
+      "prerequisites": [
+        "py.functions",
+        "py.mutation-aliasing"
+      ],
+      "title": "Default arguments"
+    },
+    {
+      "id": "py.iterators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ],
+      "title": "Iterators"
+    },
+    {
+      "id": "py.generators",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iterators"
+      ],
+      "title": "Generators"
+    },
+    {
+      "id": "py.complexity",
+      "level": "advanced",
+      "prerequisites": [
+        "py.iteration",
+        "py.functions"
+      ],
+      "title": "Algorithmic complexity"
+    },
+    {
+      "id": "py.modules",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.scope"
+      ],
+      "title": "Modules, imports and namespaces"
+    },
+    {
+      "id": "py.classes",
+      "level": "intermediate",
+      "prerequisites": [
+        "py.functions",
+        "py.mutation-aliasing"
+      ],
+      "title": "Instances, class attributes and method dispatch"
+    }
+  ],
+  "language": "python",
+  "misconceptions": [
+    {
+      "concepts": [
+        "py.assignment",
+        "py.mutation-aliasing"
+      ],
+      "description": "Assignment always makes an independent copy, even for mutable objects.",
+      "id": "py.assignment-copies-value",
+      "title": "Assignment always copies the value"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "Assignment establishes a persistent algebraic relationship between names.",
+      "id": "py.assignment-is-equation",
+      "title": "Assignment is an algebraic equation"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Integer floor division truncates toward zero for negative operands.",
+      "id": "py.floor-is-truncate",
+      "title": "Floor division truncates toward zero"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "All arithmetic operators are evaluated strictly left to right.",
+      "id": "py.precedence-left-to-right",
+      "title": "Arithmetic is strictly left to right"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.conditionals"
+      ],
+      "description": "Only literal True/False can control a conditional.",
+      "id": "py.truthiness-only-booleans",
+      "title": "Only literal booleans control conditionals"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Separate if statements act like mutually exclusive elif branches.",
+      "id": "py.independent-if-is-elif",
+      "title": "Separate if statements are mutually exclusive"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ],
+      "description": "The stop index is included in a slice.",
+      "id": "py.slice-end-inclusive",
+      "title": "Slice stop index is inclusive"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ],
+      "description": "The first item has index one.",
+      "id": "py.index-starts-one",
+      "title": "Indexing starts at one"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "range includes its stop bound.",
+      "id": "py.range-stop-inclusive",
+      "title": "range includes its stop bound"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "Printing a result makes it the function return value.",
+      "id": "py.return-is-print",
+      "title": "Returning and printing are the same"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "Assignment inside a function automatically rebinds a same-named global.",
+      "id": "py.local-rebinds-global",
+      "title": "Local assignment rebinds the global"
+    },
+    {
+      "concepts": [
+        "py.mutation-aliasing"
+      ],
+      "description": "Copying the outer container also copies all nested mutable objects.",
+      "id": "py.shallow-copy-is-deep",
+      "title": "A shallow copy is a deep copy"
+    },
+    {
+      "concepts": [
+        "py.dictionaries"
+      ],
+      "description": "Iterating a dictionary yields values rather than keys.",
+      "id": "py.dict-iteration-values",
+      "title": "Dictionary iteration yields values"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "A typed except clause catches every exception.",
+      "id": "py.except-catches-everything",
+      "title": "A typed except catches everything"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ],
+      "description": "Python 3 list-comprehension loop variables overwrite the enclosing variable.",
+      "id": "py.comprehension-leaks-name",
+      "title": "Comprehension loop variable leaks"
+    },
+    {
+      "concepts": [
+        "py.default-arguments"
+      ],
+      "description": "A mutable default is created anew for each function call.",
+      "id": "py.default-recreated",
+      "title": "Mutable defaults are recreated per call"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "Reusing an exhausted iterator restarts it.",
+      "id": "py.iterator-restarts",
+      "title": "An exhausted iterator restarts"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "A generator body runs fully when the generator is created.",
+      "id": "py.generator-eager",
+      "title": "Generators run eagerly"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Any syntactically nested loop is necessarily quadratic in input size.",
+      "id": "py.nested-loops-always-quadratic",
+      "title": "Nested loops are always quadratic"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Any single loop has linear complexity, irrespective of work in its body.",
+      "id": "py.single-loop-always-linear",
+      "title": "A single loop is always linear"
+    },
+    {
+      "concepts": [
+        "py.default-arguments"
+      ],
+      "description": "A default object is created on the first call omitting that argument rather than when def executes.",
+      "id": "py.default-created-on-first-call",
+      "title": "Mutable default created on first call"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.mutation-aliasing"
+      ],
+      "description": "append returns a new list and leaves its receiver unchanged.",
+      "id": "py.append-nonmutating",
+      "title": "append creates a new list"
+    },
+    {
+      "concepts": [
+        "py.default-arguments"
+      ],
+      "description": "Python rejects mutable function defaults with TypeError.",
+      "id": "py.mutable-default-forbidden",
+      "title": "Mutable defaults are forbidden"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "A closure's free-variable values freeze when its enclosing function returns.",
+      "id": "py.closure-freezes-on-return",
+      "title": "Closure values freeze on return"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "Enclosing local bindings disappear on return, so closures cannot read them.",
+      "id": "py.closure-loses-bindings",
+      "title": "Closures lose enclosing bindings"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "A closure copies a loop variable's current value when the function is defined.",
+      "id": "py.closure-captures-value",
+      "title": "Closure captures the loop value"
+    },
+    {
+      "concepts": [
+        "py.iterators",
+        "py.exceptions"
+      ],
+      "description": "next(iterator, default) suppresses all exceptions, not just StopIteration.",
+      "id": "py.next-default-catches-errors",
+      "title": "next default suppresses all errors"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "The caller's except handler executes before the generator's finally during stack unwinding.",
+      "id": "py.finally-after-caller-handler",
+      "title": "Caller handler runs before finally"
+    },
+    {
+      "concepts": [
+        "py.generators",
+        "py.exceptions"
+      ],
+      "description": "Catching an escaped exception in the caller lets a generator resume after the unhandled raise.",
+      "id": "py.external-handler-resumes-generator",
+      "title": "Caught error resumes the generator"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.complexity"
+      ],
+      "description": "A list slice always copies the entire source list regardless of stop bound.",
+      "id": "py.slice-copies-entire-source",
+      "title": "A slice copies the entire list"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Sequential linear operations within a loop multiply to a quadratic per-iteration cost.",
+      "id": "py.sequential-costs-multiply",
+      "title": "Sequential costs multiply"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.lists"
+      ],
+      "description": "Ordinary list slices and membership use balanced search trees and take logarithmic time.",
+      "id": "py.list-operations-logarithmic",
+      "title": "List slicing and membership are logarithmic"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "A name retains its first assigned value and later assignments are ignored.",
+      "id": "py.first-binding-is-permanent",
+      "title": "First binding is permanent"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "An ordinary assignment adds the right-hand-side result to the target's previous value, as if using +=.",
+      "id": "py.assignment-accumulates",
+      "title": "Assignment implicitly accumulates"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "A loop's if body executes for every visited item regardless of its condition.",
+      "id": "py.if-body-unconditional",
+      "title": "Conditional body always executes"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "For an integer n, n % 2 == 0 identifies odd rather than even values.",
+      "id": "py.modulo-parity-reversed",
+      "title": "Modulo parity is reversed"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.iteration"
+      ],
+      "description": "The update total = total + n discards the previous total and behaves like total = n.",
+      "id": "py.accumulator-overwrites",
+      "title": "Accumulator keeps only the last value"
+    },
+    {
+      "concepts": [
+        "py.mutation-aliasing"
+      ],
+      "description": "Matching one updated variable is sufficient for program equivalence even when another observable name aliases its original object.",
+      "id": "py.equivalence-ignores-aliases",
+      "title": "Equivalence ignores aliases"
+    },
+    {
+      "concepts": [
+        "py.mutation-aliasing"
+      ],
+      "description": "Built-in list + mutates the old list, whereas built-in list += creates an independent list.",
+      "id": "py.plus-mutates-iadd-copies",
+      "title": "List addition mutation is reversed"
+    },
+    {
+      "concepts": [
+        "py.mutation-aliasing"
+      ],
+      "description": "List += mutates the list and then binds its target to None, confusing augmented assignment with the result of methods such as append.",
+      "id": "py.iadd-returns-none",
+      "title": "List augmented assignment produces None"
+    },
+    {
+      "concepts": [
+        "py.lists"
+      ],
+      "description": "Any negative index raises IndexError instead of counting backward from the end of a built-in list.",
+      "id": "py.negative-index-invalid",
+      "title": "All negative list indices are invalid"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.conditionals"
+      ],
+      "description": "The right operand of and is evaluated even when its left operand is false.",
+      "id": "py.and-evaluates-both",
+      "title": "Boolean and always evaluates both sides"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.conditionals"
+      ],
+      "description": "index < len(items) alone guarantees safe list indexing even for arbitrary negative integer indices.",
+      "id": "py.upper-bound-guard-covers-negative",
+      "title": "Upper-bound guard ensures valid negative indices"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ],
+      "description": "The stop bound of a two-bound slice is the number of elements to take, independently of its start bound.",
+      "id": "py.slice-stop-is-count",
+      "title": "Slice stop is a length"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ],
+      "description": "Evaluating a slice changes the source sequence to contain only the selected elements.",
+      "id": "py.slice-mutates-source",
+      "title": "Slicing replaces its source"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.lists"
+      ],
+      "description": "An index equal to the sequence length is valid, as though the upper indexing bound were inclusive.",
+      "id": "py.index-upper-bound-inclusive",
+      "title": "Index equal to length is valid"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.booleans",
+        "py.conditionals"
+      ],
+      "description": "Every string is true in a condition, including the empty string.",
+      "id": "py.all-strings-truthy",
+      "title": "Every string is truthy"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.booleans",
+        "py.conditionals"
+      ],
+      "description": "The text False inside a nonempty string makes that string false in a condition.",
+      "id": "py.string-content-is-truth-value",
+      "title": "String spelling determines truth"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "An if/else statement executes both bodies rather than selecting one according to its condition.",
+      "id": "py.if-else-both-run",
+      "title": "Both if and else bodies execute"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "A function can never read a module-global name without a global declaration.",
+      "id": "py.global-required-for-read",
+      "title": "Reading globals requires a declaration"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "A local read before its first local assignment falls back to a same-named global.",
+      "id": "py.local-read-falls-back-global",
+      "title": "Unbound locals fall back to globals"
+    },
+    {
+      "concepts": [
+        "py.scope",
+        "py.exceptions"
+      ],
+      "description": "Reading a local before assignment is rejected when defining the function with SyntaxError rather than failing when the read executes.",
+      "id": "py.unbound-local-is-syntax-error",
+      "title": "Unbound locals are syntax errors"
+    },
+    {
+      "concepts": [
+        "py.dictionaries"
+      ],
+      "description": "dict.get uses its default for a stored falsy value, not just a missing key.",
+      "id": "py.get-default-for-falsy",
+      "title": "Dictionary defaults replace falsy values"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "or replaces only None or the empty string with its right operand and passes all other values through unchanged, including numeric zero and empty containers.",
+      "id": "py.or-only-none-or-empty-string",
+      "title": "or replaces only None and empty strings"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "or returns a bool describing combined truth rather than one of its operand values.",
+      "id": "py.or-returns-bool",
+      "title": "or returns a Boolean result"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "or always returns its right-hand operand even when the left operand is truthy.",
+      "id": "py.or-always-fallback",
+      "title": "or always takes its fallback"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Integer floor division rounds its quotient to the nearest integer rather than toward negative infinity.",
+      "id": "py.floor-rounds-nearest",
+      "title": "Floor division rounds to nearest"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "The // operator returns the same fractional quotient as / for integer operands.",
+      "id": "py.floor-is-true-division",
+      "title": "Floor and true division are identical"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Floor division replaces a negative numerator with its positive magnitude before dividing.",
+      "id": "py.floor-ignores-negative-sign",
+      "title": "Division ignores a negative numerator"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Multiplication groups before exponentiation in an expression containing both operators.",
+      "id": "py.multiplication-before-power",
+      "title": "Multiplication binds before exponentiation"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Addition groups before multiplication, even without parentheses requesting that grouping.",
+      "id": "py.addition-before-multiplication",
+      "title": "Addition binds before multiplication"
+    },
+    {
+      "concepts": [
+        "py.numeric-operators"
+      ],
+      "description": "Normal operator precedence is applied across parentheses rather than using parentheses to override grouping.",
+      "id": "py.parentheses-do-not-override-precedence",
+      "title": "Parentheses cannot change grouping"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.mutation-aliasing"
+      ],
+      "description": "A full list slice returns the same outer list instead of making a new outer container with shared element references.",
+      "id": "py.slice-shares-outer-container",
+      "title": "A full slice aliases its outer list"
+    },
+    {
+      "concepts": [
+        "py.lists"
+      ],
+      "description": "Lists reject mutable list elements with TypeError, confusing list elements with hashable-only contexts such as dictionary keys.",
+      "id": "py.list-items-must-be-immutable",
+      "title": "List items must be immutable"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ],
+      "description": "A Python 3 list comprehension overwrites the outer loop-variable binding during iteration and then restores its former value afterward.",
+      "id": "py.comprehension-restores-outer",
+      "title": "Comprehension restores an overwritten outer name"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.scope"
+      ],
+      "description": "The expression in a list comprehension reads a same-named outer binding instead of the comprehension's iteration binding.",
+      "id": "py.comprehension-expression-uses-outer",
+      "title": "Comprehension expression ignores its loop binding"
+    },
+    {
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ],
+      "description": "A dictionary always yields its string keys in alphabetical order rather than insertion order.",
+      "id": "py.dict-iteration-sorts-keys",
+      "title": "Dictionary iteration sorts keys"
+    },
+    {
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ],
+      "description": "Iterating a dictionary directly yields key-value pairs as though iterating its items view.",
+      "id": "py.dict-iteration-pairs",
+      "title": "Dictionary iteration yields pairs"
+    },
+    {
+      "concepts": [
+        "py.dictionaries",
+        "py.iteration"
+      ],
+      "description": "Direct dictionary iteration raises TypeError unless keys() is explicitly called.",
+      "id": "py.dict-needs-keys-method",
+      "title": "A dictionary needs keys() to be iterable"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "No except clause can catch KeyError, regardless of the exception type named by that clause.",
+      "id": "py.keyerror-uncatchable",
+      "title": "KeyError cannot be caught"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "Completing a finally block normally discards an escaping exception and permits execution after the try statement.",
+      "id": "py.finally-suppresses-error",
+      "title": "Cleanup suppresses an escaping exception"
+    },
+    {
+      "concepts": [
+        "py.exceptions"
+      ],
+      "description": "An exception not matched by an except clause bypasses the associated finally block.",
+      "id": "py.uncaught-skips-finally",
+      "title": "Uncaught exceptions skip cleanup"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "An explicit call to built-in next previews an iterator element without consuming it, unlike iteration by a collection constructor.",
+      "id": "py.next-peeks-without-consuming",
+      "title": "Explicit next previews without advancing"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "All Python container iterators safely continue after their underlying container grows during iteration.",
+      "id": "py.all-iterators-allow-size-change",
+      "title": "Every container iterator tolerates growth"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.numeric-operators"
+      ],
+      "description": "The sum n + floor(n/2) + floor(n/4) + ... is exactly 2n-1 for every positive integer n, not just powers of two.",
+      "id": "py.halving-always-two-n-minus-one",
+      "title": "Integer halving always totals 2n minus 1"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "A halving outer loop makes the total running time logarithmic regardless of the work performed by its inner loop.",
+      "id": "py.outer-loop-alone-determines-cost",
+      "title": "Outer iterations alone determine loop cost"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Multiplying outer iteration count by the maximum inner-loop length always gives a tight total bound even when inner lengths shrink geometrically.",
+      "id": "py.max-inner-bound-gives-tight-product",
+      "title": "Maximum inner bound always gives a tight product"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "Multiplication repeats the written digits of numeric operands as well as repeating strings, so integer 3 * 2 would produce 33.",
+      "id": "py.multiplication-repeats-all-types",
+      "title": "Multiplication repeats every operand's digits"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "An arithmetic operation automatically parses a numeric-looking string as a number rather than using its string-specific behavior.",
+      "id": "py.numeric-strings-auto-coerce",
+      "title": "Numeric strings automatically become numbers"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "Multiplying a string by an integer concatenates the string and that integer's spelling once rather than repeating the string.",
+      "id": "py.star-concatenates-operands",
+      "title": "Multiplication concatenates operand spellings"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "description": "Multiplying an ordinary string by a positive integer is forbidden and raises TypeError.",
+      "id": "py.string-repeat-forbidden",
+      "title": "Strings cannot be repeated by multiplication"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "The argument to str.strip is an exact substring removed at the boundaries rather than a set of individual characters to trim.",
+      "id": "py.strip-argument-is-substring",
+      "title": "strip removes an exact boundary substring"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "str.strip removes every occurrence of its character arguments throughout the string, including interior positions.",
+      "id": "py.strip-removes-interior",
+      "title": "strip deletes matching characters everywhere"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "str.strip with a character argument trims matching characters only from the right end, not from both boundaries.",
+      "id": "py.strip-trims-right-only",
+      "title": "strip trims only the right boundary"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "str.strip ignores an explicit character argument and always performs only its default whitespace trimming.",
+      "id": "py.strip-ignores-characters-argument",
+      "title": "strip always removes only whitespace"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.iteration"
+      ],
+      "description": "A list comprehension evaluates every filter for the entire input before evaluating any result expression, instead of filtering and mapping each candidate before advancing.",
+      "id": "py.comprehension-filters-all-before-mapping",
+      "title": "Comprehension filtering is a separate complete pass"
+    },
+    {
+      "concepts": [
+        "py.comprehensions"
+      ],
+      "description": "A list comprehension evaluates a candidate's result expression before testing the trailing if condition that could reject that candidate.",
+      "id": "py.comprehension-expression-before-filter",
+      "title": "Comprehension evaluates results before filtering"
+    },
+    {
+      "concepts": [
+        "py.comprehensions",
+        "py.booleans"
+      ],
+      "description": "A trailing comprehension if condition supplies Boolean output entries for all candidates instead of filtering candidates before the element expression.",
+      "id": "py.comprehension-filter-becomes-result",
+      "title": "Comprehension filter values become list results"
+    },
+    {
+      "concepts": [
+        "py.comprehensions"
+      ],
+      "description": "A filtered list comprehension keeps accepted input items unchanged and ignores the stated element expression.",
+      "id": "py.comprehension-ignores-element-expression",
+      "title": "Filtered comprehensions keep original items"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "Boolean and always converts its result to True or False instead of returning one of its operand values.",
+      "id": "py.and-returns-bool",
+      "title": "and always returns a Boolean"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "The and operator evaluates and returns its right operand even when its left operand is falsy.",
+      "id": "py.and-always-right",
+      "title": "and always evaluates and returns the right operand"
+    },
+    {
+      "concepts": [
+        "py.booleans"
+      ],
+      "description": "When and skips its right operand, the expression produces None rather than returning its falsy left operand.",
+      "id": "py.and-false-has-no-value",
+      "title": "A skipped and expression has no result"
+    },
+    {
+      "concepts": [
+        "py.default-arguments",
+        "py.functions"
+      ],
+      "description": "An argument is None only when the caller omitted it; explicitly passing None cannot satisfy an is None check.",
+      "id": "py.none-check-detects-omission",
+      "title": "A None check detects an omitted argument"
+    },
+    {
+      "concepts": [
+        "py.lists",
+        "py.booleans"
+      ],
+      "description": "An empty list is truthy just like a nonempty list.",
+      "id": "py.all-lists-truthy",
+      "title": "Every list is truthy"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "Calling iter on an existing list iterator creates an independent iterator at the beginning rather than returning the same iterator.",
+      "id": "py.iter-iterator-creates-cursor",
+      "title": "iter of an iterator creates a fresh cursor"
+    },
+    {
+      "concepts": [
+        "py.iterators",
+        "py.lists"
+      ],
+      "description": "Independent iter calls on the same list all share a single traversal position owned by that list.",
+      "id": "py.list-iterators-share-position",
+      "title": "A list owns one shared iteration position"
+    },
+    {
+      "concepts": [
+        "py.iterators"
+      ],
+      "description": "A new list iterator already points at its first item and next advances before reading, so the first call returns the second item.",
+      "id": "py.next-skips-first-item",
+      "title": "next skips the first item"
+    },
+    {
+      "concepts": [
+        "py.iterators",
+        "py.lists"
+      ],
+      "description": "Creating a list iterator implicitly copies the entire source list into a private snapshot rather than keeping a cursor over the original list.",
+      "id": "py.iterable-iteration-copies-source",
+      "title": "Iteration copies the source list"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "Because comparison sorting has Theta(n log n) worst-case time, Python sorted must also take Theta(n log n) on every input, including an already sorted list.",
+      "id": "py.sort-worst-case-is-every-case",
+      "title": "Sorting worst case applies to every input"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.iteration"
+      ],
+      "description": "A loop evaluating differences only at consecutive positions nevertheless examines all pairs of positions and performs quadratic work.",
+      "id": "py.adjacent-scan-compares-all-pairs",
+      "title": "An adjacent-gap scan examines every pair"
+    },
+    {
+      "concepts": [
+        "py.complexity"
+      ],
+      "description": "The total time of sequential sorting and scanning stages is the product of their costs rather than their sum.",
+      "id": "py.pipeline-costs-multiply",
+      "title": "Sequential pipeline costs multiply"
+    },
+    {
+      "concepts": [
+        "py.generators",
+        "py.iterators"
+      ],
+      "description": "A non-None send can start a just-created generator by automatically advancing it to its first yield before delivering the value.",
+      "id": "py.send-auto-primes-generator",
+      "title": "send automatically primes a generator"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "A generator send call returns the argument supplied by its caller instead of the next value yielded by the generator.",
+      "id": "py.send-returns-argument",
+      "title": "send returns its input argument"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "Calling send with a non-None value behaves like next and resumes the paused yield expression with None.",
+      "id": "py.send-ignores-argument",
+      "title": "send ignores its input argument"
+    },
+    {
+      "concepts": [
+        "py.generators"
+      ],
+      "description": "When yield appears on the right-hand side of assignment it pauses but emits None instead of its outgoing operand; only standalone yield emits its operand.",
+      "id": "py.assigned-yield-hides-output",
+      "title": "An assigned yield hides its outgoing value"
+    },
+    {
+      "concepts": [
+        "py.complexity",
+        "py.iteration"
+      ],
+      "description": "Finding the minimum of a stream requires comparing every pair of produced values rather than maintaining one running minimum in a linear pass.",
+      "id": "py.minimum-needs-all-pair-comparisons",
+      "title": "Minimum selection compares every pair"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "Expressions supplied as ordinary keyword arguments are evaluated in the order of parameters in the function definition, rather than their order in the call.",
+      "id": "py.argument-evaluation-follows-parameters",
+      "title": "Arguments are evaluated in parameter order"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "Keyword argument expressions are evaluated in the call's written order, but their resulting values fill successive positional parameter slots while their keyword names are ignored.",
+      "id": "py.keyword-binding-is-positional",
+      "title": "Keyword values bind by written position"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "At a call, expressions explicitly supplied for parameters with defaults are evaluated before those supplied for required parameters, regardless of their written order. This is a false call-time priority rule, distinct from actual definition-time evaluation of default expressions.",
+      "id": "py.defaulted-parameter-arguments-evaluate-first",
+      "title": "Supplied arguments for defaulted parameters run first"
+    },
+    {
+      "concepts": [
+        "py.functions"
+      ],
+      "description": "An explicitly supplied keyword argument expression runs, but a parameter that has a default keeps that default instead of receiving the supplied value.",
+      "id": "py.explicit-keyword-cannot-replace-default",
+      "title": "An explicit keyword cannot replace a default"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope"
+      ],
+      "description": "Separate calls to a closure factory share one enclosing local binding, so functions returned by different calls update the same nonlocal state.",
+      "id": "py.factory-calls-share-nonlocals",
+      "title": "Factory calls share one enclosing binding"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "nonlocal always targets the immediately enclosing function scope, whether or not that scope binds the name, instead of searching for the nearest enclosing function scope that does bind it.",
+      "id": "py.nonlocal-nearest-scope-without-binding",
+      "title": "Nonlocal always chooses the immediate function scope"
+    },
+    {
+      "concepts": [
+        "py.functions",
+        "py.scope"
+      ],
+      "description": "Every call to a returned inner function reruns its enclosing factory's local initialization before reading or updating its nonlocal variable.",
+      "id": "py.nonlocal-resets-on-call",
+      "title": "Calling an inner function resets nonlocal state"
+    },
+    {
+      "concepts": [
+        "py.scope"
+      ],
+      "description": "A nonlocal declaration directs reads and writes to a same-named module-global binding even when an enclosing function has its own binding.",
+      "id": "py.nonlocal-targets-module",
+      "title": "Nonlocal is another spelling of global"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "A from import automatically deep-copies its imported value, including mutable nested contents, rather than binding the importing name to the current object. Editorial hypothesis, not a measured prevalence claim.",
+      "id": "py.from-import-deepcopies",
+      "title": "From imports deep-copy values"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "Without reloads, cache manipulation or custom hooks, every import of a module name still loads an independent fresh module object instead of reusing the ordinary module cache. Editorial hypothesis.",
+      "id": "py.repeated-import-fresh-module",
+      "title": "Every import creates a fresh module"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "An imported local name is a live link to its source module attribute and automatically follows later rebinding of that attribute. Editorial hypothesis.",
+      "id": "py.from-import-live-link",
+      "title": "From imports track later module rebinding"
+    },
+    {
+      "concepts": [
+        "py.modules"
+      ],
+      "description": "An ordinary module attribute documented as a constant is automatically read-only and raises AttributeError on assignment merely because it is a constant. Editorial hypothesis; does not claim all object attributes are writable.",
+      "id": "py.module-constants-readonly",
+      "title": "Documented module constants cannot be rebound"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "An ordinary new instance automatically stores references to all current class data attributes, without cloning their objects, and these saved bindings do not follow later class-attribute rebinding. Editorial hypothesis; distinct from copying mutable objects per instance.",
+      "id": "py.class-bindings-snapshotted-at-construction",
+      "title": "Construction snapshots class data references"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "Creating an ordinary instance automatically gives it independent copies of mutable class data attributes. Editorial hypothesis; distinct from saving shared references.",
+      "id": "py.class-mutable-data-copied-per-instance",
+      "title": "Class mutable data are copied into each instance"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "For ordinary attributes without custom machinery, assigning an instance attribute that previously resolved on its class writes the class binding instead of creating or replacing an instance binding. Editorial hypothesis.",
+      "id": "py.instance-assignment-writes-class",
+      "title": "Instance assignment updates the original class attribute"
+    },
+    {
+      "concepts": [
+        "py.classes"
+      ],
+      "description": "In an ordinary bound instance-method call, the first parameter receives the defining class rather than the receiving instance. Editorial hypothesis; not about classmethod.",
+      "id": "py.instance-method-self-is-class",
+      "title": "Self denotes the defining class"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "description": "Printing a text literal is thought to include the surrounding quote marks written in the source; numbers otherwise print normally. Editorial hypothesis, not measured prevalence.",
+      "id": "py.print-keeps-the-source-quote-marks",
+      "title": "Print keeps the source quote marks"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "Each print is thought to replace all earlier screen output, leaving only the last printed value visible. Editorial hypothesis, not measured prevalence.",
+      "id": "py.only-the-last-print-remains-visible",
+      "title": "Only the last print remains visible"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A print given an integer is thought to ignore that integer and display the count of already printed screen lines; text prints otherwise behave normally. Editorial hypothesis, not measured prevalence.",
+      "id": "py.integer-print-counts-earlier-screen-lines",
+      "title": "Integer print counts earlier screen lines"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A standalone text or integer literal in a complete program is thought to display itself just as print(literal) does; actual print calls otherwise behave normally. Distinct from py.only-bare-text-displays-itself, which limits automatic display to text. Editorial hypothesis, not measured prevalence.",
+      "id": "py.bare-literals-display-themselves-in-programs",
+      "title": "Bare literals display themselves in programs"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "description": "In a complete program, standalone quoted text is thought to display itself without print, while standalone numbers remain silent. Distinct from py.bare-literals-display-themselves-in-programs, which displays both kinds of literal. Editorial hypothesis, not measured prevalence.",
+      "id": "py.only-bare-text-displays-itself",
+      "title": "Only bare text displays itself"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "print(name) is thought to display the spelling of the unquoted name instead of the value currently assigned to it; assignment and literal print arguments otherwise behave normally. Editorial hypothesis, not measured prevalence.",
+      "id": "py.print-shows-an-unquoted-name-literally",
+      "title": "Print shows an unquoted name literally"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "Printing any name is thought to show the last integer literal assigned anywhere in the program, regardless of which name received it. Editorial hypothesis, not measured prevalence.",
+      "id": "py.print-uses-the-last-number-written",
+      "title": "Print uses the last number written"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "description": "Each update line is thought to start from the name's first value instead of its current value, whether it adds or subtracts. Distinct from py.accumulator-overwrites. Editorial hypothesis.",
+      "id": "py.update-works-from-the-first-value",
+      "title": "An update works from the first value"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "description": "A name on the right side of an update line is thought to be read only the first time; every later update is thought to reuse the first value it had. Distinct from py.reading-a-name-uses-it-up (the value is gone) and py.update-works-from-the-first-value (the name being updated). Editorial hypothesis.",
+      "id": "py.update-reads-the-bonus-only-once",
+      "title": "An update reads the other name only once"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "A name whose value was read in an expression is thought to be empty afterwards, so the value cannot be used again. Distinct from py.assignment-copies-value. Editorial hypothesis.",
+      "id": "py.reading-a-name-uses-it-up",
+      "title": "Reading a name uses it up"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "print(score + 1) is thought to store the shown result in score, so later lines see the new value. Editorial hypothesis.",
+      "id": "py.print-stores-what-it-shows",
+      "title": "print stores what it shows"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "print(score + 1) is thought to show the old score first and add the 1 to score afterwards. Distinct from py.print-stores-what-it-shows. Editorial hypothesis.",
+      "id": "py.print-adds-after-showing",
+      "title": "print adds after showing"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "The + 1 in print(score + 1) is thought to belong to the first print line only, so printing the same expression again would show the old score, though it applies each time that print runs. Distinct from py.print-stores-what-it-shows. Editorial hypothesis.",
+      "id": "py.print-sum-counts-only-once",
+      "title": "The +1 in print counts only once"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "A later update to a name is thought to change a line that print has already written. Editorial hypothesis.",
+      "id": "py.a-later-update-rewrites-an-earlier-print",
+      "title": "A later update rewrites an earlier print"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "description": "coins = coins - 3 is thought to store the 3 in coins instead of working out the new value from the old one. Distinct from py.accumulator-overwrites. Editorial hypothesis.",
+      "id": "py.update-stores-only-the-number-written",
+      "title": "An update stores only the number written"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "An update line is thought to change a name only when the new value is printed. Distinct from py.print-stores-what-it-shows. Editorial hypothesis.",
+      "id": "py.an-update-needs-a-print-to-take-effect",
+      "title": "An update needs a print to take effect"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "A later print of a name is thought to repeat the sum shown by an earlier print, instead of reading the stored value. Editorial hypothesis.",
+      "id": "py.the-second-print-repeats-the-first",
+      "title": "The second print repeats the first"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "description": "The comparison 3 < 3 is thought to be True because the numbers are equal, though < is True only when the left number is smaller. Editorial hypothesis.",
+      "id": "py.less-than-includes-equal",
+      "title": "< is also true for equal numbers"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.values"
+      ],
+      "description": "print(door == 3) is thought to show the number in door and to ignore the comparison, though it shows True or False. Editorial hypothesis.",
+      "id": "py.comparison-in-print-is-ignored",
+      "title": "A comparison inside print is ignored"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "description": "The comparison a < b is thought to ask whether a is bigger than b, though it asks whether a is smaller. Distinct from py.less-than-includes-equal. Editorial hypothesis.",
+      "id": "py.less-than-asks-if-the-left-is-bigger",
+      "title": "< asks if the left number is bigger"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "The line under an if is thought to run whatever the condition says. Distinct from py.if-else-both-run. Editorial hypothesis.",
+      "id": "py.if-body-always-runs",
+      "title": "The indented line always runs"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "A condition that is False is thought to stop the whole program, so no later line runs. Distinct from py.if-body-always-runs. Editorial hypothesis.",
+      "id": "py.false-if-stops-the-program",
+      "title": "A False if stops the program"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Lines pushed in under an if are thought never to run, as if the indent hid them, though they run when the condition is True. Distinct from py.if-body-always-runs. Editorial hypothesis.",
+      "id": "py.indented-lines-never-run",
+      "title": "Indented lines never run"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "An else part is thought to run for numbers smaller than the one in the if, instead of whenever the if is False. Distinct from py.else-needs-the-if-line-to-run-first. Editorial hypothesis.",
+      "id": "py.else-is-for-the-smaller-numbers",
+      "title": "else is for the smaller numbers"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "A line written after an if body is thought to belong to the if because of its position, though the indent shows which part a line belongs to. Editorial hypothesis.",
+      "id": "py.a-line-joins-the-if-by-position",
+      "title": "A line joins the if by position"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Only lines that are not pushed in are thought to run, as if every indented line were skipped. Distinct from py.indented-lines-never-run. Editorial hypothesis.",
+      "id": "py.only-unindented-lines-run",
+      "title": "Only unindented lines run"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Lines under else are thought never to run. Distinct from py.indented-lines-never-run. Editorial hypothesis.",
+      "id": "py.else-lines-never-run",
+      "title": "else lines never run"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "description": "The comparison a < b is thought to ask whether a and b differ, though it asks whether a is smaller. Distinct from py.less-than-asks-if-the-left-is-bigger. Editorial hypothesis.",
+      "id": "py.less-than-means-not-equal",
+      "title": "< means not equal"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "An else part is thought to run only after the if line has run, instead of when the if question is False. Editorial hypothesis.",
+      "id": "py.else-needs-the-if-line-to-run-first",
+      "title": "else needs the if line to run first"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A standalone value in a complete program is thought to display itself only when no line follows it, like a shell echoing the last expression; earlier bare values are expected to stay quiet. Distinct from py.bare-literals-display-themselves-in-programs, which claims display for every bare value. Editorial hypothesis.",
+      "id": "py.a-bare-value-displays-only-when-it-is-last",
+      "title": "A bare value displays only when it is last"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A standalone value is thought to be an invalid line that stops the whole program, so prints after it never run. Distinct from py.false-if-stops-the-program, which concerns a False if. Editorial hypothesis.",
+      "id": "py.a-quiet-line-breaks-the-program",
+      "title": "A quiet line breaks the program"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A later print is thought to repeat the value the first screen line showed, instead of reading its own argument; no sum or arithmetic is involved. Scoped sibling of py.the-second-print-repeats-the-first, which concerns a repeated computation. Editorial hypothesis.",
+      "id": "py.a-print-repeats-the-first-screen-line",
+      "title": "A print repeats the first screen line"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "description": "print(name) is thought to show the value the name holds at the end of the program rather than the value at the print line. Editorial hypothesis.",
+      "id": "py.a-print-shows-the-final-value",
+      "title": "A print shows the final value"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "description": "A name-to-name assignment (blue = red) is thought to take the last value that was PRINTED rather than the source name's current value. Distinct from py.print-uses-the-last-number-written, which concerns print statements, and from py.reading-a-name-uses-it-up, which empties the source. Editorial hypothesis.",
+      "id": "py.name-copy-takes-the-last-printed-value",
+      "title": "A name copy takes the last printed value"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "laps = laps + 1 is thought not to be a real update, so the pocket keeps its old value. Editorial hypothesis.",
+      "id": "py.a-self-update-is-not-possible",
+      "title": "A self-update is not possible"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "The loop variable of range(n) is thought to take the values 1 through n, keeping the lap count but misreading the printed values. Distinct from py.range-stop-inclusive, which adds an extra lap. Editorial hypothesis.",
+      "id": "py.range-counts-from-one",
+      "title": "range counts from one"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "A loop's indented body is thought to run one time in total instead of once per lap. Editorial hypothesis.",
+      "id": "py.a-loop-body-runs-once",
+      "title": "A loop body runs once"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "The indent before a line is thought to be decoration, so a trailing print is read as part of the loop body. Editorial hypothesis.",
+      "id": "py.indentation-does-not-matter",
+      "title": "Indentation does not matter"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "A loop is thought to repeat only the first of its indented lines and skip the rest of the body. Distinct from py.a-loop-body-runs-once, which repeats nothing on later laps. Editorial hypothesis.",
+      "id": "py.a-loop-repeats-only-its-first-indented-line",
+      "title": "A loop repeats only its first indented line"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "The loop variable is thought to hold the whole row of range's numbers at once and hand out the next one per print, instead of being set fresh once per lap. Distinct from py.range-counts-from-one, which is only about where the counting starts. Editorial hypothesis.",
+      "id": "py.the-loop-variable-holds-all-the-numbers",
+      "title": "The loop variable holds all the numbers"
+    },
+    {
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "description": "A print placed after an update in the same loop body is thought to show the pocket's value from before the update, as if the print read one step behind. Editorial hypothesis.",
+      "id": "py.a-body-print-shows-the-value-before-the-update",
+      "title": "A body print shows the value before the update"
+    },
+    {
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "description": "A counter grown inside a loop is thought to just show which lap the loop is making (1, 2, 3, ...), so any change to the update's amount is expected not to show. Distinct from py.range-counts-from-one, which is about where range starts. Editorial hypothesis.",
+      "id": "py.the-counter-is-the-lap-number",
+      "title": "The counter is the lap number"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "print is thought to display a stored text with its quotation marks, though the stored text has none. Distinct from py.print-keeps-the-source-quote-marks, which concerns literal source text and its delimiters. Editorial hypothesis.",
+      "id": "py.print-shows-quotes-for-text",
+      "title": "Print shows quotes for text"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "+ on text is thought to be order-insensitive, like adding numbers, so the same pieces glue the same either way. Distinct from py.numeric-strings-auto-coerce, which parses digit text as a number. Editorial hypothesis.",
+      "id": "py.plus-on-text-ignores-the-order",
+      "title": "Plus on text ignores the order"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "text * n is thought to produce exactly n characters rather than n copies of the text. Editorial hypothesis.",
+      "id": "py.a-stamp-yields-exactly-n-characters",
+      "title": "A stamp yields exactly n characters"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "len is thought to measure the word written in the code rather than the finished text stored in the variable. Planned for questions 3-4. Editorial hypothesis.",
+      "id": "py.len-reads-the-name-in-the-code",
+      "title": "len reads the name in the code"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "len is thought to include the code's quotation marks in the character count. Planned for questions 3-4. Editorial hypothesis.",
+      "id": "py.len-counts-the-quotes",
+      "title": "len counts the quotes"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "len is thought to count all non-space characters, skipping space characters; punctuation such as ! counts. Distinct from py.len-counts-the-quotes, which adds the code's quotation marks. Editorial hypothesis.",
+      "id": "py.len-skips-spaces",
+      "title": "len skips spaces"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "+ is thought to glue everything it connects, so number + number is also read as gluing (2 + 3 becomes 23). The opposite direction of py.numeric-strings-auto-coerce. Editorial hypothesis.",
+      "id": "py.plus-always-glues",
+      "title": "+ always glues"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.values"
+      ],
+      "description": "+ is thought to glue when the pieces are stored in named pockets and to count when digits are written directly in the code, even inside quote marks, instead of following whether the values are text or numbers. Editorial hypothesis.",
+      "id": "py.plus-follows-names-not-values",
+      "title": "+ follows the names, not the values"
+    }
+  ],
+  "schema_version": "0.1"
+}

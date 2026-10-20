@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-2-prints-across-a-rebinding",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.45,
+  "concepts": [
+    "py.values",
+    "py.assignment"
+  ],
+  "prompt": "The robot prints between assignments. What appears on the screen, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "red = 4\nprint(red)\nblue = red\nred = 9\nprint(red)\nprint(blue)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "each-print-its-line",
+      "text": "`4` then `9` then `4`. The first print reads 4; red becomes 9; blue keeps 4.",
+      "score": 1,
+      "feedback": "Right. Each print reads the pocket at its own line: 4, then 9 after the new assignment, then 4 from blue.",
+      "misconception": null
+    },
+    {
+      "id": "end-value",
+      "text": "`9` then `9` then `4`. Each print shows the pocket's end value.",
+      "score": 0,
+      "feedback": "print(red) reads red at its own line. The first print runs before red = 9, so it shows 4.",
+      "misconception": "py.a-print-shows-the-final-value"
+    },
+    {
+      "id": "names-literal",
+      "text": "`red` then `red` then `blue`. print writes the name, not the pocket's value.",
+      "score": 0,
+      "feedback": "An unquoted name tells print which pocket to read. print(red) shows red's number, not the word red.",
+      "misconception": "py.print-shows-an-unquoted-name-literally"
+    },
+    {
+      "id": "last-repeats-first",
+      "text": "`4` then `9` then `4`. The copy blue = red took the last printed value, 4.",
+      "score": 0.5,
+      "feedback": "Change the first print to print(6): the screen shows 6, 9, 4 — under the last-printed rule it would show 6, 9, 6.",
+      "misconception": "py.name-copy-takes-the-last-printed-value",
+      "partial_reason": "Correct: 4, 9, then 4. Incorrect: that the copy takes the last printed value; blue = red reads red's pocket."
+    }
+  ],
+  "explanation": "print(red) shows 4. Then blue = red copies that 4, and red = 9 replaces red's number. The last two prints show 9 for red and 4 for blue.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "4\n9\n4\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The transfer combines the read-now copy with prints before and after the rebinding, within six lines. The half gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Small deterministic whole-number/text fixture with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

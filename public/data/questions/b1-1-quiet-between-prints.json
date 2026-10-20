@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-1-quiet-between-prints",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.25,
+  "concepts": [
+    "py.values",
+    "py.strings"
+  ],
+  "prompt": "What appears on the robot's screen, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "print(\"GO\")\nprint(\"GO\")\n8\nprint(2)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "print-only-writes",
+      "text": "`GO` then `GO` then `2`. Only print writes lines; the bare 8 is quiet.",
+      "score": 1,
+      "feedback": "Right. The two prints write GO and GO, the bare 8 is valid but quiet, and print(2) writes 2 under them.",
+      "misconception": null
+    },
+    {
+      "id": "bare-shows-itself",
+      "text": "`GO` then `GO` then `8` then `2`. The bare 8 shows itself too.",
+      "score": 0,
+      "feedback": "A bare value is valid code but writes no screen line. Only print adds lines.",
+      "misconception": "py.bare-literals-display-themselves-in-programs"
+    },
+    {
+      "id": "last-print-only",
+      "text": "`2`. Only the final print stays on the screen.",
+      "score": 0,
+      "feedback": "A new print adds a line rather than replacing the earlier ones. Both GO lines stay above the 2.",
+      "misconception": "py.only-the-last-print-remains-visible"
+    },
+    {
+      "id": "counts-earlier-lines",
+      "text": "`GO` then `GO` then `2`. print(2) counts the two earlier screen lines.",
+      "score": 0.5,
+      "feedback": "Make the file print(2) alone: the screen shows 2, not 0 — print writes its number, it does not count lines.",
+      "misconception": "py.integer-print-counts-earlier-screen-lines",
+      "partial_reason": "Right: these three screen lines. Wrong: that print(2) counts earlier output; it writes its own number, quiet lines or not."
+    }
+  ],
+  "explanation": "Read from the top: the two prints each write GO, the bare 8 is valid code but quiet, and print(2) writes 2 below the GO lines.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "GO\nGO\n2\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The half gives the same output as the correct one with a false rule (the count of earlier printed lines coincides with the printed 2); its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Small deterministic whole-number/text fixture with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

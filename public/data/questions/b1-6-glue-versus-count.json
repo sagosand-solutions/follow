@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-6-glue-versus-count",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.4,
+  "concepts": [
+    "py.strings",
+    "py.numeric-operators"
+  ],
+  "prompt": "Two machines meet the digits 2 and 3. What is printed, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "first = \"2\"\nsecond = \"3\"\nplate = first + second\ncount = 2 + 3\nprint(plate)\nprint(count)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "text-glues-number-counts",
+      "text": "`23` then `5`. The first line glues the texts; the second counts the numbers.",
+      "score": 1,
+      "feedback": "Right. \"2\" and \"3\" are texts, so + glues them to 23. The numbers 2 and 3 are counted: 5.",
+      "misconception": null
+    },
+    {
+      "id": "glues-everything",
+      "text": "`23` then `23`. + glues everything it sees: the numbers 2 and 3 also glue to 23.",
+      "score": 0,
+      "feedback": "Numbers without quotation marks are counted: 2 + 3 is 5, not 23.",
+      "misconception": "py.plus-always-glues"
+    },
+    {
+      "id": "auto-counts",
+      "text": "`5` then `5`. Text with digits counts as a number: the digits 2 and 3 make 5.",
+      "score": 0,
+      "feedback": "Text with digits stays text: \"2\" + \"3\" glues to 23. Only the number line counts.",
+      "misconception": "py.numeric-strings-auto-coerce"
+    },
+    {
+      "id": "names-glue",
+      "text": "`23` then `5`. Named pockets glue; digits written in code count, quotes or not.",
+      "score": 0.5,
+      "feedback": "Written texts also glue: print(\"2\" + \"3\") shows 23, not 5 — gluing follows text versus number, not names.",
+      "misconception": "py.plus-follows-names-not-values",
+      "partial_reason": "Correct: 23, then 5. Incorrect: that only named pockets glue and digits written in code count, quotes or not; it follows text versus number."
+    }
+  ],
+  "explanation": "first and second hold texts, so first + second glues them into 23. The numbers 2 and 3 are counted: 2 + 3 is 5. The machines are different even when the digits look the same.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "23\n5\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The transfer juxtaposes the text machine and the number machine on the same digits. The half gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027-pilot follow-up batch: submitted together with an inspected validator run and traces (see self-review). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

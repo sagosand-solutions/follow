@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-3-print-shows-a-number-without-storing-it",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.assignment",
+    "py.values"
+  ],
+  "prompt": "The machine previews the next score. The printed lines are shown in order. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "score = 3\nprint(score + 1)\nprint(score)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "shows-only",
+      "text": "`4` then `3`. print shows score + 1 but does not change score.",
+      "score": 1,
+      "feedback": "Right. print shows the new number and leaves score at 3, so the next print shows 3.",
+      "misconception": null
+    },
+    {
+      "id": "print-stores",
+      "text": "`4` then `4`. print also stores the 4 in score.",
+      "score": 0,
+      "feedback": "print only shows. Only a line like score = ... changes score, and this program has none after the first.",
+      "misconception": "py.print-stores-what-it-shows"
+    },
+    {
+      "id": "adds-after",
+      "text": "`3` then `4`. print shows score first and adds the 1 to score later.",
+      "score": 0,
+      "feedback": "print(score + 1) shows the finished sum, 4, at once. Nothing is added to score later.",
+      "misconception": "py.print-adds-after-showing"
+    },
+    {
+      "id": "counts-once",
+      "text": "`4` then `3`. The + 1 only counts for the first print line.",
+      "score": 0.5,
+      "feedback": "The + 1 is part of each print that has it. Printing score + 1 twice shows 4 and 4, not 4 and 3.",
+      "misconception": "py.print-sum-counts-only-once",
+      "partial_reason": "Correct: 4 then 3. Incorrect: that the + 1 counts only once; it applies each time that print runs."
+    }
+  ],
+  "explanation": "score is 3. print(score + 1) works out 3 + 1 and shows 4, and it does not store it. The second print shows score itself, which is still 3.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "4\n3\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}
