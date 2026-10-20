@@ -78,10 +78,14 @@ class BwrapPlanTests(unittest.TestCase):
         self.assertEqual(command[command.index("--") + 1:], self.argv)
 
     def test_argv_is_a_list_of_strings_and_the_executable_is_allowlisted(self):
-        for argv in ([], "git diff", ["git", "diff"], ["/runtime/bin/sh", "-c", "x"], ["/runtime/bin/git", "a\x00b"], [1]):
+        for argv in ([], "git diff", ["/runtime/bin/sh", "-c", "x"], ["/runtime/bin/git", "a\x00b"], [1]):
             with self.subTest(argv=argv):
                 with self.assertRaises(plan.PlanError):
                     self.command(argv=argv)
+
+    def test_a_bare_command_name_maps_to_the_pinned_runtime_path(self):
+        command = self.command(argv=["git", "status"])
+        self.assertEqual(command[command.index("--") + 1:], ["/runtime/bin/git", "status"])
 
     def test_a_whole_host_directory_as_work_is_refused(self):
         for work in ("/tmp", "/usr", "/etc", "/home", "/run", "/root", "relative"):

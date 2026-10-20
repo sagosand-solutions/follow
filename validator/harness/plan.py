@@ -107,11 +107,14 @@ def _validate_argv(runtime: Runtime, argv: Sequence[str]) -> list[str]:
         if not isinstance(entry, str) or "\x00" in entry:
             raise PlanError("every argv entry must be a string without NUL")
     exe = argv[0]
-    if exe not in runtime.executables:
-        raise PlanError(f"{exe!r} is not in the pinned runtime's exec allowlist")
     if exe.rsplit("/", 1)[-1].lower() in SHELL_NAMES:
         raise PlanError("a shell is never the harness command")
-    return list(argv)
+    if exe in runtime.executables:
+        return list(argv)
+    by_name = {path.rsplit("/", 1)[-1]: path for path in runtime.executables}
+    if exe in by_name:                       # the manifest may name the tool by its exact command name
+        return [by_name[exe], *argv[1:]]
+    raise PlanError(f"{exe!r} is not in the pinned runtime's exec allowlist")
 
 
 def bwrap_argv(runtime: Runtime, *, work: str, input_dir: str, argv: Sequence[str],
