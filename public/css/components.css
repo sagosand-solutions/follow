@@ -475,15 +475,20 @@
 .new-word { display: grid; gap: var(--s-1); padding: var(--s-2) var(--s-4) var(--s-3); border: 1px solid var(--line); border-inline-start: 4px solid var(--accent-attention); border-radius: var(--radius-sm); background: var(--surface); }
 .new-word > * { margin: 0; }
 .new-word__label { font-size: var(--text-sm); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-attention-text); }
-.new-word__list { display: grid; gap: var(--s-2); margin: 0; }
-.new-word__term { font-weight: 800; }
-.new-word__text { margin: 0; font-size: var(--text-sm); line-height: 1.45; }
-.new-word__example { display: block; color: var(--muted); }
+.new-word__head { margin: 0; font-size: var(--text-base); }
+.new-word__toggle { display: flex; align-items: center; gap: var(--s-3); inline-size: 100%; min-block-size: 2.75rem; padding: var(--s-1) 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 800; text-align: start; cursor: pointer; }
+.new-word__toggle:hover .new-word__term { text-decoration: underline; text-underline-offset: 0.2em; }
+.new-word__toggle:focus-visible { outline-offset: 2px; border-radius: var(--radius-sm); }
+.new-word__sign { flex: none; display: inline-grid; place-items: center; inline-size: 1.75rem; block-size: 1.75rem; border: 2px solid currentColor; border-radius: var(--radius-sm); color: var(--accent-attention-text); font-size: 1.15rem; font-weight: 800; line-height: 1; }
+.new-word__text { margin: 0 0 var(--s-2); padding-inline-start: calc(1.75rem + var(--s-3)); font-size: var(--text-sm); line-height: 1.45; }
+.new-word__text[hidden] { display: none; }
+.new-word__text > p { margin: 0; }
+.new-word__example { color: var(--muted); }
 .practised { margin: 0; font-weight: 600; }
 .lesson-card__practised { display: block; font-size: var(--text-sm); }
 .course-end { display: grid; gap: var(--s-3); padding: var(--s-5); border: 2px solid var(--accent-attention); border-radius: var(--radius); background: var(--surface); }
 .course-end > * { margin: 0; }
-@media (forced-colors: active) { .new-word, .course-end { border-color: CanvasText; } }
+@media (forced-colors: active) { .new-word, .course-end { border-color: CanvasText; } .new-word__sign { color: ButtonText; } }
 .already-code .note__title { font-size: var(--text-base); }
 .already-code .note__text a { color: var(--ink); font-weight: 700; }
 .path__skip { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: var(--text-sm); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }

@@ -18,17 +18,53 @@ export function practisedLine(summary, className = 'practised', tag = 'p') {
   return summary ? h(tag, { class: className }, ...sentence(t('lesson.practised'), 'what', renderInline(summary))) : null;
 }
 
-// The question's introductions in one calm block above the code: each new word with its one-line explanation and an example.
-// One block, not a card per word, so the code stays as close to the top as it can on a phone.
-export function newWordCards(intros) {
+// Which new words start open on this question: the reader's own last choice for the word, else open the first time the reader
+// meets the word (on whichever question of the lesson that is, a direct link included) and folded after that, when it is a
+// reminder. `memoryFor(intro)` gives that word's remembered choice ('open', 'closed' or 'seen'); without storage it remembers
+// nothing, so every word opens every time.
+export function wordsOpen(intros, memoryFor) {
+  const open = new Map();
+  for (const x of intros) {
+    const memory = memoryFor(x);
+    const choice = memory.get();
+    if (choice === 'open' || choice === 'closed') open.set(x.id, choice === 'open');
+    else if (choice === 'seen') open.set(x.id, false);
+    else {
+      open.set(x.id, true);
+      memory.set('seen');
+    }
+  }
+  return open;
+}
+
+const SIGN = { true: '\u2212', false: '+' };
+
+// One new word: its term is a disclosure button (aria-expanded, aria-controls) with a visible + or − just before it, and the
+// explanation and example below it, in line with the term. The button's name is the term; the state is announced from aria-expanded, so the sign itself is hidden.
+function wordItem(x, isOpen, onToggle) {
+  const panelId = `new-word-panel-${x.id}`;   // its own prefix: no word id can make it equal the label's id
+  const sign = h('span', { class: 'new-word__sign', 'aria-hidden': 'true' }, SIGN[isOpen]);
+  const panel = h('div', { class: 'new-word__text', id: panelId, hidden: !isOpen }, h('p', {}, renderInline(x.explanation)), h('p', { class: 'new-word__example' }, ...sentence(t('intro.example'), 'example', renderInline(x.example))));
+  const button = h('button', { type: 'button', class: 'new-word__toggle', 'aria-expanded': String(isOpen), 'aria-controls': panelId }, sign, h('span', { class: 'new-word__term' }, renderInline(x.term)));
+  button.addEventListener('click', () => {
+    const now = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(now));
+    if (now) panel.removeAttribute('hidden');
+    else panel.setAttribute('hidden', '');
+    sign.replaceChildren(document.createTextNode(SIGN[now]));
+    onToggle(x.id, now);
+  });
+  return h('div', { class: 'new-word__item' }, h('h3', { class: 'new-word__head' }, button), panel);
+}
+
+// The question's introductions in one calm block above the code, one disclosure per word, so a folded word takes one line
+// and the code stays as close to the top as it can on a phone. `open` maps word ids to their state (missing = open).
+export function newWordCards(intros, { open = new Map(), onToggle = () => {} } = {}) {
   if (!intros.length) return [];
   const label = intros.length === 1 ? t('intro.label') : t('intro.labelMany');
   return [h('section', { class: 'new-word', 'aria-labelledby': 'new-word-label' },
     h('h2', { class: 'new-word__label', id: 'new-word-label' }, label),
-    h('dl', { class: 'new-word__list' }, intros.flatMap((x) => [
-      h('dt', { class: 'new-word__term' }, renderInline(x.term)),
-      h('dd', { class: 'new-word__text' }, renderInline(x.explanation), h('span', { class: 'new-word__example' }, ...sentence(t('intro.example'), 'example', renderInline(x.example)))),
-    ])))];
+    ...intros.map((x) => wordItem(x, open.get(x.id) !== false, onToggle)))];
 }
 
 // The path's "coming soon" steps by number (the same page text as the home path).

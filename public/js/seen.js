@@ -29,3 +29,25 @@ export function createSeenFlag(name, { storage = defaultStorage(), prefix = CONF
     },
   };
 }
+
+// A small remembered choice per name (e.g. whether a "New word" card is open), with the same prefix and the same memory-mode
+// rule: without storage nothing is kept and get() is null, so the caller's default applies every time.
+export function createChoice(name, { storage = defaultStorage(), prefix = CONFIG.storagePrefix } = {}) {
+  const key = `${prefix}.${name}`;
+  return {
+    get() {
+      try {
+        return storage ? storage.getItem(key) : null;
+      } catch {
+        return null;
+      }
+    },
+    set(value) {
+      try {
+        if (storage) storage.setItem(key, value);
+      } catch {
+        /* memory mode: not kept */
+      }
+    },
+  };
+}

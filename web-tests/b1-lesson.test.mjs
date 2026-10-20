@@ -120,7 +120,8 @@ test('“New word” cards above the code, every time the question opens, as tex
   assert.match(text(cards[0]), /^New words/);
   assert.match(text(cards[0]), /For example: pocket = 1 stores 1;/);
   const one = (await questionView({ id: 'b1-2-reading-a-second-pocket-keeps-its-number', course })).node;
-  assert.match(text(one.all((n) => n.className === 'new-word')[0]), /^New wordRead another pocket now/);
+  assert.match(text(one.all((n) => n.className === 'new-word')[0]), /^New word(?!s)/, 'one word: singular label');
+  assert.deepEqual(one.all((n) => n.className === 'new-word__term').map(text), ['Read another pocket now']);
   const top = node.children.map((c) => c.className);
   assert.ok(top.indexOf('new-word') < top.indexOf('q-grid'), 'above the code');
   answerAll(['b1-2-a-pocket-uses-its-latest-number']);
@@ -132,6 +133,99 @@ test('“New word” cards above the code, every time the question opens, as tex
   assert.equal(text(term), '<b>bold</b>');
   assert.equal(term.all((n) => n.tag === 'b').length, 0, 'never markup');
   store.reset();
+});
+
+// A storage double for the per-word choice: a Map, or one that throws on every call (private mode, blocked storage).
+const memoryStorage = () => { const m = new Map(); return { m, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
+const brokenStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
+const words = (root) => root.all((n) => n.className === 'new-word__item').map((item) => {
+  const button = item.all((n) => n.tag === 'button')[0];
+  const panel = item.all((n) => n.className === 'new-word__text')[0];
+  const sign = button.all((n) => n.className === 'new-word__sign')[0];
+  return { item, button, panel, term: text(button.all((n) => n.className === 'new-word__term')[0]), open: button.attrs['aria-expanded'] === 'true', hidden: 'hidden' in panel.attrs, sign: text(sign) };
+});
+const reusedCourse = () => ({ ...course, levels: [{ ...course.levels[0], lessons: course.levels[0].lessons.map((l) => (l.id !== 'b1-2' ? l : { ...l, introductions: l.introductions.map((x) => (x.id === 'B12-I1' ? { ...x, before_question_ids: l.questions } : x)) })) }] });
+const [P1, P2] = ['b1-2-a-pocket-uses-its-latest-number', 'b1-2-reading-a-second-pocket-keeps-its-number'];
+
+test('each new word is a disclosure: a real button with aria-expanded and aria-controls, a visible +/−, the panel follows', async () => {
+  fresh();
+  globalThis.localStorage = memoryStorage();
+  try {
+    const node = (await questionView({ id: P1, course })).node;
+    const list = words(node);
+    assert.equal(list.length, 2);
+    for (const w of list) {
+      assert.equal(w.button.tag, 'button', 'a native button, so Enter and Space work and it is in the Tab order');
+      assert.equal(w.button.attrs.type, 'button');
+      assert.equal(w.item.children[0].tag, 'h3', 'the term is a heading under "New words"');
+      assert.equal(w.button.attrs['aria-controls'], w.panel.attrs.id);
+      assert.match(w.panel.attrs.id, /^new-word-panel-B12-I[13]$/);
+      assert.notEqual(w.panel.attrs.id, 'new-word-label');
+      assert.equal(w.button.all((n) => n.className === 'new-word__sign')[0].attrs['aria-hidden'], 'true', 'the state is announced from aria-expanded, not from the sign');
+      assert.deepEqual([w.open, w.hidden, w.sign], [true, false, '−'], 'open the first time');
+    }
+    list[0].button.click();
+    let now = words(node)[0];
+    assert.deepEqual([now.open, now.hidden, now.sign], [false, true, '+'], 'folded by its own button');
+    assert.deepEqual([words(node)[1].open, words(node)[1].hidden], [true, false], 'the other word is not touched');
+    list[0].button.click();
+    now = words(node)[0];
+    assert.deepEqual([now.open, now.hidden, now.sign], [true, false, '−'], 'and open again');
+  } finally { delete globalThis.localStorage; store.reset(); }
+});
+
+test('new words open the first time the reader meets them and fold after that; the reader’s own choice is remembered per word', async () => {
+  fresh();
+  const storage = memoryStorage();
+  globalThis.localStorage = storage;
+  const reused = reusedCourse();
+  // Each word's panel is hidden exactly when its button says it is folded, in both states.
+  const state = async (id) => Object.fromEntries(words((await questionView({ id, course: reused })).node).map((w) => { assert.equal(w.hidden, !w.open, `${w.term}: panel hidden iff folded`); return [w.term, w.open]; }));
+  try {
+    assert.deepEqual(await state(P1), { 'Give a name a number (assignment)': true, 'The latest number for each name': true }, 'first visit: open');
+    assert.deepEqual(await state(P1), { 'Give a name a number (assignment)': false, 'The latest number for each name': false }, 'a revisit: folded');
+    assert.deepEqual(await state(P2), { 'Give a name a number (assignment)': false, 'Read another pocket now': true }, 'a later question: the known word folded, the new one open');
+    // The reader opens a folded word: it stays open on every question where it comes back.
+    const node = (await questionView({ id: P2, course: reused })).node;
+    words(node).find((w) => w.term.startsWith('Give'))?.button.click();
+    assert.equal(storage.m.get('follow.v0.word.read-like-a-computer.b1-2.B12-I1'), 'open');
+    assert.equal((await state(P1))['Give a name a number (assignment)'], true, 'remembered on the other question');
+    // And a word folded by hand stays folded, even one that was open by default.
+    fresh();
+    storage.m.clear();
+    const first = (await questionView({ id: P1, course: reused })).node;
+    words(first).find((w) => w.term.startsWith('The latest')).button.click();
+    assert.equal(storage.m.get('follow.v0.word.read-like-a-computer.b1-2.B12-I3'), 'closed');
+    assert.equal((await state(P1))['The latest number for each name'], false);
+  } finally { delete globalThis.localStorage; store.reset(); }
+});
+
+test('answering redraws the page but keeps each word as the reader left it', async () => {
+  fresh();
+  globalThis.localStorage = memoryStorage();
+  try {
+    const node = (await questionView({ id: P1, course })).node;
+    words(node)[0].button.click();
+    node.all((n) => n.tag === 'input' && n.attrs.type === 'radio')[0].click();
+    node.all((n) => n.tag === 'button' && /Check/.test(n.text()))[0].dispatchEvent({ type: 'click', preventDefault() {} });
+    assert.ok(node.all((n) => n.className.split(' ').includes('verdict')).length, 'answered and redrawn');
+    assert.deepEqual(words(node).map((w) => w.open), [false, true], 'not reset to the default by the redraw');
+  } finally { delete globalThis.localStorage; store.reset(); }
+});
+
+test('without storage, or with storage that throws, every word opens every time and the buttons still work', async () => {
+  for (const storage of [undefined, brokenStorage]) {
+    fresh();
+    if (storage) globalThis.localStorage = storage;
+    try {
+      for (let visit = 0; visit < 2; visit += 1) {
+        const node = (await questionView({ id: P1, course })).node;
+        assert.deepEqual(words(node).map((w) => w.open), [true, true], `visit ${visit + 1}`);
+        words(node)[0].button.click();
+        assert.equal(words(node)[0].open, false, 'the button works in memory mode');
+      }
+    } finally { delete globalThis.localStorage; store.reset(); }
+  }
 });
 
 test('“You practised …” only once the lesson is fully answered, on the lesson page and its card', async () => {
