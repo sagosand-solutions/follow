@@ -67,7 +67,7 @@ marked optional.
 | `type` | string | One of `output`, `crashing-input`, `remove-line`, `equivalence`, `complexity`, `ai-review`. |
 | `level` | string | One of `beginner`, `intermediate`, `advanced`. |
 | `difficulty` | number | Author's relative estimate in `0..1` (0 easiest). Not a calibrated probability. |
-| `concepts` | array | Nonempty, unique concept IDs, each matching `^(py\|prod\|sql\|git\|http\|test\|rev)\.[a-z][a-z0-9-]*$`. |
+| `concepts` | array | Nonempty, unique concept IDs, each matching `^(py\|prod\|sql\|git\|http\|test\|rev\|regex)\.[a-z][a-z0-9-]*$`. |
 | `prompt` | string | Nonempty plain text. States all assumptions and the actual question. |
 | `snippets` | array | Nonempty array of Snippet objects. The first snippet is the primary displayed code. Required in 0.1 and 0.2; in 0.3 required when `language` is `python` and forbidden when it is `text`. |
 | `artifacts` | array | 0.3 only: 1 to 3 text Artifact objects (below). Required when `language` is `text`; forbidden in 0.1 and 0.2. |
@@ -285,9 +285,9 @@ are.
 
 ### Adding a concept or misconception
 
-1. Choose an ID matching `^(py|prod|sql|git|http|test|rev)\.[a-z][a-z0-9-]*$` (lowercase, dot-namespaced,
+1. Choose an ID matching `^(py|prod|sql|git|http|test|rev|regex)\.[a-z][a-z0-9-]*$` (lowercase, dot-namespaced,
    hyphen-separated). `py.` is the Python course, `prod.` the production-code course, `sql.` the SQL course, and `git.`, `http.`,
-   `test.` and `rev.` the Git and diffs, HTTP and APIs, Testing and Review courses. The pattern is the same in all five schemas that
+   `test.`, `rev.` and `regex.` the Git and diffs, HTTP and APIs, Testing, Review and Regex courses. The pattern is the same in all five schemas that
    carry concept IDs (question, concept-map, study, study-manifest, exam). No other prefix is accepted; a further course adds its own
    prefix by a schema change of its own. A namespace being valid does not make it free for everyone: the export lets a course use
    only its own namespace and the ones it was given (see `validator/EXPORT.md`), and accepting a namespace approves no concept,
