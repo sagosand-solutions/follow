@@ -17,7 +17,12 @@ test('every shipped question passes the client check', () => {
   }
 });
 
-const base = () => clone(load(files[0]));
+const standardFile = files.find((f) => load(f).schema_version === '0.1');
+const practiceFile = files.find((f) => load(f).answer_profile === 'beginner-practice');
+assert.ok(standardFile, 'legacy standard fixture exists');
+assert.ok(practiceFile, 'beginner-practice fixture exists');
+const base = () => clone(load(standardFile));
+const practiceBase = () => clone(load(practiceFile));
 
 test('rejects wrong option structure', () => {
   const q = base();
@@ -39,6 +44,23 @@ test('rejects wrong option structure', () => {
   assert.equal(checkQuestion(dup, q.id), 'option id');
 });
 
+test('practice profile requires its explicit marker and exactly four options', () => {
+  const q = practiceBase();
+  assert.equal(checkQuestion(q, q.id), null);
+  const noProfile = clone(q);
+  delete noProfile.answer_profile;
+  assert.equal(checkQuestion(noProfile, q.id), 'answer_profile');
+  const legacyWithProfile = clone(q);
+  legacyWithProfile.schema_version = '0.1';
+  assert.equal(checkQuestion(legacyWithProfile, q.id), 'answer_profile on 0.1');
+  const standardWithFourOptions = clone(q);
+  standardWithFourOptions.answer_profile = 'standard';
+  assert.equal(checkQuestion(standardWithFourOptions, q.id), 'option count');
+  const fiveOptions = clone(q);
+  fiveOptions.options.push({ ...clone(fiveOptions.options[0]), id: 'extra-option' });
+  assert.equal(checkQuestion(fiveOptions, q.id), 'option count');
+});
+
 test('rejects bad scores, fields and ids', () => {
   const q = base();
   const bad = (mut) => { const c = clone(q); mut(c); return checkQuestion(c, q.id); };
@@ -47,7 +69,7 @@ test('rejects bad scores, fields and ids', () => {
   assert.notEqual(bad((c) => { c.explanation = ''; }), null);
   assert.notEqual(bad((c) => { c.snippets = []; }), null);
   assert.notEqual(bad((c) => { c.snippets[0].highlight_lines = [0]; }), null);
-  assert.notEqual(bad((c) => { c.schema_version = '0.3'; }), null);
+  assert.notEqual(bad((c) => { c.schema_version = '0.2'; }), null);
   assert.notEqual(bad((c) => { c.type = 'quiz'; }), null);
   assert.notEqual(bad((c) => { delete c.author; }), null);
   assert.notEqual(checkQuestion(q, `${q.id}\n`), null);
