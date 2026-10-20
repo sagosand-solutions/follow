@@ -192,6 +192,70 @@ def contract(question=None):
     }
 
 
+def review_contract():
+    """A V1/V4/V6-style Review pilot: two Python snippets, one explicit diff artifact."""
+    case = contract()
+    question_value = case["question"]
+    before = "def fee(n):\n    return 0 if n == 0 else 4\n"
+    after = "def fee(count):\n    return 4\n"
+    question_value["snippets"] = [
+        {"id": "fee-before", "code": before},
+        {"id": "fee-after", "code": after},
+    ]
+    question_value["verification"]["cases"] = [
+        {"id": "case-before", "snippet_id": "fee-before", "stdin": "",
+         "expected": {"stdout": "0\n", "exit_code": 0}},
+        {"id": "case-after", "snippet_id": "fee-after", "stdin": "",
+         "expected": {"stdout": "4\n", "exit_code": 0}},
+    ]
+    diff = "".join(difflib.unified_diff(before.splitlines(True), after.splitlines(True),
+                                        fromfile="a/fee.py", tofile="b/fee.py"))
+    artifact = question_value["artifacts"][0]
+    artifact.update({"kind": "diff", "format": "unified-diff", "text": diff,
+                     "sha256": sha_text(diff)})
+    artifact["provenance"]["fixture_output_sha256"] = sha_text(diff)
+
+    manifest_value = case["manifest"]
+    content = next(item for item in manifest_value["artifacts"] if item["type"] != "trace")
+    content.update({"sha256": sha_text(diff), "bytes": len(diff.encode())})
+
+    def case_entry(case_id, snippet_id, source, stdout):
+        projection = {"stdout_sha256": sha_text(stdout), "exception": None}
+        return {"case_id": case_id, "snippet_id": snippet_id,
+                "source_sha256": sha(source.encode("utf-8")), "stdin_sha256": sha(b""),
+                "expected": dict(projection), "actual": dict(projection),
+                "outcome": "passed", "truncated": False, "complete": True}
+
+    manifest_value["cases"] = [
+        case_entry("case-before", "fee-before", before, "0\n"),
+        case_entry("case-after", "fee-after", after, "4\n"),
+    ]
+    manifest_value["test_report"].update({
+        "counts": {"total": 2, "passed": 2, "failed": 0, "skipped": 0,
+                   "xfail": 0, "xpass": 0},
+        "tests": [{"test_id": "test_before", "outcome": "passed"},
+                  {"test_id": "test_after", "outcome": "passed"}],
+    })
+    manifest_value["receipt"]["usage"]["artifact_bytes"] = len(diff.encode()) + len(TRACE)
+    manifest_value["binding_sha256"] = fc.compute_binding_sha256(manifest_value)
+
+    entry = case["binding"]["questions"][0]
+    entry["cases"] = [
+        {"case_id": "case-before", "case_index": 0, "artifact_ids": ["diff-1"],
+         "trace_artifact_id": "trace-1"},
+        {"case_id": "case-after", "case_index": 1, "artifact_ids": ["diff-1"],
+         "trace_artifact_id": "trace-1"},
+    ]
+    entry["review"] = {"before_snippet_id": "fee-before", "after_snippet_id": "fee-after",
+                       "diff_artifact_id": "change", "fromfile": "a/fee.py",
+                       "tofile": "b/fee.py"}
+    case["artifact_bytes"]["diff-1"] = diff.encode()
+    case["fixture_bytes"] = (lambda fixture_id: diff.encode()
+                             if fixture_id == "fixture-one" else None)
+    case["diff"] = diff
+    return case
+
+
 def run(case, *, sync_manifest=True, sync_question=True):
     manifest_value = case["manifest"]
     question_value = case["question"]
@@ -401,6 +465,54 @@ class SchemaParityTest(unittest.TestCase):
             for clause in schema["$defs"]["artifact"]["allOf"]
         }
         self.assertEqual(pairs, set(fc.K1_TO_K3))
+
+
+class ReviewDiffTest(unittest.TestCase):
+    def test_exact_unified_diff_is_accepted(self):
+        case = review_contract()
+        result = run(case)
+        self.assertTrue(result.verified, [issue.to_dict() for issue in result.issues])
+
+    def test_diff_must_match_the_bound_sources(self):
+        case = review_contract()
+        text = case["diff"] + "extra\n"
+        artifact = case["question"]["artifacts"][0]
+        artifact.update({"text": text, "sha256": sha_text(text)})
+        artifact["provenance"]["fixture_output_sha256"] = sha_text(text)
+        content = next(item for item in case["manifest"]["artifacts"] if item["type"] != "trace")
+        content.update({"sha256": sha_text(text), "bytes": len(text.encode())})
+        case["manifest"]["receipt"]["usage"]["artifact_bytes"] = len(text.encode()) + len(TRACE)
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        case["artifact_bytes"]["diff-1"] = text.encode()
+        case["fixture_bytes"] = lambda fixture_id: text.encode()
+        found = codes(run(case))
+        self.assertIn("review-diff-mismatch", found)
+
+    def test_both_sources_must_be_bound_cases(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["cases"] = \
+            case["binding"]["questions"][0]["cases"][:1]
+        found = codes(run(case))
+        self.assertIn("review-after-case", found)
+
+    def test_diff_artifact_must_be_a_diff(self):
+        case = review_contract()
+        case["question"]["artifacts"][0].update({"kind": "text", "format": "plain"})
+        found = codes(run(case))
+        self.assertIn("review-diff-artifact", found)
+
+    def test_diff_must_be_referenced(self):
+        case = review_contract()
+        for item in case["binding"]["questions"][0]["cases"]:
+            item["artifact_ids"] = ["trace-1"]
+        found = codes(run(case))
+        self.assertIn("review-diff-not-referenced", found)
+
+    def test_header_injection_is_rejected(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["review"]["fromfile"] = "a/fee.py\nX: y"
+        found = codes(run(case))
+        self.assertIn("review-header", found)
 
 
 class StaleBytesTest(unittest.TestCase):

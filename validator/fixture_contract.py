@@ -21,6 +21,7 @@ canonical byte procedure in :func:`canonical_json_bytes`. Raw fixture and
 artifact bytes are hashed without normalisation.
 """
 from dataclasses import dataclass
+import difflib
 import hashlib
 import json
 import os
@@ -725,6 +726,25 @@ def _binding_structure_issues(binding):
                       "question-hash")
         if entry.get("license") not in ALLOWED_LICENSES:
             _issue(issues, "binding-licence", path + "/license", "unknown licence identifier")
+        review = entry.get("review")
+        if review is not None:
+            if not isinstance(review, dict):
+                _issue(issues, "review-shape", path + "/review", "must be an object")
+            else:
+                for field in ("before_snippet_id", "after_snippet_id", "diff_artifact_id",
+                              "fromfile", "tofile"):
+                    value = review.get(field)
+                    if not isinstance(value, str) or not value:
+                        _issue(issues, "review-field", f"{path}/review/{field}",
+                               "must be a non-empty string")
+                if review.get("before_snippet_id") == review.get("after_snippet_id"):
+                    _issue(issues, "review-same-snippet", path + "/review",
+                           "before and after must be different snippets")
+                for field in ("fromfile", "tofile"):
+                    value = review.get(field)
+                    if isinstance(value, str) and ("\n" in value or "\r" in value):
+                        _issue(issues, "review-header", f"{path}/review/{field}",
+                               "must not contain a line break")
         question_artifacts = entry.get("artifact_ids")
         if question_artifacts is not None:
             if not isinstance(question_artifacts, list) or \
@@ -1059,6 +1079,11 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
                         _issue(issues, "fixture-bytes", path,
                                "displayed text is not byte-identical to the fixture output")
 
+    review = entry.get("review")
+    if review is not None:
+        _review_issues(issues, review, question, manifest_cases, manifest_artifacts,
+                       binding_cases, question_artifact_by_id, referenced)
+
     manifest_licence = manifest.get("licence")
     manifest_licence = manifest_licence if isinstance(manifest_licence, dict) else {}
     if manifest_licence.get("license") != entry.get("license"):
@@ -1087,6 +1112,69 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
     licences = tuple({"question_id": item.get("id"), "license": entry.get("license"),
                       "gate": "draft-only"} for item in [question])
     return ContractResult(tuple(issues), licences)
+
+
+def _review_issues(issues, review, question, manifest_cases, manifest_artifacts,
+                   binding_cases, question_artifacts, referenced):
+    """Review (V1/V4/V6): the diff artifact is the exact unified diff of the bound before/after bytes."""
+    if not isinstance(review, dict):
+        return
+    before_id, after_id = review.get("before_snippet_id"), review.get("after_snippet_id")
+    raw_snippets = question.get("snippets")
+    raw_snippets = raw_snippets if isinstance(raw_snippets, list) else []
+    snippets = {item["id"]: item for item in raw_snippets
+                if isinstance(item, dict) and isinstance(item.get("id"), str)}
+    before, after = snippets.get(before_id), snippets.get(after_id)
+    if before is None or after is None:
+        _issue(issues, "review-snippet", "/questions/0/review",
+               "before_snippet_id/after_snippet_id must name question snippets")
+        return
+    if not isinstance(before.get("code"), str) or not isinstance(after.get("code"), str):
+        _issue(issues, "review-snippet-code", "/questions/0/review", "snippet code must be text")
+        return
+
+    diff = question_artifacts.get(review.get("diff_artifact_id"))
+    if diff is None:
+        _issue(issues, "review-diff-artifact", "/questions/0/review/diff_artifact_id",
+               "must name a question artifact")
+        return
+    if (diff.get("kind"), diff.get("format")) != ("diff", "unified-diff"):
+        _issue(issues, "review-diff-artifact", "/questions/0/review/diff_artifact_id",
+               "the review diff artifact must be kind diff/format unified-diff")
+
+    bound_snippets = set()
+    for case in binding_cases:
+        if not isinstance(case, dict):
+            continue
+        manifest_case = manifest_cases.get(case.get("case_id"))
+        if isinstance(manifest_case, dict):
+            bound_snippets.add(manifest_case.get("snippet_id"))
+    if before_id not in bound_snippets:
+        _issue(issues, "review-before-case", "/questions/0/review/before_snippet_id",
+               "the before snippet is not bound by a manifest case")
+    if after_id not in bound_snippets:
+        _issue(issues, "review-after-case", "/questions/0/review/after_snippet_id",
+               "the after snippet is not bound by a manifest case")
+
+    try:
+        expected = "".join(difflib.unified_diff(
+            before["code"].splitlines(True), after["code"].splitlines(True),
+            fromfile=review.get("fromfile"), tofile=review.get("tofile")))
+    except (TypeError, ValueError) as exc:
+        _issue(issues, "review-diff", "/questions/0/review", f"cannot build the unified diff: {exc}")
+        return
+    if diff.get("text") != expected:
+        _issue(issues, "review-diff-mismatch", "/questions/0/review/diff_artifact_id",
+               "displayed diff is not difflib.unified_diff(before, after)")
+
+    matches = [item for item in manifest_artifacts.values()
+               if item.get("sha256") == diff.get("sha256")]
+    if len(matches) != 1:
+        _issue(issues, "review-diff-unbound", "/questions/0/review/diff_artifact_id",
+               "the diff artifact must match exactly one manifest artifact")
+    elif matches[0].get("artifact_id") not in referenced:
+        _issue(issues, "review-diff-not-referenced", "/questions/0/review/diff_artifact_id",
+               "the matching manifest artifact is not referenced by a bound case")
 
 
 def _check_case_bytes(issues, question_case, manifest_case, manifest, path, snippets, case_id):
