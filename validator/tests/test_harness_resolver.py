@@ -28,10 +28,19 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(resolver.resolve_json(self.root, "a/b/manifest.json", self.limit), {"x": 1})
 
     def test_bad_forms_are_refused_before_anything_is_opened(self):
-        for uri in ("", "/etc/passwd", "http://evil.net/x", "a?b", "a#b", "../x", "a/../x", "a//b"):
+        for uri in ("", "/etc/passwd", "http://evil.net/x", "a?b", "a#b", "../x", "a/../x", "a//b", ".", "./a", "a/.", "a\x00b"):
             with self.subTest(uri=uri):
                 with self.assertRaises(resolver.ResolverError):
                     self.read(uri)
+
+    def test_the_trusted_root_must_be_a_plain_directory_not_a_symlink_or_file(self):
+        link = self.root.parent / (self.root.name + "-link")
+        link.symlink_to(self.root, target_is_directory=True)
+        self.addCleanup(link.unlink, missing_ok=True)
+        for root in (link, self.root / "a" / "b" / "manifest.json", self.root / "missing-root"):
+            with self.subTest(root=root):
+                with self.assertRaisesRegex(resolver.ResolverError, "trusted root"):
+                    resolver.resolve(root, "a/b/manifest.json", self.limit)
 
     def test_a_symlink_is_not_followed_at_any_level(self):
         outside = pathlib.Path(tempfile.mkdtemp(prefix="harness-outside-"))

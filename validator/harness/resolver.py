@@ -24,12 +24,14 @@ class ResolverError(ValueError):
 def _form_error(uri: str) -> str | None:
     if not isinstance(uri, str) or uri == "":
         return "the URI is empty"
+    if "\x00" in uri:
+        return "the URI contains NUL"
     if "://" in uri or uri.startswith("/"):
         return "the URI is absolute or names a network scheme"
     if "?" in uri or "#" in uri:
         return "the URI carries a query or fragment"
-    if any(part in ("", "..") for part in uri.split("/")):
-        return "the URI has an empty or '..' segment"
+    if any(part in ("", ".", "..") for part in uri.split("/")):
+        return "the URI has an empty, '.' or '..' segment"
     return None
 
 
@@ -56,7 +58,11 @@ def resolve(root, uri: str, limit: int) -> bytes:
     parts = Path(uri).parts
     opened: list[int] = []
     try:
-        current = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        try:
+            # O_NOFOLLOW: the trusted root itself must be a real directory, not a symlink that redirects the walk.
+            current = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        except OSError as exc:
+            raise ResolverError(f"the trusted root is not a plain directory ({exc.strerror})") from None
         opened.append(current)
         for part in parts[:-1]:
             current = _open_below(part, current, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, uri)
