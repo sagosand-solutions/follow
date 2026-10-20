@@ -3,7 +3,7 @@
 
 This module builds the exact ``bwrap`` argument list, the read-only runtime binds, the cgroup-v2 limits and the executable
 allowlist. It launches nothing: :func:`run_plan` refuses unless a separate safety-test authorization exists (none does), so
-no fixture can run through this code until the Ingenjör's execution boundary is approved.
+no fixture can run through this code until an explicit, separate execution authorization is granted.
 """
 from __future__ import annotations
 
@@ -174,4 +174,4 @@ def plan_command(runtime: Runtime, *, work: str, input_dir: str, argv: Sequence[
 
 def run_plan(plan: dict, *, authorization: str | None = None) -> None:
     """Never runs here: execution needs a separate, explicit safety-test authorization that this delivery does not have."""
-    raise NotAuthorized("fixture execution is not authorized in this delivery; the Ingenjör's execution boundary is not approved")
+    raise NotAuthorized("fixture execution requires an explicit, separate execution authorization; none has been granted")

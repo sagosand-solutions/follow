@@ -6,7 +6,8 @@
     python -m validator.harness run    # always refuses: no execution authorization exists
 
 ``verify`` and ``plan`` are static: they read files through the descriptor-bound resolver, check both digest links and the
-receipt, and print a plan. ``run`` has no implementation until the Ingenjör's execution boundary is approved.
+receipt, and print a plan. ``run`` has no implementation and always refuses until an explicit, separate execution
+authorization is granted.
 """
 from __future__ import annotations
 

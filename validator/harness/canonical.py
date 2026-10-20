@@ -2,9 +2,10 @@
 """One canonical JSON byte procedure for the offline fixture harness.
 
 The same bytes must be produced on every machine, so the procedure is explicit: sorted keys, UTF-8, no insignificant
-whitespace, no duplicate keys, no lone surrogates and no non-finite numbers. ``binding_sha256`` is over the exact
-projection the frozen contract names (contract section 10.2/11); ``manifest_sha256`` is over the whole manifest file's
-bytes (the second link, owned by the binding file). Raw fixture and artifact bytes are never normalised.
+whitespace, no duplicate keys, no lone surrogates and no non-finite numbers. ``binding_sha256`` is over the content
+projection named by ``PROJECTION_FIELDS`` below; the drift receipt and the digest itself stay outside it. ``manifest_sha256``
+is over the whole manifest file's bytes (the second link, owned by the binding file). Raw fixture and artifact bytes are
+never normalised.
 """
 from __future__ import annotations
 
@@ -120,7 +121,7 @@ def canonical_bytes(value) -> bytes:
 
 
 def projection(manifest: dict) -> dict:
-    """The exact fields that ``binding_sha256`` covers (contract 10.2/11)."""
+    """The exact fields that ``binding_sha256`` covers: the content projection, never the drift receipt."""
     missing = [field for field in PROJECTION_FIELDS if field not in manifest]
     if missing:
         raise CanonicalError(f"the manifest lacks the projection field(s) {missing}")
