@@ -4,6 +4,11 @@
 This module builds the exact ``bwrap`` argument list, the read-only runtime binds, the cgroup-v2 limits and the executable
 allowlist. It launches nothing: :func:`run_plan` refuses unless a separate safety-test authorization exists (none does), so
 no fixture can run through this code until an explicit, separate execution authorization is granted.
+
+This is a plan, not a proven secure boundary. The executable allowlist is metadata plus an initial argv check, not a policy
+for child exec; ``--bind`` does not itself impose the scratch quota; ``RLIMIT_CPU`` is per process and ``cpu.max`` is a rate,
+not a whole-job counter; whole-cgroup kill is declared but not implemented here; the runtime image is a path, not a verified
+pinned image hash; and realpath checks are not an FD-frozen mount. Those remain launch MUSTs.
 """
 from __future__ import annotations
 
@@ -161,7 +166,7 @@ def bwrap_argv(runtime: Runtime, *, work: str, input_dir: str, argv: Sequence[st
 
 def plan_command(runtime: Runtime, *, work: str, input_dir: str, argv: Sequence[str],
                  env: Mapping[str, str] | None = None, budget: Mapping[str, int] = BUDGET) -> dict:
-    """The complete plan (command, mounts, cgroup, exec policy, budget). It does not run anything."""
+    """The planned command, mounts, cgroup, exec policy and budget. It runs nothing and proves no working boundary."""
     return {
         "bwrap": bwrap_argv(runtime, work=work, input_dir=input_dir, argv=argv, env=env),
         "cgroup": cgroup_plan(budget),
