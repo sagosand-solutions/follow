@@ -173,7 +173,10 @@ def verify_question(question, runner: Runner, limits=None):
     """Return (issues, infrastructure_failure); injectable without spawning processes."""
     from .core import Issue
     limits = limits or Limits()
-    snippets = {s["id"]: s["code"] for s in question.get("snippets", [])}
+    if not question.get("snippets"):
+        # Text artifacts are never run. Returning "no findings" here would read as a pass nobody earned.
+        raise ValueError("nothing to run: the question has no code snippets")
+    snippets = {s["id"]: s["code"] for s in question["snippets"]}
     issues, infrastructure = [], False
     for i, case in enumerate(question["verification"]["cases"]):
         result = runner.run(snippets[case["snippet_id"]], case["stdin"], limits)

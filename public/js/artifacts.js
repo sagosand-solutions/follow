@@ -20,7 +20,8 @@ const RESERVED_SUFFIXES = ['example.com', 'example.net', 'example.org', 'example
 const IPV4 = /^(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})$/;
 const DOCUMENTATION_NETS = [[192, 0, 2], [198, 51, 100], [203, 0, 113]];
 
-// Only names that can never reach a real site: documentation domains and TLDs, localhost, loopback, the TEST-NETs.
+// A synthetic-text policy, not a network control: the names an example may use (documentation domains and TLDs, localhost, loopback,
+// the TEST-NETs). localhost and loopback can be a real local service, and nothing ever fetches a URL: no safety decision rests on this.
 function reservedHost(authority) {
   if (authority.includes('@') || authority.startsWith('[')) return false;
   let host = authority.replace(/[.,;:)\]}]+$/, '');
@@ -63,7 +64,7 @@ export function checkArtifacts(list, taken = new Set()) {
     const p = a.provenance;
     if (!p || typeof p !== 'object' || Array.isArray(p) || !exactKeys(p, ['fixture_id', 'fixture_output_sha256'])) return 'artifact provenance';
     if (typeof p.fixture_id !== 'string' || !LOCAL_ID.test(p.fixture_id) || typeof p.fixture_output_sha256 !== 'string' || !HEX64.test(p.fixture_output_sha256)) return 'artifact provenance';
-    if (a.label !== undefined && (typeof a.label !== 'string' || a.label.trim() === '' || a.label.length > ARTIFACT_LIMITS.label || /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/.test(a.label))) return 'artifact label';
+    if (a.label !== undefined && (typeof a.label !== 'string' || a.label.trim() === '' || Array.from(a.label).length > ARTIFACT_LIMITS.label || /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/.test(a.label) || LONE_SURROGATE.test(a.label))) return 'artifact label';
   }
   return null;
 }

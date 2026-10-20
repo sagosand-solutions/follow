@@ -104,13 +104,19 @@ network, no host mounts/secrets, and effective isolation. Trusted-local reports
 JSON mode emits exactly one stdout object:
 
 ```json
-{"valid": true, "execution": "not-requested", "questions": 1, "issues": [], "runner": null}
+{"valid": true, "execution": "not-requested", "questions": 1, "issues": [], "runner": null,
+ "executed_cases": 0, "text_only_questions": 0, "artifacts": 0}
 ```
 
 `questions` counts successfully parsed question documents, including structurally
 invalid ones. Each issue has `file`, `code`, `path` and `message`. `execution` is
-`not-requested`, `passed`, `failed`, or `unavailable` (also used when requested
-execution is skipped because static checks failed). Runner metadata, when
+`not-requested`, `passed`, `failed`, `unavailable` (also used when requested
+execution is skipped because static checks failed) or `not-applicable` (`--verify`
+on input with no code to run: text artifacts are never executed, so a text-only
+question never earns `passed`). `executed_cases` counts the cases that really ran,
+`text_only_questions` the questions that had none to run, and `artifacts` the text
+artifacts checked statically (hash, limits, URL policy; the fixture bytes are
+verified by the export, not by this command). Runner metadata, when
 available, has `name`, `python_version`, and `isolation`. Trust warnings go only
 to stderr; snippet output never appears outside comparison results.
 

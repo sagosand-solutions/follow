@@ -101,6 +101,10 @@ test('what a single artifact may not be', () => {
   };
   for (const [name, a] of Object.entries(bad)) assert.notEqual(checkArtifacts([a], new Set()), null, name);
   assert.equal(checkArtifacts([art(DIFF, 'diff', 'change', { label: 'The change' })], new Set()), null, 'a short label is fine');
+  const astral = '\u{1F600}';
+  assert.equal(checkArtifacts([art(DIFF, 'diff', 'change', { label: astral.repeat(80) })], new Set()), null, 'a label counts code points, as the schema does');
+  assert.notEqual(checkArtifacts([art(DIFF, 'diff', 'change', { label: astral.repeat(81) })], new Set()), null);
+  assert.notEqual(checkArtifacts([art(DIFF, 'diff', 'change', { label: 'a\ud800b' })], new Set()), null, 'a lone surrogate in a label');
   assert.notEqual(checkArtifacts([art('a\n', 'text', 'same'), art('b\n', 'text', 'same')], new Set()), null, 'duplicate ids');
   assert.notEqual(checkArtifacts([art('a\n', 'text', 'main')], new Set(['main'])), null, 'an id may not repeat a snippet id');
 });

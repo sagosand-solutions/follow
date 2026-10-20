@@ -24,7 +24,9 @@ def line_count(text):
 
 
 def _reserved_host(authority):
-    """Only names that can never reach a real site: the documentation domains and TLDs, localhost, loopback, TEST-NETs."""
+    """A synthetic-text policy, not a network control: the names an example may use (the documentation domains and TLDs, localhost,
+    loopback, the TEST-NETs). localhost and loopback can be a real local service, so this is about what text may say; nothing ever
+    fetches a URL, and no safety decision may rest on this function."""
     if "@" in authority or authority.startswith("["):
         return False
     host = authority.rstrip(".,;:)]}")
@@ -71,6 +73,12 @@ def artifact_issues(question):
                 issues.append(Issue("artifact-hash", path + "/sha256", "sha256 is not the hash of the UTF-8 bytes of text"))
             if item["provenance"]["fixture_output_sha256"] != actual:
                 issues.append(Issue("artifact-binding", path + "/provenance/fixture_output_sha256", "The fixture output hash is not the hash of the shown text"))
+        label = item.get("label")
+        if label is not None:
+            try:
+                label.encode("utf-8")
+            except UnicodeEncodeError:
+                issues.append(Issue("artifact-text", path + "/label", "Label is not valid Unicode (a lone surrogate cannot be encoded as UTF-8)"))
         if line_count(text) > MAX_LINES:
             issues.append(Issue("artifact-limits", path + "/text", f"At most {MAX_LINES} lines"))
         for authority in url_findings(text):

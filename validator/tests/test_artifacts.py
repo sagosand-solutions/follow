@@ -184,6 +184,16 @@ class ArtifactRejectTests(unittest.TestCase):
                 self.assertTrue(artifacts.url_findings(text), text)
                 self.refused(text_only(artifact(text + "\n", "http-transcript")), "artifact-url")
 
+    def test_a_label_counts_code_points_and_is_valid_unicode(self):
+        astral = "\U0001F600"
+        self.assertEqual(validate_question(text_only(artifact(label=astral * 80)), PYTHON_MAP), [], "80 code points, whatever their UTF-16 length")
+        self.refused(text_only(artifact(label=astral * 81)))
+        q = text_only(artifact())
+        q["artifacts"][0]["label"] = "a\ud800b"
+        self.refused(q, "artifact-text")
+        for bad in ("", "  ", "a\nb", "a\u0007b", "a\u2028b"):
+            self.refused(text_only(artifact(label=bad)))
+
     def test_language_and_snippets_cannot_disguise_text(self):
         self.refused(text_only(language="python"))                              # no Python label on text-only
         self.refused(mixed(language="text"))                                    # language text carries no code

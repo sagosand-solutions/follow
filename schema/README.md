@@ -126,12 +126,12 @@ reader that does not know 0.3 refuses the question instead of silently dropping 
 | `text` | string | 1 to 4000 code points and at most 80 lines. Line breaks are `\n` only; no carriage return, no control characters other than tab and newline, no U+2028/2029, no lone surrogate. |
 | `sha256` | string | 64 lower-case hex: the SHA-256 of the UTF-8 bytes of `text` exactly as stored (no BOM, no normalisation, no line-ending change, no trimming). |
 | `provenance` | object | Exactly `fixture_id` (local ID) and `fixture_output_sha256` (64 lower-case hex): the hash of the bytes the authoring fixture produced. |
-| `label` | string | Optional, at most 80 characters. |
+| `label` | string | Optional, at most 80 code points; no control characters and no lone surrogate. |
 
 No other key is allowed, so an artifact cannot carry a URL, a source, markup or anything that runs. The exporter adds what a schema
 cannot say: `artifact-hash` (`sha256` is the hash of `text`), `artifact-binding` (the fixture output hash is the same bytes as the
 shown text), `artifact-limits`, `artifact-text`, `artifact-id` and `artifact-url`. **URLs:** the text may name a URL only if its host
-is reserved (`example.com`, `.net`, `.org`, any `*.example`, `*.test`, `*.invalid`, `localhost`, `127.0.0.1`, or an address in
+is one of the names an example may use (`example.com`, `.net`, `.org`, any `*.example`, `*.test`, `*.invalid`, `localhost`, `127.0.0.1`, or an address in
 `192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`; names match on whole labels, not substrings), without credentials; anything
 else is `artifact-url`. This is a content rule, not a network control: nothing ever fetches a URL named in an artifact, not even a
 reserved one. A relative request target (`GET /items HTTP/1.1`) or a `Host:` header is not a URL and stays allowed text.
@@ -140,8 +140,9 @@ reserved one. A relative request target (`GET /items HTTP/1.1`) or a `Host:` hea
 runner. An artifact is bound by its *fixture*: the authoring harness (outside any reader or server path) writes the bytes the fixture
 produced to `content/fixtures/artifacts/<fixture_id>.out`, and the question records their hash as `provenance.fixture_output_sha256`.
 Two hash fields in a question prove nothing by themselves, so the export reads the file: it must exist (the id is a name, never a
-path; the directory is fixed; a symlink on the way stops the export), be at most 20000 bytes, and hash to the recorded value, which
-must also be the hash of the shown text (`artifact-fixture`, `artifact-binding`, `artifact-hash`). If the fixture output changes and
+path; the directory is fixed), and it is opened by descriptor from the repository root down, so a symlink on the way stops the export,
+the opened file must be a regular file, at most 20000 bytes of it are read, and a path swapped after the start cannot redirect the
+read. The root is trusted; nothing below it is. The bytes read must hash to the recorded value, which must also be the hash of the shown text (`artifact-fixture`, `artifact-binding`, `artifact-hash`). If the fixture output changes and
 the question is not updated, or the other way round, the export fails. `validator.artifacts.verify_artifact_fixture(question,
 artifact_id, fixture_bytes)` is the same check for the harness.
 

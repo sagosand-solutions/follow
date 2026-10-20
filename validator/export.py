@@ -61,22 +61,21 @@ def prefix_issues(course_id, *, map_data=None, question=None):
 
 
 def artifact_fixture_issues(root, question):
-    """The export's acceptance of a question's text artifacts: the fixture output file must exist, be read from the trusted
-    directory (no symlink on the way, SetupError otherwise) and hash to what the question recorded. Two matching hash fields written
-    in the question prove nothing by themselves; the bytes of the fixture do."""
+    """The export's acceptance of a question's text artifacts: the fixture output file is read from the trusted directory by
+    descriptor (see fixture_read: no symlink on the way, regular file only, at most MAX_FIXTURE_BYTES read) and its bytes must hash to
+    what the question recorded. Two matching hash fields written in the question prove nothing by themselves; the bytes do."""
     from . import artifacts as artifact_checks
+    from .fixture_read import FixtureProblem, read_fixture
     found = []
     for i, item in enumerate(question.get("artifacts", [])):
         relative = Path(ARTIFACT_FIXTURE_DIR) / f"{item['provenance']['fixture_id']}.out"
-        path = safe_path(root, relative)
         where = f"/artifacts/{i}/provenance/fixture_id"
-        if not path.is_file():
-            found.append(Issue("artifact-fixture", where, f"No fixture output file {relative.as_posix()}"))
+        try:
+            data = read_fixture(root, relative, MAX_FIXTURE_BYTES)
+        except FixtureProblem as exc:
+            found.append(Issue("artifact-fixture", where, f"Fixture output {relative.as_posix()}: {exc}"))
             continue
-        if path.stat().st_size > MAX_FIXTURE_BYTES:
-            found.append(Issue("artifact-fixture", where, f"Fixture output {relative.as_posix()} is larger than {MAX_FIXTURE_BYTES} bytes"))
-            continue
-        found += artifact_checks.verify_artifact_fixture(question, item["id"], path.read_bytes())
+        found += artifact_checks.verify_artifact_fixture(question, item["id"], data)
     return found
 
 
