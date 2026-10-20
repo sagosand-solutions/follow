@@ -52,11 +52,15 @@ def artifact_issues(question):
     from .core import Issue
     issues = []
     snippet_ids = {s["id"] for s in question.get("snippets", [])}
+    seen = set()
     for i, item in enumerate(question.get("artifacts", [])):
         path = f"/artifacts/{i}"
         text = item["text"]
         if item["id"] in snippet_ids:
             issues.append(Issue("artifact-id", path + "/id", f"Artifact id {item['id']!r} is also a snippet id"))
+        if item["id"] in seen:
+            issues.append(Issue("artifact-id", path + "/id", f"Artifact id {item['id']!r} is used twice"))
+        seen.add(item["id"])
         try:
             actual = artifact_sha256(text)
         except UnicodeEncodeError:
@@ -77,9 +81,12 @@ def artifact_issues(question):
 def verify_artifact_fixture(question, artifact_id, fixture_bytes):
     """Authoring-harness check: do the bytes a fixture produced still match what the question recorded for this artifact?"""
     from .core import Issue
-    for i, item in enumerate(question.get("artifacts", [])):
-        if item.get("id") == artifact_id:
-            if hashlib.sha256(fixture_bytes).hexdigest() != item["provenance"]["fixture_output_sha256"]:
-                return [Issue("artifact-binding", f"/artifacts/{i}/provenance/fixture_output_sha256", "The fixture output changed since the artifact was recorded")]
-            return []
-    return [Issue("artifact-id", "/artifacts", f"No artifact {artifact_id!r}")]
+    matches = [(i, item) for i, item in enumerate(question.get("artifacts", [])) if item.get("id") == artifact_id]
+    if not matches:
+        return [Issue("artifact-id", "/artifacts", f"No artifact {artifact_id!r}")]
+    if len(matches) > 1:                                # never verify "the first one" of an ambiguous id
+        return [Issue("artifact-id", f"/artifacts/{matches[1][0]}/id", f"Artifact id {artifact_id!r} is used more than once")]
+    i, item = matches[0]
+    if hashlib.sha256(fixture_bytes).hexdigest() != item["provenance"]["fixture_output_sha256"]:
+        return [Issue("artifact-binding", f"/artifacts/{i}/provenance/fixture_output_sha256", "The fixture output changed since the artifact was recorded")]
+    return []

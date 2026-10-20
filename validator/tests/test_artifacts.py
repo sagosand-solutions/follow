@@ -155,6 +155,13 @@ class ArtifactRejectTests(unittest.TestCase):
         self.refused(text_only(artifact(id="Bad Id")))
         self.refused(mixed(artifact(id="main")), "artifact-id")                # an id may not repeat a snippet's id
 
+    def test_a_repeated_artifact_id_is_refused_by_every_entry_point(self):
+        twin = text_only(artifact("a\n", "text", "same"), artifact("b\n", "text", "same"))
+        self.refused(twin, "duplicate")                                            # the whole-question validation
+        self.assertEqual([i.code for i in artifacts.artifact_issues(twin)], ["artifact-id"], "and the artifact checks on their own")
+        for fixture_bytes in (b"a\n", b"b\n"):                                     # neither twin can be verified as "the first one"
+            self.assertEqual([i.code for i in artifacts.verify_artifact_fixture(twin, "same", fixture_bytes)], ["artifact-id"])
+
     def test_text_content_rules(self):
         for label, text in (("carriage return", "a\r\nb\n"), ("NUL", "a\u0000b"), ("bell", "a\u0007b"), ("DEL", "a\u007fb"),
                             ("C1", "a\u0085b"), ("line separator", "a\u2028b"), ("paragraph separator", "a\u2029b")):
@@ -337,6 +344,17 @@ class ExportAndTraceTests(CourseFixture):
                 code, output = self.run_export()
                 self.assertEqual(code, 1, output)
                 self.assertIn({"hash": "artifact-hash", "binding": "artifact-binding", "url": "artifact-url"}[label], output)
+
+    def test_the_export_refuses_two_artifacts_with_one_id(self):
+        q = self.add_text_question()
+        q["artifacts"] = [artifact("a\n", "text", "same", provenance={"fixture_id": "fixture-one", "fixture_output_sha256": sha("a\n")}),
+                          artifact("b\n", "text", "same", provenance={"fixture_id": "fixture-two", "fixture_output_sha256": sha("b\n")})]
+        self.write(self.data / "questions" / f"{self.QID}.json", q)
+        self.write_fixture(b"a\n", "fixture-one")
+        self.write_fixture(b"b\n", "fixture-two")
+        code, output = self.run_export()
+        self.assertEqual(code, 1, output)
+        self.assertIn("/artifacts/1/id", output)
 
     def test_trace_check_expects_no_trace_for_a_text_only_question_and_calls_a_stray_one_an_orphan(self):
         from validator import trace
