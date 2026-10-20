@@ -41,7 +41,7 @@ class CliTests(unittest.TestCase):
             execv.assert_not_called()
         self.assertEqual(code, 0)
         self.assertIn("VALID", out)
-        self.assertIn("not here", out)
+        self.assertIn("schema validation is the caller", out)
 
     def test_a_changed_manifest_is_red(self):
         (self.root / "m.json").write_bytes(self.raw + b" ")
@@ -76,6 +76,19 @@ class CliTests(unittest.TestCase):
         code, _, err = self.run_cli("verify", "--root", str(self.root), "--binding", "binding.json")
         self.assertEqual(code, 1)
         self.assertIn("bindings-argv", err)
+
+    def test_an_optional_schema_is_applied_and_claimed_exactly(self):
+        schema = {"type": "object", "required": ["manifest_schema_version", "no_such_field"]}
+        (self.root / "schema.json").write_text(json.dumps(schema), encoding="utf-8")
+        code, _, err = self.run_cli("verify", "--root", str(self.root), "--binding", "binding.json",
+                                    "--schema", str(self.root / "schema.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("schema:", err)
+        (self.root / "schema.json").write_text(json.dumps({"type": "object"}), encoding="utf-8")
+        code, out, _ = self.run_cli("verify", "--root", str(self.root), "--binding", "binding.json",
+                                    "--schema", str(self.root / "schema.json"))
+        self.assertEqual(code, 0)
+        self.assertIn("schema accepted", out)
 
     def test_plan_prints_the_isolated_plan_and_runs_nothing(self):
         with mock.patch("subprocess.run") as run, mock.patch("subprocess.Popen") as popen:

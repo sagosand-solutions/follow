@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import pathlib
 import sys
 
 from . import canonical, manifest, plan, resolver
@@ -19,7 +20,7 @@ from . import canonical, manifest, plan, resolver
 DEFAULT_LIMIT = 8 * 1024 * 1024
 
 
-def _load(root: str, binding_uri: str, limit: int):
+def _load(root: str, binding_uri: str, limit: int, schema: dict | None = None):
     binding = resolver.resolve_json(root, binding_uri, limit)
     uri, expected = binding.get("manifest_uri"), binding.get("manifest_sha256")
     if not isinstance(uri, str) or not isinstance(expected, str):
@@ -31,6 +32,7 @@ def _load(root: str, binding_uri: str, limit: int):
         document, raw,
         expected_manifest_sha256=expected,
         expected_binding_sha256=declared_binding if isinstance(declared_binding, str) else None,
+        schema=schema,
     )
     return document, findings
 
@@ -43,6 +45,7 @@ def main(argv=None) -> int:
         command.add_argument("--root", required=True, help="a trusted root; every URI is resolved below it")
         command.add_argument("--binding", required=True, help="the binding file's relative URI")
         command.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+        command.add_argument("--schema", default=None, help="a trusted path to the frozen manifest JSON Schema")
     sub.add_parser("run", help="refused: fixture execution is not authorized")
     sub.choices["plan"].add_argument("--runtime", required=True, help="the pinned minimal runtime image")
     sub.choices["plan"].add_argument("--work", required=True, help="a private scratch directory")
@@ -52,8 +55,15 @@ def main(argv=None) -> int:
     if args.command == "run":
         print("execution is not authorized: the execution boundary is not approved", file=sys.stderr)
         return 2
+    schema = None
+    if args.schema is not None:
+        try:
+            schema = canonical.loads_strict(pathlib.Path(args.schema).read_bytes())
+        except (OSError, canonical.CanonicalError) as exc:
+            print(f"INVALID: the schema cannot be read: {exc}", file=sys.stderr)
+            return 2
     try:
-        document, findings = _load(args.root, args.binding, args.limit)
+        document, findings = _load(args.root, args.binding, args.limit, schema)
     except (resolver.ResolverError, canonical.CanonicalError, manifest.ManifestError) as exc:
         print(f"INVALID: {exc}", file=sys.stderr)
         return 2
@@ -62,8 +72,12 @@ def main(argv=None) -> int:
             print(finding, file=sys.stderr)
         return 1
     if args.command == "verify":
-        print("VALID: manifest shape, projection and receipt accepted "
-              "(input and artifact bytes are verified by the author gate, not here)")
+        if schema is None:
+            print("VALID: manifest semantic subset accepted (schema validation is the caller's; "
+                  "input and artifact bytes are verified by the author gate, not here)")
+        else:
+            print("VALID: manifest, projection, receipt and schema accepted "
+                  "(input and artifact bytes are verified by the author gate, not here)")
         return 0
     try:
         runtime = plan.runtime_plan(args.runtime)
