@@ -39,9 +39,10 @@ def valid():
                         "tests": [{"test_id": "t1", "outcome": "passed"}]},
         "licence": {"license": "LicenseRef-Proprietary", "gate": "draft-only"},
         "receipt": {"started_at": "1970-01-01T00:00:00Z", "duration_ms": 1, "exit_code": 0,
-                    "stdout_sha256": h("stdout"), "stdout_bytes": 1, "stderr_sha256": h("stderr"), "stderr_bytes": 0,
+                    "stdout_sha256": h("stdout"), "stdout_bytes": 1, "stderr_sha256": h(""), "stderr_bytes": 0,
                     "budget": dict(plan.BUDGET), "isolation": {"mechanism": "bwrap+cgroup-v2", "proof": "tested", "network": "denied"},
-                    "usage": {key: 0 for key in manifest.USAGE_KEYS}, "limit_hit": [], "status": "ok"},
+                    "usage": {**{key: 0 for key in manifest.USAGE_KEYS}, "wall_ms": 1, "stdout_bytes": 1, "artifact_bytes": 1},
+                    "limit_hit": [], "status": "ok"},
     }
     value["binding_sha256"] = canonical.binding_sha256(value)
     return value
@@ -156,6 +157,42 @@ class AcceptanceTests(unittest.TestCase):
         self.assertIn("bindings-argv", accepted(lambda v: v["bindings"].update(argv=[])))
         self.assertIn("bindings-argv", accepted(lambda v: v["bindings"].pop("argv")))
         self.assertIn("bindings-question-ids", accepted(lambda v: v["bindings"].update(question_ids=[])))
+
+    def test_usage_must_stay_within_the_budget_and_match_the_receipt(self):
+        self.assertIn("usage-stdout_bytes", accepted(lambda v: v["receipt"]["usage"].update(stdout_bytes=1048577)))
+        self.assertIn("usage-wall_ms", accepted(lambda v: v["receipt"]["usage"].update(wall_ms=11000)))
+        self.assertIn("usage-memory_peak_bytes", accepted(lambda v: v["receipt"]["usage"].update(memory_peak_bytes=268435457)))
+        self.assertIn("usage-receipt-mismatch", accepted(lambda v: v["receipt"]["usage"].update(stdout_bytes=0)))
+        self.assertIn("usage-artifact-sum", accepted(lambda v: v["receipt"]["usage"].update(artifact_bytes=0)))
+
+    def test_started_duration_and_receipt_hashes_are_checked(self):
+        self.assertIn("receipt-started-at", accepted(lambda v: v["receipt"].update(started_at="")))
+        self.assertIn("receipt-duration", accepted(lambda v: v["receipt"].update(duration_ms=-1)))
+        self.assertIn("receipt-hashes", accepted(lambda v: v["receipt"].update(stdout_sha256="0" * 64)))
+
+    def test_an_incomplete_artifact_still_needs_a_real_hash_and_a_string_id(self):
+        self.assertIn("artifact-0-hash", accepted(lambda v: v["artifacts"][0].update(complete=False, sha256="0" * 64)))
+        self.assertIn("artifact-0-id", accepted(lambda v: v["artifacts"][0].update(artifact_id={})))
+
+    def test_a_shapeless_input_path_is_a_finding_not_a_crash(self):
+        self.assertIn("input-0-path", accepted(lambda v: v["inputs"][0].update(path=[])))
+
+    def test_the_budget_has_exactly_the_contract_keys(self):
+        self.assertIn("receipt-budget", accepted(lambda v: v["receipt"]["budget"].update(extra=1)))
+
+    def test_named_canonicalisation_has_exactly_its_four_keys(self):
+        self.assertIn("canonicalisation-named", accepted(lambda v: v.update(canonicalisation={
+            "mode": "named", "name": "n", "version": "1", "transform_sha256": h("t"), "extra": 1})))
+
+    def test_an_optional_schema_is_applied_when_given(self):
+        value = valid()
+        raw = canonical.dumps_canonical(value)
+        expected = canonical.manifest_sha256(raw)
+        codes = manifest.accept(value, raw, expected_manifest_sha256=expected,
+                                schema={"type": "object", "required": ["no_such_field"]})
+        self.assertTrue(any(code.startswith("schema:") for code in codes))
+        self.assertFalse(any(code.startswith("schema:") for code in
+                             manifest.accept(value, raw, expected_manifest_sha256=expected, schema={"type": "object"})))
 
     def test_the_manifest_s_own_binding_digest_must_match(self):
         def changed(v):
