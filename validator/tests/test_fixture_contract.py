@@ -514,6 +514,12 @@ class ReviewDiffTest(unittest.TestCase):
             case["question"]["snippets"][0]["code"].rstrip("\n")
         self.assertIn("review-snippet-newline", codes(run(case)))
 
+    def test_after_snippet_must_also_end_with_a_newline(self):
+        case = review_contract()
+        case["question"]["snippets"][1]["code"] = \
+            case["question"]["snippets"][1]["code"].rstrip("\n")
+        self.assertIn("review-snippet-newline", codes(run(case)))
+
     def test_diff_must_match_exactly_one_manifest_artifact(self):
         case = review_contract()
         duplicate = deepcopy(next(item for item in case["manifest"]["artifacts"]
@@ -894,6 +900,14 @@ class ValidateFilesTest(unittest.TestCase):
         self.assertIsNotNone(result.gate)
         self.assertEqual(result.binding_file_sha256, digest)
         self.assertEqual(result.to_dict()["binding_file_sha256"], digest)
+
+    def test_binding_file_hash_covers_a_trailing_newline(self):
+        root, binding = self.write_root(contract())
+        binding.write_bytes(binding.read_bytes() + b"\n")
+        digest = hashlib.sha256(binding.read_bytes()).hexdigest()
+        result = fc.validate_files(binding, expected_binding_sha256=digest)
+        self.assertTrue(result.verified, [issue.to_dict() for issue in result.issues])
+        self.assertEqual(result.binding_file_sha256, digest)
 
     def test_a_gate_binding_without_the_frozen_file_hash_is_red(self):
         root, binding = self.write_root(review_contract())
