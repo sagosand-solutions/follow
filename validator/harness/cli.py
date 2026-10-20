@@ -38,11 +38,12 @@ def _load(root: str, binding_uri: str, limit: int):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m validator.harness")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("verify", "plan", "run"):
+    for name in ("verify", "plan"):
         command = sub.add_parser(name)
         command.add_argument("--root", required=True, help="a trusted root; every URI is resolved below it")
         command.add_argument("--binding", required=True, help="the binding file's relative URI")
         command.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    sub.add_parser("run", help="refused: fixture execution is not authorized")
     sub.choices["plan"].add_argument("--runtime", required=True, help="the pinned minimal runtime image")
     sub.choices["plan"].add_argument("--work", required=True, help="a private scratch directory")
     sub.choices["plan"].add_argument("--input", required=True, help="a frozen read-only input snapshot")
@@ -61,11 +62,16 @@ def main(argv=None) -> int:
             print(finding, file=sys.stderr)
         return 1
     if args.command == "verify":
-        print("VALID: manifest, receipt and binding accepted (nothing executed)")
+        print("VALID: manifest shape, projection and receipt accepted "
+              "(input and artifact bytes are verified by the author gate, not here)")
         return 0
-    runtime = plan.runtime_plan(args.runtime)
-    full = plan.plan_command(runtime, work=args.work, input_dir=args.input,
-                             argv=document["bindings"]["argv"], env=document["config"]["env"])
+    try:
+        runtime = plan.runtime_plan(args.runtime)
+        full = plan.plan_command(runtime, work=args.work, input_dir=args.input,
+                                 argv=document["bindings"]["argv"], env=document["config"]["env"])
+    except (KeyError, TypeError, plan.PlanError) as exc:
+        print(f"INVALID: the manifest cannot be planned: {exc}", file=sys.stderr)
+        return 2
     print(json.dumps(full, indent=2, ensure_ascii=True))
     return 0
 

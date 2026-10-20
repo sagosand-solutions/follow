@@ -41,7 +41,7 @@ class CliTests(unittest.TestCase):
             execv.assert_not_called()
         self.assertEqual(code, 0)
         self.assertIn("VALID", out)
-        self.assertIn("nothing executed", out)
+        self.assertIn("not here", out)
 
     def test_a_changed_manifest_is_red(self):
         (self.root / "m.json").write_bytes(self.raw + b" ")
@@ -66,6 +66,17 @@ class CliTests(unittest.TestCase):
         code, _, err = self.run_cli("verify", "--root", str(self.root), "--binding", "binding.json")
         self.assertEqual(code, 2)
 
+    def test_a_manifest_without_argv_is_a_finding_not_a_crash(self):
+        value = valid()
+        del value["bindings"]["argv"]
+        value["binding_sha256"] = canonical.binding_sha256(value)
+        raw = canonical.dumps_canonical(value)
+        (self.root / "m.json").write_bytes(raw)
+        self.write_binding({"manifest_uri": "m.json", "manifest_sha256": canonical.manifest_sha256(raw)})
+        code, _, err = self.run_cli("verify", "--root", str(self.root), "--binding", "binding.json")
+        self.assertEqual(code, 1)
+        self.assertIn("bindings-argv", err)
+
     def test_plan_prints_the_isolated_plan_and_runs_nothing(self):
         with mock.patch("subprocess.run") as run, mock.patch("subprocess.Popen") as popen:
             code, out, _ = self.run_cli("plan", "--root", str(self.root), "--binding", "binding.json",
@@ -82,7 +93,7 @@ class CliTests(unittest.TestCase):
 
     def test_run_refuses_and_never_calls_subprocess(self):
         with mock.patch("subprocess.run") as run, mock.patch("subprocess.Popen") as popen, mock.patch("os.execv") as execv:
-            code, _, err = self.run_cli("run", "--root", str(self.root), "--binding", "binding.json")
+            code, _, err = self.run_cli("run")
             run.assert_not_called()
             popen.assert_not_called()
             execv.assert_not_called()
