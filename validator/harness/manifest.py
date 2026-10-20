@@ -1,0 +1,281 @@
+# SPDX-License-Identifier: MIT
+"""Acceptance of an offline-harness manifest: both digest links, the parent-owned receipt and the semantic rules.
+
+Nothing here executes anything. The trusted author gate owns the input spec and the receipt; a manifest that recomputed
+its own digest is not an authorization, so ``expected_manifest_sha256`` must come from the binding file, never from the
+manifest itself.
+"""
+from __future__ import annotations
+
+import hashlib
+import re
+
+from . import canonical, plan
+
+
+class ManifestError(ValueError):
+    """The manifest cannot be accepted as the canonical object at all."""
+
+
+_HEX = re.compile(r"[0-9a-f]{64}\Z")
+_PLACEHOLDER = re.compile(r"(.)\1{63}\Z")
+ROLES = frozenset({"fixture", "source", "stdin", "config"})
+BUDGET_KEYS = tuple(plan.BUDGET)
+USAGE_KEYS = ("wall_ms", "cpu_ms", "memory_peak_bytes", "pids_peak", "stdout_bytes", "stderr_bytes",
+              "artifact_bytes", "scratch_bytes", "scratch_inodes", "open_fds_peak")
+OUTCOMES = frozenset({"passed", "failed", "skipped", "xfail", "xpass"})
+
+
+def _hash(value) -> bool:
+    """A real 64-hex digest, never a zero or repeated-character placeholder."""
+    return isinstance(value, str) and bool(_HEX.fullmatch(value)) and not _PLACEHOLDER.fullmatch(value)
+
+
+def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
+           expected_binding_sha256: str | None = None, schema: dict | None = None) -> list:
+    """Findings (empty means accepted). Raises ManifestError only when no canonical binding can be computed.
+
+    ``schema`` is optional: when given (the caller reads the frozen schema from a trusted path) the whole manifest is
+    validated with JSON Schema as well; without it the acceptance is the documented semantic subset.
+    """
+    found = []
+
+    def add(code: str) -> None:
+        found.append(code)
+
+    # MUST: the full-file hash is over raw bytes, so the object and those bytes must be the same model. Otherwise a safe
+    # object could be accepted under the hash of a package that carries another receipt or data.
+    try:
+        authoritative = canonical.loads_strict(raw_bytes)
+        same_object = canonical.dumps_canonical(authoritative) == canonical.dumps_canonical(manifest)
+    except canonical.CanonicalError as exc:
+        raise ManifestError(str(exc)) from None
+    if not same_object:
+        add("manifest-object-mismatch")
+        manifest = authoritative
+
+    try:
+        binding = canonical.binding_sha256(manifest)
+    except canonical.CanonicalError as exc:
+        raise ManifestError(str(exc)) from None
+
+    if manifest.get("binding_sha256") != binding:
+        add("binding-digest-mismatch")
+    if expected_binding_sha256 is not None and expected_binding_sha256 != binding:
+        add("binding-not-approved")
+    if not _hash(expected_manifest_sha256) or canonical.manifest_sha256(raw_bytes) != expected_manifest_sha256:
+        add("manifest-not-approved")
+
+    cases = manifest.get("cases") if isinstance(manifest.get("cases"), list) else []
+    artifacts = manifest.get("artifacts") if isinstance(manifest.get("artifacts"), list) else []
+    artifact_total = sum(a.get("bytes", 0) for a in artifacts
+                         if isinstance(a, dict) and isinstance(a.get("bytes"), int) and not isinstance(a.get("bytes"), bool))
+    if len(artifacts) > plan.BUDGET["artifact_files"]:
+        add("artifact-count")
+    if artifact_total > plan.BUDGET["artifact_bytes"]:
+        add("artifact-bytes")
+
+    receipt = manifest.get("receipt")
+    if not isinstance(receipt, dict):
+        add("receipt-missing")
+    else:
+        if receipt.get("status") != "ok":
+            add("receipt-status")
+        if receipt.get("exit_code") != 0:
+            add("receipt-exit-code")
+        if not isinstance(receipt.get("started_at"), str) or not receipt["started_at"]:
+            add("receipt-started-at")
+        duration = receipt.get("duration_ms")
+        if (not isinstance(duration, int) or isinstance(duration, bool) or duration < 0
+                or duration > plan.BUDGET["wall_seconds"] * 1000):
+            add("receipt-duration")
+        for name in ("stdout_bytes", "stderr_bytes"):
+            value = receipt.get(name)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                add("receipt-bytes")
+                break
+        if not _hash(receipt.get("stdout_sha256")) or not _hash(receipt.get("stderr_sha256")):
+            add("receipt-hashes")
+        for stream in ("stdout", "stderr"):
+            if receipt.get(f"{stream}_bytes") == 0 and receipt.get(f"{stream}_sha256") != hashlib.sha256(b"").hexdigest():
+                add("receipt-empty-hash")
+        if receipt.get("limit_hit") != []:
+            add("receipt-limit-hit")
+        isolation = receipt.get("isolation")
+        required_namespaces = {"user", "mount", "pid", "net", "ipc", "uts", "cgroup"}
+        namespaces = isolation.get("namespaces") if isinstance(isolation, dict) else None
+        if (not isinstance(isolation, dict) or isolation.get("mechanism") != "bwrap+cgroup-v2"
+                or not isinstance(namespaces, list)
+                or any(not isinstance(name, str) for name in namespaces)
+                or not required_namespaces <= set(namespaces)
+                or isolation.get("capabilities") != "none"
+                or isolation.get("no_new_privileges") is not True
+                or isolation.get("network") != "denied"
+                or isolation.get("kill") != "whole-cgroup"
+                or not isinstance(isolation.get("proof"), str) or not isolation["proof"]):
+            add("receipt-isolation")
+        budget = receipt.get("budget")
+        if (not isinstance(budget, dict) or set(budget) != set(BUDGET_KEYS)
+                or any(budget.get(key) != plan.BUDGET[key] for key in BUDGET_KEYS)):
+            add("receipt-budget")
+        usage = receipt.get("usage")
+        if (not isinstance(usage, dict) or set(usage) != set(USAGE_KEYS)
+                or any(not isinstance(usage.get(key), int) or isinstance(usage.get(key), bool) or usage.get(key) < 0
+                       for key in USAGE_KEYS)):
+            add("receipt-usage")
+        else:
+            if usage["stdout_bytes"] != receipt.get("stdout_bytes") or usage["stderr_bytes"] != receipt.get("stderr_bytes"):
+                add("usage-receipt-mismatch")
+            if usage["artifact_bytes"] != artifact_total:
+                add("usage-artifact-sum")
+            caps = {
+                "wall_ms": plan.BUDGET["wall_seconds"] * 1000,
+                "cpu_ms": plan.BUDGET["cpu_hard_seconds"] * 1000,
+                "memory_peak_bytes": plan.BUDGET["memory_bytes"],
+                "pids_peak": plan.BUDGET["pids"],
+                "stdout_bytes": plan.BUDGET["output_bytes_per_stream"],
+                "stderr_bytes": plan.BUDGET["output_bytes_per_stream"],
+                "artifact_bytes": plan.BUDGET["artifact_bytes"],
+                "scratch_bytes": plan.BUDGET["scratch_bytes"],
+                "scratch_inodes": plan.BUDGET["scratch_inodes"],
+                "open_fds_peak": plan.BUDGET["open_fds"],
+            }
+            for key, cap in caps.items():
+                if usage[key] > cap:
+                    add(f"usage-{key}")
+
+    if schema is not None:
+        try:
+            import jsonschema
+            for error in jsonschema.Draft202012Validator(schema).iter_errors(manifest):
+                add("schema:" + "/".join(str(part) for part in error.absolute_path))
+        except Exception as exc:                      # a schema that cannot be used is a setup error, not an accepted manifest
+            raise ManifestError(f"the schema cannot be used: {exc}") from None
+
+    if manifest.get("manifest_schema_version") != "1.0.0" or manifest.get("binding_projection_version") != "1":
+        add("manifest-version")
+    bindings = manifest.get("bindings") if isinstance(manifest.get("bindings"), dict) else {}
+    argv = bindings.get("argv")
+    if not isinstance(argv, list) or not argv or any(not isinstance(a, str) or not a or "\x00" in a for a in argv):
+        add("bindings-argv")
+    question_ids = bindings.get("question_ids")
+    if not isinstance(question_ids, list) or not question_ids or any(not isinstance(q, str) or not q for q in question_ids):
+        add("bindings-question-ids")
+    licence = manifest.get("licence")
+    if (not isinstance(licence, dict) or not isinstance(licence.get("license"), str) or not licence["license"]
+            or licence.get("gate") != "draft-only"):
+        add("licence")
+    canonicalisation = manifest.get("canonicalisation")
+    if not isinstance(canonicalisation, dict) or canonicalisation.get("mode") not in ("none", "named"):
+        add("canonicalisation")
+    elif canonicalisation.get("mode") == "named":
+        if (set(canonicalisation) != {"mode", "name", "version", "transform_sha256"}
+                or not isinstance(canonicalisation.get("name"), str) or not canonicalisation["name"]
+                or not isinstance(canonicalisation.get("version"), str) or not canonicalisation["version"]
+                or not _hash(canonicalisation.get("transform_sha256"))):
+            add("canonicalisation-named")
+    elif set(canonicalisation) != {"mode"}:
+        add("canonicalisation-none")
+
+    case_ids = [c.get("case_id") for c in cases if isinstance(c, dict) and isinstance(c.get("case_id"), str)]
+    artifact_ids = [a.get("artifact_id") for a in artifacts if isinstance(a, dict) and isinstance(a.get("artifact_id"), str)]
+    if len(set(case_ids)) != len(case_ids):
+        add("duplicate-case-id")
+    if len(set(artifact_ids)) != len(artifact_ids):
+        add("duplicate-artifact-id")
+
+    report = manifest.get("test_report") if isinstance(manifest.get("test_report"), dict) else {}
+    tests = report.get("tests") if isinstance(report.get("tests"), list) else []
+    counts = report.get("counts") if isinstance(report.get("counts"), dict) else {}
+    test_ids = [t.get("test_id") for t in tests if isinstance(t, dict) and isinstance(t.get("test_id"), str)]
+    outcomes = [t.get("outcome") for t in tests if isinstance(t, dict)]
+    if any(not isinstance(t, dict) for t in tests):
+        add("test-shape")
+    if any(not isinstance(t.get("test_id"), str) or not t["test_id"] or t.get("outcome") not in OUTCOMES
+           for t in tests if isinstance(t, dict)):
+        add("test-entry")
+    if len(set(test_ids)) != len(test_ids):
+        add("duplicate-test-id")
+    if counts.get("total") != len(tests) or counts.get("total") != len(cases):
+        add("counts-total")
+    for name in ("passed", "failed", "skipped", "xfail", "xpass"):
+        if counts.get(name) != outcomes.count(name):
+            add(f"counts-{name}")
+    if not cases or not tests:
+        add("no-cases")
+    if any(outcome != "passed" for outcome in outcomes) or any(c.get("outcome") != "passed" for c in cases if isinstance(c, dict)):
+        add("not-a-verified-facit")
+
+    for index, case in enumerate(cases):
+        if not isinstance(case, dict):
+            add(f"case-{index}-shape")
+            continue
+        if not isinstance(case.get("case_id"), str) or not case["case_id"]:
+            add(f"case-{index}-id")
+        for key in ("source_sha256", "stdin_sha256"):
+            if not _hash(case.get(key)):
+                add(f"case-{index}-{key}")
+        expected, actual = case.get("expected"), case.get("actual")
+        if not isinstance(expected, dict) or not isinstance(actual, dict):
+            add(f"case-{index}-projection")
+            continue
+        if not _hash(expected.get("stdout_sha256")) or not _hash(actual.get("stdout_sha256")):
+            add(f"case-{index}-stdout-hash")
+        exception = expected.get("exception") or {}
+        actual_exception = actual.get("exception") or {}
+        if case.get("outcome") == "passed":
+            if expected.get("stdout_sha256") != actual.get("stdout_sha256"):
+                add(f"case-{index}-stdout-mismatch")
+            if (exception.get("type"), exception.get("message")) != (actual_exception.get("type"), actual_exception.get("message")):
+                add(f"case-{index}-exception-mismatch")
+            if case.get("truncated") or not case.get("complete"):
+                add(f"case-{index}-incomplete")
+
+    for index, artifact in enumerate(artifacts):
+        if not isinstance(artifact, dict):
+            add(f"artifact-{index}-shape")
+            continue
+        if not isinstance(artifact.get("artifact_id"), str) or not artifact["artifact_id"]:
+            add(f"artifact-{index}-id")
+        if not _hash(artifact.get("sha256")):
+            add(f"artifact-{index}-hash")
+        size = artifact.get("bytes")
+        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+            add(f"artifact-{index}-bytes")
+        kind, fmt = artifact.get("type"), artifact.get("format")
+        if kind == "trace":
+            if fmt != "json" or artifact.get("is_trace") is not True or artifact.get("executable") is not False:
+                add(f"artifact-{index}-trace-rules")
+        elif artifact.get("is_trace") is not False:
+            add(f"artifact-{index}-not-trace")
+        if fmt == "text" and artifact.get("executable") is not False:
+            add(f"artifact-{index}-text-executable")
+        if artifact.get("truncated") and artifact.get("complete"):
+            add(f"artifact-{index}-truncated-and-complete")
+
+    if isinstance(question_ids, list) and manifest.get("question_id") is not None and manifest["question_id"] not in question_ids:
+        add("question-id-not-bound")
+    inputs = manifest.get("inputs") if isinstance(manifest.get("inputs"), list) else []
+    pairs = [(item.get("role"), item.get("path")) for item in inputs
+             if isinstance(item, dict) and isinstance(item.get("role"), str) and isinstance(item.get("path"), str)]
+    if len(set(pairs)) != len(pairs):
+        add("duplicate-input")
+    for index, item in enumerate(inputs):
+        if not isinstance(item, dict) or item.get("role") not in ROLES or not _hash(item.get("sha256")):
+            add(f"input-{index}")
+            continue
+        path = item.get("path")
+        if (not isinstance(path, str) or not path or path.startswith("/") or "\x00" in path
+                or any(part in ("", ".", "..") for part in path.split("/"))):
+            add(f"input-{index}-path")
+        if not isinstance(item.get("bytes"), int) or isinstance(item.get("bytes"), bool) or item["bytes"] < 0:
+            add(f"input-{index}-bytes")
+
+    config = manifest.get("config")
+    if isinstance(config, dict):
+        digest = hashlib.sha256(canonical.dumps_canonical(config)).hexdigest()
+        if bindings.get("config_digest") != digest:
+            add("config-digest-mismatch")
+    else:
+        add("config-missing")
+    return sorted(set(found))
