@@ -19,7 +19,6 @@ DIFF = ("--- a/total.py\n+++ b/total.py\n@@ -1,2 +1,2 @@\n"
 CODE = "print(1)\n"
 STDOUT = "1\n"
 TEXT = "A short inert text.\n"
-TRACE = b'{"steps":[]}'
 CC = "CC-BY-SA-4.0"
 PROPRIETARY = "LicenseRef-Proprietary"
 
@@ -30,6 +29,17 @@ def sha(raw):
 
 def sha_text(text):
     return sha(text.encode("utf-8"))
+
+
+TRACE = json.dumps({
+    "schema_version": "0.3",
+    "question_id": "q-1",
+    "traces": [{
+        "snippet_id": "snip-1", "source_sha256": sha_text(CODE),
+        "case_id": "case-1", "stdin": "", "stdin_sha256": sha_text(""),
+        "steps": [], "stdout": STDOUT, "exception": None, "truncated": False,
+    }],
+}, separators=(",", ":")).encode()
 
 
 def question_python():
@@ -242,9 +252,9 @@ def review_contract():
     entry = case["binding"]["questions"][0]
     entry["cases"] = [
         {"case_id": "case-before", "case_index": 0, "artifact_ids": ["diff-1"],
-         "trace_artifact_id": "trace-1"},
+         "trace_artifact_id": None},
         {"case_id": "case-after", "case_index": 1, "artifact_ids": ["diff-1"],
-         "trace_artifact_id": "trace-1"},
+         "trace_artifact_id": None},
     ]
     entry["review"] = {"before_snippet_id": "fee-before", "after_snippet_id": "fee-after",
                        "diff_artifact_id": "change", "fromfile": "a/fee.py",
@@ -268,9 +278,11 @@ def run(case, *, sync_manifest=True, sync_question=True):
         binding["manifest_sha256"] = sha(mraw)
     if sync_question:
         binding["questions"][0]["question_sha256"] = sha(qraw)
+    braw = json.dumps(binding).encode()
     return fc.validate(manifest_value, question_value, binding, manifest_bytes=mraw,
                        question_bytes=qraw, artifact_bytes=case["artifact_bytes"],
-                       fixture_bytes=case["fixture_bytes"])
+                       fixture_bytes=case["fixture_bytes"], binding_bytes=braw,
+                       expected_binding_sha256=sha(braw))
 
 
 def codes(result):
@@ -297,6 +309,40 @@ def replace_artifact(case, text, kind, fmt, k3):
     case["artifact_bytes"][content["artifact_id"]] = text.encode()
     case["fixture_bytes"] = (lambda fixture_id: text.encode()
                              if fixture_id == "fixture-one" else None)
+
+
+def replace_trace(case, raw):
+    trace = next(item for item in case["manifest"]["artifacts"] if item["type"] == "trace")
+    old = trace["bytes"]
+    trace.update({"sha256": sha(raw), "bytes": len(raw)})
+    case["artifact_bytes"]["trace-1"] = raw
+    case["manifest"]["receipt"]["usage"]["artifact_bytes"] += len(raw) - old
+    case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+
+
+def exception_contract():
+    case = contract()
+    question_case = case["question"]["verification"]["cases"][0]
+    question_case["expected"] = {"stdout": "", "exit_code": 1,
+                                 "stderr_contains": "bad literal"}
+    manifest_case = case["manifest"]["cases"][0]
+    stderr = "bad literal\n"
+    case["manifest"]["artifacts"].append({
+        "artifact_id": "stderr-1", "type": "text", "format": "text",
+        "media_type": "text/plain", "encoding": "utf-8", "executable": False,
+        "is_trace": False, "sha256": sha_text(stderr), "bytes": len(stderr.encode()),
+        "truncated": False, "complete": True})
+    case["manifest"]["receipt"]["usage"]["artifact_bytes"] += len(stderr.encode())
+    case["artifact_bytes"]["stderr-1"] = stderr.encode()
+    case["binding"]["questions"][0]["cases"][0]["artifact_ids"].append("stderr-1")
+    case["binding"]["questions"][0]["cases"][0]["trace_artifact_id"] = None
+    exception = {"type": "ValueError", "message": "bad literal",
+                 "stderr_artifact_id": "stderr-1"}
+    manifest_case["expected"] = {"stdout_sha256": sha_text(""), "exception": exception}
+    manifest_case["actual"] = {"stdout_sha256": sha_text(""), "exception": dict(exception)}
+    manifest_case["stdin_sha256"] = sha_text("")
+    case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+    return case
 
 
 class ValidContractTest(unittest.TestCase):
@@ -341,17 +387,8 @@ class CourseFixtureTest(unittest.TestCase):
         self.assertTrue(run(case).verified)
 
     def test_expected_exception_is_explicit(self):
-        case = contract()
-        question_case = case["question"]["verification"]["cases"][0]
-        question_case["expected"] = {"stdout": "", "exit_code": 1,
-                                     "stderr_contains": "bad literal"}
-        manifest_case = case["manifest"]["cases"][0]
-        exception = {"type": "ValueError", "message": "bad literal", "stderr_artifact_id": None}
-        manifest_case["expected"] = {"stdout_sha256": sha_text(""), "exception": exception}
-        manifest_case["actual"] = {"stdout_sha256": sha_text(""), "exception": dict(exception)}
-        manifest_case["stdin_sha256"] = sha_text("")
-        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
-        self.assertTrue(run(case).verified)
+        case = exception_contract()
+        self.assertTrue(run(case).verified, [issue.to_dict() for issue in run(case).issues])
 
     def test_unexpected_exception_is_not_a_pass(self):
         case = contract()
@@ -737,6 +774,162 @@ class ArtifactAndTraceTest(unittest.TestCase):
         case = contract()
         case["artifact_bytes"]["diff-1"] = b"tampered"
         self.assertIn("artifact-hash-mismatch", codes(run(case)))
+
+
+    def test_trace_must_parse_as_json(self):
+        case = contract()
+        replace_trace(case, b"not json")
+        self.assertIn("trace-json", codes(run(case)))
+
+    def test_trace_source_must_match_the_snippet(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["source_sha256"] = "0" * 64
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-source", codes(run(case)))
+
+    def test_trace_case_must_match_the_bound_case(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["case_id"] = "other-case"
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-case", codes(run(case)))
+
+    def test_trace_stdin_must_match_the_question(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["stdin"] = "x"
+        doc["traces"][0]["stdin_sha256"] = sha_text("x")
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-stdin", codes(run(case)))
+
+    def test_trace_language_must_be_python(self):
+        case = contract()
+        case["question"]["language"] = "text"
+        self.assertIn("trace-language", codes(run(case)))
+
+    def test_truncated_trace_is_not_a_complete_trace(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["truncated"] = True
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-truncated", codes(run(case)))
+
+    def test_exception_stderr_must_be_referenced(self):
+        case = exception_contract()
+        case["binding"]["questions"][0]["cases"][0]["artifact_ids"].remove("stderr-1")
+        self.assertIn("exception-stderr-unreferenced", codes(run(case)))
+
+    def test_exception_stderr_must_exist(self):
+        case = exception_contract()
+        for name in ("expected", "actual"):
+            case["manifest"]["cases"][0][name]["exception"]["stderr_artifact_id"] = "missing"
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-unknown", codes(run(case)))
+
+    def test_exception_stderr_bytes_must_match(self):
+        case = exception_contract()
+        case["artifact_bytes"]["stderr-1"] = b"tampered"
+        self.assertIn("exception-stderr-bytes", codes(run(case)))
+
+    def test_actual_exception_must_name_the_same_stderr_artifact(self):
+        case = exception_contract()
+        case["manifest"]["cases"][0]["actual"]["exception"]["stderr_artifact_id"] = None
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-missing", codes(run(case)))
+
+
+class ReadBudgetTest(unittest.TestCase):
+    def write_root(self, case):
+        return ValidateFilesTest.write_root(self, case)
+
+    def test_oversized_binding_is_rejected_before_parsing(self):
+        root, binding = self.write_root(contract())
+        binding.write_bytes(b"x" * (fc.MAX_JSON_BYTES + 1))
+        with self.assertRaises(fc.ContractError):
+            fc.validate_files(binding)
+
+    def test_fifo_binding_is_rejected_without_blocking(self):
+        root, binding = self.write_root(contract())
+        binding.unlink()
+        os.mkfifo(binding)
+        with self.assertRaises(fc.ContractError):
+            fc.validate_files(binding)
+
+    def test_binding_that_grows_past_limit_is_rejected(self):
+        root, binding = self.write_root(contract())
+        from unittest import mock
+        with mock.patch.object(fc.os, "read", return_value=b"x" * (fc.MAX_JSON_BYTES + 1)):
+            with self.assertRaises(fc.ContractError):
+                fc.validate_files(binding)
+
+    def test_stale_binding_hash_fails_before_follow_up_reads(self):
+        root, binding = self.write_root(contract())
+        (root / "batch/manifest.json").unlink()
+        result = fc.validate_files(binding, expected_binding_sha256="0" * 64)
+        self.assertEqual(codes(result), {"binding-file-mismatch"})
+
+    def test_artifact_uri_count_is_budgeted_before_reading(self):
+        root, binding = self.write_root(contract())
+        raw = json.loads(binding.read_text(encoding="utf-8"))
+        raw["artifact_uris"] = {f"artifact-{index}": "batch/artifacts/diff-1"
+                                for index in range(fc.MAX_ARTIFACT_FILES + 1)}
+        binding.write_text(json.dumps(raw), encoding="utf-8")
+        self.assertIn("artifact-count", codes(fc.validate_files(binding)))
+
+    def test_artifact_total_is_budgeted_before_reading(self):
+        root, binding = self.write_root(contract())
+        (root / "batch/artifacts/big-a").write_bytes(b"a" * (3 * 1024 * 1024))
+        (root / "batch/artifacts/big-b").write_bytes(b"b" * (3 * 1024 * 1024))
+        raw = json.loads(binding.read_text(encoding="utf-8"))
+        raw["artifact_uris"] = {"big-a": "batch/artifacts/big-a",
+                                "big-b": "batch/artifacts/big-b"}
+        binding.write_text(json.dumps(raw), encoding="utf-8")
+        self.assertIn("artifact-total-bytes", codes(fc.validate_files(binding)))
+
+
+class PublicApiBindingTest(unittest.TestCase):
+    def test_manifest_object_must_match_its_bytes(self):
+        case = contract()
+        manifest = case["manifest"]
+        question = case["question"]
+        binding = deepcopy(case["binding"])
+        other = deepcopy(manifest)
+        other["batch_id"] = "other-batch"
+        mraw = json.dumps(other).encode()
+        qraw = json.dumps(question).encode()
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        result = fc.validate(manifest, question, binding, manifest_bytes=mraw,
+                             question_bytes=qraw, artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"])
+        self.assertIn("manifest-object-mismatch", codes(result))
+
+    def test_fixture_provider_is_required(self):
+        case = contract()
+        mraw = json.dumps(case["manifest"]).encode()
+        qraw = json.dumps(case["question"]).encode()
+        binding = deepcopy(case["binding"])
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        result = fc.validate(case["manifest"], case["question"], binding,
+                             manifest_bytes=mraw, question_bytes=qraw,
+                             artifact_bytes=case["artifact_bytes"], fixture_bytes=None)
+        self.assertIn("fixture-provider", codes(result))
+
+    def test_direct_gate_validate_cannot_claim_verified(self):
+        case = review_contract()
+        mraw = json.dumps(case["manifest"]).encode()
+        qraw = json.dumps(case["question"]).encode()
+        binding = deepcopy(case["binding"])
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        result = fc.validate(case["manifest"], case["question"], binding,
+                             manifest_bytes=mraw, question_bytes=qraw,
+                             artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"])
+        self.assertIn("binding-file-unbound", codes(result))
+        self.assertFalse(result.verified)
 
 
 class LicenceTest(unittest.TestCase):

@@ -55,7 +55,7 @@ EMPTY_HASH = hashlib.sha256(b"").hexdigest()
 MAX_JSON_BYTES = 4 * 1024 * 1024
 MAX_ARTIFACT_BYTES = 4 * 1024 * 1024
 MAX_ARTIFACT_FILES = 64
-MAX_ARTIFACT_TOTAL_BYTES = 64 * 1024 * 1024
+MAX_ARTIFACT_TOTAL_BYTES = 4 * 1024 * 1024
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _RELATIVE = re.compile(r"^[A-Za-z0-9._/-]+$")
@@ -200,7 +200,21 @@ class SafeRoot:
         except OSError as exc:
             raise ContractError(f"cannot read {uri}: {exc}") from exc
 
-    def _read_bytes(self, uri, *, limit):
+    def size(self, uri, *, limit=MAX_ARTIFACT_BYTES):
+        """Return the regular file's size without reading it into memory."""
+        try:
+            file_fd = self._open_regular(uri)
+        except OSError as exc:
+            raise ContractError(f"cannot stat {uri}: {exc}") from exc
+        try:
+            info = os.fstat(file_fd)
+            if info.st_size > limit:
+                raise ContractError(f"file exceeds {limit} bytes: {uri}")
+            return info.st_size
+        finally:
+            os.close(file_fd)
+
+    def _open_regular(self, uri):
         segments = relative_segments(uri)
         flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
         directory = flags | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
@@ -212,26 +226,32 @@ class SafeRoot:
                 os.close(fd)
                 fd = next_fd
             file_fd = os.open(segments[-1], nofollow, dir_fd=fd)
-            try:
-                info = os.fstat(file_fd)
-                if not stat.S_ISREG(info.st_mode):
-                    raise ContractError(f"not a regular file: {uri}")
-                if info.st_size > limit:
-                    raise ContractError(f"file exceeds {limit} bytes: {uri}")
-                chunks, total = [], 0
-                while total <= limit:
-                    chunk = os.read(file_fd, min(65536, limit + 1 - total))
-                    if not chunk:
-                        break
-                    chunks.append(chunk)
-                    total += len(chunk)
-                if total > limit:
-                    raise ContractError(f"file exceeds {limit} bytes: {uri}")
-                return b"".join(chunks)
-            finally:
-                os.close(file_fd)
         finally:
             os.close(fd)
+        info = os.fstat(file_fd)
+        if not stat.S_ISREG(info.st_mode):
+            os.close(file_fd)
+            raise ContractError(f"not a regular file: {uri}")
+        return file_fd
+
+    def _read_bytes(self, uri, *, limit):
+        file_fd = self._open_regular(uri)
+        try:
+            info = os.fstat(file_fd)
+            if info.st_size > limit:
+                raise ContractError(f"file exceeds {limit} bytes: {uri}")
+            chunks, total = [], 0
+            while total <= limit:
+                chunk = os.read(file_fd, min(65536, limit + 1 - total))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+            if total > limit:
+                raise ContractError(f"file exceeds {limit} bytes: {uri}")
+            return b"".join(chunks)
+        finally:
+            os.close(file_fd)
 
 
 def _issue(issues, code, path, message):
@@ -252,7 +272,7 @@ def _exception_key(exception):
         return None
     if not isinstance(exception, dict):
         return ("<invalid>",)
-    return (exception.get("type"), exception.get("message"))
+    return (exception.get("type"), exception.get("message"), exception.get("stderr_artifact_id"))
 
 
 def _projection_key(projection):
@@ -913,18 +933,29 @@ def _question_structure_issues(question):
     return issues
 
 
-def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes=None,
-             artifact_bytes=None, fixture_bytes=None):
-    """Validate one question against one manifest and the binding document.
-
-    ``manifest_bytes``/``question_bytes`` are the exact bytes the caller read;
-    when given they are checked against ``manifest_sha256``/``question_sha256``.
-    ``artifact_bytes`` maps manifest artifact ids to bytes (for manifest-only
-    artifacts and traces); ``fixture_bytes`` maps fixture ids to the content of
-    ``content/fixtures/artifacts/<fixture_id>.out``. Missing bytes are reported
-    as issues, never silently ignored. No file is read here.
-    """
+def _validate_objects(manifest, question, binding, *, manifest_bytes=None, question_bytes=None,
+                      artifact_bytes=None, fixture_bytes=None):
     issues = list(_binding_structure_issues(binding))
+    if manifest_bytes is not None:
+        try:
+            parsed_manifest = core.parse_json_bytes(manifest_bytes, "manifest")
+        except Exception as exc:
+            _issue(issues, "manifest-json", "/manifest", str(exc))
+        else:
+            if parsed_manifest != manifest:
+                _issue(issues, "manifest-object-mismatch", "/manifest",
+                       "the supplied object differs from the supplied manifest bytes")
+            manifest = parsed_manifest
+    if question_bytes is not None:
+        try:
+            parsed_question = core.parse_json_bytes(question_bytes, "question")
+        except Exception as exc:
+            _issue(issues, "question-json", "/question", str(exc))
+        else:
+            if parsed_question != question:
+                _issue(issues, "question-object-mismatch", "/question",
+                       "the supplied object differs from the supplied question bytes")
+            question = parsed_question
     issues.extend(manifest_issues(manifest))
     issues.extend(_question_structure_issues(question))
     if not isinstance(binding, dict) or not isinstance(manifest, dict) or not isinstance(question, dict):
@@ -1021,8 +1052,8 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
             continue
         if question_case.get("snippet_id") != manifest_case.get("snippet_id"):
             _issue(issues, "case-snippet", path, "snippet_id differs from the manifest")
-        _check_case_bytes(issues, question_case, manifest_case, manifest, path, snippets,
-                          case_id)
+        _check_case_bytes(issues, question_case, manifest_case, case, manifest, path, snippets,
+                          case_id, manifest_artifacts, artifact_bytes or {})
         for artifact_id in case.get("artifact_ids", []) if isinstance(case.get("artifact_ids"), list) else []:
             referenced.add(artifact_id)
             if artifact_id not in manifest_artifacts:
@@ -1044,6 +1075,10 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
             if not question_case.get("snippet_id"):
                 _issue(issues, "trace-without-snippet", path + "/trace_artifact_id",
                        "a trace requires a Python snippet")
+            if isinstance(trace, dict) and trace.get("type") == "trace":
+                _check_trace(issues, (artifact_bytes or {}).get(trace_id), trace_id,
+                             question, question_case, manifest_case, manifest_artifacts,
+                             snippets, path)
 
     for artifact_id, artifact in question_artifact_by_id.items():
         path = f"/artifacts/{artifact_id}"
@@ -1091,7 +1126,10 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
                 safe_fixture = relative_segments(f"content/fixtures/artifacts/{fixture_id}.out")
             except ContractError:
                 safe_fixture = None
-            if safe_fixture is not None and fixture_bytes is not None:
+            if safe_fixture is not None and fixture_bytes is None:
+                _issue(issues, "fixture-provider", path,
+                       "fixture bytes provider is required for a fixture-backed artifact")
+            elif safe_fixture is not None:
                 try:
                     fixture = fixture_bytes(fixture_id)
                 except FixtureUnavailable as exc:
@@ -1141,6 +1179,51 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
                       "gate": "draft-only"} for item in [question])
     gate = entry.get("gate") if isinstance(entry.get("gate"), dict) else None
     return ContractResult(tuple(issues), licences, gate)
+
+
+def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes=None,
+             artifact_bytes=None, fixture_bytes=None, binding_bytes=None,
+             expected_binding_sha256=None):
+    """Validate one question, optionally binding the exact file bytes as well.
+
+    ``manifest_bytes``/``question_bytes`` must describe the same objects as the
+    structured arguments; a mismatch is an issue. A gate binding additionally
+    requires the exact ``binding_bytes`` and their frozen
+    ``expected_binding_sha256``; the object-only path can never issue a verified
+    gate result. No file is read here.
+    """
+    result = _validate_objects(
+        manifest, question, binding, manifest_bytes=manifest_bytes,
+        question_bytes=question_bytes, artifact_bytes=artifact_bytes,
+        fixture_bytes=fixture_bytes)
+    extra = []
+    actual = None
+    if binding_bytes is not None:
+        actual = sha256_bytes(binding_bytes)
+        try:
+            parsed_binding = core.parse_json_bytes(binding_bytes, "binding")
+        except Exception as exc:
+            _issue(extra, "binding-json", "/binding", str(exc))
+        else:
+            if parsed_binding != binding:
+                _issue(extra, "binding-object-mismatch", "/binding",
+                       "the supplied object differs from the supplied binding bytes")
+    if result.gate is not None:
+        if binding_bytes is None or expected_binding_sha256 is None:
+            _issue(extra, "binding-file-unbound", "/binding",
+                   "a gate binding needs its exact file bytes and the frozen file hash")
+        elif expected_binding_sha256 != actual:
+            _issue(extra, "binding-file-mismatch", "/binding",
+                   "binding file bytes do not match the frozen review receipt")
+    elif expected_binding_sha256 is not None:
+        if binding_bytes is None:
+            _issue(extra, "binding-file-unbound", "/binding",
+                   "a frozen binding hash needs the exact binding bytes")
+        elif expected_binding_sha256 != actual:
+            _issue(extra, "binding-file-mismatch", "/binding",
+                   "binding file bytes do not match the frozen review receipt")
+    return ContractResult(tuple(extra + list(result.issues)), result.licences,
+                          result.gate, actual)
 
 
 def _review_issues(issues, review, question, manifest_cases, manifest_artifacts,
@@ -1210,7 +1293,133 @@ def _review_issues(issues, review, question, manifest_cases, manifest_artifacts,
                "the matching manifest artifact is not referenced by a bound case")
 
 
-def _check_case_bytes(issues, question_case, manifest_case, manifest, path, snippets, case_id):
+def _check_stderr_reference(issues, binding_case, manifest_artifacts, artifact_bytes,
+                            artifact_id, path, contains):
+    prefix = path + "/expected/exception"
+    if not isinstance(artifact_id, str) or not artifact_id:
+        _issue(issues, "exception-stderr-missing", prefix,
+               "an expected exception needs a non-empty stderr_artifact_id")
+        return
+    artifact = manifest_artifacts.get(artifact_id)
+    if artifact is None:
+        _issue(issues, "exception-stderr-unknown", prefix,
+               f"stderr_artifact_id {artifact_id!r} is not in the manifest")
+        return
+    if artifact.get("type") != "text" or artifact.get("format") != "text":
+        _issue(issues, "exception-stderr-type", prefix,
+               "the stderr artifact must be a plain text artifact")
+    if artifact.get("truncated") or not artifact.get("complete"):
+        _issue(issues, "exception-stderr-complete", prefix,
+               "the stderr artifact must be complete and not truncated")
+    bound_ids = binding_case.get("artifact_ids") if isinstance(binding_case, dict) else None
+    if not isinstance(bound_ids, list) or artifact_id not in bound_ids:
+        _issue(issues, "exception-stderr-unreferenced", prefix,
+               "the stderr artifact must be referenced by the bound case")
+    raw = artifact_bytes.get(artifact_id)
+    if raw is None:
+        _issue(issues, "exception-stderr-bytes", prefix,
+               "no bytes supplied for the stderr artifact")
+        return
+    if sha256_bytes(raw) != artifact.get("sha256") or len(raw) != artifact.get("bytes"):
+        _issue(issues, "exception-stderr-bytes", prefix,
+               "stderr artifact bytes do not match the manifest")
+        return
+    if contains:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            _issue(issues, "exception-stderr-encoding", prefix,
+                   "the stderr artifact is not UTF-8")
+        else:
+            if contains not in text:
+                _issue(issues, "exception-stderr-content", prefix,
+                       "stderr_contains is not present in the stderr artifact")
+
+
+def _trace_exception_key(exception):
+    if exception is None:
+        return None
+    if not isinstance(exception, dict):
+        return ("<invalid>",)
+    return (exception.get("type"), exception.get("message"))
+
+
+def _check_trace(issues, trace_raw, trace_id, question, question_case, manifest_case,
+                 manifest_artifacts, snippets, path):
+    prefix = path + "/trace_artifact_id"
+    if trace_raw is None:
+        _issue(issues, "trace-bytes", prefix,
+               "no bytes supplied for the referenced trace")
+        return
+    try:
+        trace_document = core.parse_json_bytes(trace_raw, trace_id)
+    except Exception as exc:
+        _issue(issues, "trace-json", prefix, f"trace is not valid JSON: {exc}")
+        return
+    if not isinstance(trace_document, dict):
+        _issue(issues, "trace-object", prefix, "trace must be a JSON object")
+        return
+    if trace_document.get("schema_version") not in ("0.2", "0.3"):
+        _issue(issues, "trace-schema", prefix, "unsupported trace schema version")
+    if trace_document.get("question_id") != question.get("id"):
+        _issue(issues, "trace-question", prefix,
+               "trace question_id does not match the question")
+    traces = trace_document.get("traces")
+    if not isinstance(traces, list) or not traces:
+        _issue(issues, "trace-shape", prefix, "trace.traces must be a non-empty list")
+        return
+    snippet_id = question_case.get("snippet_id")
+    case_id = manifest_case.get("case_id")
+    matches = [item for item in traces
+               if isinstance(item, dict) and item.get("snippet_id") == snippet_id
+               and item.get("case_id") == case_id]
+    if len(matches) != 1:
+        _issue(issues, "trace-case", prefix,
+               f"trace must contain exactly one entry for {snippet_id!r}/{case_id!r}")
+        return
+    entry = matches[0]
+    snippet = snippets.get(snippet_id)
+    if snippet is None:
+        _issue(issues, "trace-source", prefix, "trace snippet is not in the question")
+    else:
+        try:
+            source = snippet["code"].encode("utf-8")
+        except (KeyError, UnicodeEncodeError):
+            _issue(issues, "trace-source", prefix, "trace snippet is not UTF-8")
+        else:
+            if entry.get("source_sha256") != sha256_bytes(source):
+                _issue(issues, "trace-source", prefix,
+                       "trace source_sha256 differs from the bound snippet")
+    if entry.get("source_sha256") != manifest_case.get("source_sha256"):
+        _issue(issues, "trace-source", prefix,
+               "trace source_sha256 differs from the manifest case")
+    stdin = question_case.get("stdin")
+    if not isinstance(stdin, str) or entry.get("stdin") != stdin:
+        _issue(issues, "trace-stdin", prefix, "trace stdin differs from the question case")
+    elif entry.get("stdin_sha256") != sha256_text(stdin):
+        _issue(issues, "trace-stdin", prefix, "trace stdin_sha256 is stale")
+    actual = manifest_case.get("actual")
+    actual = actual if isinstance(actual, dict) else manifest_case.get("expected")
+    if isinstance(actual, dict):
+        stdout = entry.get("stdout")
+        if not isinstance(stdout, str) or sha256_text(stdout) != actual.get("stdout_sha256"):
+            _issue(issues, "trace-stdout", prefix, "trace stdout differs from the manifest")
+        if _trace_exception_key(entry.get("exception")) != \
+                _trace_exception_key(actual.get("exception")):
+            _issue(issues, "trace-exception", prefix,
+                   "trace exception differs from the manifest")
+    if entry.get("truncated") is not False:
+        _issue(issues, "trace-truncated", prefix,
+               "a truncated trace is not a complete verified trace")
+    if not isinstance(entry.get("steps"), list):
+        _issue(issues, "trace-steps", prefix, "trace steps must be a list")
+    if question.get("language") != "python":
+        _issue(issues, "trace-language", prefix,
+               "a trace is supported only for an executable Python question")
+
+
+def _check_case_bytes(issues, question_case, manifest_case, binding_case, manifest, path,
+                      snippets, case_id, manifest_artifacts, artifact_bytes):
     snippet_id = question_case.get("snippet_id")
     if snippet_id is not None:
         snippet = snippets.get(snippet_id)
@@ -1258,17 +1467,30 @@ def _check_case_bytes(issues, question_case, manifest_case, manifest, path, snip
             _issue(issues, "exception-missing", path + "/expected/exception",
                    "a non-zero exit code requires an explicit expected exception")
         else:
+            if not isinstance(exception, dict):
+                _issue(issues, "exception-shape", path + "/expected/exception",
+                       "expected exception must be an object")
+                return
             contains = expected.get("stderr_contains")
-            message = exception.get("message") if isinstance(exception, dict) else None
-            artifact_id = exception.get("stderr_artifact_id") if isinstance(exception, dict) else None
+            message = exception.get("message")
+            expected_id = exception.get("stderr_artifact_id")
+            _check_stderr_reference(issues, binding_case, manifest_artifacts,
+                                    artifact_bytes, expected_id, path, contains)
+            actual_exc = manifest_case.get("actual")
+            actual_exc = actual_exc.get("exception") if isinstance(actual_exc, dict) else None
+            if not isinstance(actual_exc, dict):
+                _issue(issues, "exception-actual-missing", path + "/actual/exception",
+                       "a nonzero case needs an actual exception object")
+            else:
+                actual_id = actual_exc.get("stderr_artifact_id")
+                _check_stderr_reference(issues, binding_case, manifest_artifacts,
+                                        artifact_bytes, actual_id, path, contains)
+                if actual_id != expected_id:
+                    _issue(issues, "exception-stderr-mismatch", path,
+                           "expected and actual exceptions point at different stderr artifacts")
             if contains and isinstance(message, str) and contains not in message:
-                _issue(issues, "exception-stderr-mismatch", path + "/expected/exception",
+                _issue(issues, "exception-message", path + "/expected/exception",
                        "stderr_contains is not in the exception message")
-            if contains and not isinstance(message, str):
-                if artifact_id is None:
-                    _issue(issues, "exception-stderr-missing", path + "/expected/exception",
-                           "stderr_contains needs a message or a stderr artifact")
-
 
 def _check_referenced_artifacts(issues, manifest_artifacts, referenced,
                                 verified_artifact_hashes, artifact_bytes):
@@ -1308,43 +1530,67 @@ def validate_files(binding_path, *, root=None, expected_binding_sha256=None):
     ``root`` defaults to the binding file's directory. All manifest/question/
     artifact URIs are relative to that root and are read through :class:`SafeRoot`.
     ``expected_binding_sha256`` is the exact binding-file hash from the candidate's
-    frozen review receipt; when given, a changed review/gate block is rejected even
-    when every referenced manifest/question/artifact is unchanged.
+    frozen review receipt; a mismatch is returned before any manifest, question or
+    artifact is read. The binding is read with a bounded no-follow regular-file
+    open, and artifact URI count/size is budgeted before reading.
     """
     binding_path = Path(binding_path)
-    try:
-        binding_raw = binding_path.read_bytes()
-    except OSError as exc:
-        raise ContractError(f"cannot read binding: {binding_path}: {exc}") from exc
-    if len(binding_raw) > MAX_JSON_BYTES:
-        raise ContractError(f"binding exceeds {MAX_JSON_BYTES} bytes")
+    binding_root = SafeRoot(binding_path.parent)
+    binding_raw = binding_root.read_bytes(binding_path.name, limit=MAX_JSON_BYTES)
+    actual = sha256_bytes(binding_raw)
+    if expected_binding_sha256 is not None and expected_binding_sha256 != actual:
+        mismatch = core.Issue(
+            "binding-file-mismatch", "/binding",
+            "binding file bytes do not match the frozen review receipt")
+        return ContractResult((mismatch,), (), None, actual)
     binding = core.parse_json_bytes(binding_raw, binding_path)
     if not isinstance(binding, dict):
         raise ContractError("binding must be a JSON object")
-    base = SafeRoot(root if root is not None else binding_path.parent)
-
-    manifest_uri = binding.get("manifest_uri")
-    manifest_raw = base.read_bytes(manifest_uri, limit=MAX_JSON_BYTES)
-    manifest = core.parse_json_bytes(manifest_raw, manifest_uri)
-
     questions = binding.get("questions")
     if not isinstance(questions, list) or not questions:
         raise ContractError("binding.questions must be a non-empty list")
     entry = questions[0]
     if len(questions) != 1:
-        # One invocation validates one question entry; the file may still bind
-        # several, but the caller must name the one it is checking.
         raise ContractError("validate_files expects exactly one question entry")
+    gate = entry.get("gate") if isinstance(entry, dict) and isinstance(entry.get("gate"), dict) else None
+    if gate is not None and expected_binding_sha256 is None:
+        unbound = core.Issue(
+            "binding-file-unbound", "/binding",
+            "a gate binding needs the exact binding-file hash from the frozen review receipt")
+        return ContractResult((unbound,), (), gate, actual)
+
+    base = SafeRoot(root if root is not None else binding_path.parent)
+    manifest_uri = binding.get("manifest_uri")
+    manifest_raw = base.read_bytes(manifest_uri, limit=MAX_JSON_BYTES)
+    manifest = core.parse_json_bytes(manifest_raw, manifest_uri)
     question_uri = entry.get("question_uri")
     question_raw = base.read_bytes(question_uri, limit=MAX_JSON_BYTES)
     question = core.parse_json_bytes(question_raw, question_uri)
 
-    artifact_bytes = {}
     artifact_uris = binding.get("artifact_uris")
+    artifact_bytes = {}
     if isinstance(artifact_uris, dict):
-        for artifact_id, uri in artifact_uris.items():
-            if isinstance(uri, str):
-                artifact_bytes[artifact_id] = base.read_bytes(uri, limit=MAX_ARTIFACT_BYTES)
+        if len(artifact_uris) > MAX_ARTIFACT_FILES:
+            count = core.Issue("artifact-count", "/artifact_uris",
+                               f"more than {MAX_ARTIFACT_FILES} artifact URIs")
+            return ContractResult((count,), (), gate, actual)
+        sizes = []
+        total = 0
+        for artifact_id, uri in sorted(artifact_uris.items()):
+            if not isinstance(uri, str):
+                continue
+            size = base.size(uri, limit=MAX_ARTIFACT_BYTES)
+            total += size
+            if total > MAX_ARTIFACT_TOTAL_BYTES:
+                budget = core.Issue("artifact-total-bytes", "/artifact_uris",
+                                    f"artifact bytes exceed {MAX_ARTIFACT_TOTAL_BYTES}")
+                return ContractResult((budget,), (), gate, actual)
+            sizes.append((artifact_id, uri))
+        remaining = MAX_ARTIFACT_TOTAL_BYTES
+        for artifact_id, uri in sizes:
+            raw = base.read_bytes(uri, limit=min(MAX_ARTIFACT_BYTES, remaining))
+            artifact_bytes[artifact_id] = raw
+            remaining -= len(raw)
 
     def fixture_bytes(fixture_id):
         uri = f"content/fixtures/artifacts/{fixture_id}.out"
@@ -1355,29 +1601,10 @@ def validate_files(binding_path, *, root=None, expected_binding_sha256=None):
         except SetupError as exc:
             raise FixtureUnavailable(str(exc)) from exc
 
-    result = validate(manifest, question, binding, manifest_bytes=manifest_raw,
-                      question_bytes=question_raw, artifact_bytes=artifact_bytes,
-                      fixture_bytes=fixture_bytes)
-    return _with_binding_file_hash(result, binding_raw, expected_binding_sha256)
-
-
-def _with_binding_file_hash(result, binding_raw, expected_binding_sha256):
-    """Attach the exact binding-file hash; a gate needs a frozen hash and a stale one is a finding."""
-    actual = sha256_bytes(binding_raw)
-    if expected_binding_sha256 is None and result.gate is not None:
-        unbound = core.Issue(
-            "binding-file-unbound", "/binding",
-            "a gate binding needs the exact binding-file hash from the frozen review receipt")
-        return ContractResult(tuple([unbound, *result.issues]), result.licences,
-                              result.gate, actual)
-    if expected_binding_sha256 is not None and expected_binding_sha256 != actual:
-        mismatch = core.Issue(
-            "binding-file-mismatch", "/binding",
-            "binding file bytes do not match the frozen review receipt")
-        return ContractResult(tuple([mismatch, *result.issues]), result.licences,
-                              result.gate, actual)
-    return ContractResult(result.issues, result.licences, result.gate, actual)
-
+    return validate(manifest, question, binding, manifest_bytes=manifest_raw,
+                    question_bytes=question_raw, artifact_bytes=artifact_bytes,
+                    fixture_bytes=fixture_bytes, binding_bytes=binding_raw,
+                    expected_binding_sha256=expected_binding_sha256)
 
 __all__ = ["ContractError", "ContractResult", "FixtureUnavailable", "SafeRoot", "binding_projection",
            "canonical_json_bytes", "compute_binding_sha256", "compute_config_digest",
