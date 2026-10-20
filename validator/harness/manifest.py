@@ -103,9 +103,11 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
             add("receipt-limit-hit")
         isolation = receipt.get("isolation")
         required_namespaces = {"user", "mount", "pid", "net", "ipc", "uts", "cgroup"}
+        namespaces = isolation.get("namespaces") if isinstance(isolation, dict) else None
         if (not isinstance(isolation, dict) or isolation.get("mechanism") != "bwrap+cgroup-v2"
-                or not isinstance(isolation.get("namespaces"), list)
-                or not required_namespaces <= set(isolation["namespaces"])
+                or not isinstance(namespaces, list)
+                or any(not isinstance(name, str) for name in namespaces)
+                or not required_namespaces <= set(namespaces)
                 or isolation.get("capabilities") != "none"
                 or isolation.get("no_new_privileges") is not True
                 or isolation.get("network") != "denied"
@@ -237,6 +239,9 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
             add(f"artifact-{index}-id")
         if not _hash(artifact.get("sha256")):
             add(f"artifact-{index}-hash")
+        size = artifact.get("bytes")
+        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
+            add(f"artifact-{index}-bytes")
         kind, fmt = artifact.get("type"), artifact.get("format")
         if kind == "trace":
             if fmt != "json" or artifact.get("is_trace") is not True or artifact.get("executable") is not False:

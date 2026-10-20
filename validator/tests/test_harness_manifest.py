@@ -245,6 +245,22 @@ class AcceptanceTests(unittest.TestCase):
             v["receipt"]["usage"]["artifact_bytes"] = 4194305
         self.assertIn("artifact-bytes", accepted(big))
 
+    def test_unhashable_namespace_entries_are_a_finding_not_a_crash(self):
+        for namespaces in ([{}], [["user"]], ["user", 7]):
+            with self.subTest(namespaces=namespaces):
+                self.assertIn("receipt-isolation", accepted(lambda v, ns=namespaces: v["receipt"]["isolation"].update(namespaces=ns)))
+
+    def test_every_artifact_needs_a_real_non_negative_byte_count(self):
+        for bad in (None, "4194305", 4194305.0, True, -1):
+            with self.subTest(bad=bad):
+                self.assertIn("artifact-0-bytes",
+                              accepted(lambda v, b=bad: (v["artifacts"][0].update(bytes=b), v["receipt"]["usage"].update(artifact_bytes=0))))
+        # the cap cannot be bypassed by leaving bytes out
+        def missing(v):
+            v["artifacts"][0].pop("bytes")
+            v["receipt"]["usage"]["artifact_bytes"] = 0
+        self.assertIn("artifact-0-bytes", accepted(missing))
+
     def test_the_manifest_s_own_binding_digest_must_match(self):
         def changed(v):
             v["binding_sha256"] = h("wrong")
