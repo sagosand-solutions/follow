@@ -55,6 +55,8 @@ def _finite(value, path="$"):
             raise CanonicalError(f"non-finite number at {path}")
     elif isinstance(value, dict):
         for key, item in value.items():
+            if not isinstance(key, str):
+                raise CanonicalError(f"non-string JSON key at {path}")
             _finite(item, f"{path}.{key}")
     elif isinstance(value, list):
         for index, item in enumerate(value):

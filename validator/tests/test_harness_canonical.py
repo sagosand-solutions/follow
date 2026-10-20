@@ -62,6 +62,12 @@ class CanonicalBytesTests(unittest.TestCase):
                 with self.assertRaises(canonical.CanonicalError):
                     canonical.dumps_canonical(value)
 
+    def test_a_non_string_key_is_refused_instead_of_silently_stringified(self):
+        with self.assertRaises(canonical.CanonicalError):
+            canonical.dumps_canonical({1: "x"})
+        with self.assertRaises(canonical.CanonicalError):
+            canonical.dumps_canonical({"a": {2: 3}})
+
     def test_a_non_object_is_not_a_manifest(self):
         for raw in ("[]", "1", '"x"', "null"):
             with self.subTest(raw=raw):
