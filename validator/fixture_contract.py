@@ -85,6 +85,7 @@ K3_FORMATS = {
 K3_TYPES = frozenset(K3_FORMATS)
 OUTCOMES = frozenset({"passed", "failed", "skipped", "xfail", "xpass"})
 NS = ("user", "mount", "pid", "net", "ipc", "uts")
+GATE_CHAPTERS = ("V1", "V2", "V3", "V4", "V5", "V6")
 BUDGET = {
     "wall_seconds": 10, "cpu_soft_seconds": 4, "cpu_hard_seconds": 5,
     "memory_bytes": 268435456, "pids": 32, "output_bytes_per_stream": 1048576,
@@ -111,6 +112,7 @@ class ContractResult:
 
     issues: tuple
     licences: tuple
+    gate: dict | None = None
 
     @property
     def verified(self):
@@ -121,6 +123,7 @@ class ContractResult:
             "verified": self.verified,
             "issues": [issue.to_dict() for issue in self.issues],
             "licences": list(self.licences),
+            "gate": self.gate,
         }
 
 
@@ -726,7 +729,30 @@ def _binding_structure_issues(binding):
                       "question-hash")
         if entry.get("license") not in ALLOWED_LICENSES:
             _issue(issues, "binding-licence", path + "/license", "unknown licence identifier")
+        gate = entry.get("gate")
+        if gate is not None:
+            if not isinstance(gate, dict):
+                _issue(issues, "gate-shape", path + "/gate", "must be an object")
+            else:
+                chapter, objective = gate.get("chapter"), gate.get("objective")
+                if chapter not in GATE_CHAPTERS:
+                    _issue(issues, "gate-chapter", path + "/gate/chapter",
+                           "must be one of V1..V6; no invented course tag")
+                if not isinstance(objective, str) or not re.fullmatch(
+                        r"V[1-6]\.O[1-9][0-9]*", objective):
+                    _issue(issues, "gate-objective", path + "/gate/objective",
+                           "must look like V1.O2")
+                elif isinstance(chapter, str) and not objective.startswith(chapter + "."):
+                    _issue(issues, "gate-objective", path + "/gate/objective",
+                           "objective does not belong to the declared chapter")
+                if not isinstance(gate.get("pilot"), str) or not gate.get("pilot"):
+                    _issue(issues, "gate-pilot", path + "/gate/pilot", "must be non-empty")
+                if gate.get("status") != "draft-pilot":
+                    _issue(issues, "gate-status", path + "/gate/status", "must be draft-pilot")
         review = entry.get("review")
+        if review is not None and gate is None:
+            _issue(issues, "gate-missing", path + "/gate",
+                   "a review question needs an explicit V-chapter gate receipt")
         if review is not None:
             if not isinstance(review, dict):
                 _issue(issues, "review-shape", path + "/review", "must be an object")
@@ -1111,7 +1137,8 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
                                 verified_artifact_hashes, artifact_bytes)
     licences = tuple({"question_id": item.get("id"), "license": entry.get("license"),
                       "gate": "draft-only"} for item in [question])
-    return ContractResult(tuple(issues), licences)
+    gate = entry.get("gate") if isinstance(entry.get("gate"), dict) else None
+    return ContractResult(tuple(issues), licences, gate)
 
 
 def _review_issues(issues, review, question, manifest_cases, manifest_artifacts,

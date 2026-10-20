@@ -249,6 +249,8 @@ def review_contract():
     entry["review"] = {"before_snippet_id": "fee-before", "after_snippet_id": "fee-after",
                        "diff_artifact_id": "change", "fromfile": "a/fee.py",
                        "tofile": "b/fee.py"}
+    entry["gate"] = {"chapter": "V1", "objective": "V1.O2",
+                     "pilot": "review-pilot-1", "status": "draft-pilot"}
     case["artifact_bytes"]["diff-1"] = diff.encode()
     case["fixture_bytes"] = (lambda fixture_id: diff.encode()
                              if fixture_id == "fixture-one" else None)
@@ -513,6 +515,35 @@ class ReviewDiffTest(unittest.TestCase):
         case["binding"]["questions"][0]["review"]["fromfile"] = "a/fee.py\nX: y"
         found = codes(run(case))
         self.assertIn("review-header", found)
+
+
+class GateTest(unittest.TestCase):
+    def test_gate_is_part_of_the_receipt(self):
+        result = run(review_contract())
+        self.assertTrue(result.verified, [issue.to_dict() for issue in result.issues])
+        self.assertEqual(result.gate["chapter"], "V1")
+        self.assertEqual(result.gate["objective"], "V1.O2")
+        self.assertEqual(result.to_dict()["gate"]["pilot"], "review-pilot-1")
+
+    def test_review_needs_an_explicit_gate(self):
+        case = review_contract()
+        del case["binding"]["questions"][0]["gate"]
+        self.assertIn("gate-missing", codes(run(case)))
+
+    def test_gate_objective_must_match_the_chapter(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["gate"]["objective"] = "V4.O2"
+        self.assertIn("gate-objective", codes(run(case)))
+
+    def test_gate_rejects_an_invented_course_tag(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["gate"]["chapter"] = "CXX"
+        self.assertIn("gate-chapter", codes(run(case)))
+
+    def test_gate_is_draft_only(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["gate"]["status"] = "released"
+        self.assertIn("gate-status", codes(run(case)))
 
 
 class StaleBytesTest(unittest.TestCase):
