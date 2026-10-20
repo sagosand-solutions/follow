@@ -194,6 +194,23 @@ class AcceptanceTests(unittest.TestCase):
         self.assertFalse(any(code.startswith("schema:") for code in
                              manifest.accept(value, raw, expected_manifest_sha256=expected, schema={"type": "object"})))
 
+    def test_a_zero_byte_stream_must_carry_the_hash_of_no_bytes(self):
+        def zero_stdout(v):
+            v["receipt"]["stdout_bytes"] = 0
+            v["receipt"]["usage"]["stdout_bytes"] = 0
+        self.assertIn("receipt-empty-hash", accepted(zero_stdout))
+
+        def zero_stderr_with_a_hash(v):
+            v["receipt"]["stderr_bytes"] = 0
+            v["receipt"]["usage"]["stderr_bytes"] = 0
+            v["receipt"]["stderr_sha256"] = h("not empty")
+        self.assertIn("receipt-empty-hash", accepted(zero_stderr_with_a_hash))
+
+        def zero_stdout_with_the_empty_hash(v):
+            zero_stdout(v)
+            v["receipt"]["stdout_sha256"] = h("")
+        self.assertNotIn("receipt-empty-hash", accepted(zero_stdout_with_the_empty_hash))
+
     def test_the_manifest_s_own_binding_digest_must_match(self):
         def changed(v):
             v["binding_sha256"] = h("wrong")

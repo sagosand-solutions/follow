@@ -79,6 +79,9 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
                 break
         if not _hash(receipt.get("stdout_sha256")) or not _hash(receipt.get("stderr_sha256")):
             add("receipt-hashes")
+        for stream in ("stdout", "stderr"):
+            if receipt.get(f"{stream}_bytes") == 0 and receipt.get(f"{stream}_sha256") != hashlib.sha256(b"").hexdigest():
+                add("receipt-empty-hash")
         if receipt.get("limit_hit") != []:
             add("receipt-limit-hit")
         isolation = receipt.get("isolation")
