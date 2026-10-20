@@ -1362,8 +1362,14 @@ def validate_files(binding_path, *, root=None, expected_binding_sha256=None):
 
 
 def _with_binding_file_hash(result, binding_raw, expected_binding_sha256):
-    """Attach the exact binding-file hash; a stale trusted hash is a finding."""
+    """Attach the exact binding-file hash; a gate needs a frozen hash and a stale one is a finding."""
     actual = sha256_bytes(binding_raw)
+    if expected_binding_sha256 is None and result.gate is not None:
+        unbound = core.Issue(
+            "binding-file-unbound", "/binding",
+            "a gate binding needs the exact binding-file hash from the frozen review receipt")
+        return ContractResult(tuple([unbound, *result.issues]), result.licences,
+                              result.gate, actual)
     if expected_binding_sha256 is not None and expected_binding_sha256 != actual:
         mismatch = core.Issue(
             "binding-file-mismatch", "/binding",

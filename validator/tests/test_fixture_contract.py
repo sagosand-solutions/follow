@@ -887,12 +887,17 @@ class ValidateFilesTest(unittest.TestCase):
         self.assertTrue(any("larger than" in issue.message for issue in result.issues))
 
     def test_binding_file_hash_is_reported_and_bound(self):
-        root, binding = self.write_root(contract())
+        root, binding = self.write_root(review_contract())
         digest = hashlib.sha256(binding.read_bytes()).hexdigest()
         result = fc.validate_files(binding, expected_binding_sha256=digest)
         self.assertTrue(result.verified, [issue.to_dict() for issue in result.issues])
+        self.assertIsNotNone(result.gate)
         self.assertEqual(result.binding_file_sha256, digest)
         self.assertEqual(result.to_dict()["binding_file_sha256"], digest)
+
+    def test_a_gate_binding_without_the_frozen_file_hash_is_red(self):
+        root, binding = self.write_root(review_contract())
+        self.assertIn("binding-file-unbound", codes(fc.validate_files(binding)))
 
     def test_swapping_a_gate_behind_the_same_references_is_red(self):
         root, binding = self.write_root(review_contract())
