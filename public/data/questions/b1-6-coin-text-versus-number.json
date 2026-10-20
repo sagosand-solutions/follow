@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-6-coin-text-versus-number",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.strings",
+    "py.numeric-operators",
+    "py.values"
+  ],
+  "prompt": "The coin machine glues text. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "coin = \"5\"\nstack = coin + coin\nprint(stack)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "counts-as-number",
+      "text": "`10`. Text with digits is counted as a number: 5 + 5 is 10.",
+      "score": 0,
+      "feedback": "coin holds text \u2014 the quotes decide, even with a digit inside. Text + text glues: \"55\". Next step: check the quotes before the operation.",
+      "misconception": "py.numeric-strings-auto-coerce"
+    },
+    {
+      "id": "quotes-shown",
+      "text": "`\"55\"`. The print shows the text with its quotation marks.",
+      "score": 0,
+      "feedback": "print shows the text itself, without quotation marks \u2014 the quotes in the code only mark where the text starts and stops, and they are not part of the stored text. Next step: read the quotes as text markers.",
+      "misconception": "py.print-shows-quotes-for-text"
+    },
+    {
+      "id": "order-irrelevant",
+      "text": "`55`. Text glues the pieces; order plays no role with text.",
+      "score": 0.5,
+      "feedback": "The result here is right, but order does matter: \"5\" + \"kr\" is \"5kr\", while \"kr\" + \"5\" is \"kr5\".",
+      "misconception": "py.plus-on-text-ignores-the-order",
+      "partial_reason": "Correct: the glued text \"55\". Incorrect: that + on text ignores the order; it glues left first, right second."
+    },
+    {
+      "id": "glued-text",
+      "text": "`55`. + glues the two texts into one: \"5\" plus \"5\" is \"55\".",
+      "score": 1,
+      "feedback": "Correct. coin is text, so + glues the copies into the text \"55\" and print shows it without quotes.",
+      "misconception": null
+    }
+  ],
+  "explanation": "coin is text, because its value sits in quotation marks. coin + coin glues the two texts into \"55\", and print shows the stored text without quotation marks: 55.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "55\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for the 027-supported grind. AUTHOR-DRAFT/AWAITING-027; no validator pass is claimed by this draft."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

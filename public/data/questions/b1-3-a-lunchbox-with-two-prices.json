@@ -1,0 +1,74 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-3-a-lunchbox-with-two-prices",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.4,
+  "concepts": [
+    "py.assignment",
+    "py.numeric-operators",
+    "py.values"
+  ],
+  "prompt": "A robot pays for lunch from its coin box. The printed lines are shown in order. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "coins = 8\nprice = 4\nprint(coins)\ncoins = coins - price\nprint(coins - price)\nprint(coins)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "pay-once",
+      "text": "`8` then `0` then `4`. The update stores 4; the middle print only shows 0.",
+      "score": 1,
+      "feedback": "Right. The first print wrote 8. The update stored 4. The middle print showed 4 - 4 without storing it.",
+      "misconception": null
+    },
+    {
+      "id": "middle-stores",
+      "text": "`8` then `0` then `0`. The middle print stores its 0, so the last shows 0.",
+      "score": 0,
+      "feedback": "print only shows. coins stays 4 after the middle print, so the last print shows 4.",
+      "misconception": "py.print-stores-what-it-shows"
+    },
+    {
+      "id": "first-rewritten",
+      "text": "`4` then `0` then `4`. The update changes the line already printed.",
+      "score": 0,
+      "feedback": "The first print wrote 8 before the update. A printed line stays as it was.",
+      "misconception": "py.a-later-update-rewrites-an-earlier-print"
+    },
+    {
+      "id": "price-from-first",
+      "text": "`8` then `0` then `4`. The update takes the price off the first coins, 8.",
+      "score": 0.5,
+      "feedback": "Updates work from the current value. Another coins = coins - price before the last print would leave 0, not 4.",
+      "misconception": "py.update-works-from-the-first-value",
+      "partial_reason": "Correct: 8, 0, 4. Incorrect: that changes work from the first value; they work from the current value."
+    }
+  ],
+  "explanation": "coins is 8 and price is 4. The first print writes 8. The update stores 8 - 4 = 4. The middle print shows 4 - 4 = 0 without storing it, and the last print shows coins, which is 4.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "8\n0\n4\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

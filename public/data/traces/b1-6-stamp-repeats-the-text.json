@@ -1,0 +1,67 @@
+{
+  "question_id": "b1-6-stamp-repeats-the-text",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "43fce93325c8f2958ff684d8d77a9d8f99ad3493b1d4cce7e0b65c975e23e4fb",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "555\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "coin": "'5'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "coin": "'5'",
+            "plate": "'555'"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "coin": "'5'",
+            "plate": "'555'"
+          },
+          "stdout_len": 4,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

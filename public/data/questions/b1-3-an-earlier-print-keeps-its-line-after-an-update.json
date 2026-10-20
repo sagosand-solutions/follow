@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-3-an-earlier-print-keeps-its-line-after-an-update",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.assignment",
+    "py.numeric-operators"
+  ],
+  "prompt": "The robot spends 3 coins between two prints. The printed lines are shown in order. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "coins = 8\nprint(coins)\ncoins = coins - 3\nprint(coins)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "old-line-stays",
+      "text": "`8` then `5`. The first print keeps its 8; the update leaves 5.",
+      "score": 1,
+      "feedback": "Right. The first print already wrote 8. The update then works out 8 - 3 and stores 5 for the next print.",
+      "misconception": null
+    },
+    {
+      "id": "update-rewrites-line",
+      "text": "`5` then `5`. The update also changes the line already printed.",
+      "score": 0,
+      "feedback": "A printed line stays as it was. Only the print after the update sees the new number.",
+      "misconception": "py.a-later-update-rewrites-an-earlier-print"
+    },
+    {
+      "id": "stores-the-three",
+      "text": "`8` then `3`. The update line puts the 3 into coins.",
+      "score": 0,
+      "feedback": "coins - 3 starts from the current coins, 8, and takes 3 away. The result, 5, is stored.",
+      "misconception": "py.update-stores-only-the-number-written"
+    },
+    {
+      "id": "minus-from-first",
+      "text": "`8` then `5`. The update takes 3 away from the first value, 8.",
+      "score": 0.5,
+      "feedback": "An update works from the current value, not the first one. A second line coins = coins - 1 would leave 4, not 7.",
+      "misconception": "py.update-works-from-the-first-value",
+      "partial_reason": "Correct: 8 then 5. Incorrect: that updates work from the first value; they work from the current value."
+    }
+  ],
+  "explanation": "coins is 8, so the first print writes 8 and that line stays. coins = coins - 3 works out 8 - 3 and stores 5, so the second print writes 5.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "8\n5\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

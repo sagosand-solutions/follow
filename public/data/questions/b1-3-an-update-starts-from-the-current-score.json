@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-3-an-update-starts-from-the-current-score",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.25,
+  "concepts": [
+    "py.assignment",
+    "py.numeric-operators"
+  ],
+  "prompt": "A score machine adds a bonus to a player's score twice. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "score = 5\nbonus = 2\nscore = score + bonus\nscore = score + bonus\nprint(score)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "current-score",
+      "text": "`9`. Each update adds to the current score: 5, 7, and 9.",
+      "score": 1,
+      "feedback": "Right. Each update line starts from the score at that moment and stores the new number back in score.",
+      "misconception": null
+    },
+    {
+      "id": "first-value-stays",
+      "text": "`5`. A name keeps its first value; updates do nothing.",
+      "score": 0,
+      "feedback": "A name can change. An update works out a new number and stores it in score, so score ends higher than 5.",
+      "misconception": "py.first-binding-is-permanent"
+    },
+    {
+      "id": "bonus-used-up",
+      "text": "`7`. The first update uses up the bonus; the second adds 0.",
+      "score": 0,
+      "feedback": "Reading bonus does not empty it. bonus stays 2, so the second update adds 2 again.",
+      "misconception": "py.reading-a-name-uses-it-up"
+    },
+    {
+      "id": "bonus-read-once",
+      "text": "`9`. The bonus is read only once, so both updates add 2.",
+      "score": 0.5,
+      "feedback": "Every update reads bonus again. With bonus = 1 between the updates, the result would be 8, not 9.",
+      "misconception": "py.update-reads-the-bonus-only-once",
+      "partial_reason": "Correct: 9. Incorrect: that bonus is read only once; every update reads it again."
+    }
+  ],
+  "explanation": "score starts at 5 and bonus is 2. The first update works out 5 + 2 and stores 7 in score. The second works out 7 + 2 and stores 9, so print shows 9.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "9\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

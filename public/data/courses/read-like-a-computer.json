@@ -1,0 +1,290 @@
+{
+  "id": "read-like-a-computer",
+  "title": "Read like a computer",
+  "language": "python",
+  "levels": [
+    {
+      "level": "beginner",
+      "title": "Read like a computer",
+      "lessons": [
+        {
+          "id": "b1-1",
+          "title": "Robot signs",
+          "builds_on": [],
+          "questions": [
+            "b1-1-robot-keeps-each-printed-line",
+            "b1-1-robot-leaves-unprinted-values-quiet",
+            "b1-1-quiet-line-then-more-prints",
+            "b1-1-quiet-between-prints",
+            "b1-1-quoted-versus-bare-eight"
+          ],
+          "practice_summary": "reading what print shows, one line at a time",
+          "introductions": [
+            {
+              "id": "B11-I1",
+              "before_question_ids": [
+                "b1-1-robot-keeps-each-printed-line",
+                "b1-1-robot-leaves-unprinted-values-quiet",
+                "b1-1-quiet-line-then-more-prints",
+                "b1-1-quiet-between-prints",
+                "b1-1-quoted-versus-bare-eight"
+              ],
+              "term": "Text and numbers in print",
+              "explanation": "print writes its given text or number. Source quote marks are not printed; capital and small letters stay as written.",
+              "example": "print(\"Go\") shows Go; print(2) shows 2."
+            },
+            {
+              "id": "B11-I3",
+              "before_question_ids": [
+                "b1-1-robot-keeps-each-printed-line"
+              ],
+              "term": "One line per print",
+              "explanation": "Read top to bottom: each print adds a line without clearing earlier lines. In choices, then means the next screen line, not printed text.",
+              "example": "GO then 2 means GO on one line and 2 on the next."
+            },
+            {
+              "id": "B11-I5",
+              "before_question_ids": [
+                "b1-1-robot-leaves-unprinted-values-quiet",
+                "b1-1-quiet-line-then-more-prints",
+                "b1-1-quiet-between-prints",
+                "b1-1-quoted-versus-bare-eight"
+              ],
+              "term": "Valid but quiet / bare value",
+              "explanation": "A value on its own is valid code but does not write a screen line. Print adds lines in order without clearing earlier ones; then means the next line in choices.",
+              "example": "Bare 8 and bare \"WAIT\" stay quiet; print(\"WAIT\") shows WAIT."
+            }
+          ]
+        },
+        {
+          "id": "b1-2",
+          "title": "Pockets with names",
+          "builds_on": [
+            "b1-1"
+          ],
+          "questions": [
+            "b1-2-a-pocket-uses-its-latest-number",
+            "b1-2-reading-a-second-pocket-keeps-its-number",
+            "b1-2-two-pockets-hold-their-own",
+            "b1-2-both-pockets-after-a-later-change",
+            "b1-2-prints-across-a-rebinding"
+          ],
+          "practice_summary": "following the numbers held by named pockets",
+          "introductions": [
+            {
+              "id": "B12-I1",
+              "before_question_ids": [
+                "b1-2-a-pocket-uses-its-latest-number",
+                "b1-2-reading-a-second-pocket-keeps-its-number",
+                "b1-2-two-pockets-hold-their-own",
+                "b1-2-both-pockets-after-a-later-change"
+              ],
+              "term": "Give a name a number (assignment)",
+              "explanation": "Assignment stores a number quietly. An unquoted name tells print which number to read; quoted text writes its word.",
+              "example": "pocket = 1 stores 1; print(pocket) reads 1; print(\"pocket\") writes pocket."
+            },
+            {
+              "id": "B12-I3",
+              "before_question_ids": [
+                "b1-2-a-pocket-uses-its-latest-number",
+                "b1-2-two-pockets-hold-their-own",
+                "b1-2-prints-across-a-rebinding"
+              ],
+              "term": "The latest number for each name",
+              "explanation": "A new assignment replaces only that name's number, not earlier screen lines.",
+              "example": "After pocket = 2 and spare = 9, print(pocket) still shows 2."
+            },
+            {
+              "id": "B12-I5",
+              "before_question_ids": [
+                "b1-2-reading-a-second-pocket-keeps-its-number",
+                "b1-2-both-pockets-after-a-later-change",
+                "b1-2-prints-across-a-rebinding"
+              ],
+              "term": "Read another pocket now",
+              "explanation": "blue = red reads red's number now. Later changing red leaves blue alone; either name can still receive a new number.",
+              "example": "If red holds 4, blue = red gives blue 4; red = 9 later leaves blue at 4."
+            }
+          ]
+        },
+        {
+          "id": "b1-3",
+          "title": "The score machine",
+          "builds_on": [
+            "b1-2"
+          ],
+          "questions": [
+            "b1-3-an-update-starts-from-the-current-score",
+            "b1-3-print-shows-a-number-without-storing-it",
+            "b1-3-an-earlier-print-keeps-its-line-after-an-update",
+            "b1-3-a-printed-sum-and-a-stored-sum",
+            "b1-3-a-lunchbox-with-two-prices"
+          ],
+          "practice_summary": "reading number updates and what print shows",
+          "introductions": [
+            {
+              "id": "b1-3-intro-update",
+              "before_question_ids": [
+                "b1-3-an-update-starts-from-the-current-score",
+                "b1-3-an-earlier-print-keeps-its-line-after-an-update",
+                "b1-3-a-lunchbox-with-two-prices"
+              ],
+              "term": "update (x = x + y)",
+              "explanation": "works out the right side with the current value and stores the result in the same name",
+              "example": "coins = coins + 2"
+            },
+            {
+              "id": "b1-3-intro-print-shows",
+              "before_question_ids": [
+                "b1-3-print-shows-a-number-without-storing-it",
+                "b1-3-a-printed-sum-and-a-stored-sum",
+                "b1-3-a-lunchbox-with-two-prices"
+              ],
+              "term": "print shows, does not store",
+              "explanation": "print(a + 1) shows a calculation; only a = ... changes a",
+              "example": "print(coins + 1)"
+            }
+          ]
+        },
+        {
+          "id": "b1-4",
+          "title": "Choose a door",
+          "builds_on": [
+            "b1-3"
+          ],
+          "questions": [
+            "b1-4-a-comparison-answers-true-or-false",
+            "b1-4-an-if-skips-its-indented-line-when-false",
+            "b1-4-an-else-runs-when-the-if-is-false",
+            "b1-4-the-indent-says-which-part-a-line-belongs-to",
+            "b1-4-a-bag-with-room"
+          ],
+          "practice_summary": "reading comparisons and which lines an if or else runs",
+          "introductions": [
+            {
+              "id": "b1-4-intro-comparison",
+              "before_question_ids": [
+                "b1-4-a-comparison-answers-true-or-false",
+                "b1-4-an-else-runs-when-the-if-is-false",
+                "b1-4-a-bag-with-room"
+              ],
+              "term": "comparison (==, <)",
+              "explanation": "asks whether two values are equal or whether the left one is smaller; the answer is True or False",
+              "example": "print(door == 3)"
+            },
+            {
+              "id": "b1-4-intro-if",
+              "before_question_ids": [
+                "b1-4-an-if-skips-its-indented-line-when-false",
+                "b1-4-the-indent-says-which-part-a-line-belongs-to",
+                "b1-4-a-bag-with-room"
+              ],
+              "term": "if and indentation",
+              "explanation": "the indented lines under an if run only when its question is True",
+              "example": "if door == 3:"
+            },
+            {
+              "id": "b1-4-intro-else",
+              "before_question_ids": [
+                "b1-4-an-else-runs-when-the-if-is-false",
+                "b1-4-the-indent-says-which-part-a-line-belongs-to",
+                "b1-4-a-bag-with-room"
+              ],
+              "term": "else and indentation",
+              "explanation": "else runs only when the if question was False; exactly one branch runs",
+              "example": "else:"
+            }
+          ]
+        },
+        {
+          "id": "b1-5",
+          "title": "Robot's laps",
+          "builds_on": [
+            "b1-4"
+          ],
+          "questions": [
+            "b1-5-robot-laps-count",
+            "b1-5-loop-body-versus-after",
+            "b1-5-lap-number-in-body",
+            "b1-5-transfer-laps",
+            "b1-5-two-pockets"
+          ],
+          "practice_summary": "reading loops, their lines, and a growing counter",
+          "introductions": [
+            {
+              "id": "b1-5-intro-loop",
+              "before_question_ids": [
+                "b1-5-robot-laps-count",
+                "b1-5-loop-body-versus-after",
+                "b1-5-lap-number-in-body"
+              ],
+              "term": "for/range",
+              "explanation": "repeats the indented lines once per turn number; range starts at 0 and stops before n",
+              "example": "for turn in range(4):"
+            },
+            {
+              "id": "b1-5-intro-counter",
+              "before_question_ids": [
+                "b1-5-robot-laps-count",
+                "b1-5-transfer-laps",
+                "b1-5-two-pockets"
+              ],
+              "term": "counter in a loop",
+              "explanation": "a pocket grows one step per lap with laps = laps + 1",
+              "example": "laps = laps + 1"
+            }
+          ]
+        },
+        {
+          "id": "b1-6",
+          "title": "Play with words",
+          "builds_on": [
+            "b1-5"
+          ],
+          "questions": [
+            "b1-6-coin-text-versus-number",
+            "b1-6-stamp-repeats-the-text",
+            "b1-6-glue-versus-count",
+            "b1-6-build-a-word",
+            "b1-6-transfer-words"
+          ],
+          "practice_summary": "reading text operations and measuring a stored text",
+          "introductions": [
+            {
+              "id": "b1-6-intro-glue",
+              "before_question_ids": [
+                "b1-6-coin-text-versus-number",
+                "b1-6-glue-versus-count",
+                "b1-6-transfer-words"
+              ],
+              "term": "+ on text",
+              "explanation": "glues two texts into one; text with digits stays text",
+              "example": "coin + coin"
+            },
+            {
+              "id": "b1-6-intro-stamp",
+              "before_question_ids": [
+                "b1-6-stamp-repeats-the-text",
+                "b1-6-build-a-word",
+                "b1-6-transfer-words"
+              ],
+              "term": "* on text",
+              "explanation": "stamps n copies of a text; the number says how many",
+              "example": "coin * 3"
+            },
+            {
+              "id": "b1-6-intro-len",
+              "before_question_ids": [
+                "b1-6-build-a-word",
+                "b1-6-transfer-words"
+              ],
+              "term": "len on text",
+              "explanation": "counts every character of the stored text; the quotes in the code are not part of the text",
+              "example": "len(word)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

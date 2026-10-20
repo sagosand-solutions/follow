@@ -611,7 +611,11 @@ class RealRepositoryTests(unittest.TestCase):
         self.assertEqual((rows["python"].get("audience"), rows["python"].get("path_step")), (None, 3), "python: on the path, no audience pill")
         for cid in ("production", "sql"):
             self.assertEqual((rows[cid].get("audience"), rows[cid].get("path_step")), ("experienced", None), cid)
-        self.assertNotIn("read-like-a-computer", rows, "the beginner course is not published before the B1 release is decided")
+        beginner = rows["read-like-a-computer"]
+        self.assertEqual((beginner["audience"], beginner["path_step"]), ("beginner", 1))
+        self.assertEqual((beginner["concept_map"], beginner["free_questions"], beginner["start_question"]),
+                         ("schema/concepts/python-v0.json", 30, "b1-1-robot-keeps-each-printed-line"))
+        self.assertNotIn("premium", beginner)
 
     def test_the_real_catalog_and_export_are_consistent(self):
         stream = io.StringIO()

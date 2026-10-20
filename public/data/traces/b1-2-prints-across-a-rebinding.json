@@ -1,0 +1,99 @@
+{
+  "question_id": "b1-2-prints-across-a-rebinding",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "b9d5efeefbbf09897af73e3b68d8a197d35f6b41f151e771836236f5b6677056",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "4\n9\n4\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "red": "4"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 3,
+          "locals": {
+            "red": "4"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 4,
+          "locals": {
+            "blue": "4",
+            "red": "4"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "blue": "4",
+            "red": "9"
+          },
+          "stdout_len": 2
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "blue": "4",
+            "red": "9"
+          },
+          "stdout_len": 4
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "blue": "4",
+            "red": "9"
+          },
+          "stdout_len": 6,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}

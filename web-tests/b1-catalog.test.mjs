@@ -140,17 +140,18 @@ test('“Already write code?” lists the courses marked for people who already 
   assert.equal(alreadyCodeSign(parseCatalog(bareCatalog)), null);
 });
 
-test('the live catalog as marked: Production and SQL for people who already code, Python on the path without a pill', async () => {
+test('the live catalog marks Read like a computer as step 1 and keeps the other course labels', async () => {
   store.reset();
   const live = parseCatalog(realCatalog);
-  assert.deepEqual(live.map((c) => [c.id, c.audience, c.pathStep]), [['python', null, 3], ['production', 'experienced', null], ['sql', 'experienced', null]]);
+  assert.deepEqual(live.map((c) => [c.id, c.audience, c.pathStep]), [['python', null, 3], ['production', 'experienced', null], ['sql', 'experienced', null], ['read-like-a-computer', 'beginner', 1]]);
   const node = catalogSection(live, await courseMap(live));
   const steps = node.all((n) => n.className.split(' ').includes('path__step'));
-  assert.deepEqual(steps.map((s) => /Coming soon/.test(text(s))), [true, true, false], 'no beginner course in the catalog yet');
+  assert.deepEqual(steps.map((s) => /Coming soon/.test(text(s))), [false, true, false], 'step 1 loads, step 2 remains coming soon, and Python remains step 3');
+  assert.match(text(steps[0]), /Read like a computer|For beginners/);
+  assert.match(text(steps[2]), /Python: reading code/);
   assert.doesNotMatch(text(steps[2]), /For beginners|already code/);
   const deeper = node.all((n) => n.tag === 'li' && n.className === 'course-card');
   assert.deepEqual(deeper.map((c) => /For people who already code/.test(text(c))), [true, true]);
-  assert.equal(node.all((n) => n.tag === 'button').length, 0, 'no skip button without a beginner course');
   assert.deepEqual(alreadyCodeSign(live).all((n) => n.tag === 'a').map((a) => a.attrs.href), ['#/course', '#/course/production', '#/course/sql']);
 });
 

@@ -1,0 +1,73 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-4-a-comparison-answers-true-or-false",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.25,
+  "concepts": [
+    "py.booleans",
+    "py.values"
+  ],
+  "prompt": "The robot compares its door number with 3. The printed lines are shown in order. What is printed?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "door = 3\nprint(door == 3)\nprint(door < 3)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "equal-not-smaller",
+      "text": "`True` then `False`. 3 equals 3, but 3 is not smaller than 3.",
+      "score": 1,
+      "feedback": "Right. == asks if the numbers are equal and < asks if the left one is smaller; each answers True or False.",
+      "misconception": null
+    },
+    {
+      "id": "less-includes-equal",
+      "text": "`True` then `True`. 3 < 3 is also true for equal numbers.",
+      "score": 0,
+      "feedback": "< is true only when the left number is smaller. 3 is not smaller than 3, so the answer is False.",
+      "misconception": "py.less-than-includes-equal"
+    },
+    {
+      "id": "comparison-ignored",
+      "text": "`3` then `3`. print shows the number in door, not the comparison.",
+      "score": 0,
+      "feedback": "print shows the answer to the comparison: True or False, not the number.",
+      "misconception": "py.comparison-in-print-is-ignored"
+    },
+    {
+      "id": "less-means-bigger",
+      "text": "`True` then `False`. < asks if the left number is bigger.",
+      "score": 0.5,
+      "feedback": "< asks if the left number is smaller. print(door < 5) would show True, not False.",
+      "misconception": "py.less-than-asks-if-the-left-is-bigger",
+      "partial_reason": "Correct: True then False. Incorrect: that < asks if the left number is bigger; it asks if it is smaller."
+    }
+  ],
+  "explanation": "door is 3. door == 3 asks if the two numbers are equal, and the answer is True. door < 3 asks if 3 is smaller than 3, and the answer is False.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "True\nFalse\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace wait for 027. The half option gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027. Hand-traced only; no snippet was run and no validator pass is claimed (schema 0.2 / beginner-practice is not yet available). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

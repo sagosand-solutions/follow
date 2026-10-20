@@ -41,6 +41,17 @@
       },
       "start_question": "sql-equals-null-matches-nothing",
       "title": "SQL: reading code"
+    },
+    {
+      "audience": "beginner",
+      "concept_map": "schema/concepts/python-v0.json",
+      "description": "Learn to read Python from its first printed line through loops, decisions and words.",
+      "free_questions": 30,
+      "id": "read-like-a-computer",
+      "language": "python",
+      "path_step": 1,
+      "start_question": "b1-1-robot-keeps-each-printed-line",
+      "title": "Read like a computer"
     }
   ],
   "data_version": 1

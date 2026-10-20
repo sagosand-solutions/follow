@@ -1,0 +1,336 @@
+{
+  "data_version": 2,
+  "onboarding_question": "b1-1-robot-keeps-each-printed-line",
+  "questions": [
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "difficulty": 0.25,
+      "id": "b1-1-quiet-between-prints",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-1-quiet-line-then-more-prints",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "difficulty": 0.4,
+      "id": "b1-1-quoted-versus-bare-eight",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "difficulty": 0.12,
+      "id": "b1-1-robot-keeps-each-printed-line",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "difficulty": 0.16,
+      "id": "b1-1-robot-leaves-unprinted-values-quiet",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "difficulty": 0.16,
+      "id": "b1-2-a-pocket-uses-its-latest-number",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-2-both-pockets-after-a-later-change",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "difficulty": 0.45,
+      "id": "b1-2-prints-across-a-rebinding",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "difficulty": 0.2,
+      "id": "b1-2-reading-a-second-pocket-keeps-its-number",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "difficulty": 0.25,
+      "id": "b1-2-two-pockets-hold-their-own",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators",
+        "py.values"
+      ],
+      "difficulty": 0.4,
+      "id": "b1-3-a-lunchbox-with-two-prices",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "difficulty": 0.35,
+      "id": "b1-3-a-printed-sum-and-a-stored-sum",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-3-an-earlier-print-keeps-its-line-after-an-update",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.25,
+      "id": "b1-3-an-update-starts-from-the-current-score",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-3-print-shows-a-number-without-storing-it",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.conditionals",
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.4,
+      "id": "b1-4-a-bag-with-room",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.booleans",
+        "py.values"
+      ],
+      "difficulty": 0.25,
+      "id": "b1-4-a-comparison-answers-true-or-false",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.conditionals",
+        "py.booleans"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-4-an-else-runs-when-the-if-is-false",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.conditionals",
+        "py.booleans"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-4-an-if-skips-its-indented-line-when-false",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.conditionals"
+      ],
+      "difficulty": 0.35,
+      "id": "b1-4-the-indent-says-which-part-a-line-belongs-to",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.iteration"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-5-lap-number-in-body",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.iteration"
+      ],
+      "difficulty": 0.35,
+      "id": "b1-5-loop-body-versus-after",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-5-robot-laps-count",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "difficulty": 0.45,
+      "id": "b1-5-transfer-laps",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "difficulty": 0.35,
+      "id": "b1-5-two-pockets",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.strings",
+        "py.assignment"
+      ],
+      "difficulty": 0.35,
+      "id": "b1-6-build-a-word",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.strings",
+        "py.numeric-operators",
+        "py.values"
+      ],
+      "difficulty": 0.3,
+      "id": "b1-6-coin-text-versus-number",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "difficulty": 0.4,
+      "id": "b1-6-glue-versus-count",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.strings",
+        "py.values"
+      ],
+      "difficulty": 0.35,
+      "id": "b1-6-stamp-repeats-the-text",
+      "level": "beginner",
+      "type": "output"
+    },
+    {
+      "answer_profile": "beginner-practice",
+      "concepts": [
+        "py.strings",
+        "py.values"
+      ],
+      "difficulty": 0.45,
+      "id": "b1-6-transfer-words",
+      "level": "beginner",
+      "type": "output"
+    }
+  ]
+}

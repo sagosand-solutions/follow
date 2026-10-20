@@ -4,7 +4,7 @@
 
 An open-source platform for learning to read and understand code, from beginner to advanced. AI writes code faster than people do. Understanding and reviewing it is the new bottleneck.
 
-> **Current question bank:** 44 free questions — 34 Python, 5 Production, and 5 SQL.
+> **Current question bank:** 74 free questions — 34 Python, 30 Read like a computer, 5 Production, and 5 SQL.
 
 ## How it works
 

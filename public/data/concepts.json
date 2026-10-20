@@ -1192,6 +1192,428 @@
       "description": "In an ordinary bound instance-method call, the first parameter receives the defining class rather than the receiving instance. Editorial hypothesis; not about classmethod.",
       "id": "py.instance-method-self-is-class",
       "title": "Self denotes the defining class"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "description": "Printing a text literal is thought to include the surrounding quote marks written in the source; numbers otherwise print normally. Editorial hypothesis, not measured prevalence.",
+      "id": "py.print-keeps-the-source-quote-marks",
+      "title": "Print keeps the source quote marks"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "Each print is thought to replace all earlier screen output, leaving only the last printed value visible. Editorial hypothesis, not measured prevalence.",
+      "id": "py.only-the-last-print-remains-visible",
+      "title": "Only the last print remains visible"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A print given an integer is thought to ignore that integer and display the count of already printed screen lines; text prints otherwise behave normally. Editorial hypothesis, not measured prevalence.",
+      "id": "py.integer-print-counts-earlier-screen-lines",
+      "title": "Integer print counts earlier screen lines"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A standalone text or integer literal in a complete program is thought to display itself just as print(literal) does; actual print calls otherwise behave normally. Distinct from py.only-bare-text-displays-itself, which limits automatic display to text. Editorial hypothesis, not measured prevalence.",
+      "id": "py.bare-literals-display-themselves-in-programs",
+      "title": "Bare literals display themselves in programs"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.strings"
+      ],
+      "description": "In a complete program, standalone quoted text is thought to display itself without print, while standalone numbers remain silent. Distinct from py.bare-literals-display-themselves-in-programs, which displays both kinds of literal. Editorial hypothesis, not measured prevalence.",
+      "id": "py.only-bare-text-displays-itself",
+      "title": "Only bare text displays itself"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "print(name) is thought to display the spelling of the unquoted name instead of the value currently assigned to it; assignment and literal print arguments otherwise behave normally. Editorial hypothesis, not measured prevalence.",
+      "id": "py.print-shows-an-unquoted-name-literally",
+      "title": "Print shows an unquoted name literally"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "Printing any name is thought to show the last integer literal assigned anywhere in the program, regardless of which name received it. Editorial hypothesis, not measured prevalence.",
+      "id": "py.print-uses-the-last-number-written",
+      "title": "Print uses the last number written"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "description": "Each update line is thought to start from the name's first value instead of its current value, whether it adds or subtracts. Distinct from py.accumulator-overwrites. Editorial hypothesis.",
+      "id": "py.update-works-from-the-first-value",
+      "title": "An update works from the first value"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "description": "A name on the right side of an update line is thought to be read only the first time; every later update is thought to reuse the first value it had. Distinct from py.reading-a-name-uses-it-up (the value is gone) and py.update-works-from-the-first-value (the name being updated). Editorial hypothesis.",
+      "id": "py.update-reads-the-bonus-only-once",
+      "title": "An update reads the other name only once"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "A name whose value was read in an expression is thought to be empty afterwards, so the value cannot be used again. Distinct from py.assignment-copies-value. Editorial hypothesis.",
+      "id": "py.reading-a-name-uses-it-up",
+      "title": "Reading a name uses it up"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "print(score + 1) is thought to store the shown result in score, so later lines see the new value. Editorial hypothesis.",
+      "id": "py.print-stores-what-it-shows",
+      "title": "print stores what it shows"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "print(score + 1) is thought to show the old score first and add the 1 to score afterwards. Distinct from py.print-stores-what-it-shows. Editorial hypothesis.",
+      "id": "py.print-adds-after-showing",
+      "title": "print adds after showing"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "The + 1 in print(score + 1) is thought to belong to the first print line only, so printing the same expression again would show the old score, though it applies each time that print runs. Distinct from py.print-stores-what-it-shows. Editorial hypothesis.",
+      "id": "py.print-sum-counts-only-once",
+      "title": "The +1 in print counts only once"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "A later update to a name is thought to change a line that print has already written. Editorial hypothesis.",
+      "id": "py.a-later-update-rewrites-an-earlier-print",
+      "title": "A later update rewrites an earlier print"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.numeric-operators"
+      ],
+      "description": "coins = coins - 3 is thought to store the 3 in coins instead of working out the new value from the old one. Distinct from py.accumulator-overwrites. Editorial hypothesis.",
+      "id": "py.update-stores-only-the-number-written",
+      "title": "An update stores only the number written"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "An update line is thought to change a name only when the new value is printed. Distinct from py.print-stores-what-it-shows. Editorial hypothesis.",
+      "id": "py.an-update-needs-a-print-to-take-effect",
+      "title": "An update needs a print to take effect"
+    },
+    {
+      "concepts": [
+        "py.assignment",
+        "py.values"
+      ],
+      "description": "A later print of a name is thought to repeat the sum shown by an earlier print, instead of reading the stored value. Editorial hypothesis.",
+      "id": "py.the-second-print-repeats-the-first",
+      "title": "The second print repeats the first"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "description": "The comparison 3 < 3 is thought to be True because the numbers are equal, though < is True only when the left number is smaller. Editorial hypothesis.",
+      "id": "py.less-than-includes-equal",
+      "title": "< is also true for equal numbers"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.values"
+      ],
+      "description": "print(door == 3) is thought to show the number in door and to ignore the comparison, though it shows True or False. Editorial hypothesis.",
+      "id": "py.comparison-in-print-is-ignored",
+      "title": "A comparison inside print is ignored"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "description": "The comparison a < b is thought to ask whether a is bigger than b, though it asks whether a is smaller. Distinct from py.less-than-includes-equal. Editorial hypothesis.",
+      "id": "py.less-than-asks-if-the-left-is-bigger",
+      "title": "< asks if the left number is bigger"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "The line under an if is thought to run whatever the condition says. Distinct from py.if-else-both-run. Editorial hypothesis.",
+      "id": "py.if-body-always-runs",
+      "title": "The indented line always runs"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "A condition that is False is thought to stop the whole program, so no later line runs. Distinct from py.if-body-always-runs. Editorial hypothesis.",
+      "id": "py.false-if-stops-the-program",
+      "title": "A False if stops the program"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Lines pushed in under an if are thought never to run, as if the indent hid them, though they run when the condition is True. Distinct from py.if-body-always-runs. Editorial hypothesis.",
+      "id": "py.indented-lines-never-run",
+      "title": "Indented lines never run"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "An else part is thought to run for numbers smaller than the one in the if, instead of whenever the if is False. Distinct from py.else-needs-the-if-line-to-run-first. Editorial hypothesis.",
+      "id": "py.else-is-for-the-smaller-numbers",
+      "title": "else is for the smaller numbers"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "A line written after an if body is thought to belong to the if because of its position, though the indent shows which part a line belongs to. Editorial hypothesis.",
+      "id": "py.a-line-joins-the-if-by-position",
+      "title": "A line joins the if by position"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Only lines that are not pushed in are thought to run, as if every indented line were skipped. Distinct from py.indented-lines-never-run. Editorial hypothesis.",
+      "id": "py.only-unindented-lines-run",
+      "title": "Only unindented lines run"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "Lines under else are thought never to run. Distinct from py.indented-lines-never-run. Editorial hypothesis.",
+      "id": "py.else-lines-never-run",
+      "title": "else lines never run"
+    },
+    {
+      "concepts": [
+        "py.booleans",
+        "py.numeric-operators"
+      ],
+      "description": "The comparison a < b is thought to ask whether a and b differ, though it asks whether a is smaller. Distinct from py.less-than-asks-if-the-left-is-bigger. Editorial hypothesis.",
+      "id": "py.less-than-means-not-equal",
+      "title": "< means not equal"
+    },
+    {
+      "concepts": [
+        "py.conditionals"
+      ],
+      "description": "An else part is thought to run only after the if line has run, instead of when the if question is False. Editorial hypothesis.",
+      "id": "py.else-needs-the-if-line-to-run-first",
+      "title": "else needs the if line to run first"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A standalone value in a complete program is thought to display itself only when no line follows it, like a shell echoing the last expression; earlier bare values are expected to stay quiet. Distinct from py.bare-literals-display-themselves-in-programs, which claims display for every bare value. Editorial hypothesis.",
+      "id": "py.a-bare-value-displays-only-when-it-is-last",
+      "title": "A bare value displays only when it is last"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A standalone value is thought to be an invalid line that stops the whole program, so prints after it never run. Distinct from py.false-if-stops-the-program, which concerns a False if. Editorial hypothesis.",
+      "id": "py.a-quiet-line-breaks-the-program",
+      "title": "A quiet line breaks the program"
+    },
+    {
+      "concepts": [
+        "py.values"
+      ],
+      "description": "A later print is thought to repeat the value the first screen line showed, instead of reading its own argument; no sum or arithmetic is involved. Scoped sibling of py.the-second-print-repeats-the-first, which concerns a repeated computation. Editorial hypothesis.",
+      "id": "py.a-print-repeats-the-first-screen-line",
+      "title": "A print repeats the first screen line"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "description": "print(name) is thought to show the value the name holds at the end of the program rather than the value at the print line. Editorial hypothesis.",
+      "id": "py.a-print-shows-the-final-value",
+      "title": "A print shows the final value"
+    },
+    {
+      "concepts": [
+        "py.values",
+        "py.assignment"
+      ],
+      "description": "A name-to-name assignment (blue = red) is thought to take the last value that was PRINTED rather than the source name's current value. Distinct from py.print-uses-the-last-number-written, which concerns print statements, and from py.reading-a-name-uses-it-up, which empties the source. Editorial hypothesis.",
+      "id": "py.name-copy-takes-the-last-printed-value",
+      "title": "A name copy takes the last printed value"
+    },
+    {
+      "concepts": [
+        "py.assignment"
+      ],
+      "description": "laps = laps + 1 is thought not to be a real update, so the pocket keeps its old value. Editorial hypothesis.",
+      "id": "py.a-self-update-is-not-possible",
+      "title": "A self-update is not possible"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "The loop variable of range(n) is thought to take the values 1 through n, keeping the lap count but misreading the printed values. Distinct from py.range-stop-inclusive, which adds an extra lap. Editorial hypothesis.",
+      "id": "py.range-counts-from-one",
+      "title": "range counts from one"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "A loop's indented body is thought to run one time in total instead of once per lap. Editorial hypothesis.",
+      "id": "py.a-loop-body-runs-once",
+      "title": "A loop body runs once"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "The indent before a line is thought to be decoration, so a trailing print is read as part of the loop body. Editorial hypothesis.",
+      "id": "py.indentation-does-not-matter",
+      "title": "Indentation does not matter"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "A loop is thought to repeat only the first of its indented lines and skip the rest of the body. Distinct from py.a-loop-body-runs-once, which repeats nothing on later laps. Editorial hypothesis.",
+      "id": "py.a-loop-repeats-only-its-first-indented-line",
+      "title": "A loop repeats only its first indented line"
+    },
+    {
+      "concepts": [
+        "py.iteration"
+      ],
+      "description": "The loop variable is thought to hold the whole row of range's numbers at once and hand out the next one per print, instead of being set fresh once per lap. Distinct from py.range-counts-from-one, which is only about where the counting starts. Editorial hypothesis.",
+      "id": "py.the-loop-variable-holds-all-the-numbers",
+      "title": "The loop variable holds all the numbers"
+    },
+    {
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "description": "A print placed after an update in the same loop body is thought to show the pocket's value from before the update, as if the print read one step behind. Editorial hypothesis.",
+      "id": "py.a-body-print-shows-the-value-before-the-update",
+      "title": "A body print shows the value before the update"
+    },
+    {
+      "concepts": [
+        "py.iteration",
+        "py.assignment"
+      ],
+      "description": "A counter grown inside a loop is thought to just show which lap the loop is making (1, 2, 3, ...), so any change to the update's amount is expected not to show. Distinct from py.range-counts-from-one, which is about where range starts. Editorial hypothesis.",
+      "id": "py.the-counter-is-the-lap-number",
+      "title": "The counter is the lap number"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "print is thought to display a stored text with its quotation marks, though the stored text has none. Distinct from py.print-keeps-the-source-quote-marks, which concerns literal source text and its delimiters. Editorial hypothesis.",
+      "id": "py.print-shows-quotes-for-text",
+      "title": "Print shows quotes for text"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "+ on text is thought to be order-insensitive, like adding numbers, so the same pieces glue the same either way. Distinct from py.numeric-strings-auto-coerce, which parses digit text as a number. Editorial hypothesis.",
+      "id": "py.plus-on-text-ignores-the-order",
+      "title": "Plus on text ignores the order"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "text * n is thought to produce exactly n characters rather than n copies of the text. Editorial hypothesis.",
+      "id": "py.a-stamp-yields-exactly-n-characters",
+      "title": "A stamp yields exactly n characters"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "len is thought to measure the word written in the code rather than the finished text stored in the variable. Planned for questions 3-4. Editorial hypothesis.",
+      "id": "py.len-reads-the-name-in-the-code",
+      "title": "len reads the name in the code"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "len is thought to include the code's quotation marks in the character count. Planned for questions 3-4. Editorial hypothesis.",
+      "id": "py.len-counts-the-quotes",
+      "title": "len counts the quotes"
+    },
+    {
+      "concepts": [
+        "py.strings"
+      ],
+      "description": "len is thought to count all non-space characters, skipping space characters; punctuation such as ! counts. Distinct from py.len-counts-the-quotes, which adds the code's quotation marks. Editorial hypothesis.",
+      "id": "py.len-skips-spaces",
+      "title": "len skips spaces"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.numeric-operators"
+      ],
+      "description": "+ is thought to glue everything it connects, so number + number is also read as gluing (2 + 3 becomes 23). The opposite direction of py.numeric-strings-auto-coerce. Editorial hypothesis.",
+      "id": "py.plus-always-glues",
+      "title": "+ always glues"
+    },
+    {
+      "concepts": [
+        "py.strings",
+        "py.values"
+      ],
+      "description": "+ is thought to glue when the pieces are stored in named pockets and to count when digits are written directly in the code, even inside quote marks, instead of following whether the values are text or numbers. Editorial hypothesis.",
+      "id": "py.plus-follows-names-not-values",
+      "title": "+ follows the names, not the values"
     }
   ],
   "schema_version": "0.1"

@@ -1,0 +1,72 @@
+{
+  "schema_version": "0.2",
+  "answer_profile": "beginner-practice",
+  "id": "b1-5-lap-number-in-body",
+  "language": "python",
+  "locale": "en",
+  "type": "output",
+  "level": "beginner",
+  "difficulty": 0.3,
+  "concepts": [
+    "py.iteration"
+  ],
+  "prompt": "The robot prints once per lap. What is printed, in order?",
+  "snippets": [
+    {
+      "id": "main",
+      "code": "for turn in range(3):\n    print(turn)\n"
+    }
+  ],
+  "options": [
+    {
+      "id": "next-number-each-lap",
+      "text": "`0` then `1` then `2`. turn takes the next turn number from range every lap.",
+      "score": 1,
+      "feedback": "Right. The body runs once per lap, and turn takes the next number from range each time: 0, 1, 2.",
+      "misconception": null
+    },
+    {
+      "id": "counts-from-one",
+      "text": "`1` then `2` then `3`. Counting starts at 1, so the turns are 1, 2 and 3.",
+      "score": 0,
+      "feedback": "range starts at 0. The first lap is turn 0, so the prints show 0, 1, 2.",
+      "misconception": "py.range-counts-from-one"
+    },
+    {
+      "id": "one-print-only",
+      "text": "`0`. The body runs one time in total, so only the first lap's 0 appears.",
+      "score": 0,
+      "feedback": "The body runs once per lap. range(3) has three laps, so the print runs three times.",
+      "misconception": "py.a-loop-body-runs-once"
+    },
+    {
+      "id": "holds-all-numbers",
+      "text": "`0` then `1` then `2`. turn holds all the numbers; each print peels one off.",
+      "score": 0.5,
+      "feedback": "Add a second print(turn) in the body: it shows the same number twice per lap (0, 0, 1, 1, 2, 2). turn is set fresh each lap; it does not hand out numbers.",
+      "misconception": "py.the-loop-variable-holds-all-the-numbers",
+      "partial_reason": "Correct: 0, 1, 2. Incorrect: that turn holds all the numbers and hands them out; range sets it fresh each lap."
+    }
+  ],
+  "explanation": "range(3) gives the turn numbers 0, 1 and 2. The body runs once per lap and prints turn, so the prints show 0, then 1, then 2.",
+  "verification": {
+    "status": "specified",
+    "cases": [
+      {
+        "id": "run",
+        "snippet_id": "main",
+        "stdin": "",
+        "expected": {
+          "stdout": "0\n1\n2\n",
+          "exit_code": 0
+        }
+      }
+    ],
+    "rationale": "Expected stdout hand-traced by the author from the displayed lines; machine verification and trace generation follow in the same batch. The half gives the same output as the correct one with a false rule; its falsifier is the one-line variant named in its feedback.",
+    "limitations": "AUTHOR-DRAFT / AWAITING-027-pilot follow-up batch: submitted together with an inspected validator run and traces (see self-review). Deterministic in-memory code with no imports, input, time or randomness. The misconception models are uncalibrated editorial hypotheses; difficulty is a first estimate."
+  },
+  "author": {
+    "name": "Open learning contributors"
+  },
+  "license": "CC-BY-SA-4.0"
+}

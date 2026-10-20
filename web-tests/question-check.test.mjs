@@ -47,7 +47,7 @@ test('rejects bad scores, fields and ids', () => {
   assert.notEqual(bad((c) => { c.explanation = ''; }), null);
   assert.notEqual(bad((c) => { c.snippets = []; }), null);
   assert.notEqual(bad((c) => { c.snippets[0].highlight_lines = [0]; }), null);
-  assert.notEqual(bad((c) => { c.schema_version = '0.2'; }), null);
+  assert.notEqual(bad((c) => { c.schema_version = '0.3'; }), null);
   assert.notEqual(bad((c) => { c.type = 'quiz'; }), null);
   assert.notEqual(bad((c) => { delete c.author; }), null);
   assert.notEqual(checkQuestion(q, `${q.id}\n`), null);

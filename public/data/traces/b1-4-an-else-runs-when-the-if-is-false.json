@@ -1,0 +1,75 @@
+{
+  "question_id": "b1-4-an-else-runs-when-the-if-is-false",
+  "schema_version": "0.2",
+  "traces": [
+    {
+      "case_id": "run",
+      "exception": null,
+      "snippet_id": "main",
+      "source_sha256": "3f7e3771d89047f771ba3e0538262636e60546f9b1b00dc1dfe649006644b863",
+      "stdin": "",
+      "stdin_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout": "closed\ndone\n",
+      "steps": [
+        {
+          "depth": 0,
+          "event": "call",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 1,
+          "locals": {},
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 2,
+          "locals": {
+            "door": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 5,
+          "locals": {
+            "door": "2"
+          },
+          "stdout_len": 0
+        },
+        {
+          "depth": 0,
+          "event": "line",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "door": "2"
+          },
+          "stdout_len": 7
+        },
+        {
+          "depth": 0,
+          "event": "return",
+          "function": "<module>",
+          "line": 6,
+          "locals": {
+            "door": "2"
+          },
+          "stdout_len": 12,
+          "value": "None"
+        }
+      ],
+      "truncated": false
+    }
+  ]
+}
