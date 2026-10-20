@@ -154,7 +154,7 @@ When `public/data/catalog.json` exists (schema `schema/catalog.schema.json`) the
   or non-python catalog are errors.
 - Prefix rule (`course-prefix`): python may use `py.` only; production `prod.` and `py.`; sql `sql.` and `py.`; `git-diffs` `git.` and `py.`;
   `http-api` `http.` and `py.`; `testing` `test.` and `py.`; `review-ai-changes` `rev.`, `py.`, `git.` and `test.` (it builds on Git and Testing, as
-  production and sql carry `py.` entries). Each of these courses has a vocabulary of its own, `schema/concepts/<id>-v0.json`. Any other course
+  production and sql carry `py.` entries); `regex` `regex.` and `py.`. Each of these courses has a vocabulary of its own, `schema/concepts/<id>-v0.json`. Any other course
   (a beginner course, on the shared Python map) `py.` only; the table is `COURSE_PREFIXES` in `validator/export.py`; for vocabulary ids, prerequisites, misconception references and a question's concepts and
   misconceptions.
 - Labels for the home page, all optional: `audience` (`beginner` or `experienced`) says who a course is for, and `path_step`

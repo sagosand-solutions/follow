@@ -12,7 +12,7 @@ from validator import export as exporter
 from test_export_courses import CourseFixture, make_question
 
 NEW = {"git-diffs": ("git", {"git", "py"}), "http-api": ("http", {"http", "py"}), "testing": ("test", {"test", "py"}),
-       "review-ai-changes": ("rev", {"rev", "py", "git", "test"})}
+       "review-ai-changes": ("rev", {"rev", "py", "git", "test"}), "regex": ("regex", {"regex", "py"})}
 
 
 def synthetic_map(prefixes):
@@ -38,11 +38,11 @@ class RuleTableTests(CourseFixture):
         def issues(cid, prefix):
             return exporter.prefix_issues(cid, question={"concepts": [f"{prefix}.x"], "options": []})
         for cid, (own, allowed) in NEW.items():
-            for prefix in ("py", "prod", "sql", "git", "http", "test", "rev"):
+            for prefix in ("py", "prod", "sql", "git", "http", "test", "rev", "regex"):
                 with self.subTest(course=cid, prefix=prefix):
                     self.assertEqual(bool(issues(cid, prefix)), prefix not in allowed)
         for cid in ("python", "production", "sql", "some-unlisted-course"):
-            for prefix in ("git", "http", "test", "rev"):
+            for prefix in ("git", "http", "test", "rev", "regex"):
                 with self.subTest(course=cid, prefix=prefix):
                     self.assertTrue(issues(cid, prefix), "the old and unlisted courses cannot use the new namespaces")
 
