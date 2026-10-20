@@ -43,6 +43,17 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
     def add(code: str) -> None:
         found.append(code)
 
+    # MUST: the full-file hash is over raw bytes, so the object and those bytes must be the same model. Otherwise a safe
+    # object could be accepted under the hash of a package that carries another receipt or data.
+    try:
+        authoritative = canonical.loads_strict(raw_bytes)
+        same_object = canonical.dumps_canonical(authoritative) == canonical.dumps_canonical(manifest)
+    except canonical.CanonicalError as exc:
+        raise ManifestError(str(exc)) from None
+    if not same_object:
+        add("manifest-object-mismatch")
+        manifest = authoritative
+
     try:
         binding = canonical.binding_sha256(manifest)
     except canonical.CanonicalError as exc:
@@ -57,6 +68,12 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
 
     cases = manifest.get("cases") if isinstance(manifest.get("cases"), list) else []
     artifacts = manifest.get("artifacts") if isinstance(manifest.get("artifacts"), list) else []
+    artifact_total = sum(a.get("bytes", 0) for a in artifacts
+                         if isinstance(a, dict) and isinstance(a.get("bytes"), int) and not isinstance(a.get("bytes"), bool))
+    if len(artifacts) > plan.BUDGET["artifact_files"]:
+        add("artifact-count")
+    if artifact_total > plan.BUDGET["artifact_bytes"]:
+        add("artifact-bytes")
 
     receipt = manifest.get("receipt")
     if not isinstance(receipt, dict):
@@ -85,8 +102,15 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
         if receipt.get("limit_hit") != []:
             add("receipt-limit-hit")
         isolation = receipt.get("isolation")
-        if (not isinstance(isolation, dict) or not isolation.get("mechanism") or not isolation.get("proof")
-                or isolation.get("network") != "denied"):
+        required_namespaces = {"user", "mount", "pid", "net", "ipc", "uts", "cgroup"}
+        if (not isinstance(isolation, dict) or isolation.get("mechanism") != "bwrap+cgroup-v2"
+                or not isinstance(isolation.get("namespaces"), list)
+                or not required_namespaces <= set(isolation["namespaces"])
+                or isolation.get("capabilities") != "none"
+                or isolation.get("no_new_privileges") is not True
+                or isolation.get("network") != "denied"
+                or isolation.get("kill") != "whole-cgroup"
+                or not isinstance(isolation.get("proof"), str) or not isolation["proof"]):
             add("receipt-isolation")
         budget = receipt.get("budget")
         if (not isinstance(budget, dict) or set(budget) != set(BUDGET_KEYS)
@@ -98,8 +122,6 @@ def accept(manifest: dict, raw_bytes: bytes, *, expected_manifest_sha256: str,
                        for key in USAGE_KEYS)):
             add("receipt-usage")
         else:
-            artifact_total = sum(a.get("bytes", 0) for a in artifacts
-                                 if isinstance(a, dict) and isinstance(a.get("bytes"), int) and not isinstance(a.get("bytes"), bool))
             if usage["stdout_bytes"] != receipt.get("stdout_bytes") or usage["stderr_bytes"] != receipt.get("stderr_bytes"):
                 add("usage-receipt-mismatch")
             if usage["artifact_bytes"] != artifact_total:

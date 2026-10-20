@@ -40,7 +40,10 @@ def valid():
         "licence": {"license": "LicenseRef-Proprietary", "gate": "draft-only"},
         "receipt": {"started_at": "1970-01-01T00:00:00Z", "duration_ms": 1, "exit_code": 0,
                     "stdout_sha256": h("stdout"), "stdout_bytes": 1, "stderr_sha256": h(""), "stderr_bytes": 0,
-                    "budget": dict(plan.BUDGET), "isolation": {"mechanism": "bwrap+cgroup-v2", "proof": "tested", "network": "denied"},
+                    "budget": dict(plan.BUDGET), "isolation": {"mechanism": "bwrap+cgroup-v2",
+                                  "namespaces": ["user", "mount", "pid", "net", "ipc", "uts", "cgroup"],
+                                  "capabilities": "none", "no_new_privileges": True, "network": "denied",
+                                  "kill": "whole-cgroup", "proof": "static test"},
                     "usage": {**{key: 0 for key in manifest.USAGE_KEYS}, "wall_ms": 1, "stdout_bytes": 1, "artifact_bytes": 1},
                     "limit_hit": [], "status": "ok"},
     }
@@ -210,6 +213,37 @@ class AcceptanceTests(unittest.TestCase):
             zero_stdout(v)
             v["receipt"]["stdout_sha256"] = h("")
         self.assertNotIn("receipt-empty-hash", accepted(zero_stdout_with_the_empty_hash))
+
+    def test_the_object_must_be_the_model_in_the_hashed_bytes(self):
+        a = valid()
+        b = valid()
+        b["receipt"]["duration_ms"] = 2
+        raw_b = canonical.dumps_canonical(b)
+        expected = canonical.manifest_sha256(raw_b)
+        self.assertIn("manifest-object-mismatch", manifest.accept(a, raw_b, expected_manifest_sha256=expected))
+        self.assertEqual(manifest.accept(b, raw_b, expected_manifest_sha256=expected), [])
+
+    def test_the_receipt_isolation_must_match_the_frozen_declaration(self):
+        for label, change in {
+            "mechanism": lambda v: v["receipt"]["isolation"].update(mechanism="chroot"),
+            "namespaces": lambda v: v["receipt"]["isolation"].update(namespaces=["user"]),
+            "capabilities": lambda v: v["receipt"]["isolation"].update(capabilities="all"),
+            "no_new_privileges": lambda v: v["receipt"]["isolation"].update(no_new_privileges=False),
+            "kill": lambda v: v["receipt"]["isolation"].update(kill="process-group"),
+            "proof": lambda v: v["receipt"]["isolation"].update(proof=""),
+        }.items():
+            with self.subTest(label=label):
+                self.assertIn("receipt-isolation", accepted(change))
+
+    def test_artifacts_are_capped_at_the_budget_count_and_bytes(self):
+        def many(v):
+            v["artifacts"] = [{**v["artifacts"][0], "artifact_id": f"a{i}", "sha256": h(f"a{i}")} for i in range(65)]
+        self.assertIn("artifact-count", accepted(many))
+
+        def big(v):
+            v["artifacts"][0]["bytes"] = 4194305
+            v["receipt"]["usage"]["artifact_bytes"] = 4194305
+        self.assertIn("artifact-bytes", accepted(big))
 
     def test_the_manifest_s_own_binding_digest_must_match(self):
         def changed(v):
