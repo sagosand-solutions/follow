@@ -3,7 +3,7 @@
 import hashlib
 import unittest
 
-from validator.harness import canonical, manifest
+from validator.harness import canonical, manifest, plan
 
 
 def h(text):
@@ -40,8 +40,8 @@ def valid():
         "licence": {"license": "LicenseRef-Proprietary", "gate": "draft-only"},
         "receipt": {"started_at": "1970-01-01T00:00:00Z", "duration_ms": 1, "exit_code": 0,
                     "stdout_sha256": h("stdout"), "stdout_bytes": 1, "stderr_sha256": h("stderr"), "stderr_bytes": 0,
-                    "budget": {"wall_seconds": 10}, "isolation": {"mechanism": "bwrap+cgroup-v2", "proof": "tested", "network": "denied"},
-                    "usage": {"wall_ms": 1}, "limit_hit": [], "status": "ok"},
+                    "budget": dict(plan.BUDGET), "isolation": {"mechanism": "bwrap+cgroup-v2", "proof": "tested", "network": "denied"},
+                    "usage": {key: 0 for key in manifest.USAGE_KEYS}, "limit_hit": [], "status": "ok"},
     }
     value["binding_sha256"] = canonical.binding_sha256(value)
     return value
@@ -129,6 +129,33 @@ class AcceptanceTests(unittest.TestCase):
         def changed(v):
             v["config"]["env"]["TZ"] = "CET"
         self.assertIn("config-digest-mismatch", accepted(changed))
+
+    def test_the_manifest_version_and_licence_gate_are_fixed(self):
+        self.assertIn("manifest-version", accepted(lambda v: v.update(manifest_schema_version="9.9")))
+        self.assertIn("manifest-version", accepted(lambda v: v.update(binding_projection_version="2")))
+        self.assertIn("licence", accepted(lambda v: v["licence"].update(gate="release")))
+        self.assertIn("licence", accepted(lambda v: v["licence"].pop("license")))
+
+    def test_canonicalisation_is_one_of_the_two_declared_modes(self):
+        self.assertIn("canonicalisation", accepted(lambda v: v.update(canonicalisation={"mode": "bogus"})))
+        self.assertIn("canonicalisation-none", accepted(lambda v: v.update(canonicalisation={"mode": "none", "name": "x"})))
+
+    def test_exit_code_budget_and_usage_are_checked(self):
+        self.assertIn("receipt-exit-code", accepted(lambda v: v["receipt"].update(exit_code=1)))
+        self.assertIn("receipt-budget", accepted(lambda v: v["receipt"]["budget"].pop("pids")))
+        self.assertIn("receipt-budget", accepted(lambda v: v["receipt"]["budget"].update(pids=64)))
+        self.assertIn("receipt-usage", accepted(lambda v: v["receipt"]["usage"].pop("cpu_ms")))
+
+    def test_case_hashes_shapes_and_tests_are_checked(self):
+        self.assertIn("case-0-source_sha256", accepted(lambda v: v["cases"][0].update(source_sha256="0" * 64)))
+        self.assertIn("case-0-stdout-hash", accepted(lambda v: v["cases"][0]["actual"].update(stdout_sha256="0" * 64)))
+        self.assertIn("case-0-id", accepted(lambda v: v["cases"][0].update(case_id={})))
+        self.assertIn("test-shape", accepted(lambda v: v["test_report"]["tests"].append("x")))
+
+    def test_bindings_argv_and_question_ids_are_required(self):
+        self.assertIn("bindings-argv", accepted(lambda v: v["bindings"].update(argv=[])))
+        self.assertIn("bindings-argv", accepted(lambda v: v["bindings"].pop("argv")))
+        self.assertIn("bindings-question-ids", accepted(lambda v: v["bindings"].update(question_ids=[])))
 
     def test_the_manifest_s_own_binding_digest_must_match(self):
         def changed(v):
