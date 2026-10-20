@@ -113,6 +113,7 @@ class ContractResult:
     issues: tuple
     licences: tuple
     gate: dict | None = None
+    binding_file_sha256: str | None = None
 
     @property
     def verified(self):
@@ -124,6 +125,7 @@ class ContractResult:
             "issues": [issue.to_dict() for issue in self.issues],
             "licences": list(self.licences),
             "gate": self.gate,
+            "binding_file_sha256": self.binding_file_sha256,
         }
 
 
@@ -737,7 +739,7 @@ def _binding_structure_issues(binding):
                 chapter, objective = gate.get("chapter"), gate.get("objective")
                 if chapter not in GATE_CHAPTERS:
                     _issue(issues, "gate-chapter", path + "/gate/chapter",
-                           "must be one of V1..V6; no invented course tag")
+                           "must be one of V1..V6")
                 if not isinstance(objective, str) or not re.fullmatch(
                         r"V[1-6]\.O[1-9][0-9]*", objective):
                     _issue(issues, "gate-objective", path + "/gate/objective",
@@ -752,7 +754,7 @@ def _binding_structure_issues(binding):
         review = entry.get("review")
         if review is not None and gate is None:
             _issue(issues, "gate-missing", path + "/gate",
-                   "a review question needs an explicit V-chapter gate receipt")
+                   "a review question needs a gate declaration")
         if review is not None:
             if not isinstance(review, dict):
                 _issue(issues, "review-shape", path + "/review", "must be an object")
@@ -1159,6 +1161,10 @@ def _review_issues(issues, review, question, manifest_cases, manifest_artifacts,
     if not isinstance(before.get("code"), str) or not isinstance(after.get("code"), str):
         _issue(issues, "review-snippet-code", "/questions/0/review", "snippet code must be text")
         return
+    if not before["code"].endswith("\n") or not after["code"].endswith("\n"):
+        _issue(issues, "review-snippet-newline", "/questions/0/review",
+               "before and after snippet code must end with a newline")
+        return
 
     diff = question_artifacts.get(review.get("diff_artifact_id"))
     if diff is None:
@@ -1296,11 +1302,14 @@ def _check_referenced_artifacts(issues, manifest_artifacts, referenced,
                f"artifact bytes exceed {MAX_ARTIFACT_TOTAL_BYTES}")
 
 
-def validate_files(binding_path, *, root=None):
+def validate_files(binding_path, *, root=None, expected_binding_sha256=None):
     """Read the binding, manifest, question, fixture and artifact bytes safely, then validate.
 
     ``root`` defaults to the binding file's directory. All manifest/question/
     artifact URIs are relative to that root and are read through :class:`SafeRoot`.
+    ``expected_binding_sha256`` is the exact binding-file hash from the candidate's
+    frozen review receipt; when given, a changed review/gate block is rejected even
+    when every referenced manifest/question/artifact is unchanged.
     """
     binding_path = Path(binding_path)
     try:
@@ -1346,9 +1355,22 @@ def validate_files(binding_path, *, root=None):
         except SetupError as exc:
             raise FixtureUnavailable(str(exc)) from exc
 
-    return validate(manifest, question, binding, manifest_bytes=manifest_raw,
-                    question_bytes=question_raw, artifact_bytes=artifact_bytes,
-                    fixture_bytes=fixture_bytes)
+    result = validate(manifest, question, binding, manifest_bytes=manifest_raw,
+                      question_bytes=question_raw, artifact_bytes=artifact_bytes,
+                      fixture_bytes=fixture_bytes)
+    return _with_binding_file_hash(result, binding_raw, expected_binding_sha256)
+
+
+def _with_binding_file_hash(result, binding_raw, expected_binding_sha256):
+    """Attach the exact binding-file hash; a stale trusted hash is a finding."""
+    actual = sha256_bytes(binding_raw)
+    if expected_binding_sha256 is not None and expected_binding_sha256 != actual:
+        mismatch = core.Issue(
+            "binding-file-mismatch", "/binding",
+            "binding file bytes do not match the frozen review receipt")
+        return ContractResult(tuple([mismatch, *result.issues]), result.licences,
+                              result.gate, actual)
+    return ContractResult(result.issues, result.licences, result.gate, actual)
 
 
 __all__ = ["ContractError", "ContractResult", "FixtureUnavailable", "SafeRoot", "binding_projection",

@@ -497,6 +497,35 @@ class ReviewDiffTest(unittest.TestCase):
         found = codes(run(case))
         self.assertIn("review-after-case", found)
 
+    def test_before_source_must_also_be_bound(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["cases"] = \
+            case["binding"]["questions"][0]["cases"][1:]
+        self.assertIn("review-before-case", codes(run(case)))
+
+    def test_before_and_after_must_be_different_snippets(self):
+        case = review_contract()
+        case["binding"]["questions"][0]["review"]["after_snippet_id"] = "fee-before"
+        self.assertIn("review-same-snippet", codes(run(case)))
+
+    def test_review_snippets_must_end_with_a_newline(self):
+        case = review_contract()
+        case["question"]["snippets"][0]["code"] = \
+            case["question"]["snippets"][0]["code"].rstrip("\n")
+        self.assertIn("review-snippet-newline", codes(run(case)))
+
+    def test_diff_must_match_exactly_one_manifest_artifact(self):
+        case = review_contract()
+        duplicate = deepcopy(next(item for item in case["manifest"]["artifacts"]
+                                    if item["type"] != "trace"))
+        duplicate["artifact_id"] = "diff-2"
+        case["manifest"]["artifacts"].append(duplicate)
+        diff_bytes = case["diff"].encode()
+        case["artifact_bytes"]["diff-2"] = diff_bytes
+        case["manifest"]["receipt"]["usage"]["artifact_bytes"] += len(diff_bytes)
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("review-diff-unbound", codes(run(case)))
+
     def test_diff_artifact_must_be_a_diff(self):
         case = review_contract()
         case["question"]["artifacts"][0].update({"kind": "text", "format": "plain"})
@@ -808,7 +837,9 @@ class ValidateFilesTest(unittest.TestCase):
         question_raw = json.dumps(case["question"], indent=2).encode()
         (root / "batch/manifest.json").write_bytes(manifest_raw)
         (root / "content/questions/q-1.json").write_bytes(question_raw)
-        (root / "batch/artifacts/diff-1").write_bytes(DIFF.encode())
+        payload = case["fixture_bytes"]("fixture-one") or DIFF.encode()
+        (root / "batch/artifacts/diff-1").write_bytes(payload)
+        (root / "batch/artifacts/text-1").write_bytes(TEXT.encode())
         (root / "batch/artifacts/trace-1").write_bytes(TRACE)
         binding = deepcopy(case["binding"])
         binding["manifest_sha256"] = sha(manifest_raw)
@@ -816,10 +847,10 @@ class ValidateFilesTest(unittest.TestCase):
         (root / "binding.json").write_text(json.dumps(binding), encoding="utf-8")
         fixture_path = root / "content/fixtures/artifacts/fixture-one.out"
         if fixture == "file":
-            fixture_path.write_bytes(DIFF.encode())
+            fixture_path.write_bytes(payload)
         elif fixture == "symlink":
             target = root / "outside.out"
-            target.write_bytes(DIFF.encode())
+            target.write_bytes(payload)
             fixture_path.symlink_to(target)
         elif fixture == "fifo":
             os.mkfifo(fixture_path)
@@ -854,6 +885,23 @@ class ValidateFilesTest(unittest.TestCase):
         result = fc.validate_files(binding)
         self.assertIn("fixture-unreadable", codes(result))
         self.assertTrue(any("larger than" in issue.message for issue in result.issues))
+
+    def test_binding_file_hash_is_reported_and_bound(self):
+        root, binding = self.write_root(contract())
+        digest = hashlib.sha256(binding.read_bytes()).hexdigest()
+        result = fc.validate_files(binding, expected_binding_sha256=digest)
+        self.assertTrue(result.verified, [issue.to_dict() for issue in result.issues])
+        self.assertEqual(result.binding_file_sha256, digest)
+        self.assertEqual(result.to_dict()["binding_file_sha256"], digest)
+
+    def test_swapping_a_gate_behind_the_same_references_is_red(self):
+        root, binding = self.write_root(review_contract())
+        digest = hashlib.sha256(binding.read_bytes()).hexdigest()
+        raw = json.loads(binding.read_text(encoding="utf-8"))
+        raw["questions"][0]["gate"]["pilot"] = "review-pilot-2"
+        binding.write_text(json.dumps(raw), encoding="utf-8")
+        found = codes(fc.validate_files(binding, expected_binding_sha256=digest))
+        self.assertIn("binding-file-mismatch", found)
 
 
 if __name__ == "__main__":
