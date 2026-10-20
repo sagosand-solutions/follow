@@ -221,8 +221,9 @@ export function validEnvelope(file, questionId) {
 export async function usableTraces(question, file, hash = sha256Hex) {
   if (!validEnvelope(file, question && question.id)) return [];
   const out = [];
-  for (let i = 0; i < question.snippets.length; i += 1) {
-    const snippet = question.snippets[i];
+  const snippets = question.snippets || [];
+  for (let i = 0; i < snippets.length; i += 1) {
+    const snippet = snippets[i];
     const trace = pickTrace(file, snippet.id);
     if (!trace || !Array.isArray(trace.steps) || trace.steps.length === 0 || typeof trace.stdout !== 'string') continue;
     if ((await hash(snippet.code)) !== trace.source_sha256) continue;

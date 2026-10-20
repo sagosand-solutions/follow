@@ -1,3 +1,43 @@
+/* === text artifact (artifact component): display-only text, not code === */
+.artifact {
+  margin: 0;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-stage);
+  background: var(--stage-bg);
+  color: var(--stage-ink);
+  box-shadow: var(--shadow-stage);
+  overflow: hidden;
+}
+.artifact__caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-1) var(--s-4);
+  background: var(--stage-bg-raised);
+  border-bottom: 1px solid var(--stage-line);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  color: var(--stage-muted);
+}
+.artifact__label { font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75rem; }
+.artifact__text {
+  margin: 0;
+  padding: var(--s-4);
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: var(--text-code);
+  line-height: var(--lh-code);
+  font-variant-ligatures: none;
+  tab-size: 4;
+  white-space: pre;
+}
+.artifact[data-kind="text"] .artifact__text,
+.artifact[data-kind="policy"] .artifact__text { white-space: pre-wrap; overflow-wrap: anywhere; }   /* prose wraps; columns (diff, transcript, report) scroll */
+.artifact__text:focus-visible { outline: 3px solid var(--stage-focus); outline-offset: -3px; }
+.q-stage > .artifact + .artifact, .q-stage > .code + .artifact { margin-block-start: var(--s-4); }
+
 /* === code stage (code-block component) === */
 .code {
   margin: 0;

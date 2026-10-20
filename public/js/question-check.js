@@ -1,6 +1,8 @@
 // Client-side guard: refuse to render data the question view cannot show correctly.
 // This is not the author-side validator; it only enforces what the view relies on.
 
+import { checkArtifacts } from './artifacts.js';
+
 export const QUESTION_ID = /^[a-z][a-z0-9-]{2,79}$/;
 const LOCAL_ID = /^[a-z][a-z0-9-]{0,79}$/;
 const TYPES = ['output', 'crashing-input', 'remove-line', 'equivalence', 'complexity', 'ai-review'];
@@ -13,16 +15,17 @@ export const PRACTICE_PROFILE = 'beginner-practice';
 // The answer profile of a question that passed checkQuestion: only the explicit field says "practice". A legacy 0.1 document
 // and a 0.2 `standard` document are the same standard kind. Nothing is inferred from the id, level, course or option count.
 export function isPractice(q) {
-  return !!q && q.schema_version === '0.2' && q.answer_profile === PRACTICE_PROFILE;
+  return !!q && (q.schema_version === '0.2' || q.schema_version === '0.3') && q.answer_profile === PRACTICE_PROFILE;
 }
 
 // Returns an error string, or null when the question is acceptable.
 export function checkQuestion(q, id) {
   if (!q || typeof q !== 'object' || Array.isArray(q)) return 'not an object';
-  // 0.1 is the legacy standard question and has no profile; 0.2 needs an explicit known profile. Never a silent fallback.
+  // 0.1 is the legacy standard question and has no profile; 0.2 and 0.3 need an explicit known profile. Never a silent fallback.
+  // 0.3 adds text artifacts; an older document cannot carry them, so a reader that does not know 0.3 never drops one silently.
   if (q.schema_version === '0.1') {
     if ('answer_profile' in q) return 'answer_profile on 0.1';
-  } else if (q.schema_version === '0.2') {
+  } else if (q.schema_version === '0.2' || q.schema_version === '0.3') {
     if (q.answer_profile !== 'standard' && q.answer_profile !== PRACTICE_PROFILE) return 'answer_profile';
   } else {
     return 'unsupported schema_version';
@@ -34,9 +37,17 @@ export function checkQuestion(q, id) {
   if (!filled(q.prompt)) return 'prompt';
   if (!filled(q.explanation)) return 'explanation';
 
-  if (!Array.isArray(q.snippets) || q.snippets.length === 0) return 'snippets';
+  const hasSnippets = q.snippets !== undefined;
+  if (q.schema_version !== '0.3') {
+    if ('artifacts' in q) return 'artifacts before 0.3';
+    if (!Array.isArray(q.snippets) || q.snippets.length === 0) return 'snippets';
+  } else {
+    // 0.3: code, text artifacts or both; the language says which, so text is never labelled as Python.
+    if (hasSnippets && (!Array.isArray(q.snippets) || q.snippets.length === 0)) return 'snippets';
+    if (q.language === 'python' ? !hasSnippets : q.language === 'text' ? hasSnippets || q.artifacts === undefined : true) return 'language';
+  }
   const snippetIds = new Set();
-  for (const s of q.snippets) {
+  for (const s of q.snippets || []) {
     if (!s || typeof s !== 'object') return 'snippet';
     if (typeof s.id !== 'string' || !LOCAL_ID.test(s.id) || snippetIds.has(s.id)) return 'snippet id';
     snippetIds.add(s.id);
@@ -45,6 +56,11 @@ export function checkQuestion(q, id) {
     if (s.highlight_lines !== undefined) {
       if (!Array.isArray(s.highlight_lines) || !s.highlight_lines.every((n) => Number.isInteger(n) && n >= 1)) return 'highlight_lines';
     }
+  }
+
+  if (q.artifacts !== undefined) {
+    const bad = checkArtifacts(q.artifacts, snippetIds);
+    if (bad) return bad;
   }
 
   if (!Array.isArray(q.options)) return 'option count';

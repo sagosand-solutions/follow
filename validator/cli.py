@@ -17,8 +17,10 @@ def main(argv=None, *, runner=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     json_output = any(argv[i:i + 2] == ["--format", "json"] or argv[i] == "--format=json"
                       for i in range(len(argv)))
+    # execution: not-requested | passed | failed | unavailable | not-applicable (--verify, and nothing in the input has code to run).
+    # A text-only question is never run: executed_cases counts the cases that really ran, text_only_questions those that had none.
     report = {"valid": False, "execution": "not-requested", "questions": 0,
-              "issues": [], "runner": None}
+              "issues": [], "runner": None, "executed_cases": 0, "text_only_questions": 0, "artifacts": 0}
     exit_code = 0
 
     def add(code, path, message, file=""):
@@ -88,11 +90,16 @@ def main(argv=None, *, runner=None):
                 add("setup", "", str(exc), filename)
                 exit_code = 2
         # Global gate: no snippet runs if any input has static errors.
+        report["artifacts"] = sum(len(question.get("artifacts", [])) for _, question in loaded)
         if args.verify and exit_code == 0:
-            report["execution"] = "passed"
-            for filename, question in loaded:
+            runnable = [(filename, question) for filename, question in loaded if question.get("snippets")]
+            report["text_only_questions"] = len(loaded) - len(runnable)
+            # Text is never run, so a batch with no code reports "not applicable", not a pass nobody earned.
+            report["execution"] = "passed" if runnable else "not-applicable"
+            for filename, question in runnable:
                 try:
                     issues, infrastructure = verify_question(question, runner)
+                    report["executed_cases"] += len(question["verification"]["cases"])
                 except Exception as exc:
                     add("runner-error", "", f"Runner failed: {exc}", filename)
                     report["execution"] = "unavailable"
@@ -118,11 +125,18 @@ def main(argv=None, *, runner=None):
     if json_output:
         print(json.dumps(report, ensure_ascii=True, allow_nan=False))
     else:
-        print(f"{'VALID' if report['valid'] else 'INVALID'}: {report['questions']} question(s); execution: {report['execution']}")
+        scope = ""
+        if report["execution"] in ("passed", "failed") or report["text_only_questions"]:
+            scope = f" ({report['executed_cases']} case(s) run; {report['text_only_questions']} text-only question(s) not run)"
+        print(f"{'VALID' if report['valid'] else 'INVALID'}: {report['questions']} question(s); execution: {report['execution']}{scope}")
         if report["execution"] == "not-requested":
             print("Execution skipped (static checks only).")
         elif report["execution"] == "unavailable":
             print("Execution unavailable or skipped; no execution approval.")
+        elif report["execution"] == "not-applicable":
+            print("Execution not applicable: nothing here has code to run (text artifacts are never executed).")
+        if report["artifacts"]:
+            print(f"Text artifacts: {report['artifacts']} (checked statically, never run; fixture bytes are verified by the export, not here).")
         for issue in report["issues"]:
             print(f"{issue['file']}{issue['path']}: {issue['code']}: {issue['message']}")
         print("Validation does not imply human review or publication approval.")
