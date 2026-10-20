@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""K4 fixture contract: static binding of a 0.3 question to one K3 v1.5 manifest.
+"""Fixture contract: static binding of a 0.3 question to one harness manifest (schema v1.5).
 
 All fixtures are synthetic; no process, network, runner or trace generator is used."""
 from copy import deepcopy
@@ -466,7 +466,7 @@ class SchemaParityTest(unittest.TestCase):
              clause["then"]["properties"]["format"]["const"])
             for clause in schema["$defs"]["artifact"]["allOf"]
         }
-        self.assertEqual(pairs, set(fc.K1_TO_K3))
+        self.assertEqual(pairs, set(fc.QUESTION_ARTIFACT_TO_MANIFEST))
 
 
 class ReviewDiffTest(unittest.TestCase):

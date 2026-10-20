@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Static K4 binding contract: a 0.3 question, one K3 v1.5 manifest and its artifacts.
+"""Static binding contract: a 0.3 question, one harness manifest (schema v1.5) and its artifacts.
 
 This module is a *tool/test-only* validator. It never imports the runner, the
 trace generator, ``subprocess``, sockets, ``urllib``/``requests``, a clock or
@@ -7,8 +7,8 @@ the network, and it never executes a fixture. It answers one question: do the
 bytes the question shows still match the bytes one reviewed, isolated harness
 run recorded?
 
-The K3 manifest is the run receipt (schema v1.5); K1's 0.3 question artifacts
-are the display side. K4 owns only the binding document between them. The
+The manifest is the run receipt (schema v1.5); the 0.3 question artifacts are
+the display side. The binding document is the only bridge between them. The
 manifest's ``binding_sha256`` covers the deterministic content projection and
 excludes ``receipt``; the binding file additionally hashes the whole manifest
 bytes with ``manifest_sha256``. Both chains are required: a failed or
@@ -60,8 +60,8 @@ MAX_ARTIFACT_TOTAL_BYTES = 64 * 1024 * 1024
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _RELATIVE = re.compile(r"^[A-Za-z0-9._/-]+$")
 
-# K1 question artifact kind/format -> K3 artifact type/format/media_type.
-K1_TO_K3 = {
+# Question artifact kind/format -> manifest artifact type/format/media_type.
+QUESTION_ARTIFACT_TO_MANIFEST = {
     ("text", "plain"): ("text", "text", "text/plain"),
     ("diff", "unified-diff"): ("diff", "text", "text/x-diff"),
     ("http-transcript", "http-1.1-transcript"): ("http-transcript", "text", "text/plain"),
@@ -69,10 +69,10 @@ K1_TO_K3 = {
     ("test-report", "plain"): ("test-report", "text", "text/plain"),
 }
 
-# Every K3 artifact type and the formats/media types it may use. `test-report`
+# Every manifest artifact type and the formats/media types it may use. `test-report`
 # has a machine-JSON form for the harness's own report; when a question binds a
-# test-report artifact it must still be the plain display text (K1_TO_K3).
-K3_FORMATS = {
+# test-report artifact it must still be the plain display text (QUESTION_ARTIFACT_TO_MANIFEST).
+MANIFEST_FORMATS = {
     "text": {"text": ("text/plain",)},
     "diff": {"text": ("text/plain", "text/x-diff")},
     "status": {"text": ("text/plain",)},
@@ -82,7 +82,7 @@ K3_FORMATS = {
     "test-report": {"text": ("text/plain",), "json": ("application/json",)},
     "trace": {"json": ("application/json",)},
 }
-K3_TYPES = frozenset(K3_FORMATS)
+MANIFEST_TYPES = frozenset(MANIFEST_FORMATS)
 OUTCOMES = frozenset({"passed", "failed", "skipped", "xfail", "xpass"})
 NS = ("user", "mount", "pid", "net", "ipc", "uts")
 GATE_CHAPTERS = ("V1", "V2", "V3", "V4", "V5", "V6")
@@ -277,7 +277,7 @@ def _check_exception(issues, exception, path):
 
 
 def manifest_issues(manifest):
-    """Structural and fail-closed checks on one K3 v1.5 manifest (no files read)."""
+    """Structural and fail-closed checks on one harness manifest (no files read)."""
     issues = []
     if not isinstance(manifest, dict):
         return [core.Issue("manifest-shape", "", "manifest must be an object")]
@@ -459,15 +459,15 @@ def manifest_issues(manifest):
         else:
             artifact_ids.add(artifact_id)
         kind, fmt = item.get("type"), item.get("format")
-        if kind not in K3_TYPES:
+        if kind not in MANIFEST_TYPES:
             _issue(issues, "artifact-type", path + "/type", "unknown artifact type")
-        elif fmt not in K3_FORMATS[kind]:
+        elif fmt not in MANIFEST_FORMATS[kind]:
             _issue(issues, "artifact-format", path + "/format", f"{fmt!r} is not valid for {kind!r}")
         else:
             media = item.get("media_type")
-            if media not in K3_FORMATS[kind][fmt]:
+            if media not in MANIFEST_FORMATS[kind][fmt]:
                 _issue(issues, "artifact-media-type", path + "/media_type",
-                       f"must be one of {K3_FORMATS[kind][fmt]}")
+                       f"must be one of {MANIFEST_FORMATS[kind][fmt]}")
         if not isinstance(item.get("encoding"), str) or not item.get("encoding"):
             _issue(issues, "artifact-encoding", path + "/encoding", "must be a non-empty string")
         _require_hash(issues, item.get("sha256"), path + "/sha256", "artifact-hash")
@@ -884,7 +884,7 @@ def _question_structure_issues(question):
                    "artifact id must be unique")
         else:
             seen.add(artifact_id)
-        if (item.get("kind"), item.get("format")) not in K1_TO_K3:
+        if (item.get("kind"), item.get("format")) not in QUESTION_ARTIFACT_TO_MANIFEST:
             _issue(issues, "question-artifact-kind", path, "unknown kind/format")
         if not isinstance(item.get("text"), str):
             _issue(issues, "question-artifact-text", path + "/text", "must be a string")
@@ -915,11 +915,11 @@ def _question_structure_issues(question):
 
 def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes=None,
              artifact_bytes=None, fixture_bytes=None):
-    """Validate one question against one manifest and the K4 binding document.
+    """Validate one question against one manifest and the binding document.
 
     ``manifest_bytes``/``question_bytes`` are the exact bytes the caller read;
     when given they are checked against ``manifest_sha256``/``question_sha256``.
-    ``artifact_bytes`` maps manifest artifact ids to bytes (for K3-only
+    ``artifact_bytes`` maps manifest artifact ids to bytes (for manifest-only
     artifacts and traces); ``fixture_bytes`` maps fixture ids to the content of
     ``content/fixtures/artifacts/<fixture_id>.out``. Missing bytes are reported
     as issues, never silently ignored. No file is read here.
@@ -1064,7 +1064,7 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
             _issue(issues, "question-artifact-not-referenced", path,
                    "the matching manifest artifact is not referenced by any bound case")
         kind, fmt = artifact.get("kind"), artifact.get("format")
-        mapped = K1_TO_K3.get((kind, fmt))
+        mapped = QUESTION_ARTIFACT_TO_MANIFEST.get((kind, fmt))
         if mapped is None:
             continue
         wanted_type, wanted_format, wanted_media = mapped
