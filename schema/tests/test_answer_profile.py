@@ -94,7 +94,7 @@ class AnswerProfileSchemaTests(unittest.TestCase):
                     self.assertFalse(self.valid(self.with_options("0.1", profile, count)))
 
     def test_unknown_or_missing_versions_are_refused(self):
-        for version in ("0.3", "0.10", "0.2.0", "1", "1.0", "", " 0.2", "0.2 ", 0.2, 0.1, None, True, ["0.2"]):
+        for version in ("0.4", "0.10", "0.2.0", "1", "1.0", "", " 0.2", "0.2 ", 0.2, 0.1, None, True, ["0.2"]):
             with self.subTest(version=version):
                 question = self.with_options("0.2", "standard", 5)
                 question["schema_version"] = version
@@ -130,7 +130,8 @@ class AnswerProfileSchemaTests(unittest.TestCase):
 
     def test_the_schema_documents_both_versions_without_changing_the_legacy_branch(self):
         schema = load(SCHEMA)
-        self.assertEqual(schema["properties"]["schema_version"], {"enum": ["0.1", "0.2"]})
+        self.assertEqual(schema["properties"]["schema_version"], {"enum": ["0.1", "0.2", "0.3"]},
+                         "0.3 adds text artifacts and keeps the 0.2 profile rules")
         self.assertEqual(schema["properties"]["answer_profile"], {"enum": ["standard", "beginner-practice"]})
         self.assertNotIn("minItems", schema["properties"]["options"], "the bounds live in the version/profile branches, not globally")
 

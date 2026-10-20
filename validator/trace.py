@@ -358,6 +358,9 @@ def _check(root, paths):
     try:
         for path in paths:
             question = load_json(path)
+            if not question.get("snippets"):
+                # A text-only question has no executable code and so never a trace; a trace file for it is an orphan below.
+                continue
             output = _safe_child(root, Path("public/data/traces") / f"{question['id']}.json")
             expected[output] = True
             if not output.is_file():
@@ -458,6 +461,8 @@ def main(argv=None, *, runner=None):
         outputs = []
         for path in paths:
             question = load_json(path)
+            if not question.get("snippets"):
+                continue                                         # text artifacts are never executed or traced
             trace = _trace_question(question, path, runner, args.trace_format)
             _validate_trace(trace, schema_path)
             target = _safe_child(root, Path("public/data/traces") / f"{question['id']}.json")

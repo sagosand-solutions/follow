@@ -29,6 +29,12 @@ def expected_map(course_id):
 LEGACY_ENTRY = {"id": "python", "concept_map": "schema/concepts/python-v0.json"}
 
 
+# Where the output bytes of an artifact's authoring fixture live: a fixed, trusted directory below the repository root. A question names
+# a fixture only by its local id (letters, digits, hyphen), never by a path, so it cannot point anywhere else.
+ARTIFACT_FIXTURE_DIR = "content/fixtures/artifacts"
+MAX_FIXTURE_BYTES = 20000                              # 4000 code points of at most 4 bytes, with room
+
+
 def derived_names(course_id):
     """Python keeps index.json/concepts.json byte for byte; other courses get a suffix."""
     return ("index.json", "concepts.json") if course_id == "python" else (f"index-{course_id}.json", f"concepts-{course_id}.json")
@@ -52,6 +58,25 @@ def prefix_issues(course_id, *, map_data=None, question=None):
         found += [(f"/options/{i}/misconception", o["misconception"]) for i, o in enumerate(question.get("options", [])) if o.get("misconception")]
     return [Issue("course-prefix", path, f"{identifier} does not belong to the {course_id} course (allowed prefixes: {', '.join(allowed)})")
             for path, identifier in found if isinstance(identifier, str) and _prefix_of(identifier) not in allowed]
+
+
+def artifact_fixture_issues(root, question):
+    """The export's acceptance of a question's text artifacts: the fixture output file is read from the trusted directory by
+    descriptor (see fixture_read: no symlink on the way, regular file only, at most MAX_FIXTURE_BYTES read) and its bytes must hash to
+    what the question recorded. Two matching hash fields written in the question prove nothing by themselves; the bytes do."""
+    from . import artifacts as artifact_checks
+    from .fixture_read import FixtureProblem, read_fixture
+    found = []
+    for i, item in enumerate(question.get("artifacts", [])):
+        relative = Path(ARTIFACT_FIXTURE_DIR) / f"{item['provenance']['fixture_id']}.out"
+        where = f"/artifacts/{i}/provenance/fixture_id"
+        try:
+            data = read_fixture(root, relative, MAX_FIXTURE_BYTES)
+        except FixtureProblem as exc:
+            found.append(Issue("artifact-fixture", where, f"Fixture output {relative.as_posix()}: {exc}"))
+            continue
+        found += artifact_checks.verify_artifact_fixture(question, item["id"], data)
+    return found
 
 
 def safe_path(root, relative):
@@ -301,6 +326,11 @@ def _export(root, args, add, issues_seen):
             if question["license"] != PUBLIC_LICENSE:
                 add(path, Issue("non-public-license", "/license",
                                 f"Only {PUBLIC_LICENSE} content may be exported to the public site"))
+                continue
+            fixture_found = artifact_fixture_issues(root, question)
+            for issue in fixture_found:
+                add(path, issue)
+            if fixture_found:
                 continue
             qid = question["id"]
             if path.name != qid + ".json":
