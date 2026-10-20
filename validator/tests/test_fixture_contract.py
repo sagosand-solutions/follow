@@ -289,7 +289,7 @@ def codes(result):
     return {issue.code for issue in result.issues}
 
 
-def replace_artifact(case, text, kind, fmt, k3):
+def replace_artifact(case, text, kind, fmt, manifest_shape):
     """Replace the single content artifact and keep both sides byte-identical."""
     question = case["question"]
     artifact = question["artifacts"][0]
@@ -298,7 +298,7 @@ def replace_artifact(case, text, kind, fmt, k3):
     artifact["provenance"]["fixture_output_sha256"] = sha_text(text)
     manifest_value = case["manifest"]
     content = next(item for item in manifest_value["artifacts"] if item["type"] != "trace")
-    content.update({"type": k3[0], "format": k3[1], "media_type": k3[2],
+    content.update({"type": manifest_shape[0], "format": manifest_shape[1], "media_type": manifest_shape[2],
                     "sha256": sha_text(text), "bytes": len(text.encode())})
     if question["language"] == "text":
         manifest_value["cases"][0]["expected"]["stdout_sha256"] = sha_text(text)
@@ -509,7 +509,7 @@ class ExactControlTest(unittest.TestCase):
 
 
 class SchemaParityTest(unittest.TestCase):
-    def test_every_question_kind_format_pair_has_a_k3_mapping(self):
+    def test_every_question_kind_format_pair_has_a_manifest_mapping(self):
         schema = json.loads((core.ROOT / "schema/question.schema.json").read_text(encoding="utf-8"))
         pairs = {
             (clause["if"]["properties"]["kind"]["const"],
