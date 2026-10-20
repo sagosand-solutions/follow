@@ -25,9 +25,12 @@ import difflib
 import hashlib
 import json
 import os
+from functools import lru_cache
 import re
 import stat
 from pathlib import Path
+
+import jsonschema
 
 from . import core
 from .core import SetupError
@@ -180,7 +183,8 @@ class SafeRoot:
 
     The relative URI is a *form* requirement, not isolation: isolation here is
     the trusted root, ``openat``/``dir_fd``, ``O_NOFOLLOW`` on every component
-    and a regular-file ``fstat``. No URI is resolved over the network.
+    and a regular-file ``fstat``. No URI is resolved over the network. The root
+    itself is trusted; this class does not sandbox a hostile root.
     """
 
     def __init__(self, root):
@@ -1190,7 +1194,8 @@ def validate(manifest, question, binding, *, manifest_bytes=None, question_bytes
     structured arguments; a mismatch is an issue. A gate binding additionally
     requires the exact ``binding_bytes`` and their frozen
     ``expected_binding_sha256``; the object-only path can never issue a verified
-    gate result. No file is read here.
+    gate result. The only file read here is the approved local trace schema for a
+    referenced trace; all caller data remains in the supplied bytes.
     """
     result = _validate_objects(
         manifest, question, binding, manifest_bytes=manifest_bytes,
@@ -1336,6 +1341,36 @@ def _check_stderr_reference(issues, binding_case, manifest_artifacts, artifact_b
                        "stderr_contains is not present in the stderr artifact")
 
 
+@lru_cache(maxsize=2)
+def _trace_schema(version):
+    """Load the approved local trace schema for the given 0.2/0.3 version."""
+    name = "trace-0.3.schema.json" if version == "0.3" else "trace.schema.json"
+    path = Path(__file__).resolve().parent.parent / "schema" / name
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _validate_trace_document(issues, document, prefix):
+    version = document.get("schema_version")
+    if version not in ("0.2", "0.3"):
+        _issue(issues, "trace-schema", prefix, "unsupported trace schema version")
+        return
+    schema = _trace_schema(version)
+    if schema is None:
+        _issue(issues, "trace-schema", prefix, "approved trace schema is unavailable")
+        return
+    try:
+        validator = jsonschema.Draft202012Validator(schema)
+        errors = sorted(validator.iter_errors(document), key=lambda error: list(error.path))
+    except Exception as exc:
+        _issue(issues, "trace-schema", prefix, f"trace schema validation failed: {exc}")
+        return
+    if errors:
+        _issue(issues, "trace-schema", prefix, f"trace schema: {errors[0].message}")
+
+
 def _trace_exception_key(exception):
     if exception is None:
         return None
@@ -1359,8 +1394,7 @@ def _check_trace(issues, trace_raw, trace_id, question, question_case, manifest_
     if not isinstance(trace_document, dict):
         _issue(issues, "trace-object", prefix, "trace must be a JSON object")
         return
-    if trace_document.get("schema_version") not in ("0.2", "0.3"):
-        _issue(issues, "trace-schema", prefix, "unsupported trace schema version")
+    _validate_trace_document(issues, trace_document, prefix)
     if trace_document.get("question_id") != question.get("id"):
         _issue(issues, "trace-question", prefix,
                "trace question_id does not match the question")

@@ -345,6 +345,19 @@ def exception_contract():
     return case
 
 
+def add_stderr_artifact(case, artifact_id="stderr-2", text="bad literal\n"):
+    raw = text.encode()
+    case["manifest"]["artifacts"].append({
+        "artifact_id": artifact_id, "type": "text", "format": "text",
+        "media_type": "text/plain", "encoding": "utf-8", "executable": False,
+        "is_trace": False, "sha256": sha(raw), "bytes": len(raw),
+        "truncated": False, "complete": True})
+    case["manifest"]["receipt"]["usage"]["artifact_bytes"] += len(raw)
+    case["artifact_bytes"][artifact_id] = raw
+    case["binding"]["questions"][0]["cases"][0]["artifact_ids"].append(artifact_id)
+    return case["manifest"]["artifacts"][-1]
+
+
 class ValidContractTest(unittest.TestCase):
     def test_git_diff_contract_is_verified(self):
         result = run(contract())
@@ -839,6 +852,136 @@ class ArtifactAndTraceTest(unittest.TestCase):
         self.assertIn("exception-stderr-missing", codes(run(case)))
 
 
+    def test_trace_schema_version_is_checked(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["schema_version"] = "0.4"
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-schema", codes(run(case)))
+
+    def test_trace_schema_rejects_malformed_steps(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["steps"] = [{}]
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-schema", codes(run(case)))
+
+    def test_trace_question_must_match(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["question_id"] = "q-2"
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-question", codes(run(case)))
+
+    def test_trace_stdout_must_match_the_manifest(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["stdout"] = "2\n"
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-stdout", codes(run(case)))
+
+    def test_trace_exception_must_match_the_manifest(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["exception"] = {"type": "ValueError", "message": "x", "line": 1}
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-exception", codes(run(case)))
+
+    def test_trace_steps_must_be_a_list(self):
+        case = contract()
+        doc = json.loads(TRACE)
+        doc["traces"][0]["steps"] = "not-a-list"
+        replace_trace(case, json.dumps(doc).encode())
+        self.assertIn("trace-steps", codes(run(case)))
+
+    def test_trace_source_must_match_the_manifest_case(self):
+        case = contract()
+        case["manifest"]["cases"][0]["source_sha256"] = "0" * 64
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("trace-source", codes(run(case)))
+
+    def test_trace_source_must_be_utf8(self):
+        case = contract()
+        case["question"]["snippets"][0]["code"] = "\ud800"
+        self.assertIn("trace-source", codes(run(case)))
+
+    def test_exception_stderr_must_be_text(self):
+        case = exception_contract()
+        artifact = next(item for item in case["manifest"]["artifacts"] if item["artifact_id"] == "stderr-1")
+        artifact["type"] = "binary"
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-type", codes(run(case)))
+
+    def test_exception_stderr_must_be_complete(self):
+        case = exception_contract()
+        artifact = next(item for item in case["manifest"]["artifacts"] if item["artifact_id"] == "stderr-1")
+        artifact["complete"] = False
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-complete", codes(run(case)))
+
+    def test_actual_stderr_bytes_are_checked(self):
+        case = exception_contract()
+        add_stderr_artifact(case, "stderr-2", "bad literal\n")
+        case["manifest"]["cases"][0]["actual"]["exception"]["stderr_artifact_id"] = "stderr-2"
+        case["artifact_bytes"]["stderr-2"] = b"tampered"
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-bytes", codes(run(case)))
+
+    def test_exception_stderr_must_be_utf8(self):
+        case = exception_contract()
+        raw = b"\xff"
+        artifact = next(item for item in case["manifest"]["artifacts"] if item["artifact_id"] == "stderr-1")
+        old = artifact["bytes"]
+        artifact.update({"sha256": sha(raw), "bytes": len(raw)})
+        case["manifest"]["receipt"]["usage"]["artifact_bytes"] += len(raw) - old
+        case["artifact_bytes"]["stderr-1"] = raw
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-encoding", codes(run(case)))
+
+    def test_exception_stderr_content_is_checked(self):
+        case = exception_contract()
+        raw = b"other\n"
+        artifact = next(item for item in case["manifest"]["artifacts"] if item["artifact_id"] == "stderr-1")
+        old = artifact["bytes"]
+        artifact.update({"sha256": sha(raw), "bytes": len(raw)})
+        case["manifest"]["receipt"]["usage"]["artifact_bytes"] += len(raw) - old
+        case["artifact_bytes"]["stderr-1"] = raw
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-content", codes(run(case)))
+
+    def test_actual_exception_is_required(self):
+        case = exception_contract()
+        case["manifest"]["cases"][0]["actual"]["exception"] = None
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-actual-missing", codes(run(case)))
+
+    def test_expected_and_actual_stderr_must_be_the_same_artifact(self):
+        case = exception_contract()
+        add_stderr_artifact(case, "stderr-2", "bad literal\n")
+        case["manifest"]["cases"][0]["actual"]["exception"]["stderr_artifact_id"] = "stderr-2"
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-stderr-mismatch", codes(run(case)))
+
+    def test_exception_message_is_checked(self):
+        case = exception_contract()
+        for name in ("expected", "actual"):
+            case["manifest"]["cases"][0][name]["exception"]["message"] = "other"
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-message", codes(run(case)))
+
+    def test_exception_shape_is_checked(self):
+        case = exception_contract()
+        for name in ("expected", "actual"):
+            case["manifest"]["cases"][0][name]["exception"] = "not-an-object"
+        case["manifest"]["binding_sha256"] = fc.compute_binding_sha256(case["manifest"])
+        self.assertIn("exception-shape", codes(run(case)))
+
+    def test_exception_is_unexpected_on_zero_exit(self):
+        case = exception_contract()
+        case["question"]["verification"]["cases"][0]["expected"]["exit_code"] = 0
+        self.assertIn("exception-unexpected", codes(run(case)))
+
+
 class ReadBudgetTest(unittest.TestCase):
     def write_root(self, case):
         return ValidateFilesTest.write_root(self, case)
@@ -888,6 +1031,20 @@ class ReadBudgetTest(unittest.TestCase):
         self.assertIn("artifact-total-bytes", codes(fc.validate_files(binding)))
 
 
+    def test_remaining_artifact_budget_stops_post_size_growth(self):
+        root, binding = self.write_root(contract())
+        (root / "batch/artifacts/big-a").write_bytes(b"a" * (3 * 1024 * 1024))
+        (root / "batch/artifacts/big-b").write_bytes(b"b" * (3 * 1024 * 1024))
+        raw = json.loads(binding.read_text(encoding="utf-8"))
+        raw["artifact_uris"] = {"big-a": "batch/artifacts/big-a",
+                                "big-b": "batch/artifacts/big-b"}
+        binding.write_text(json.dumps(raw), encoding="utf-8")
+        from unittest import mock
+        with mock.patch.object(fc.SafeRoot, "size", return_value=1):
+            with self.assertRaises(fc.ContractError):
+                fc.validate_files(binding)
+
+
 class PublicApiBindingTest(unittest.TestCase):
     def test_manifest_object_must_match_its_bytes(self):
         case = contract()
@@ -930,6 +1087,75 @@ class PublicApiBindingTest(unittest.TestCase):
                              fixture_bytes=case["fixture_bytes"])
         self.assertIn("binding-file-unbound", codes(result))
         self.assertFalse(result.verified)
+
+
+    def test_question_object_must_match_its_bytes(self):
+        case = contract()
+        question = case["question"]
+        other = deepcopy(question)
+        other["id"] = "q-2"
+        qraw = json.dumps(other).encode()
+        mraw = json.dumps(case["manifest"]).encode()
+        binding = deepcopy(case["binding"])
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        result = fc.validate(question, question, binding, manifest_bytes=mraw,
+                             question_bytes=qraw, artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"])
+        self.assertIn("question-object-mismatch", codes(result))
+
+    def test_invalid_manifest_json_is_reported(self):
+        case = contract()
+        qraw = json.dumps(case["question"]).encode()
+        raw = b"not json"
+        binding = deepcopy(case["binding"])
+        binding["manifest_sha256"] = sha(raw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        result = fc.validate(case["manifest"], case["question"], binding, manifest_bytes=raw,
+                             question_bytes=qraw, artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"])
+        self.assertIn("manifest-json", codes(result))
+
+    def test_invalid_question_json_is_reported(self):
+        case = contract()
+        mraw = json.dumps(case["manifest"]).encode()
+        raw = b"not json"
+        binding = deepcopy(case["binding"])
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(raw)
+        result = fc.validate(case["manifest"], case["question"], binding, manifest_bytes=mraw,
+                             question_bytes=raw, artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"])
+        self.assertIn("question-json", codes(result))
+
+    def test_binding_object_must_match_its_bytes(self):
+        case = contract()
+        question = case["question"]
+        binding = deepcopy(case["binding"])
+        mraw = json.dumps(case["manifest"]).encode()
+        qraw = json.dumps(question).encode()
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        other = deepcopy(binding)
+        other["extra"] = True
+        result = fc.validate(case["manifest"], question, binding, manifest_bytes=mraw,
+                             question_bytes=qraw, artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"],
+                             binding_bytes=json.dumps(other).encode())
+        self.assertIn("binding-object-mismatch", codes(result))
+
+    def test_invalid_binding_json_is_reported(self):
+        case = contract()
+        question = case["question"]
+        binding = deepcopy(case["binding"])
+        mraw = json.dumps(case["manifest"]).encode()
+        qraw = json.dumps(question).encode()
+        binding["manifest_sha256"] = sha(mraw)
+        binding["questions"][0]["question_sha256"] = sha(qraw)
+        result = fc.validate(case["manifest"], question, binding, manifest_bytes=mraw,
+                             question_bytes=qraw, artifact_bytes=case["artifact_bytes"],
+                             fixture_bytes=case["fixture_bytes"], binding_bytes=b"not json")
+        self.assertIn("binding-json", codes(result))
 
 
 class LicenceTest(unittest.TestCase):
