@@ -18,6 +18,8 @@ class BudgetAndRuntimeTests(unittest.TestCase):
     def test_the_runtime_has_no_shell_and_only_image_relative_binds(self):
         runtime = plan.runtime_plan("/opt/pinned-runtime")
         self.assertEqual(runtime.executables, ("/runtime/bin/python3", "/runtime/bin/git"))
+        self.assertIn(("lib64/ld-linux-x86-64.so.2", "/runtime/lib64/ld-linux-x86-64.so.2"), runtime.bind_ro,
+                      "a glibc Python needs its loader to start")
         for host, sandbox in runtime.bind_ro:
             self.assertFalse(host.startswith("/"), host)
             self.assertTrue(sandbox.startswith("/runtime/"), sandbox)
@@ -88,7 +90,7 @@ class BwrapPlanTests(unittest.TestCase):
         self.assertEqual(command[command.index("--") + 1:], ["/runtime/bin/git", "status"])
 
     def test_a_whole_host_directory_as_work_is_refused(self):
-        for work in ("/tmp", "/usr", "/etc", "/home", "/run", "/root", "relative"):
+        for work in ("/", "/tmp", "/usr", "/etc", "/home", "/run", "/root", "relative"):
             with self.subTest(work=work):
                 with self.assertRaises(plan.PlanError):
                     self.command(work=work)

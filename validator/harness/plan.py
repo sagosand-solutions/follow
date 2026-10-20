@@ -27,7 +27,7 @@ BUDGET = {
 }
 
 SHELL_NAMES = frozenset({"sh", "bash", "dash", "zsh", "ksh", "fish", "csh", "tcsh", "busybox"})
-HOST_WHOLE_DIRS = ("/usr", "/etc", "/home", "/run", "/tmp", "/root")
+HOST_WHOLE_DIRS = ("/", "/usr", "/etc", "/home", "/run", "/tmp", "/root")
 
 
 class PlanError(ValueError):
@@ -68,6 +68,7 @@ def runtime_plan(image: str) -> Runtime:
         bind_ro=(
             ("bin/python3", "/runtime/bin/python3"),
             ("bin/git", "/runtime/bin/git"),
+            ("lib64/ld-linux-x86-64.so.2", "/runtime/lib64/ld-linux-x86-64.so.2"),
             ("lib/python3.14", "/runtime/lib/python3.14"),
             ("lib/x86_64-linux-gnu", "/runtime/lib/x86_64-linux-gnu"),
         ),
