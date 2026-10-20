@@ -33,6 +33,10 @@ class ResolverTests(unittest.TestCase):
                 with self.assertRaises(resolver.ResolverError):
                     self.read(uri)
 
+    def test_a_root_with_nul_is_refused(self):
+        with self.assertRaisesRegex(resolver.ResolverError, "NUL"):
+            resolver.resolve(str(self.root) + "\x00", "a/b/manifest.json", self.limit)
+
     def test_the_trusted_root_must_be_a_plain_directory_not_a_symlink_or_file(self):
         link = self.root.parent / (self.root.name + "-link")
         link.symlink_to(self.root, target_is_directory=True)

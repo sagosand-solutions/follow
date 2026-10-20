@@ -55,6 +55,8 @@ def resolve(root, uri: str, limit: int) -> bytes:
     problem = _form_error(uri)
     if problem is not None:
         raise ResolverError(problem)
+    if "\x00" in str(root):
+        raise ResolverError("the trusted root contains NUL")
     parts = Path(uri).parts
     opened: list[int] = []
     try:
