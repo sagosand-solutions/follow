@@ -143,6 +143,48 @@ test('rendering: the text is the text, exactly, as one inert text node', () => {
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('rendering: one named, described, focusable group per artifact and no landmark', () => {
+  const node = renderArtifact(art('a\n', 'diff', 'the-change'));
+  const pre = node.all((n) => n.tag === 'pre')[0];
+  assert.equal(pre.attrs.role, 'group');
+  assert.equal(pre.attrs.tabindex, '0', 'reachable by keyboard so a wide text can be scrolled');
+  const byId = (id) => node.all((n) => n.attrs.id === id)[0];
+  assert.equal(text(byId(pre.attrs['aria-labelledby'])), 'Change (diff)');
+  assert.equal(text(byId(pre.attrs['aria-describedby'])), 'Shown as text. Nothing here is run.');
+  assert.equal(node.all((n) => n.attrs.role === 'region').length, 0, 'not a landmark');
+  const ids = node.all((n) => n.attrs.id).map((n) => n.attrs.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.every((id) => id.includes('the-change')), 'ids come from the artifact id');
+  const two = [renderArtifact(art('a\n', 'text', 'one')), renderArtifact(art('b\n', 'text', 'two'))];
+  const all = two.flatMap((fig) => fig.all((n) => n.attrs.id).map((n) => n.attrs.id));
+  assert.equal(new Set(all).size, all.length, 'two artifacts never share an id');
+});
+
+test('prose wraps and columns scroll: the CSS says so (a layout rule a DOM stub cannot measure)', () => {
+  const css = readFileSync(new URL('../public/css/components.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.artifact\[data-kind="text"\] \.artifact__text,\s*\.artifact\[data-kind="policy"\] \.artifact__text \{([^}]*)\}/);
+  assert.ok(rule, 'a rule for the prose kinds');
+  assert.match(rule[1], /white-space:\s*pre-wrap/);
+  assert.match(rule[1], /overflow-wrap:\s*anywhere/);
+  const base = css.match(/\.artifact__text \{([^}]*)\}/)[1];
+  assert.match(base, /white-space:\s*pre;/, 'diff, transcript and report keep their columns and scroll');
+  assert.match(base, /overflow-x:\s*auto/);
+});
+
+test('the stage and the note speak of text when the question has text', async () => {
+  const q = textOnly([art('a\n', 'text', 'one'), art('b\n', 'policy', 'two')], { id: 'two-blocks-one' });
+  questions = { [q.id]: q };
+  store.reset();
+  const node = (await questionView({ id: q.id })).node;
+  assert.equal(node.all((n) => (n.className || '').split(' ').includes('q-stage'))[0].attrs['aria-label'], 'Code and text');
+  assert.match(text(node), /Read the text, then choose the answer\./);
+  assert.doesNotMatch(text(node), /Read the code/);
+  const m = mixed([art('a\n', 'text', 'one')], { id: 'mixed-two-one' });
+  questions = { [m.id]: m };
+  const mixedNode = (await questionView({ id: m.id })).node;
+  assert.match(text(mixedNode), /Read the code, then choose what it does\./, 'a question with code keeps the code wording');
+});
+
 test('rendering: an author label is text too, in the caption and in the region name', () => {
   const label = '<img src=x onerror=alert(1)> & <b>';
   const node = renderArtifact(art('x\n', 'text', 'change', { label }));

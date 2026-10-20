@@ -9,9 +9,13 @@ const KIND_NAMES = {
   'test-report': 'artifact.kind.test-report', policy: 'artifact.kind.policy',
 };
 
+// The scrollable text is the focusable group, named by its label and described by the note, like the code block: one named stop per
+// artifact for a screen reader, and not a landmark. The ids come from the artifact id, which is unique within a question.
 export function renderArtifact(artifact) {
   const label = artifact.label || t(KIND_NAMES[artifact.kind]);
+  const labelId = `artifact-${artifact.id}-label`;
+  const noteId = `artifact-${artifact.id}-note`;
   return h('figure', { class: 'artifact', 'data-kind': artifact.kind },
-    h('figcaption', { class: 'artifact__caption' }, h('span', { class: 'artifact__label' }, label), h('span', { class: 'artifact__note' }, t('artifact.note'))),
-    h('pre', { class: 'artifact__text', tabindex: '0', role: 'region', 'aria-label': label }, artifact.text));
+    h('figcaption', { class: 'artifact__caption' }, h('span', { class: 'artifact__label', id: labelId }, label), h('span', { class: 'artifact__note', id: noteId }, t('artifact.note'))),
+    h('pre', { class: 'artifact__text', tabindex: '0', role: 'group', 'aria-labelledby': labelId, 'aria-describedby': noteId }, artifact.text));
 }

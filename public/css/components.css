@@ -33,6 +33,8 @@
   tab-size: 4;
   white-space: pre;
 }
+.artifact[data-kind="text"] .artifact__text,
+.artifact[data-kind="policy"] .artifact__text { white-space: pre-wrap; overflow-wrap: anywhere; }   /* prose wraps; columns (diff, transcript, report) scroll */
 .artifact__text:focus-visible { outline: 3px solid var(--stage-focus); outline-offset: -3px; }
 .q-stage > .artifact + .artifact, .q-stage > .code + .artifact { margin-block-start: var(--s-4); }
 

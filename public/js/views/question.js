@@ -261,14 +261,14 @@ function draw(ctx, prev, stale = false) {
 
   // Text artifacts (0.3) come after the code, as plain text blocks: not code, not traced, not run.
   const artifacts = (q.artifacts || []).map((a) => renderArtifact(a));
-  const stageBox = h('div', { class: 'q-stage', role: snippets.length + artifacts.length > 1 ? 'group' : null, 'aria-label': snippets.length + artifacts.length > 1 ? t('q.code') : null }, ...snippets, ...artifacts);
+  const stageBox = h('div', { class: 'q-stage', role: snippets.length + artifacts.length > 1 ? 'group' : null, 'aria-label': snippets.length + artifacts.length > 1 ? t(artifacts.length ? 'q.material' : 'q.code') : null }, ...snippets, ...artifacts);
   const scoreLine = ctx.scoring && !ctx.practice && !answered ? ctx.scoring.tryLine(firstTry) : null;
   const side = h('div', { class: 'q-side' }, stale ? h('p', { class: 'banner', role: 'status' }, t('q.stale')) : null, group, scoreLine, answered ? null : actions, feedback, sourceFor(q));
   // Practice: the whole instruction on the first question of a lesson, otherwise one line that opens to it, so it is always there
   // (direct links, zoom) and the code and all four options still fit on a phone.
   const noteNode = ctx.practice
-    ? [ctx.where && ctx.where.position === 0 ? noteBox({ title: t('q.note.title'), text: t('q.note.text') }) : h('details', { class: 'note note--fold' }, h('summary', { class: 'note__title' }, t('q.note.how')), h('p', { class: 'note__text' }, t('q.note.title'), ' ', t('q.note.text')))]
-    : showInstructionNote(answeredDistinct()) ? [noteBox({ title: t('q.note.title'), text: t('q.note.text') })] : [];
+    ? [ctx.where && ctx.where.position === 0 ? noteBox({ title: t(q.language === 'text' ? 'q.note.titleText' : 'q.note.title'), text: t('q.note.text') }) : h('details', { class: 'note note--fold' }, h('summary', { class: 'note__title' }, t('q.note.how')), h('p', { class: 'note__text' }, t(q.language === 'text' ? 'q.note.titleText' : 'q.note.title'), ' ', t('q.note.text')))]
+    : showInstructionNote(answeredDistinct()) ? [noteBox({ title: t(q.language === 'text' ? 'q.note.titleText' : 'q.note.title'), text: t('q.note.text') })] : [];
   if (firstTry && !ctx.practice && !answered && showInstructionNote(answeredDistinct())) noteNode.push(ctx.scoring.rulesNote());
   root.replaceChildren(h('div', { class: 'question__top stack' }, header, ctx.reviewMode ? h('p', { class: 'review__description muted' }, t('review.description')) : null, chips, ctx.practice ? h('p', { class: 'muted small' }, t('q.practice.note')) : null, title), ...(ctx.sign ? [ctx.sign] : []), ...newWordCards(ctx.intros), ...noteNode, h('div', { class: 'q-grid' }, stageBox, side), ...(sheet ? [sheet.dialog] : []));
 
@@ -305,7 +305,10 @@ async function mountStepper(q, box, figures) {
   if (!list.length || !box.isConnected) return;
   const seen = createSeenFlag('first-run');
   const player = createStepPlayer(list, { firstRun: !seen.isSeen(), onFirstRunDone: () => seen.markSeen(), narrate: isPractice(q) });
-  box.append(player);
+  // Straight after the last code figure, not after the text artifacts that may follow it.
+  const lastFigure = figures[figures.length - 1];
+  if (lastFigure && lastFigure.parentNode) lastFigure.parentNode.insertBefore(player, lastFigure.nextSibling);
+  else box.append(player);
   // A pointer under the verdict, so the first-time reader finds the player (it lives next to the code).
   const after = box.closest('.question') ? box.closest('.question').querySelector('#feedback .q-next') : null;
   if (after) {
