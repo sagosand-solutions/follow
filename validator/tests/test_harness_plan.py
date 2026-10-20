@@ -18,11 +18,11 @@ class BudgetAndRuntimeTests(unittest.TestCase):
     def test_the_runtime_has_no_shell_and_only_image_relative_binds(self):
         runtime = plan.runtime_plan("/opt/pinned-runtime")
         self.assertEqual(runtime.executables, ("/runtime/bin/python3", "/runtime/bin/git"))
-        self.assertIn(("lib64/ld-linux-x86-64.so.2", "/runtime/lib64/ld-linux-x86-64.so.2"), runtime.bind_ro,
-                      "a glibc Python needs its loader to start")
+        self.assertIn(("lib64/ld-linux-x86-64.so.2", "/lib64/ld-linux-x86-64.so.2"), runtime.bind_ro,
+                      "a normal glibc Python asks PT_INTERP for /lib64/...")
         for host, sandbox in runtime.bind_ro:
             self.assertFalse(host.startswith("/"), host)
-            self.assertTrue(sandbox.startswith("/runtime/"), sandbox)
+            self.assertTrue(sandbox.startswith("/runtime/") or sandbox == "/lib64/ld-linux-x86-64.so.2", sandbox)
         for exe in runtime.executables:
             self.assertNotIn(exe.rsplit("/", 1)[-1].lower(), plan.SHELL_NAMES)
         with self.assertRaises(plan.PlanError):
@@ -90,7 +90,7 @@ class BwrapPlanTests(unittest.TestCase):
         self.assertEqual(command[command.index("--") + 1:], ["/runtime/bin/git", "status"])
 
     def test_a_whole_host_directory_as_work_is_refused(self):
-        for work in ("/", "/tmp", "/usr", "/etc", "/home", "/run", "/root", "relative"):
+        for work in ("/", "/.", "//", "/./", "/tmp", "/tmp/..", "/usr", "/usr/.", "/usr//", "/etc", "/etc/.", "/home", "/run", "/root", "relative"):
             with self.subTest(work=work):
                 with self.assertRaises(plan.PlanError):
                     self.command(work=work)

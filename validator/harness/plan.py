@@ -7,6 +7,7 @@ no fixture can run through this code until the Ingenjör's execution boundary is
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
@@ -68,6 +69,8 @@ def runtime_plan(image: str) -> Runtime:
         bind_ro=(
             ("bin/python3", "/runtime/bin/python3"),
             ("bin/git", "/runtime/bin/git"),
+            # A normal glibc Python asks PT_INTERP for /lib64/...; a patched image may ask for /runtime/lib64/...
+            ("lib64/ld-linux-x86-64.so.2", "/lib64/ld-linux-x86-64.so.2"),
             ("lib64/ld-linux-x86-64.so.2", "/runtime/lib64/ld-linux-x86-64.so.2"),
             ("lib/python3.14", "/runtime/lib/python3.14"),
             ("lib/x86_64-linux-gnu", "/runtime/lib/x86_64-linux-gnu"),
@@ -101,6 +104,14 @@ def _sandbox_path(value: str, name: str) -> str:
     return value
 
 
+def _reject_whole_host_dir(value: str, name: str) -> None:
+    """Resolve the path the way the kernel would (symlinks and '.'/'..' included) and refuse a whole host directory."""
+    real = os.path.realpath(value)
+    real = "/" + real.lstrip("/")           # '//' is the same directory as '/' on Linux
+    if real == "/" or real in HOST_WHOLE_DIRS:
+        raise PlanError(f"{name}={value!r} resolves to {real!r}, a whole host directory")
+
+
 def _validate_argv(runtime: Runtime, argv: Sequence[str]) -> list[str]:
     if isinstance(argv, (str, bytes)) or not isinstance(argv, Sequence) or not argv:
         raise PlanError("argv must be a non-empty list of strings")
@@ -124,9 +135,8 @@ def bwrap_argv(runtime: Runtime, *, work: str, input_dir: str, argv: Sequence[st
     _sandbox_path(work, "work")
     _sandbox_path(input_dir, "input_dir")
     command = _validate_argv(runtime, argv)
-    for host_path in (work, input_dir):
-        if host_path in HOST_WHOLE_DIRS:
-            raise PlanError(f"{host_path} is a whole host directory, not a private scratch/snapshot")
+    _reject_whole_host_dir(work, "work")
+    _reject_whole_host_dir(input_dir, "input_dir")
     result = [
         "bwrap",
         "--unshare-all",            # user, mount, pid, net, ipc, uts, cgroup
