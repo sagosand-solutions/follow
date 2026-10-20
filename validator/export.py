@@ -14,18 +14,25 @@ from .core import (ContentError, InputLimitError, Issue, QuestionBudget, SetupEr
 ROOT = core.ROOT
 LEVELS = {"beginner": 0, "intermediate": 1, "advanced": 2}
 PUBLIC_LICENSE = "CC-BY-SA-4.0"
-# Concept-id prefixes each course may use (its own, plus the shared Python vocabulary). A course not listed here, such as
-# a beginner course, may use the shared Python vocabulary only.
-COURSE_PREFIXES = {"python": ("py",), "production": ("prod", "py"), "sql": ("sql", "py")}
+# Concept-id namespaces each course may use: its own, plus the ones it was given explicitly. The schemas accept the seven namespaces
+# (py, prod, sql, git, http, test, rev); this table decides which course may use which, so a namespace is never accepted "for
+# everyone". The review course builds on Git and Testing, so its vocabulary may carry git. and test. entries, as production and sql
+# carry py. entries. A course not listed here, such as a beginner course, may use the shared Python vocabulary only.
+COURSE_PREFIXES = {
+    "python": ("py",), "production": ("prod", "py"), "sql": ("sql", "py"),
+    "git-diffs": ("git", "py"), "http-api": ("http", "py"), "testing": ("test", "py"), "review-ai-changes": ("rev", "py", "git", "test"),
+}
 DEFAULT_PREFIXES = ("py",)
-# The three courses that have a vocabulary of their own. Any other course (a beginner course) reads Python, so it must say so:
+# The courses that have a vocabulary of their own (every course in COURSE_PREFIXES). Any other course (a beginner course) reads Python, so it must say so:
 # its catalog entry names the Python map. There is no fallback: the field is required and must be exactly one of these.
-OWN_MAP_COURSES = frozenset({"python", "production", "sql"})
+OWN_MAP_COURSES = frozenset(COURSE_PREFIXES)
 SHARED_MAP = "schema/concepts/python-v0.json"
 
 
 def expected_map(course_id):
     return f"schema/concepts/{course_id}-v0.json" if course_id in OWN_MAP_COURSES else SHARED_MAP
+
+
 LEGACY_ENTRY = {"id": "python", "concept_map": "schema/concepts/python-v0.json"}
 
 
