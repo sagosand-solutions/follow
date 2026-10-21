@@ -37,7 +37,7 @@ test('the favicon takes only plain hex colours, so a token can never write marku
 // A page root whose computed tokens are given, with a theme-color meta and a favicon link.
 function page(values) {
   const meta = { attrs: { content: '#0b1020' }, setAttribute(k, v) { this.attrs[k] = v; } };
-  const link = { attrs: { href: 'favicon.svg' }, setAttribute(k, v) { this.attrs[k] = v; } };
+  const link = { attrs: { href: 'favicon.svg' }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k] ?? null; } };
   const doc = { querySelector: (sel) => (sel === 'meta[name="theme-color"]' ? meta : sel === 'link[rel="icon"]' ? link : null) };
   const el = { ownerDocument: doc, setAttribute() {}, removeAttribute() {} };
   globalThis.getComputedStyle = () => ({ getPropertyValue: (name) => values[name] ?? '' });
@@ -51,6 +51,26 @@ test('choosing a theme redraws the tab icon in that theme\'s stage colours', () 
   assert.ok(href.startsWith('data:image/svg+xml,'));
   assert.equal(decodeURIComponent(href.slice('data:image/svg+xml,'.length)), faviconSvg({ tile: '#1d1914', caret: '#ffc83d', ink: '#f1e9dc' }));
   assert.equal(p.meta.attrs.content, '#0b1020');
+});
+
+test('a later theme whose token cannot be read brings back the static favicon, not the earlier theme\'s icon', () => {
+  const tokens = { '--bg': '#0b1020', '--stage-bg': '#1d1914', '--accent-attention': '#ffc83d', '--stage-ink': '#f1e9dc' };
+  const p = page(tokens);
+  applyTheme('paper', p.el);
+  assert.ok(p.link.attrs.href.startsWith('data:image/svg+xml,'));
+  tokens['--stage-bg'] = 'var(--nowhere)';
+  applyTheme('slate', p.el);
+  assert.equal(p.link.attrs.href, 'favicon.svg');
+  tokens['--stage-bg'] = '#12151b';
+  applyTheme('slate', p.el);
+  assert.match(decodeURIComponent(p.link.attrs.href), /fill="#12151b"/, 'a readable theme redraws it again');
+});
+
+test('a page without a favicon link still gets its theme colour', () => {
+  const p = page({ '--bg': '#123456', '--stage-bg': '#0e1428', '--accent-attention': '#ffc83d', '--stage-ink': '#e9ecfb' });
+  const only = { ...p.el, ownerDocument: { querySelector: (sel) => (sel === 'meta[name="theme-color"]' ? p.meta : null) } };
+  assert.doesNotThrow(() => applyTheme('dark', only));
+  assert.equal(p.meta.attrs.content, '#123456');
 });
 
 test('a token that cannot be read leaves the static favicon in place', () => {

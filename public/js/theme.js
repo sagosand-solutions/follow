@@ -38,8 +38,12 @@ export function applyTheme(mode, root = globalThis.document && globalThis.docume
   syncThemeColor(root);
 }
 
+// The page's own favicon link (favicon.svg in index.html), remembered per link before the first redraw.
+const staticIcons = new WeakMap();
+
 // The browser chrome follows the page background (meta theme-color), read from the theme's own --bg token, and the tab's
-// icon is redrawn in the theme's stage colours (the static favicon.svg stays in place when a token cannot be read).
+// icon is redrawn in the theme's stage colours. When a token cannot be read, the tab goes back to the static favicon,
+// never keeping an earlier theme's icon.
 function syncThemeColor(root) {
   const doc = root && root.ownerDocument;
   if (!doc || !globalThis.getComputedStyle) return;
@@ -50,7 +54,9 @@ function syncThemeColor(root) {
   if (meta && bg) meta.setAttribute('content', bg);
   const icon = doc.querySelector('link[rel="icon"]');
   const svg = faviconSvg({ tile: token('--stage-bg'), caret: token('--accent-attention'), ink: token('--stage-ink') });
-  if (icon && svg) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(svg)}`);
+  if (!icon) return;
+  if (!staticIcons.has(icon)) staticIcons.set(icon, icon.getAttribute('href'));
+  icon.setAttribute('href', svg ? `data:image/svg+xml,${encodeURIComponent(svg)}` : staticIcons.get(icon));
 }
 
 export function initTheme(storage = defaultStorage()) {
