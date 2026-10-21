@@ -430,7 +430,10 @@ def _tool_probe(policy, args, index, timeout=10):
     deadline = started + timeout
 
     def sub_remaining():
-        return max(0.1, deadline - time.monotonic())
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise StepError("tool probe deadline exceeded before the next step")
+        return remaining
 
     try:
         try:
@@ -496,7 +499,7 @@ def check_image_tools(policy_path):
         upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
         if remaining() <= 0:
             raise StepError("the tool probe budget of 30 seconds was exceeded")
-        probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1, max(0.1, min(10, remaining())))
+        probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1, min(10, remaining()))
         if time.monotonic() > deadline:
             raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
         probes.append(probe)
@@ -506,7 +509,7 @@ def check_image_tools(policy_path):
         if remaining() <= 0:
             raise StepError("the tool probe budget of 30 seconds was exceeded")
         probe = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2,
-                            max(0.1, min(10, remaining())))
+                            min(10, remaining()))
         if time.monotonic() > deadline:
             raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
         probes.append(probe)
@@ -517,7 +520,7 @@ def check_image_tools(policy_path):
         if remaining() <= 0:
             raise StepError("the tool probe budget of 30 seconds was exceeded")
         probe = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3,
-                            max(0.1, min(10, remaining())))
+                            min(10, remaining()))
         if time.monotonic() > deadline:
             raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
         probes.append(probe)

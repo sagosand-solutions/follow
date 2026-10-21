@@ -1277,6 +1277,21 @@ class ToolCheckTests(unittest.TestCase):
         self.assertEqual(cleanup[1]["timeout"], 5)
         self.assertEqual(absence[1]["timeout"], 5)
 
+    def test_tool_probe_deadline_before_create_is_zero_start(self):
+        from unittest import mock
+        from ci import steps
+        calls = []
+        def run(command, **kwargs):
+            calls.append(command)
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 11]):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1, 10)
+        self.assertFalse(any(command[:2] == ["docker", "create"] for command in calls))
+
     def test_tool_probe_over_deadline_stops_before_the_next_probe(self):
         from unittest import mock
         from ci import steps, workflow_guard
