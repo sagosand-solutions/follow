@@ -1,9 +1,7 @@
 {
   "mandate_version": "ci-mandate-v1",
-  "enabled": true,
-  "approval_decision": "first chain smoke test of ci/specs/git-pilot-1.json, approved by the project owner on 2026-10-21; one dispatch, then disabled",
-  "allowed_specs": [
-    "ci/specs/git-pilot-1.json"
-  ],
-  "not_after": "2026-10-22T06:52:12Z"
+  "enabled": false,
+  "approval_decision": null,
+  "allowed_specs": [],
+  "not_after": null
 }
