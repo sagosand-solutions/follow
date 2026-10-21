@@ -43,6 +43,7 @@ def pin_set_missing(policy):
         "tools.versions.pytest": policy.get("tools", {}).get("versions", {}).get("pytest"),
         "attestation.issuer": policy.get("attestation", {}).get("issuer"),
         "attestation.signer_workflow": policy.get("attestation", {}).get("signer_workflow"),
+        "attestation.signer_ref": policy.get("attestation", {}).get("signer_ref"),
         "attestation.predicate_type": policy.get("attestation", {}).get("predicate_type"),
         "attestation.trusted_root_path": policy.get("attestation", {}).get("trusted_root_path"),
         "attestation.trusted_root_sha256": policy.get("attestation", {}).get("trusted_root_sha256"),

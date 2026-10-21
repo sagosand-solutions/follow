@@ -171,6 +171,8 @@ def require_pins(policy, root=None):
     if not wanted:
         raise StepError("the gh version is not pinned in the policy")
     attestation = policy.get("attestation", {})
+    if not attestation.get("signer_workflow") or not attestation.get("signer_ref"):
+        raise StepError("the signer workflow and source ref must both be pinned")
     if not attestation.get("trusted_root_path") or not attestation.get("trusted_root_sha256"):
         raise StepError("the Sigstore trusted root path and hash must both be pinned")
     if attestation.get("gh_profile") != GH_ATTESTATION_PROFILE or not attestation.get("gh_example_sha256"):
@@ -198,6 +200,15 @@ def check_tools(policy_path):
     match = re.search(r"gh version (\S+)", first)
     if match is None or match.group(1) != wanted:
         raise StepError(f"gh version does not match the pinned {wanted!r}")
+    python_wanted = policy["tools"]["versions"].get("python")
+    if python_wanted and python_wanted != "unused":
+        output = _run_bounded(["docker", "run", "--rm", "--network", "none", "--read-only",
+                               "--user", "65534:65534", policy["image"]["ref"],
+                               "/usr/local/bin/python3", "-c",
+                               "import platform; print(platform.python_version())"], timeout=120,
+                              limit=64 * 1024)
+        if output.decode("utf-8", "replace").strip() != python_wanted:
+            raise StepError(f"python version does not match the pinned {python_wanted!r}")
     return 0
 
 
@@ -301,10 +312,11 @@ def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=
     require_pins(policy)
     attestation = policy.get("attestation", {})
     signer = attestation.get("signer_workflow")
+    signer_ref = attestation.get("signer_ref")
     issuer = attestation.get("issuer")
     predicate = attestation.get("predicate_type")
-    if not signer or not issuer or not predicate:
-        raise StepError("the attestation signer workflow, issuer and predicate are not pinned")
+    if not signer or not signer_ref or not issuer or not predicate:
+        raise StepError("the attestation signer workflow/ref, issuer and predicate are not pinned")
     root_path = attestation.get("trusted_root_path")
     if not root_path:
         raise StepError("the trusted root path is not pinned")
@@ -336,7 +348,7 @@ def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=
             if not os.path.exists(target) or os.path.getsize(target) > 4 * 1024 * 1024:
                 raise StepError("the attestation bundle exceeded its cap")
             command = ["gh", "attestation", "verify", subject, "--repo", repo,
-                       "--bundle", target, "--signer-workflow", signer,
+                       "--bundle", target, "--signer-workflow", signer, "--source-ref", signer_ref,
                        "--cert-oidc-issuer", issuer, "--source-digest", source_digest,
                        "--deny-self-hosted-runners", "--format", "json",
                        "--predicate-type", predicate, "--custom-trusted-root", root_path]

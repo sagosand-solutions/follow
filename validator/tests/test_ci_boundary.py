@@ -38,7 +38,8 @@ def policy(tmp):
         "cgroup_root": "/sys/fs/cgroup",
         "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
         "cgroup_name_prefix": "ci-fixture-",
-        "tools": {"versions": {"git": "2.47.0", "python": "3.14.0", "pytest": "8.3.0"}},
+        "tools": {"gh_version": "2.102.0",
+                  "versions": {"git": "2.47.0", "python": "3.14.0", "pytest": "8.3.0"}},
         "limits": {"files": 64, "artifact_bytes": 4194304, "raw_tar_bytes": 4718592,
                    "observation_bytes": 65536, "zip_bytes": 8388608, "entries": 128,
                    "path_bytes": 4096, "total_path_bytes": 65536, "stdout_bytes": 65536,
@@ -459,10 +460,48 @@ class PinSetTests(unittest.TestCase):
                  "image": {"ref": "ghcr.io/x/y@sha256:" + "1" * 64, "image_id": "sha256:" + "2" * 64},
                  "tools": {"gh_version": "2", "versions": {"git": "1", "python": "1", "pytest": "1"}},
                  "actions": {"checkout": "a" * 40, "upload": "b" * 40, "attest": "c" * 40},
-                 "attestation": {"issuer": "i", "signer_workflow": "w", "predicate_type": "p",
+                 "attestation": {"issuer": "i", "signer_workflow": "w", "signer_ref": "refs/heads/main",
+                                 "predicate_type": "p",
                                  "trusted_root_path": "r", "trusted_root_sha256": "d" * 64,
                                  "gh_example_sha256": "e" * 64}}
         self.assertEqual(pin_set_missing(value), [])
+
+
+class PinsManifestTests(unittest.TestCase):
+    def test_pins_manifest_matches_the_files(self):
+        bootstrap = os.path.join(ROOT, "ci/pins.json")
+        if not os.path.exists(bootstrap):
+            self.skipTest("no pins manifest")
+        with open(bootstrap, "rb") as handle:
+            pins = json.load(handle)
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            policy = json.load(handle)
+        self.assertEqual(pins["policy_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/policy.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["schema_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/schema/ci-v1.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["spec_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/specs/git-pilot-1.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["trusted_root_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/trust/trusted_root.jsonl"), "rb").read()).hexdigest())
+        self.assertEqual(pins["image"]["index_digest"], policy["image"]["ref"].split("@", 1)[1])
+        self.assertEqual(pins["image"]["manifest_amd64_digest"], policy["image"]["manifest_digest"])
+        self.assertEqual(pins["image"]["config_digest"], policy["image"]["image_id"])
+        self.assertEqual(pins["tools"], policy["tools"]["versions"])
+        self.assertEqual(pins["actions"], policy["actions"])
+        self.assertEqual(pins["signer_ref"], policy["attestation"]["signer_ref"])
+
+
+class ToolCheckTests(unittest.TestCase):
+    def test_python_version_mismatch_is_rejected(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path = os.path.join(temp, "policy.json")
+            with open(policy_path, "w") as handle:
+                json.dump(policy(None), handle)
+            completed = mock.Mock(stdout=b"gh version 2.102.0 (2026-09-30)\n", stderr=b"")
+            with mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch("ci.steps.subprocess.run", return_value=completed), \
+                 mock.patch("ci.steps._run_bounded", return_value=b"3.13.15\n"):
+                with self.assertRaises(steps.StepError):
+                    steps.check_tools(policy_path)
 
 
 class RealPolicyShapeTests(unittest.TestCase):
@@ -1052,7 +1091,8 @@ class HardeningTests(unittest.TestCase):
                                  "gh_profile": "gh-attestation-v1",
                                  "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json",
                                  "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479",
-                                 "issuer": "issuer", "signer_workflow": "wf", "predicate_type": "p"}}
+                                 "issuer": "issuer", "signer_workflow": "wf", "signer_ref": "refs/heads/main",
+                                 "predicate_type": "p"}}
         with self.assertRaises(Exception):
             require_pins(value)
         value["attestation"]["trusted_root_path"] = "root.json"
