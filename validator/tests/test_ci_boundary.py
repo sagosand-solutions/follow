@@ -401,7 +401,9 @@ class GuardTests(unittest.TestCase):
             return
         self.assertEqual(workflow_guard.PINNED_MANDATE_SHA256, hashlib.sha256(raw).hexdigest())
         self.assertIs(mandate["enabled"], True)
-        self.assertEqual(mandate["allowed_specs"], ["ci/specs/git-pilot-1.json"])
+        with open(os.path.join(ROOT, "ci/ACTIVE.json"), "rb") as handle:
+            active = json.loads(handle.read())["spec"]
+        self.assertEqual(mandate["allowed_specs"], [active])
         self.assertRegex(mandate["not_after"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
     def test_guard_refuses_a_changed_mandate(self):

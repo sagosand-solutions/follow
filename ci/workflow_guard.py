@@ -16,7 +16,7 @@ import os
 import sys
 
 # Replaced only when the registered test mandate exists. None means "the workflow can never run".
-PINNED_MANDATE_SHA256 = None
+PINNED_MANDATE_SHA256 = "2fcd32d044bc77fe7a4513dd4cbdf1a585314f23e07e4e4e7a87a6b190906343"
 
 # The mandate file is rooted in the checkout, never in a caller-supplied environment variable.
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
