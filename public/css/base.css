@@ -164,3 +164,9 @@ button.chip:hover { background: var(--surface-2); }
   .nav__theme { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: var(--tap); padding-inline: var(--s-2); }
   .nav__theme-label { display: inline; font-weight: 600; }
 }
+
+/* The narrowest phones keep the mark, Continue and Menu on one row: the wordmark steps aside (the link keeps the name as text). */
+@media (max-width: 22.49rem) {
+  .site-header--wordmark { --brand-width: var(--brand-mark); }
+  .brand__wordmark { display: none; }
+}
