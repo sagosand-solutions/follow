@@ -159,6 +159,7 @@
   "lesson.status.1": "Correct",
   "lesson.status.0.5": "Partly right",
   "lesson.status.0": "Not quite",
+  "lesson.status.none": "Not answered",
   "lesson.status.unknown": "Not sure",
   "lesson.back": "Back to the map",
   "lesson.next": "Next lesson: {title}",

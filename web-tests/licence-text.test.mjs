@@ -37,11 +37,13 @@ test('the phone map sentence does not mention squares', () => {
 });
 
 test('the footer is one quiet line: the draft notice, the licences in About and the source code', async () => {
-  await import('./support/dom-stub.mjs');
+  const { text } = await import('./support/dom-stub.mjs');
   const { siteFooter } = await import('../public/js/components/ui.js');
   const node = siteFooter({ draft: strings['footer.draft'], licences: strings['footer.licences'], source: strings['about.source'], repoUrl: 'https://example.invalid/repo' });
   const links = node.all((n) => n.tag === 'a');
   assert.deepEqual(links.map((a) => a.attrs.href), ['#/about', 'https://example.invalid/repo']);
   assert.equal(node.all((n) => n.tag === 'p').length, 1);
+  assert.ok(text(node).startsWith(strings['footer.draft']), 'the draft notice stays in the footer');
+  assert.equal(strings['footer.draft'], 'Early draft.');
   assert.doesNotMatch(JSON.stringify(strings['footer.draft']), /CC BY-SA|AGPL|MIT/, 'no licence claim in the footer; About states them');
 });

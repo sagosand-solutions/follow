@@ -15,7 +15,8 @@ import { reviewQueue } from '../review.js';
 import { CONFIG } from '../config.js';
 
 function statusOf(answer) {
-  if (!answer) return '';                         // the cells and the list already show what is not answered yet
+  // On screen the cells already show what is not answered yet; a screen reader hears it with the row.
+  if (!answer) return h('span', { class: 'visually-hidden' }, t('lesson.status.none'));
   if (answer.outcome === 'unknown') return t('lesson.status.unknown');
   return t(`lesson.status.${answer.score}`);
 }

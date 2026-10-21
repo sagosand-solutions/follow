@@ -104,18 +104,41 @@ test('“Builds on” only names a lesson that is not the one right before', asy
   data.clearDataCache();
 });
 
-test('a lesson page: the cells show how many questions, and an unanswered row says nothing', async () => {
+test('a lesson page: the cells show how many questions, and an unanswered row says so only to a screen reader', async () => {
   store.reset();
   const page = (await lessonView({ id: b1Course.levels[0].lessons[0].id })).node;
-  const all = text(page);
-  assert.doesNotMatch(all, /5 questions|Not answered/);
-  assert.equal(byClass(page, 'lesson-link').length, 5);
+  assert.doesNotMatch(text(page), /5 questions/);
+  const rows = byClass(page, 'lesson-link');
+  assert.equal(rows.length, 5);
+  for (const row of rows) {
+    const status = byClass(row, 'lesson-link__status')[0];
+    assert.equal(text(status), 'Not answered');
+    assert.deepEqual(status.children.map((c) => c.className), ['visually-hidden'], 'heard, not shown');
+  }
 });
 
-test('About: no catalog count, two honest limits, and the privacy text unchanged', async () => {
+test('About: no catalog count, two honest limits, the privacy text unchanged, and the full licence statement with its links', async () => {
   const page = (await aboutView()).node;
   const all = text(page);
   assert.doesNotMatch(all, /course catalog lists/);
   assert.equal(byClass(page, 'banner')[0].all((n) => n.tag === 'li').length, 2);
   assert.ok(all.includes(strings['about.privacy.text']));
+  // The footer only links here, so About must carry the licences in full.
+  assert.ok(all.includes(strings['about.license.text']));
+  const { CONFIG } = await import('../public/js/config.js');
+  const links = page.all((n) => n.tag === 'a').map((a) => [a.attrs.href, text(a)]);
+  assert.ok(links.some(([href, label]) => href === CONFIG.licenseUrl && label === strings['q.license']), 'the CC BY-SA link');
+  assert.ok(links.some(([href, label]) => href === CONFIG.repoUrl && label === strings['about.source']), 'the source code link');
+});
+
+test('a free question names its author and links its licence in the quiet credit line', async () => {
+  store.reset();
+  const { CONFIG } = await import('../public/js/config.js');
+  const { questionView } = await import('../public/js/views/question.js');
+  const page = (await questionView({ id: B1.start_question })).node;
+  const credit = byClass(page, 'source')[0];
+  assert.ok(credit, 'the credit is there');
+  assert.match(text(credit), /Written by .+\. Licence: CC BY-SA 4\.0/);
+  assert.equal(credit.all((n) => n.tag === 'a')[0].attrs.href, CONFIG.licenseUrl);
+  assert.match(byClass(credit, 'source__title')[0].className, /visually-hidden/);
 });

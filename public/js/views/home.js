@@ -81,7 +81,8 @@ export async function homeView() {
     // With a course catalog right below, a second "browse" button would only push the cards down.
     if (!catalog || catalog.length < 2 || !(index && index.onboarding_question)) actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: browseHref }, t('home.browse')));
   }
-  // Only a storage mode that loses answers needs saying here (where progress lives is on each course page and in About).
+  // Only a storage mode that loses answers needs saying here (each course page says where progress lives, and About's
+  // privacy section says it stays in this browser).
   if (!store.persistent) after.push(h('p', { class: 'hero__facts' }, t('home.facts.memory')));
 
   // Fact pills: the numbers come from the course data; "No account needed" is true only while the account UI is off.
