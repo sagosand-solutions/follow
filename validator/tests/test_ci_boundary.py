@@ -1064,6 +1064,10 @@ class ToolProbesValidationTests(unittest.TestCase):
         from unittest import mock
         from ci import steps, workflow_guard
         value = policy(None)
+        tick_state = {"n": 0}
+        def tick():
+            tick_state["n"] += 1
+            return 0 if tick_state["n"] == 1 else 25
         def probe(value_text, argv):
             return {"value": value_text, "argv": argv,
                     "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
@@ -1071,6 +1075,10 @@ class ToolProbesValidationTests(unittest.TestCase):
         probes = [probe("git version 2.47.0", ["/usr/bin/git", "--version"]),
                   probe("2.47.0", ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"]),
                   probe("Python 3.14.0", ["/usr/local/bin/python3", "--version"])]
+        state = {"n": 0}
+        def clock():
+            state["n"] += 1
+            return 0 if state["n"] <= 2 else 30
         with tempfile.TemporaryDirectory() as temp:
             path = os.path.join(temp, "policy.json")
             with open(path, "w") as handle:
@@ -1078,9 +1086,9 @@ class ToolProbesValidationTests(unittest.TestCase):
             with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
                  mock.patch.object(steps, "require_pins", return_value=None), \
                  mock.patch.object(steps, "_tool_probe", side_effect=probes) as probe_mock, \
-                 mock.patch("ci.steps.time.monotonic", return_value=0):
+                 mock.patch("ci.steps.time.monotonic", side_effect=tick):
                 steps.check_image_tools(path)
-                self.assertEqual(probe_mock.call_args_list[0].args[3], 10)
+                self.assertEqual(probe_mock.call_args_list[0].args[3], 5)
 
     def test_producer_budget_is_enforced(self):
         from unittest import mock
@@ -1089,6 +1097,10 @@ class ToolProbesValidationTests(unittest.TestCase):
         probes = [{"value": "x", "argv": ["/usr/bin/git", "--version"], "image_id": value["image"]["image_id"],
                    "isolation": {}, "isolation_sha256": "0" * 64, "exit_code": 0,
                    "cleanup": "verified", "wall_ms": 1}]
+        state = {"n": 0}
+        def clock():
+            state["n"] += 1
+            return 0 if state["n"] <= 2 else 30
         with tempfile.TemporaryDirectory() as temp:
             path = os.path.join(temp, "policy.json")
             with open(path, "w") as handle:
@@ -1096,7 +1108,7 @@ class ToolProbesValidationTests(unittest.TestCase):
             with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
                  mock.patch.object(steps, "require_pins", return_value=None), \
                  mock.patch.object(steps, "_tool_probe", side_effect=probes) as probe_mock, \
-                 mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 30, 30, 30, 30]):
+                 mock.patch("ci.steps.time.monotonic", side_effect=clock):
                 with self.assertRaises(steps.StepError):
                     steps.check_image_tools(path)
                 self.assertEqual(probe_mock.call_count, 1)
