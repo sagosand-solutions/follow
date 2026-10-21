@@ -1,16 +1,20 @@
 {
   "policy_version": "ci-policy-v1",
   "schema_path": "ci/schema/ci-v1.json",
-  "schema_sha256": "21c0071ab1f3661941e74d60285e86597441791f427881867fb7dc692d20fae4",
+  "schema_sha256": "6b1bbf51d52c0a355863007aaaa1a452cc814d642260876587fabfce6fea450c",
   "licence_allowlist": [
     "CC-BY-SA-4.0"
   ],
   "tools": {
     "gh_version": "2.102.0",
     "versions": {
-      "git": "unused",
+      "git": "1:2.39.5-0+deb12u3",
       "python": "3.13.16",
       "pytest": "unused"
+    },
+    "git_source": {
+      "layer": "sha256:452dd3e2e5d15af56b0b904e51f931640571d75bc1712e974bfefbf71ed585b0",
+      "path": "var/lib/dpkg/status"
     }
   },
   "image": {
@@ -88,7 +92,10 @@
         "soft": 64,
         "hard": 64
       }
-    ]
+    ],
+    "tmpfs": {
+      "/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=128"
+    }
   },
   "limits": {
     "files": 64,
@@ -119,7 +126,7 @@
     "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json",
     "signer_ref": "refs/heads/main"
   },
-  "fixture_item_prefix": "git-pilot-1-",
+  "fixture_item_prefix": "git-pilot-2-",
   "env": {
     "TZ": "UTC",
     "LC_ALL": "C.UTF-8",
@@ -149,6 +156,6 @@
   "cgroup_root": "/sys/fs/cgroup",
   "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
   "cgroup_name_prefix": "ci-fixture-",
-  "spec_path": "ci/specs/git-pilot-1.json",
-  "spec_sha256": "1a33d1bd8c7089e9775651ec073746eaea7706b29476e6416aee7c964e1a5d38"
+  "spec_path": "ci/specs/git-pilot-2.json",
+  "spec_sha256": "f2a368df3e9430f47f70ec65bf51dd14691885da6afb0ba1ead1ac6ff6b4933c"
 }

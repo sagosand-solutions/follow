@@ -1,0 +1,9 @@
+{
+  "author": {"name": "Fixture Author", "email": "fixture@example.invalid"},
+  "messages": {
+    "case1_initial": "initial",
+    "case1_change": "change list",
+    "case2": ["A", "B", "C", "D", "E"],
+    "case3": ["A", "B", "C"]
+  }
+}

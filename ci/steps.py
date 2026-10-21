@@ -16,8 +16,9 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 
-from . import archive, canon, limits, schema, workflow_guard
+from . import archive, canon, labels, limits, schema, workflow_guard
 
 
 class StepError(RuntimeError):
@@ -357,6 +358,184 @@ def _run_bounded(command, timeout, limit):
             raise StepError("the command output exceeded its cap")
         with open(stdout_path, "rb") as handle:
             return handle.read(limit)
+
+
+def _probe_isolation(inspect, policy):
+    host = inspect["HostConfig"]
+    config = inspect["Config"]
+    isolation = policy["isolation"]
+    checks = (
+        ("NetworkMode", host.get("NetworkMode"), isolation["network_mode"]),
+        ("ReadonlyRootfs", host.get("ReadonlyRootfs"), isolation["readonly_rootfs"]),
+        ("CapDrop", sorted(host.get("CapDrop") or []), isolation["cap_drop"]),
+        ("SecurityOpt", sorted(host.get("SecurityOpt") or []), isolation["security_opt"]),
+        ("Privileged", host.get("Privileged"), isolation["privileged"]),
+        ("Memory", host.get("Memory"), isolation["memory"]),
+        ("MemorySwap", host.get("MemorySwap"), isolation["memory_swap"]),
+        ("PidsLimit", host.get("PidsLimit"), isolation["pids_limit"]),
+        ("NanoCpus", host.get("NanoCpus"), isolation["nano_cpus"]),
+        ("User", config.get("User"), isolation["user"]),
+    )
+    for name, observed, expected in checks:
+        if observed != expected:
+            raise StepError(f"tool probe isolation differs at {name}")
+    ulimits = sorted(({"name": item.get("Name"), "soft": item.get("Soft"), "hard": item.get("Hard")}
+                      for item in (host.get("Ulimits") or [])), key=lambda item: item["name"])
+    if ulimits != isolation["ulimits"]:
+        raise StepError("tool probe ulimits differ from the policy")
+    if (host.get("Tmpfs") or {}) != isolation["tmpfs"]:
+        raise StepError("tool probe tmpfs options differ from the policy")
+    if inspect.get("Mounts") or []:
+        raise StepError("tool probe must not have mounts")
+    env = {}
+    for item in config.get("Env") or []:
+        if "=" in item:
+            key, value = item.split("=", 1)
+            env[key] = value
+    if env != policy["env"]:
+        raise StepError("tool probe environment differs from the pinned environment")
+    return {"network_mode": host.get("NetworkMode"),
+            "readonly_rootfs": host.get("ReadonlyRootfs"),
+            "cap_drop": sorted(host.get("CapDrop") or []),
+            "security_opt": sorted(host.get("SecurityOpt") or []),
+            "privileged": host.get("Privileged"),
+            "user": config.get("User"),
+            "memory": host.get("Memory"),
+            "memory_swap": host.get("MemorySwap"),
+            "pids_limit": host.get("PidsLimit"),
+            "nano_cpus": host.get("NanoCpus"),
+            "ulimits": ulimits,
+            "tmpfs": host.get("Tmpfs") or {},
+            "env": env,
+            "mounts": []}
+
+
+def _tool_probe(policy, args, index, timeout=10):
+    isolation = policy["isolation"]
+    name = f"ci-tool-{os.getpid()}-{index}"
+    create = ["docker", "create", "--name", name, "--label", labels.label_argument(),
+              "--network", isolation["network_mode"], "--read-only", "--user", isolation["user"],
+              "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+              "--pids-limit", str(isolation["pids_limit"]),
+              "--memory", f"{isolation['memory'] // (1024 * 1024)}m",
+              "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
+              "--cpus", str(isolation["nano_cpus"] / 1_000_000_000), "--log-driver", "none",
+              "--tmpfs", f"/tmp:{isolation['tmpfs']['/tmp']}"]
+    for ulimit in isolation["ulimits"]:
+        create += ["--ulimit", f"{ulimit['name']}={ulimit['soft']}:{ulimit['hard']}"]
+    for key, value in sorted(policy["env"].items()):
+        create += ["-e", f"{key}={value}"]
+    create += [policy["image"]["ref"], *args]
+    started = time.monotonic()
+    deadline = started + timeout
+
+    def sub_remaining():
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise StepError("tool probe deadline exceeded before the next step")
+        return remaining
+
+    try:
+        try:
+            subprocess.run(create, check=True, timeout=sub_remaining(),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except subprocess.TimeoutExpired:
+            raise StepError("tool container create timed out") from None
+        try:
+            output = _run_bounded(["docker", "start", "-a", name], timeout=sub_remaining(), limit=64 * 1024)
+        except subprocess.TimeoutExpired:
+            raise StepError("tool probe start timed out") from None
+        try:
+            inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=sub_remaining(),
+                                              limit=4 * 1024 * 1024).decode("utf-8"))
+        except subprocess.TimeoutExpired:
+            raise StepError("tool probe inspect timed out") from None
+        entry = inspect[0] if isinstance(inspect, list) else {}
+        state = entry.get("State", {})
+        if state.get("Status") != "exited" or state.get("ExitCode") != 0:
+            raise StepError(f"tool probe failed or did not exit cleanly: {args}")
+        if entry.get("Image") != policy["image"]["image_id"]:
+            raise StepError("tool probe image id differs from the pinned image id")
+        actual_argv = (entry.get("Config", {}).get("Entrypoint") or []) + (entry.get("Config", {}).get("Cmd") or [])
+        if actual_argv != list(args):
+            raise StepError("tool probe argv differs from the requested argv")
+        isolation = _probe_isolation(entry, policy)
+        ended = time.monotonic()
+        return {"value": output.decode("utf-8", "replace").strip(),
+                "argv": list(args),
+                "image_id": entry.get("Image"),
+                "isolation": isolation,
+                "isolation_sha256": canon.sha256_canonical(isolation),
+                "exit_code": 0,
+                "cleanup": "verified",
+                "wall_ms": int((ended - started) * 1000)}
+    finally:
+        try:
+            subprocess.run(["docker", "rm", "-f", name], check=False, timeout=5,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except subprocess.TimeoutExpired:
+            raise StepError("tool container removal timed out") from None
+        check = subprocess.run(["docker", "inspect", name], check=False, timeout=5,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if check.returncode == 0:
+            raise StepError("tool container still exists after removal")
+        message = (check.stderr or b"").decode("utf-8", "replace").lower()
+        if "no such object" not in message and "no such container" not in message:
+            raise StepError("tool container removal could not be verified")
+
+
+def check_image_tools(policy_path):
+    """Run the three tool probes in the producer, before the fixture starts."""
+    try:
+        workflow_guard.require_mandate()
+    except workflow_guard.Refused as exc:
+        raise StepError(f"no registered test mandate: {exc}") from None
+    with open(policy_path, "rb") as handle:
+        policy = canon.loads(handle.read())
+    require_pins(policy)
+    git_pin = policy["tools"]["versions"].get("git")
+    python_pin = policy["tools"]["versions"].get("python")
+    versions = {}
+    probes = []
+    deadline = time.monotonic() + 30
+
+    def remaining():
+        return deadline - time.monotonic()
+    if git_pin and git_pin != "unused":
+        upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
+        if remaining() <= 0:
+            raise StepError("the tool probe budget of 30 seconds was exceeded")
+        probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1, min(10, remaining()))
+        if time.monotonic() > deadline:
+            raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
+        probes.append(probe)
+        versions["git"] = probe["value"]
+        if probe["value"] != f"git version {upstream}":
+            raise StepError(f"git --version does not match the pinned {git_pin!r}")
+        if remaining() <= 0:
+            raise StepError("the tool probe budget of 30 seconds was exceeded")
+        probe = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2,
+                            min(10, remaining()))
+        if time.monotonic() > deadline:
+            raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
+        probes.append(probe)
+        versions["git_dpkg"] = probe["value"]
+        if probe["value"] != git_pin:
+            raise StepError("the image dpkg git version does not match the pin")
+    if python_pin and python_pin != "unused":
+        if remaining() <= 0:
+            raise StepError("the tool probe budget of 30 seconds was exceeded")
+        probe = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3,
+                            min(10, remaining()))
+        if time.monotonic() > deadline:
+            raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
+        probes.append(probe)
+        versions["python"] = probe["value"]
+        if probe["value"] != f"Python {python_pin}":
+            raise StepError(f"python3 --version does not match the pinned {python_pin!r}")
+    if time.monotonic() > deadline:
+        raise StepError("the tool probe budget of 30 seconds was exceeded")
+    return {"versions": versions, "probes": probes}
 
 
 def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=None):

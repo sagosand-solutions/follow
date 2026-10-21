@@ -117,9 +117,11 @@
       "additionalProperties": false,
       "required": ["image_id", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
                    "exit_code", "signal", "started_at", "ended_at", "wall_ms", "cpu_usec",
-                   "max_rss_bytes", "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes", "sealed_output_sha256"],
+                   "max_rss_bytes", "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes", "image_tools", "tool_probes_sha256", "sealed_output_sha256"],
       "properties": {
         "image_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "image_tools": {"type": "object", "additionalProperties": {"type": "string"}},
+        "tool_probes_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "isolation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "inputs_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "argv": {"type": "array", "items": {"type": "string"}},

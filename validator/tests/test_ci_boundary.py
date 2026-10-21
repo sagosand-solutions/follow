@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Static tests for the disabled CI fixture boundary: canon, archives, schema, receipt, guard and workflow."""
 import contextlib
+import copy
 import glob
 import hashlib
 import io
@@ -8,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import tarfile
@@ -70,6 +72,7 @@ def policy(tmp):
             "memory_swap": 268435456,
             "pids_limit": 64,
             "nano_cpus": 1000000000,
+            "tmpfs": {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"},
             "ulimits": [{"name": "nofile", "soft": 256, "hard": 256},
                         {"name": "nproc", "soft": 64, "hard": 64}],
         },
@@ -125,11 +128,40 @@ def observation(files):
         "stderr_sha256": h("err"),
         "stdout_bytes": 3,
         "stderr_bytes": 3,
+        "image_tools": {"git": "git version 2.47.0", "git_dpkg": "2.47.0", "python": "Python 3.14.0"},
+        "tool_probes": [],
         "sealed_output_sha256": ci_verify.fileset_digest(files),
         "limit_hit": [],
     }
     obs["isolation"] = dict(policy(None)["isolation"])
     obs["isolation"]["env"] = dict(ENV)
+    _iso = policy(None)["isolation"]
+    probe_isolation = {"network_mode": _iso["network_mode"],
+                       "readonly_rootfs": _iso["readonly_rootfs"],
+                       "cap_drop": sorted(_iso["cap_drop"]),
+                       "security_opt": sorted(_iso["security_opt"]),
+                       "privileged": _iso["privileged"],
+                       "user": _iso["user"],
+                       "memory": _iso["memory"],
+                       "memory_swap": _iso["memory_swap"],
+                       "pids_limit": _iso["pids_limit"],
+                       "nano_cpus": _iso["nano_cpus"],
+                       "ulimits": _iso["ulimits"],
+                       "tmpfs": _iso["tmpfs"],
+                       "env": dict(ENV),
+                       "mounts": []}
+    probe_hash = canon.sha256_canonical(probe_isolation)
+    obs["tool_probes"] = [
+        {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
+         "image_id": "sha256:" + "2" * 64, "isolation": probe_isolation,
+         "isolation_sha256": probe_hash, "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+        {"value": "2.47.0", "argv": ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+         "image_id": "sha256:" + "2" * 64, "isolation": probe_isolation,
+         "isolation_sha256": probe_hash, "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+        {"value": "Python 3.14.0", "argv": ["/usr/local/bin/python3", "--version"],
+         "image_id": "sha256:" + "2" * 64, "isolation": probe_isolation,
+         "isolation_sha256": probe_hash, "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+    ]
     obs["isolation_sha256"] = canon.sha256_canonical(obs["isolation"])
     return obs
 
@@ -611,6 +643,63 @@ class PinSetTests(unittest.TestCase):
         self.assertEqual(pin_set_missing(value), [])
 
 
+class ActiveSpecBindingTests(unittest.TestCase):
+    def test_active_spec_items_match_the_policy_prefix(self):
+        import json as jsonlib
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            policy = jsonlib.load(handle)
+        with open(os.path.join(ROOT, "ci/ACTIVE.json"), "rb") as handle:
+            active = jsonlib.load(handle)
+        with open(os.path.join(ROOT, active["spec"]), "rb") as handle:
+            spec = jsonlib.load(handle)
+        self.assertTrue(spec["items"])
+        for item in spec["items"]:
+            self.assertTrue(item["item_id"].startswith(policy["fixture_item_prefix"]))
+
+
+class GitPilot2Tests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("git"), "git is not installed")
+    def test_script_outputs_match_expected_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            inp = os.path.join(temp, "input")
+            out = os.path.join(temp, "out")
+            tmp = os.path.join(temp, "tmp")
+            for path in (inp, out, tmp):
+                os.makedirs(path)
+            shutil.copy(os.path.join(ROOT, "ci/specs/git-pilot-2/fixture.json"),
+                        os.path.join(inp, "fixture.json"))
+            shutil.copy(os.path.join(ROOT, "ci/specs/git-pilot-2/script.py"),
+                        os.path.join(inp, "script.py"))
+            env = dict(os.environ, CI_PILOT_INPUT=inp, CI_PILOT_OUT=out, CI_PILOT_TMP=tmp)
+            subprocess.run([sys.executable, os.path.join(inp, "script.py")], env=env,
+                           check=True, timeout=120, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            with open(os.path.join(ROOT, "ci/specs/git-pilot-2.json"), "rb") as handle:
+                spec = json.load(handle)
+            produced = set()
+            for root, _dirs, files in os.walk(out):
+                for name in files:
+                    path = os.path.join(root, name)
+                    self.assertFalse(os.path.islink(path))
+                    produced.add(os.path.relpath(path, out))
+            self.assertEqual(produced, set(spec["expected_paths"]))
+
+    def test_input_hashes_and_no_question_data(self):
+        import json as jsonlib
+        spec_path = os.path.join(ROOT, "ci/specs/git-pilot-2.json")
+        with open(spec_path, "rb") as handle:
+            spec = jsonlib.load(handle)
+        for item in spec["inputs"]:
+            path = os.path.join(ROOT, "ci/specs/git-pilot-2", item["path"])
+            data = open(path, "rb").read()
+            self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
+            self.assertEqual(len(data), item["bytes"])
+        for forbidden in ("question", "options", "answer", "feedback", "records"):
+            self.assertNotIn(forbidden, jsonlib.dumps(spec))
+        self.assertEqual(len(spec["expected_paths"]), 25)
+        self.assertIn("case1/01.stdout", spec["expected_paths"])
+        self.assertIn("case3/06.stdout", spec["expected_paths"])
+
+
 class SignerFormatTests(unittest.TestCase):
     def test_real_signer_workflow_and_ref(self):
         import json as jsonlib
@@ -633,7 +722,8 @@ class PinsManifestTests(unittest.TestCase):
             policy = json.load(handle)
         self.assertEqual(pins["policy_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/policy.json"), "rb").read()).hexdigest())
         self.assertEqual(pins["schema_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/schema/ci-v1.json"), "rb").read()).hexdigest())
-        self.assertEqual(pins["spec_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/specs/git-pilot-1.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["spec_sha256"],
+                         hashlib.sha256(open(os.path.join(ROOT, policy["spec_path"]), "rb").read()).hexdigest())
         self.assertEqual(pins["trusted_root_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/trust/trusted_root.jsonl"), "rb").read()).hexdigest())
         self.assertEqual(pins["image"]["index_digest"], policy["image"]["ref"].split("@", 1)[1])
         self.assertEqual(pins["image"]["manifest_amd64_digest"], policy["image"]["manifest_digest"])
@@ -887,7 +977,852 @@ class RealSpecInputTests(unittest.TestCase):
                     self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
 
 
+class ToolProbesValidationTests(unittest.TestCase):
+    def probes(self):
+        return copy.deepcopy(observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})["tool_probes"])
+
+    def test_unexpected_key(self):
+        value = self.probes()
+        value[0]["extra"] = True
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_wrong_count(self):
+        value = self.probes()[:-1]
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_no_bijection_duplicate_git(self):
+        value = self.probes()
+        value[2] = copy.deepcopy(value[0])
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_value_mismatch(self):
+        value = self.probes()
+        value[2]["value"] = "Python 9.9.9"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_isolation_bridge_with_matching_hash(self):
+        value = self.probes()
+        value[0]["isolation"]["network_mode"] = "bridge"
+        value[0]["isolation_sha256"] = canon.sha256_canonical(value[0]["isolation"])
+        with self.assertRaisesRegex(ci_verify.ReceiptError, "isolation differs from the policy"):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_exit_code(self):
+        for bad in (1, False, 0.0):
+            value = self.probes()
+            value[0]["exit_code"] = bad
+            with self.assertRaises(ci_verify.ReceiptError):
+                ci_verify.check_tool_probes(value, policy(None))
+
+    def test_wall_time(self):
+        for bad in (5.5, True, None):
+            value = self.probes()
+            value[0]["wall_ms"] = bad
+            with self.assertRaises(ci_verify.ReceiptError):
+                ci_verify.check_tool_probes(value, policy(None))
+        value = self.probes()
+        value[0]["wall_ms"] = 10_001
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+        value = self.probes()
+        for probe in value:
+            probe["wall_ms"] = 10_000
+        ci_verify.check_tool_probes(value, policy(None))
+
+    def test_cleanup(self):
+        value = self.probes()
+        value[0]["cleanup"] = "unverified"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_argv_mismatch(self):
+        value = self.probes()
+        value[0]["argv"] = ["/usr/bin/git"]
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_image_id_mismatch(self):
+        value = self.probes()
+        value[0]["image_id"] = "sha256:" + "9" * 64
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_isolation_hash_mismatch(self):
+        value = self.probes()
+        value[0]["isolation_sha256"] = "0" * 64
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_tool_probes_sha_mismatch(self):
+        receipt, outputs = receipt_bundle()
+        obs = observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})
+        receipt["observed"]["tool_probes_sha256"] = "0" * 64
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
+                                     observation=obs)
+
+    def test_probe_timeout_argument_is_derived(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = policy(None)
+        tick_state = {"n": 0}
+        def tick():
+            tick_state["n"] += 1
+            return 0 if tick_state["n"] == 1 else 25
+        def probe(value_text, argv):
+            return {"value": value_text, "argv": argv,
+                    "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+                    "exit_code": 0, "cleanup": "verified", "wall_ms": 1}
+        probes = [probe("git version 2.47.0", ["/usr/bin/git", "--version"]),
+                  probe("2.47.0", ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"]),
+                  probe("Python 3.14.0", ["/usr/local/bin/python3", "--version"])]
+        state = {"n": 0}
+        def clock():
+            state["n"] += 1
+            return 0 if state["n"] <= 2 else 30
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "policy.json")
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "_tool_probe", side_effect=probes) as probe_mock, \
+                 mock.patch("ci.steps.time.monotonic", side_effect=tick):
+                steps.check_image_tools(path)
+                self.assertEqual(probe_mock.call_args_list[0].args[3], 5)
+
+    def test_producer_budget_is_enforced(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = policy(None)
+        probes = [
+            {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
+             "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+             "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+            {"value": "2.47.0", "argv": ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+             "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+             "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+            {"value": "Python 3.14.0", "argv": ["/usr/local/bin/python3", "--version"],
+             "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+             "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+        ]
+        state = {"n": 0}
+        def clock():
+            state["n"] += 1
+            return 0 if state["n"] <= 2 else 30
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "policy.json")
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "_tool_probe", side_effect=probes) as probe_mock, \
+                 mock.patch("ci.steps.time.monotonic", side_effect=clock):
+                with self.assertRaises(steps.StepError):
+                    steps.check_image_tools(path)
+                self.assertEqual(probe_mock.call_count, 1)
+
+
+
+class BindingMutationTests(unittest.TestCase):
+    def test_tmpfs_mismatch_is_rejected(self):
+        import json as jsonlib
+        from ci.verify import check_isolation
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            loaded = jsonlib.load(handle)
+        observed = dict(loaded["isolation"])
+        observed["env"] = dict(loaded["env"])
+        observed["tmpfs"] = {"/tmp": "rw,size=1m"}
+        with self.assertRaises(Exception):
+            check_isolation(observed, loaded)
+
+    def test_observation_receipt_image_tools_mismatch_is_rejected(self):
+        receipt, outputs = receipt_bundle()
+        obs = observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})
+        obs["image_tools"]["git"] = "git version 9.9.9"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
+                                     observation=obs)
+
+    def test_consistent_bad_image_tools_is_rejected(self):
+        receipt, outputs = receipt_bundle()
+        obs = observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})
+        obs["image_tools"]["git"] = "git version 9.9.9"
+        receipt["observed"]["image_tools"]["git"] = "git version 9.9.9"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
+                                     observation=obs)
+
+    def test_isolation_subset_tmpfs_is_not_tautological(self):
+        from ci.run_fixture import isolation_subset
+        value = policy(None)
+        inspect = {
+            "HostConfig": {"NetworkMode": "none", "ReadonlyRootfs": True, "CapDrop": ["ALL"],
+                           "SecurityOpt": ["no-new-privileges"], "Privileged": False,
+                           "Memory": value["isolation"]["memory"], "MemorySwap": value["isolation"]["memory_swap"],
+                           "PidsLimit": value["isolation"]["pids_limit"],
+                           "NanoCpus": value["isolation"]["nano_cpus"],
+                           "Ulimits": [{"Name": "nofile", "Soft": 256, "Hard": 256},
+                                       {"Name": "nproc", "Soft": 64, "Hard": 64}],
+                           "Tmpfs": {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"}},
+            "Config": {"User": "65534:65534",
+                       "Env": [f"{key}={val}" for key, val in value["env"].items()]},
+            "Mounts": [{"Destination": "/input", "RW": False}, {"Destination": "/out", "RW": True}],
+        }
+        subset = isolation_subset(inspect, value)
+        self.assertEqual(subset["tmpfs"], {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"})
+        inspect["HostConfig"]["Tmpfs"] = {"/tmp": "rw,size=1m"}
+        changed = isolation_subset(inspect, value)
+        self.assertNotEqual(subset["tmpfs"], changed["tmpfs"])
+
+    def test_run_calls_check_image_tools_before_the_fixture(self):
+        from unittest import mock
+        from ci import run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            mandate_path = os.path.join(temp, "MANDATE.json")
+            with open(mandate_path, "wb") as handle:
+                handle.write(b"mandate")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w") as handle:
+                json.dump(data, handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")), \
+                 mock.patch("ci.run_fixture._run") as run_mock:
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=os.path.join(temp, "auth.json"), mandate_path=mandate_path)
+                run_mock.assert_not_called()
+
+
+class AuthorizationMarkerTests(unittest.TestCase):
+    def _layout(self, temp):
+        old = os.getcwd()
+        os.chdir(temp)
+        self.addCleanup(os.chdir, old)
+        os.makedirs(os.path.join(temp, "ci/specs"))
+        spec_path = os.path.join(temp, "ci/specs/git-pilot-1.json")
+        with open(spec_path, "w", encoding="utf-8") as handle:
+            json.dump(spec(), handle)
+        with open(spec_path, "rb") as handle:
+            spec_sha = _sha_bytes(handle.read())
+        data = policy(None)
+        data["spec_path"] = spec_path
+        data["spec_sha256"] = spec_sha
+        policy_path = os.path.join(temp, "ci/policy.json")
+        _write_json(policy_path, data)
+        with open(os.path.join(temp, "ci/MANDATE.json"), "wb") as handle:
+            handle.write(b"mandate")
+        return spec_path, policy_path, data
+
+    def test_marker_is_outside_the_upload_directory(self):
+        from ci.labels import AUTH_MARKER
+        self.assertFalse(AUTH_MARKER.startswith("ci-artifacts/"))
+        self.assertEqual(AUTH_MARKER, ".ci-run-authorized.json")
+
+    def test_default_marker_written_by_run_is_read_by_reaper(self):
+        from unittest import mock
+        from ci import reaper, run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path, policy_path, _ = self._layout(temp)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+            self.assertTrue(os.path.exists(".ci-run-authorized.json"))
+            calls = []
+            def run_cmd(command, **kwargs):
+                calls.append(command)
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch("ci.reaper.subprocess.run", side_effect=run_cmd):
+                self.assertEqual(reaper.main([]), 0)
+            self.assertEqual(calls[0][:3], ["docker", "ps", "-aq"])
+            self.assertIn("label=ci-fixture.run=7-2", calls[0])
+
+    def test_env_marker_is_ignored(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            old = os.getcwd()
+            os.chdir(temp)
+            self.addCleanup(os.chdir, old)
+            env_marker = os.path.join(temp, "env-marker.json")
+            with open(env_marker, "w", encoding="utf-8") as handle:
+                json.dump({"label": reaper.run_label()}, handle)
+            with mock.patch.dict(os.environ, {"CI_AUTH_MARKER": env_marker}), \
+                 mock.patch("ci.reaper.subprocess.run") as run_mock:
+                self.assertEqual(reaper.main([]), 0)
+                run_mock.assert_not_called()
+
+    def test_env_marker_string_is_gone(self):
+        for name in ("ci/reaper.py", "ci/run_fixture.py"):
+            with open(os.path.join(ROOT, name), encoding="utf-8") as handle:
+                self.assertNotIn("CI_AUTH_MARKER", handle.read())
+
+    def test_gitignore_covers_the_marker(self):
+        with open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as handle:
+            text = handle.read()
+        lines = {line.strip() for line in text.splitlines()}
+        self.assertIn(".ci-run-authorized.json", lines)
+        self.assertIn(".ci-run-authorized.json.tmp", lines)
+        self.assertIn("ci-artifacts/", lines)
+
+    def test_marker_is_not_tracked_in_the_tree(self):
+        import pathlib
+        self.assertEqual(list(pathlib.Path(ROOT).glob("**/*run-authorized*")), [])
+
+    def test_run_writes_the_marker_before_tool_probes(self):
+        from unittest import mock
+        from ci import run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            mandate_path = os.path.join(temp, "MANDATE.json")
+            with open(mandate_path, "wb") as handle:
+                handle.write(b"mandate")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w", encoding="utf-8") as handle:
+                json.dump(spec(), handle)
+            with open(spec_path, "rb") as handle:
+                spec_sha = _sha_bytes(handle.read())
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=marker, mandate_path=mandate_path)
+            self.assertTrue(os.path.exists(marker))
+            with open(marker, "rb") as handle:
+                written = json.load(handle)
+            self.assertEqual(written["label"], "7-2")
+            self.assertEqual(written["run_id"], "7")
+            self.assertEqual(written["run_attempt"], "2")
+            self.assertEqual(written["source_digest"], "a" * 40)
+            self.assertEqual(written["spec_sha256"], spec_sha)
+            self.assertEqual(written["mandate_sha256"], _sha_bytes(b"mandate"))
+
+    def test_mandate_env_is_ignored(self):
+        from unittest import mock
+        from ci import reaper, run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path, policy_path, _ = self._layout(temp)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            forged = os.path.join(temp, "forged.json")
+            with open(forged, "wb") as handle:
+                handle.write(b"forged")
+            env = dict(IDENTITY, CI_MANDATE_FILE=forged)
+            with mock.patch.dict(os.environ, env), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+            with open(".ci-run-authorized.json", "rb") as handle:
+                written = json.load(handle)
+            with open(workflow_guard.MANDATE_PATH, "rb") as handle:
+                expected = _sha_bytes(handle.read())
+            self.assertEqual(written["mandate_sha256"], expected)
+            with mock.patch.dict(os.environ, env), \
+                 mock.patch.object(reaper, "reap", return_value=0) as reap_mock:
+                self.assertEqual(reaper.main([]), 0)
+                reap_mock.assert_called_once()
+
+    def test_run_refuses_without_run_identity(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            mandate_path = os.path.join(temp, "MANDATE.json")
+            with open(mandate_path, "wb") as handle:
+                handle.write(b"mandate")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w", encoding="utf-8") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True):
+                with self.assertRaises(run_fixture.RunError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=marker, mandate_path=mandate_path)
+            self.assertFalse(os.path.exists(marker))
+
+    def test_run_refuses_without_the_mandate(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w", encoding="utf-8") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True):
+                with self.assertRaises(run_fixture.RunError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=marker, mandate_path=os.path.join(temp, "missing.json"))
+            self.assertFalse(os.path.exists(marker))
+
+    def test_run_does_not_write_the_marker_when_the_guard_refuses(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            with open(spec_path, "w", encoding="utf-8") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(policy(None), handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.object(workflow_guard, "require_mandate",
+                                   side_effect=workflow_guard.Refused("no")):
+                with self.assertRaises(run_fixture.RunError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=marker)
+            self.assertFalse(os.path.exists(marker))
+
+
 class ToolCheckTests(unittest.TestCase):
+    def _policy(self):
+        value = policy(None)
+        value["image"]["image_id"] = "sha256:" + "2" * 64
+        return value
+
+    def test_tool_probe_cleanup_failure_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        def run(command, **kwargs):
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")  # rm 0 and inspect rc 0: still exists
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "still exists"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def _conform_inspect(self, value):
+        isolation = value["isolation"]
+        return {"HostConfig": {"NetworkMode": isolation["network_mode"],
+                               "ReadonlyRootfs": isolation["readonly_rootfs"],
+                               "CapDrop": list(isolation["cap_drop"]),
+                               "SecurityOpt": list(isolation["security_opt"]),
+                               "Privileged": isolation["privileged"],
+                               "Memory": isolation["memory"],
+                               "MemorySwap": isolation["memory_swap"],
+                               "PidsLimit": isolation["pids_limit"],
+                               "NanoCpus": isolation["nano_cpus"],
+                               "Ulimits": [{"Name": item["name"], "Soft": item["soft"], "Hard": item["hard"]}
+                                           for item in isolation["ulimits"]],
+                               "Tmpfs": dict(isolation["tmpfs"])},
+                "Config": {"User": isolation["user"],
+                           "Env": [f"{key}={val}" for key, val in value["env"].items()]},
+                "Mounts": []}
+
+    def test_tool_probe_substep_and_cleanup_timeouts(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        calls = []
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        bounded_calls = []
+        def bounded(command, **kwargs):
+            bounded_calls.append((command, kwargs))
+            if command[:2] == ["docker", "start"]:
+                return b"git version 2.47.0\n"
+            return json.dumps([inspect_doc]).encode()
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 3, 5, 7, 9]):
+            steps._tool_probe(value, ["/usr/bin/git", "--version"], 1, 10)
+        create = [entry for entry in calls if entry[0][:2] == ["docker", "create"]][0]
+        cleanup = [entry for entry in calls if entry[0][:3] == ["docker", "rm", "-f"]][0]
+        absence = [entry for entry in calls if entry[0][:2] == ["docker", "inspect"]][0]
+        start = [entry for entry in bounded_calls if entry[0][:2] == ["docker", "start"]][0]
+        inspect = [entry for entry in bounded_calls if entry[0][:2] == ["docker", "inspect"]][0]
+        self.assertIn("--label", create[0])
+        self.assertIn("ci-fixture.run=", " ".join(create[0]))
+        self.assertEqual(create[1]["timeout"], 7)
+        self.assertEqual(start[1]["timeout"], 5)
+        self.assertEqual(inspect[1]["timeout"], 3)
+        self.assertEqual(cleanup[1]["timeout"], 5)
+        self.assertEqual(absence[1]["timeout"], 5)
+
+    def test_tool_probe_deadline_before_create_is_zero_start(self):
+        from unittest import mock
+        from ci import steps
+        calls = []
+        def run(command, **kwargs):
+            calls.append(command)
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 11]):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1, 10)
+        self.assertFalse(any(command[:2] == ["docker", "create"] for command in calls))
+
+    def test_tool_probe_over_deadline_stops_before_the_next_probe(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = self._policy()
+        probe = {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
+                 "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+                 "exit_code": 0, "cleanup": "verified", "wall_ms": 1}
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "policy.json")
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "_tool_probe", side_effect=[probe, probe, probe]) as probe_mock, \
+                 mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 31, 31, 31, 31]):
+                with self.assertRaises(steps.StepError):
+                    steps.check_image_tools(path)
+                self.assertEqual(probe_mock.call_count, 1)
+
+    def test_tool_probe_create_late_gives_zero_starts(self):
+        from unittest import mock
+        from ci import steps
+        bounded = []
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: bounded.append(command)), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 11]):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1, 10)
+        self.assertFalse(any(command[:2] == ["docker", "start"] for command in bounded))
+
+    def test_tool_probe_substep_timeout_is_not_rounded_up(self):
+        from unittest import mock
+        from ci import steps
+        calls = []
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=subprocess.TimeoutExpired("docker", 1)), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 9.95, 9.96, 9.97]):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1, 10)
+        create = [entry for entry in calls if entry[0][:2] == ["docker", "create"]][0]
+        self.assertAlmostEqual(create[1]["timeout"], 0.05)
+
+    def test_tool_probe_start_timeout_and_still_exists_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=subprocess.TimeoutExpired("docker", 10)):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1, 10)
+
+    def test_tool_probe_rejects_argv_mismatch(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_tool_probe_end_to_end_positive(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        def bounded(command, **kwargs):
+            if command[:2] == ["docker", "start"]:
+                return b"git version 2.47.0\n"
+            return json.dumps([inspect_doc]).encode()
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded):
+            probe = steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+            self.assertEqual(probe["value"], "git version 2.47.0")
+            self.assertEqual(probe["argv"], ["/usr/bin/git", "--version"])
+            self.assertEqual(probe["cleanup"], "verified")
+
+    def test_tool_probe_end_to_end_rejects_nonconform_inspect(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        inspect_doc["HostConfig"]["NetworkMode"] = "bridge"
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        def bounded(command, **kwargs):
+            if command[:2] == ["docker", "start"]:
+                return b"git version 2.47.0\n"
+            return json.dumps([inspect_doc]).encode()
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_check_image_tools_happy_path(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        variants = []
+        for cmd in (["/usr/bin/git", "--version"],
+                    ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+                    ["/usr/local/bin/python3", "--version"]):
+            doc = json.loads(json.dumps(inspect_doc))
+            doc["Config"]["Cmd"] = cmd
+            variants.append(doc)
+        outputs = iter([b"git version 2.47.0\n", json.dumps([variants[0]]).encode(),
+                        b"2.47.0\n", json.dumps([variants[1]]).encode(),
+                        b"Python 3.14.0\n", json.dumps([variants[2]]).encode()])
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path = os.path.join(temp, "policy.json")
+            with open(policy_path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch("ci.steps.subprocess.run", side_effect=run), \
+                 mock.patch("ci.steps._run_bounded", side_effect=lambda *a, **k: next(outputs)):
+                result = steps.check_image_tools(policy_path)
+                self.assertEqual(result["versions"],
+                                 {"git": "git version 2.47.0", "git_dpkg": "2.47.0",
+                                  "python": "Python 3.14.0"})
+                self.assertEqual(len(result["probes"]), 3)
+
+    def test_probe_isolation_accepts_policy_conform_inspect(self):
+        from ci import steps
+        value = self._policy()
+        isolation = value["isolation"]
+        inspect = {"HostConfig": {"NetworkMode": isolation["network_mode"],
+                                  "ReadonlyRootfs": isolation["readonly_rootfs"],
+                                  "CapDrop": list(isolation["cap_drop"]),
+                                  "SecurityOpt": list(isolation["security_opt"]),
+                                  "Privileged": isolation["privileged"],
+                                  "Memory": isolation["memory"],
+                                  "MemorySwap": isolation["memory_swap"],
+                                  "PidsLimit": isolation["pids_limit"],
+                                  "NanoCpus": isolation["nano_cpus"],
+                                  "Ulimits": [{"Name": item["name"], "Soft": item["soft"], "Hard": item["hard"]}
+                                              for item in isolation["ulimits"]],
+                                  "Tmpfs": dict(isolation["tmpfs"])},
+                   "Config": {"User": isolation["user"],
+                              "Env": [f"{key}={val}" for key, val in value["env"].items()]},
+                   "Mounts": []}
+        steps._probe_isolation(inspect, value)
+        inspect["Config"]["User"] = "0:0"
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+        inspect["Config"]["User"] = isolation["user"]
+        inspect["Mounts"] = [{"Destination": "/input"}]
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+        inspect["Mounts"] = []
+        inspect["HostConfig"]["Ulimits"] = [{"Name": "nofile", "Soft": 999, "Hard": 999}]
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+
+    def test_probe_isolation_env_mismatch_is_red(self):
+        from ci import steps
+        value = self._policy()
+        inspect = {"HostConfig": {"NetworkMode": "none", "ReadonlyRootfs": True, "CapDrop": ["ALL"],
+                                  "SecurityOpt": ["no-new-privileges"], "Privileged": False,
+                                  "Memory": value["isolation"]["memory"],
+                                  "MemorySwap": value["isolation"]["memory_swap"],
+                                  "PidsLimit": value["isolation"]["pids_limit"],
+                                  "NanoCpus": value["isolation"]["nano_cpus"],
+                                  "Ulimits": [{"Name": "nofile", "Soft": 256, "Hard": 256},
+                                              {"Name": "nproc", "Soft": 64, "Hard": 64}],
+                                  "Tmpfs": value["isolation"]["tmpfs"]},
+                   "Config": {"Env": ["PATH=/wrong"], "User": "65534:65534"}}
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+
+    def test_tool_probe_create_timeout_still_cleans_up(self):
+        from unittest import mock
+        from ci import steps
+        calls = []
+        def run(command, **kwargs):
+            calls.append(command)
+            if command[:2] == ["docker", "create"]:
+                raise subprocess.TimeoutExpired(command, 30)
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+        self.assertTrue(any(command[:3] == ["docker", "rm", "-f"] for command in calls))
+
+    def test_tool_probe_unclear_removal_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"permission denied", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "could not be verified"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_tool_probe_image_mismatch_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = "sha256:" + "9" * 64
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "image id differs"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_tool_probe_bad_state_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 1}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "did not exit cleanly"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_check_image_tools_refuses_without_process(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.steps.subprocess.run") as run_mock, \
+             mock.patch("ci.steps._run_bounded") as bounded_mock:
+            with self.assertRaises(steps.StepError):
+                steps.check_image_tools("ci/policy.json")
+            run_mock.assert_not_called()
+            bounded_mock.assert_not_called()
+
+    def test_verifier_and_consumer_do_not_start_docker(self):
+        for name in ("ci/verify.py", "ci/consume.py"):
+            with open(os.path.join(ROOT, name), encoding="utf-8") as handle:
+                self.assertNotIn("docker", handle.read())
+
     def test_check_tools_refuses_without_process(self):
         from unittest import mock
         from ci import steps, workflow_guard
@@ -1646,6 +2581,487 @@ class LaunchRefusalTests(unittest.TestCase):
                 run_mock.assert_not_called()
 
 
+IDENTITY = {"GITHUB_RUN_ID": "7", "GITHUB_RUN_ATTEMPT": "2", "GITHUB_SHA": "a" * 40}
+
+
+def _sha_bytes(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _write_json(path, data):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(data, handle)
+
+
+def _frozen(temp, spec_bytes=b"spec"):
+    spec_path = os.path.join(temp, "spec.json")
+    with open(spec_path, "wb") as handle:
+        handle.write(spec_bytes)
+    policy_path = os.path.join(temp, "policy.json")
+    _write_json(policy_path, {"spec_path": spec_path,
+                              "spec_sha256": _sha_bytes(spec_bytes)})
+    mandate_path = os.path.join(temp, "MANDATE.json")
+    with open(mandate_path, "wb") as handle:
+        handle.write(b"mandate")
+    return policy_path, mandate_path, {"spec_path": spec_path,
+                                       "spec_sha256": _sha_bytes(spec_bytes)}
+
+
+def _marker(path, policy, mandate=b"mandate", **overrides):
+    data = {"label": "7-2", "run_id": "7", "run_attempt": "2",
+            "source_digest": "a" * 40, "spec_sha256": policy["spec_sha256"],
+            "mandate_sha256": _sha_bytes(mandate)}
+    data.update(overrides)
+    _write_json(path, data)
+    return data
+
+
+class ReaperTests(unittest.TestCase):
+    def test_reaper_without_authorized_marker_does_nothing(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            with mock.patch("ci.reaper.subprocess.run") as run_mock:
+                self.assertEqual(reaper.main([], marker=os.path.join(temp, "missing.json")), 0)
+                run_mock.assert_not_called()
+
+    def test_valid_marker_reaps(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap", return_value=0) as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 0)
+                reap_mock.assert_called_once()
+
+    def test_wrong_label_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, label="other-1")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_null_marker_is_red_not_missing(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "w", encoding="utf-8") as handle:
+                handle.write("null")
+            with self.assertRaisesRegex(reaper.ReaperError, "null"):
+                reaper._read_marker(marker)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker), 1)
+                reap_mock.assert_not_called()
+
+    def test_broken_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "w", encoding="utf-8") as handle:
+                handle.write("{")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_symlink_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            real = os.path.join(temp, "real.json")
+            _marker(real, policy)
+            marker = os.path.join(temp, "auth.json")
+            os.symlink(real, marker)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_oversized_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "wb") as handle:
+                handle.write(b"x" * 4097)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_oversized_marker_is_rejected_by_the_bounded_read(self):
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            data = {"label": "7-2", "run_id": "7", "run_attempt": "2",
+                    "source_digest": "a" * 40, "spec_sha256": "c" * 64,
+                    "mandate_sha256": "d" * 64, "pad": "x" * 4096}
+            _write_json(marker, data)
+            with self.assertRaisesRegex(reaper.ReaperError, "too large"):
+                reaper._read_marker(marker)
+
+    def test_directory_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            os.makedirs(marker)
+            with self.assertRaisesRegex(reaper.ReaperError, "not a regular file"):
+                reaper._read_marker(marker)
+            with mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker), 1)
+                reap_mock.assert_not_called()
+
+    def test_fifo_marker_is_red_without_hanging(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            os.mkfifo(marker)
+            outcome = {}
+            def call():
+                try:
+                    reaper._read_marker(marker)
+                except BaseException as exc:
+                    outcome["error"] = exc
+            thread = threading.Thread(target=call, daemon=True)
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), "FIFO marker open blocked without O_NONBLOCK")
+            self.assertRegex(str(outcome.get("error")), "not a regular file")
+            with mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker), 1)
+                reap_mock.assert_not_called()
+
+    def test_policy_spec_hash_mismatch_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with open(policy_path, "rb") as handle:
+                frozen = json.load(handle)
+            frozen["spec_sha256"] = "e" * 64
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(frozen, handle)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_missing_spec_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.unlink(policy["spec_path"])
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_unreadable_spec_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        if os.geteuid() == 0:
+            self.skipTest("root can read a mode-000 file")
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.chmod(policy["spec_path"], 0)
+            try:
+                with mock.patch.dict(os.environ, IDENTITY), \
+                     mock.patch.object(reaper, "reap") as reap_mock:
+                    self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                                 mandate_path=mandate_path), 1)
+                    reap_mock.assert_not_called()
+            finally:
+                os.chmod(policy["spec_path"], 0o600)
+
+    def test_policy_without_spec_path_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with open(policy_path, "rb") as handle:
+                frozen = json.load(handle)
+            frozen.pop("spec_path")
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(frozen, handle)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_unreadable_policy_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        if os.geteuid() == 0:
+            self.skipTest("root can read a mode-000 file")
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.chmod(policy_path, 0)
+            try:
+                with mock.patch.dict(os.environ, IDENTITY), \
+                     mock.patch.object(reaper, "reap") as reap_mock:
+                    self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                                 mandate_path=mandate_path), 1)
+                    reap_mock.assert_not_called()
+            finally:
+                os.chmod(policy_path, 0o600)
+
+    def test_reap_requires_a_label(self):
+        from ci import reaper
+        with self.assertRaises(TypeError):
+            reaper.reap()
+
+    def test_missing_policy_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            _, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker,
+                                             policy_path=os.path.join(temp, "missing.json"),
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_extra_key_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, extra="x")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_run_identity_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, run_id="9")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_source_digest_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, source_digest="b" * 40)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_spec_hash_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, spec_sha256="c" * 64)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_mandate_hash_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, mandate_sha256="d" * 64)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_changed_spec_after_the_policy_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with open(policy["spec_path"], "wb") as handle:
+                handle.write(b"changed")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_missing_mandate_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.unlink(mandate_path)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_missing_identity_with_a_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_no_identity_and_no_marker_is_zero(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=os.path.join(temp, "missing.json")), 0)
+                reap_mock.assert_not_called()
+
+    def test_local_one_is_not_a_fallback(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, label="local-1")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_reaper_filter_argv(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            reaper._list("7-3")
+            self.assertEqual(run_mock.call_args.args[0],
+                             ["docker", "ps", "-aq", "--filter", "label=ci-fixture.run=7-3"])
+
+    def test_reaper_rm_argv(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a"], []]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            self.assertEqual(reaper.reap("7-3"), 1)
+            self.assertEqual(run_mock.call_args.args[0], ["docker", "rm", "-f", "a"])
+
+    def test_run_label_from_environment(self):
+        from unittest import mock
+        from ci.labels import run_label
+        with mock.patch.dict(os.environ, {"GITHUB_RUN_ID": "7", "GITHUB_RUN_ATTEMPT": "3"}):
+            self.assertEqual(run_label(), "7-3")
+            self.assertEqual(run_label(strict=True), "7-3")
+
+    def test_run_label_strict_has_no_local_fallback(self):
+        from unittest import mock
+        from ci.labels import run_label
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(run_label(), "local-1")
+            self.assertIsNone(run_label(strict=True))
+
+    def test_reaper_called_process_error(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "_list", side_effect=subprocess.CalledProcessError(1, "docker")):
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+
+    def test_no_leftovers(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", return_value=[]):
+            self.assertEqual(reaper.reap("1-1"), 0)
+
+    def test_leftovers_are_removed_and_red(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a", "b"], []]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            self.assertEqual(reaper.reap("1-1"), 1)
+
+    def test_failed_removal_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a"], ["a"]]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            with self.assertRaises(reaper.ReaperError):
+                reaper.reap("1-1")
+
+
 class OnceTests(unittest.TestCase):
     def test_pagination_covers_all_pages(self):
         from ci import once
@@ -1797,6 +3213,13 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(sha, loaded["actions"][mapping[name]])
                 seen += 1
         self.assertGreaterEqual(seen, 3)
+
+    def test_reaper_step_and_timeout(self):
+        text = self._text()
+        generate = text.split("  generate:", 1)[1]
+        self.assertIn("timeout-minutes: 10", generate)
+        self.assertIn("if: always()", generate)
+        self.assertLess(generate.index("ci.reaper"), generate.index("upload-artifact"))
 
     def test_verify_has_no_id_token(self):
         text = self._text()
@@ -1956,6 +3379,7 @@ class DockerCommandTests(unittest.TestCase):
         for flag in ("--network none", "--user 65534:65534", "--read-only", "--cap-drop ALL",
                      "--security-opt no-new-privileges", "--memory-swap 256m", "--cpus 1"):
             self.assertIn(flag, joined)
+        self.assertIn("--label ci-fixture.run=", joined)
         self.assertNotIn("--privileged", joined)
         self.assertNotIn("/var/run/docker.sock", joined)
 

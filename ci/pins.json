@@ -1,7 +1,7 @@
 {
-  "policy_sha256": "cc75175079c37a43cba1699a0df42c93deca3aa8aeced30d1ac2cf1eaf8cc9b1",
-  "schema_sha256": "21c0071ab1f3661941e74d60285e86597441791f427881867fb7dc692d20fae4",
-  "spec_sha256": "1a33d1bd8c7089e9775651ec073746eaea7706b29476e6416aee7c964e1a5d38",
+  "policy_sha256": "58ecbd6f09cc35e43cb23b3fe14c132079377b650630298f96b7f760a46b44aa",
+  "schema_sha256": "6b1bbf51d52c0a355863007aaaa1a452cc814d642260876587fabfce6fea450c",
+  "spec_sha256": "f2a368df3e9430f47f70ec65bf51dd14691885da6afb0ba1ead1ac6ff6b4933c",
   "trusted_root_sha256": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
   "image": {
     "index_digest": "sha256:073ffebb96ae4d0ed73ccad59f08c47bd84af8a79f5258130f8458ac50ad9ff4",
@@ -15,7 +15,7 @@
     "attest": "4d101475d8b20a2381f78447822ac1eab6504dd8"
   },
   "tools": {
-    "git": "unused",
+    "git": "1:2.39.5-0+deb12u3",
     "python": "3.13.16",
     "pytest": "unused"
   },
