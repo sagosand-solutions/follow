@@ -1,6 +1,6 @@
 {
-  "policy_sha256": "601fc98aa67339edc3ae2b1d40b8ad16929fe67a0dad4e744366219796ca1fe2",
-  "schema_sha256": "6f5b6ef7b7099977c90fa4fbda96c66d7350b59be8f2e8df186476143bcabf5d",
+  "policy_sha256": "58ecbd6f09cc35e43cb23b3fe14c132079377b650630298f96b7f760a46b44aa",
+  "schema_sha256": "6b1bbf51d52c0a355863007aaaa1a452cc814d642260876587fabfce6fea450c",
   "spec_sha256": "f2a368df3e9430f47f70ec65bf51dd14691885da6afb0ba1ead1ac6ff6b4933c",
   "trusted_root_sha256": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
   "image": {

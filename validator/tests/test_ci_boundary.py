@@ -128,11 +128,26 @@ def observation(files):
         "stdout_bytes": 3,
         "stderr_bytes": 3,
         "image_tools": {"git": "git version 2.47.0", "git_dpkg": "2.47.0", "python": "Python 3.14.0"},
+        "tool_probes": [],
         "sealed_output_sha256": ci_verify.fileset_digest(files),
         "limit_hit": [],
     }
     obs["isolation"] = dict(policy(None)["isolation"])
     obs["isolation"]["env"] = dict(ENV)
+    probe_isolation = dict(policy(None)["isolation"])
+    probe_isolation["env"] = dict(ENV)
+    probe_hash = canon.sha256_canonical(probe_isolation)
+    obs["tool_probes"] = [
+        {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
+         "image_id": "sha256:" + "2" * 64, "isolation": probe_isolation,
+         "isolation_sha256": probe_hash, "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+        {"value": "2.47.0", "argv": ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+         "image_id": "sha256:" + "2" * 64, "isolation": probe_isolation,
+         "isolation_sha256": probe_hash, "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+        {"value": "Python 3.14.0", "argv": ["/usr/local/bin/python3", "--version"],
+         "image_id": "sha256:" + "2" * 64, "isolation": probe_isolation,
+         "isolation_sha256": probe_hash, "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+    ]
     obs["isolation_sha256"] = canon.sha256_canonical(obs["isolation"])
     return obs
 
@@ -1067,6 +1082,7 @@ class ToolCheckTests(unittest.TestCase):
         inspect_doc = self._conform_inspect(value)
         inspect_doc["Image"] = value["image"]["image_id"]
         inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
         def run(command, **kwargs):
             if command[:2] == ["docker", "inspect"]:
                 return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
@@ -1077,8 +1093,10 @@ class ToolCheckTests(unittest.TestCase):
             return json.dumps([inspect_doc]).encode()
         with mock.patch("ci.steps.subprocess.run", side_effect=run), \
              mock.patch("ci.steps._run_bounded", side_effect=bounded):
-            self.assertEqual(steps._tool_probe(value, ["/usr/bin/git", "--version"], 1),
-                             "git version 2.47.0")
+            probe = steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+            self.assertEqual(probe["value"], "git version 2.47.0")
+            self.assertEqual(probe["argv"], ["/usr/bin/git", "--version"])
+            self.assertEqual(probe["cleanup"], "verified")
 
     def test_tool_probe_end_to_end_rejects_nonconform_inspect(self):
         from unittest import mock
@@ -1087,6 +1105,7 @@ class ToolCheckTests(unittest.TestCase):
         inspect_doc = self._conform_inspect(value)
         inspect_doc["Image"] = value["image"]["image_id"]
         inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
         inspect_doc["HostConfig"]["NetworkMode"] = "bridge"
         def run(command, **kwargs):
             if command[:2] == ["docker", "inspect"]:
@@ -1108,9 +1127,16 @@ class ToolCheckTests(unittest.TestCase):
         inspect_doc = self._conform_inspect(value)
         inspect_doc["Image"] = value["image"]["image_id"]
         inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
-        outputs = iter([b"git version 2.47.0\n", json.dumps([inspect_doc]).encode(),
-                        b"2.47.0\n", json.dumps([inspect_doc]).encode(),
-                        b"Python 3.14.0\n", json.dumps([inspect_doc]).encode()])
+        variants = []
+        for cmd in (["/usr/bin/git", "--version"],
+                    ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+                    ["/usr/local/bin/python3", "--version"]):
+            doc = json.loads(json.dumps(inspect_doc))
+            doc["Config"]["Cmd"] = cmd
+            variants.append(doc)
+        outputs = iter([b"git version 2.47.0\n", json.dumps([variants[0]]).encode(),
+                        b"2.47.0\n", json.dumps([variants[1]]).encode(),
+                        b"Python 3.14.0\n", json.dumps([variants[2]]).encode()])
         def run(command, **kwargs):
             if command[:2] == ["docker", "inspect"]:
                 return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
@@ -1123,9 +1149,11 @@ class ToolCheckTests(unittest.TestCase):
                  mock.patch.object(steps, "require_pins", return_value=None), \
                  mock.patch("ci.steps.subprocess.run", side_effect=run), \
                  mock.patch("ci.steps._run_bounded", side_effect=lambda *a, **k: next(outputs)):
-                self.assertEqual(steps.check_image_tools(policy_path),
+                result = steps.check_image_tools(policy_path)
+                self.assertEqual(result["versions"],
                                  {"git": "git version 2.47.0", "git_dpkg": "2.47.0",
                                   "python": "Python 3.14.0"})
+                self.assertEqual(len(result["probes"]), 3)
 
     def test_probe_isolation_accepts_policy_conform_inspect(self):
         from ci import steps

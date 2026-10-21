@@ -1,7 +1,7 @@
 {
   "policy_version": "ci-policy-v1",
   "schema_path": "ci/schema/ci-v1.json",
-  "schema_sha256": "6f5b6ef7b7099977c90fa4fbda96c66d7350b59be8f2e8df186476143bcabf5d",
+  "schema_sha256": "6b1bbf51d52c0a355863007aaaa1a452cc814d642260876587fabfce6fea450c",
   "licence_allowlist": [
     "CC-BY-SA-4.0"
   ],

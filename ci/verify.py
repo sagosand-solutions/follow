@@ -173,10 +173,11 @@ def build_receipt(*, policy, spec, run, observation, raw_subjects, attestation_b
         "outputs_artifact_sha256": _sha(outputs_tar),
         "licence_set": sorted(spec["licence_set"]),
     }
+    receipt["observed"]["tool_probes_sha256"] = canon.sha256_canonical(observation["tool_probes"])
     return receipt
 
 
-OBSERVED_KEYS = ("image_id", "image_tools", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
+OBSERVED_KEYS = ("image_id", "image_tools", "tool_probes_sha256", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
                  "exit_code", "signal", "started_at", "ended_at", "wall_ms", "cpu_usec",
                  "max_rss_bytes", "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes",
                  "sealed_output_sha256")
@@ -236,6 +237,25 @@ def verify_receipt(receipt, *, policy, spec, outputs_tar, observation):
         expected_tools["python"] = f"Python {python_pin}"
     if receipt["observed"]["image_tools"] != expected_tools:
         raise ReceiptError("the observed image tools differ from the pinned tools")
+    probes = observation.get("tool_probes")
+    if not isinstance(probes, list) or len(probes) != len(expected_tools):
+        raise ReceiptError("the tool probe observations are missing or incomplete")
+    expected_argv = {"git": ["/usr/bin/git", "--version"],
+                     "git_dpkg": ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+                     "python": ["/usr/local/bin/python3", "--version"]}
+    for probe in probes:
+        name = next((key for key, args in expected_argv.items() if args == probe.get("argv")), None)
+        if name is None:
+            raise ReceiptError("a tool probe has an unexpected argv")
+        if probe.get("image_id") != policy["image"]["image_id"]:
+            raise ReceiptError("a tool probe has a different image id")
+        if probe.get("exit_code") != 0 or probe.get("cleanup") != "verified":
+            raise ReceiptError("a tool probe did not exit cleanly or was not cleaned up")
+        isolation = probe.get("isolation")
+        if not isinstance(isolation, dict) or probe.get("isolation_sha256") != canon.sha256_canonical(isolation):
+            raise ReceiptError("a tool probe isolation hash is inconsistent")
+    if receipt["observed"]["tool_probes_sha256"] != canon.sha256_canonical(probes):
+        raise ReceiptError("the tool probe observation hash is inconsistent")
     items = receipt["items"]
     licences = receipt["licence_set"]
     if len(licences) != 1:
@@ -275,8 +295,12 @@ def verify_receipt(receipt, *, policy, spec, outputs_tar, observation):
     if set(receipt["observed"]) != set(OBSERVED_KEYS):
         raise ReceiptError("the observed block does not have exactly the expected keys")
     for key in OBSERVED_KEYS:
+        if key == "tool_probes_sha256":
+            continue
         if receipt["observed"][key] != observation[key]:
             raise ReceiptError(f"observed.{key} differs from the observation file")
+    if receipt["observed"]["tool_probes_sha256"] != canon.sha256_canonical(observation["tool_probes"]):
+        raise ReceiptError("observed.tool_probes_sha256 does not cover the observed probes")
     artifacts = receipt["artifacts"]
     paths = [item["path"] for item in artifacts]
     if paths != sorted(paths) or len(set(paths)) != len(paths):

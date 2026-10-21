@@ -16,6 +16,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 
 from . import archive, canon, limits, schema, workflow_guard
 
@@ -393,6 +394,20 @@ def _probe_isolation(inspect, policy):
             env[key] = value
     if env != policy["env"]:
         raise StepError("tool probe environment differs from the pinned environment")
+    return {"network_mode": host.get("NetworkMode"),
+            "readonly_rootfs": host.get("ReadonlyRootfs"),
+            "cap_drop": sorted(host.get("CapDrop") or []),
+            "security_opt": sorted(host.get("SecurityOpt") or []),
+            "privileged": host.get("Privileged"),
+            "user": config.get("User"),
+            "memory": host.get("Memory"),
+            "memory_swap": host.get("MemorySwap"),
+            "pids_limit": host.get("PidsLimit"),
+            "nano_cpus": host.get("NanoCpus"),
+            "ulimits": ulimits,
+            "tmpfs": host.get("Tmpfs") or {},
+            "env": env,
+            "mounts": []}
 
 
 def _tool_probe(policy, args, index):
@@ -411,6 +426,7 @@ def _tool_probe(policy, args, index):
     for key, value in sorted(policy["env"].items()):
         create += ["-e", f"{key}={value}"]
     create += [policy["image"]["ref"], *args]
+    started = time.monotonic()
     try:
         try:
             subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -425,8 +441,19 @@ def _tool_probe(policy, args, index):
             raise StepError(f"tool probe failed or did not exit cleanly: {args}")
         if entry.get("Image") != policy["image"]["image_id"]:
             raise StepError("tool probe image id differs from the pinned image id")
-        _probe_isolation(entry, policy)
-        return output.decode("utf-8", "replace").strip()
+        actual_argv = (entry.get("Config", {}).get("Entrypoint") or []) + (entry.get("Config", {}).get("Cmd") or [])
+        if actual_argv != list(args):
+            raise StepError("tool probe argv differs from the requested argv")
+        isolation = _probe_isolation(entry, policy)
+        ended = time.monotonic()
+        return {"value": output.decode("utf-8", "replace").strip(),
+                "argv": list(args),
+                "image_id": entry.get("Image"),
+                "isolation": isolation,
+                "isolation_sha256": canon.sha256_canonical(isolation),
+                "exit_code": 0,
+                "cleanup": "verified",
+                "wall_ms": int((ended - started) * 1000)}
     finally:
         try:
             subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
@@ -453,20 +480,30 @@ def check_image_tools(policy_path):
     require_pins(policy)
     git_pin = policy["tools"]["versions"].get("git")
     python_pin = policy["tools"]["versions"].get("python")
-    tools = {}
+    versions = {}
+    probes = []
+    deadline = time.monotonic() + 30
     if git_pin and git_pin != "unused":
         upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
-        tools["git"] = _tool_probe(policy, ["/usr/bin/git", "--version"], 1)
-        if tools["git"] != f"git version {upstream}":
+        probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1)
+        probes.append(probe)
+        versions["git"] = probe["value"]
+        if probe["value"] != f"git version {upstream}":
             raise StepError(f"git --version does not match the pinned {git_pin!r}")
-        tools["git_dpkg"] = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2)
-        if tools["git_dpkg"] != git_pin:
+        probe = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2)
+        probes.append(probe)
+        versions["git_dpkg"] = probe["value"]
+        if probe["value"] != git_pin:
             raise StepError("the image dpkg git version does not match the pin")
     if python_pin and python_pin != "unused":
-        tools["python"] = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3)
-        if tools["python"] != f"Python {python_pin}":
+        probe = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3)
+        probes.append(probe)
+        versions["python"] = probe["value"]
+        if probe["value"] != f"Python {python_pin}":
             raise StepError(f"python3 --version does not match the pinned {python_pin!r}")
-    return tools
+    if time.monotonic() > deadline:
+        raise StepError("the tool probe budget of 30 seconds was exceeded")
+    return {"versions": versions, "probes": probes}
 
 
 def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=None):
