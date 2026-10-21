@@ -275,11 +275,8 @@ def check_attestation_payload(payload, *, subject_name, subject_sha256, issuer, 
     return True
 
 
-def _limit_fsize(limit):
-    def apply():
-        import resource
-        resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
-    return apply
+def _limit_wrapper(command, limit):
+    return [sys.executable, "-m", "ci.limit_exec", str(limit)] + list(command)
 
 
 def _run_bounded(command, timeout, limit):
@@ -287,8 +284,7 @@ def _run_bounded(command, timeout, limit):
         stdout_path = os.path.join(temp, "stdout")
         stderr_path = os.path.join(temp, "stderr")
         with open(stdout_path, "wb") as out, open(stderr_path, "wb") as err:
-            subprocess.run(command, check=True, stdout=out, stderr=err, timeout=timeout,
-                           preexec_fn=_limit_fsize(limit))
+            subprocess.run(_limit_wrapper(command, limit), check=True, stdout=out, stderr=err, timeout=timeout)
         if os.path.getsize(stdout_path) > limit or os.path.getsize(stderr_path) > limit:
             raise StepError("the command output exceeded its cap")
         with open(stdout_path, "rb") as handle:

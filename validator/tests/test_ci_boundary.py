@@ -742,6 +742,18 @@ class CleanupTests(unittest.TestCase):
         self.assertNotIn("_sample_cgroup", source)
 
 
+class JoinTests(unittest.TestCase):
+    def test_surviving_reader_thread_fails_closed(self):
+        from ci.run_fixture import _join_or_fail
+        class Alive:
+            def join(self, timeout=None):
+                return None
+            def is_alive(self):
+                return True
+        with self.assertRaises(Exception):
+            _join_or_fail(Alive(), "stdout")
+
+
 class FullChainTests(unittest.TestCase):
     def test_run_chain_uses_the_absolute_cgroup_path(self):
         from unittest import mock
@@ -778,6 +790,8 @@ class FullChainTests(unittest.TestCase):
                 self.stderr = b""
 
         def fake_run(command, **kwargs):
+            if len(command) >= 5 and command[1] == "-m" and command[2] == "ci.limit_exec":
+                command = command[4:]
             if command[:2] == ["docker", "pull"]:
                 return Completed()
             if command[:3] == ["docker", "image", "inspect"]:
@@ -863,6 +877,33 @@ class LaunchRefusalTests(unittest.TestCase):
                 run_mock.assert_not_called()
 
 
+class OnceTests(unittest.TestCase):
+    def test_once_refuses_without_a_mandate_and_no_network(self):
+        from unittest import mock
+        from ci import once, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.once.urllib.request.urlopen") as open_mock:
+            code = once.main([])
+        self.assertNotEqual(code, 0)
+        open_mock.assert_not_called()
+
+    def test_prior_run_is_rejected(self):
+        from ci import once
+        runs = [{"id": 1}, {"id": 2}]
+        with self.assertRaises(once.OnceError):
+            once.check_once("o/r", "ci-fixture.yml", "a" * 40, 2, 1, "t", fetch=lambda *args: runs)
+
+    def test_attempt_two_is_rejected(self):
+        from ci import once
+        with self.assertRaises(once.OnceError):
+            once.check_once("o/r", "ci-fixture.yml", "a" * 40, 1, 2, "t", fetch=lambda *args: [{"id": 1}])
+
+    def test_single_run_is_accepted(self):
+        from ci import once
+        self.assertTrue(once.check_once("o/r", "ci-fixture.yml", "a" * 40, 1, 1, "t",
+                                        fetch=lambda *args: [{"id": 1}]))
+
+
 class WorkflowTests(unittest.TestCase):
     def _text(self):
         with open(os.path.join(ROOT, ".github/workflows/ci-fixture.yml"), encoding="utf-8") as handle:
@@ -880,11 +921,18 @@ class WorkflowTests(unittest.TestCase):
                 value = line.split("uses:", 1)[1].strip().split()[0]
                 self.assertRegex(value, r"^[^@]+@[0-9a-f]{40}$")
 
-    def test_four_jobs_and_guard(self):
+    def test_five_jobs_and_guard(self):
         text = self._text()
-        for job in ("generate:", "attest:", "verify:", "attest-receipt:"):
+        for job in ("gate:", "generate:", "attest:", "verify:", "attest-receipt:"):
             self.assertIn(job, text)
-        self.assertEqual(text.count("python3 -m ci.workflow_guard"), 4)
+        self.assertEqual(text.count("python3 -m ci.workflow_guard"), 5)
+
+    def test_generate_keeps_empty_permissions(self):
+        text = self._text()
+        block = text.split("  generate:", 1)[1].split("  attest:", 1)[0]
+        self.assertIn("permissions: {}", block)
+        self.assertNotIn("actions: read", block)
+        self.assertNotIn("GH_TOKEN", block)
 
     def test_no_user_input_interpolation(self):
         text = self._text()
@@ -898,6 +946,19 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("attest-verify", text)
         with open(os.path.join(ROOT, "ci/steps.py"), encoding="utf-8") as handle:
             self.assertIn("--deny-self-hosted-runners", handle.read())
+
+    def test_action_pins_match_the_policy(self):
+        import re
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            loaded = json.load(handle)
+        text = self._text()
+        mapping = {"checkout": "checkout", "upload-artifact": "upload", "attest-build-provenance": "attest"}
+        seen = 0
+        for name, sha in re.findall(r"uses:\s*actions/([a-z-]+)@([0-9a-f]{40})", text):
+            if name in mapping:
+                self.assertEqual(sha, loaded["actions"][mapping[name]])
+                seen += 1
+        self.assertGreaterEqual(seen, 3)
 
     def test_verify_has_no_id_token(self):
         text = self._text()
