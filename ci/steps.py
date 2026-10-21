@@ -213,42 +213,6 @@ def check_tools(policy_path):
     match = re.search(r"gh version (\S+)", first)
     if match is None or match.group(1) != wanted:
         raise StepError(f"gh version does not match the pinned {wanted!r}")
-    isolation = policy["isolation"]
-    image = policy["image"]["ref"]
-    counter = itertools.count(1)
-
-    def in_image(args):
-        name = f"ci-tools-{os.getpid()}-{next(counter)}"
-        try:
-            return _run_bounded(["docker", "run", "--rm", "--name", name,
-                                 "--network", isolation["network_mode"],
-                                 "--read-only", "--user", isolation["user"], "--cap-drop", "ALL",
-                                 "--security-opt", "no-new-privileges",
-                                 "--pids-limit", str(isolation["pids_limit"]),
-                                 "--memory", f"{isolation['memory'] // (1024 * 1024)}m",
-                                 "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
-                                 "--cpus", str(isolation["nano_cpus"] / 1_000_000_000),
-                                 "--log-driver", "none",
-                                 "--tmpfs", f"/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes={isolation['tmp_inodes']}",
-                                 image] + args, timeout=120, limit=64 * 1024)
-        finally:
-            try:
-                subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except subprocess.TimeoutExpired:
-                pass
-
-    git_pin = policy["tools"]["versions"].get("git")
-    if git_pin and git_pin != "unused":
-        upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
-        if in_image(["/usr/bin/git", "--version"]).decode().strip() != f"git version {upstream}":
-            raise StepError(f"git --version does not match the pinned {git_pin!r}")
-        if in_image(["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"]).decode().strip() != git_pin:
-            raise StepError("the image dpkg git version does not match the pin")
-    python_pin = policy["tools"]["versions"].get("python")
-    if python_pin and python_pin != "unused":
-        if in_image(["/usr/local/bin/python3", "--version"]).decode().strip() != f"Python {python_pin}":
-            raise StepError(f"python3 --version does not match the pinned {python_pin!r}")
     return 0
 
 
@@ -394,6 +358,70 @@ def _run_bounded(command, timeout, limit):
             raise StepError("the command output exceeded its cap")
         with open(stdout_path, "rb") as handle:
             return handle.read(limit)
+
+
+def _tool_probe(policy, args, index):
+    isolation = policy["isolation"]
+    name = f"ci-tool-{os.getpid()}-{index}"
+    create = ["docker", "create", "--name", name,
+              "--network", isolation["network_mode"], "--read-only", "--user", isolation["user"],
+              "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+              "--pids-limit", str(isolation["pids_limit"]),
+              "--memory", f"{isolation['memory'] // (1024 * 1024)}m",
+              "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
+              "--cpus", str(isolation["nano_cpus"] / 1_000_000_000), "--log-driver", "none",
+              "--tmpfs", f"/tmp:{isolation['tmpfs']['/tmp']}"]
+    for ulimit in isolation["ulimits"]:
+        create += ["--ulimit", f"{ulimit['name']}={ulimit['soft']}:{ulimit['hard']}"]
+    create += [policy["image"]["ref"], *args]
+    subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        output = _run_bounded(["docker", "start", "-a", name], timeout=10, limit=64 * 1024)
+        inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=10,
+                                          limit=4 * 1024 * 1024).decode("utf-8"))
+        state = inspect[0].get("State", {}) if isinstance(inspect, list) else {}
+        if state.get("Status") != "exited" or state.get("ExitCode") != 0:
+            raise StepError(f"tool probe failed or did not exit cleanly: {args}")
+        if inspect[0].get("Image") != policy["image"]["image_id"]:
+            raise StepError("tool probe image id differs from the pinned image id")
+        return output.decode("utf-8", "replace").strip()
+    finally:
+        try:
+            subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except subprocess.TimeoutExpired:
+            raise StepError("tool container removal timed out") from None
+        check = subprocess.run(["docker", "inspect", name], check=False, timeout=30,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if check.returncode == 0:
+            raise StepError("tool container still exists after removal")
+
+
+def check_image_tools(policy_path):
+    """Run the three tool probes in the producer, before the fixture starts."""
+    try:
+        workflow_guard.require_mandate()
+    except workflow_guard.Refused as exc:
+        raise StepError(f"no registered test mandate: {exc}") from None
+    with open(policy_path, "rb") as handle:
+        policy = canon.loads(handle.read())
+    require_pins(policy)
+    git_pin = policy["tools"]["versions"].get("git")
+    python_pin = policy["tools"]["versions"].get("python")
+    tools = {}
+    if git_pin and git_pin != "unused":
+        upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
+        tools["git"] = _tool_probe(policy, ["/usr/bin/git", "--version"], 1)
+        if tools["git"] != f"git version {upstream}":
+            raise StepError(f"git --version does not match the pinned {git_pin!r}")
+        tools["git_dpkg"] = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2)
+        if tools["git_dpkg"] != git_pin:
+            raise StepError("the image dpkg git version does not match the pin")
+    if python_pin and python_pin != "unused":
+        tools["python"] = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3)
+        if tools["python"] != f"Python {python_pin}":
+            raise StepError(f"python3 --version does not match the pinned {python_pin!r}")
+    return tools
 
 
 def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=None):

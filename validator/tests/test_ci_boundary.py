@@ -72,6 +72,7 @@ def policy(tmp):
             "pids_limit": 64,
             "nano_cpus": 1000000000,
             "tmp_inodes": 64,
+            "tmpfs": {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"},
             "ulimits": [{"name": "nofile", "soft": 256, "hard": 256},
                         {"name": "nproc", "soft": 64, "hard": 64}],
         },
@@ -127,6 +128,7 @@ def observation(files):
         "stderr_sha256": h("err"),
         "stdout_bytes": 3,
         "stderr_bytes": 3,
+        "image_tools": {"git": "git version 2.47.0", "git_dpkg": "2.47.0", "python": "Python 3.14.0"},
         "sealed_output_sha256": ci_verify.fileset_digest(files),
         "limit_hit": [],
     }
@@ -948,36 +950,54 @@ class RealSpecInputTests(unittest.TestCase):
 
 
 class ToolCheckTests(unittest.TestCase):
-    def test_container_versions_match(self):
-        from unittest import mock
-        from ci import steps
-        policy_path = os.path.join(ROOT, "ci/policy.json")
-        completed = mock.Mock(stdout=b"gh version 2.102.0 (2026-09-30)\n", stderr=b"")
-        def bounded(command, timeout, limit):
-            if "/usr/bin/git" in command:
-                return b"git version 2.39.5\n"
-            if "/usr/bin/dpkg-query" in command:
-                return b"1:2.39.5-0+deb12u3\n"
-            if "/usr/local/bin/python3" in command:
-                return b"Python 3.13.16\n"
-            return b""
-        with mock.patch.object(steps, "require_pins", return_value=None), \
-             mock.patch("ci.steps.workflow_guard.require_mandate", return_value=True), \
-             mock.patch("ci.steps.subprocess.run", return_value=completed), \
-             mock.patch("ci.steps._run_bounded", side_effect=bounded):
-            self.assertEqual(steps.check_tools(policy_path), 0)
+    def _policy(self):
+        value = policy(None)
+        value["image"]["image_id"] = "sha256:" + "2" * 64
+        return value
 
-    def test_container_git_mismatch_is_rejected(self):
+    def test_tool_probe_cleanup_failure_is_red(self):
         from unittest import mock
         from ci import steps
-        policy_path = os.path.join(ROOT, "ci/policy.json")
-        completed = mock.Mock(stdout=b"gh version 2.102.0 (2026-09-30)\n", stderr=b"")
-        with mock.patch.object(steps, "require_pins", return_value=None), \
-             mock.patch("ci.steps.workflow_guard.require_mandate", return_value=True), \
-             mock.patch("ci.steps.subprocess.run", return_value=completed), \
-             mock.patch("ci.steps._run_bounded", return_value=b"git version 2.40.0\n"):
+        state = {"Image": "sha256:" + "2" * 64, "State": {"Status": "exited", "ExitCode": 0}}
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "create"]:
+                return mock.Mock(returncode=0)
+            if command[:2] == ["docker", "rm"]:
+                return mock.Mock(returncode=0)
+            return mock.Mock(returncode=0)  # inspect after removal says it still exists
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
             with self.assertRaises(steps.StepError):
-                steps.check_tools(policy_path)
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+
+    def test_tool_probe_image_mismatch_is_red(self):
+        from unittest import mock
+        from ci import steps
+        state = {"Image": "sha256:" + "9" * 64, "State": {"Status": "exited", "ExitCode": 0}}
+        def run(command, **kwargs):
+            return mock.Mock(returncode=1)
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+
+    def test_check_image_tools_refuses_without_process(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.steps.subprocess.run") as run_mock, \
+             mock.patch("ci.steps._run_bounded") as bounded_mock:
+            with self.assertRaises(steps.StepError):
+                steps.check_image_tools("ci/policy.json")
+            run_mock.assert_not_called()
+            bounded_mock.assert_not_called()
+
+    def test_verifier_and_consumer_do_not_start_docker(self):
+        for name in ("ci/verify.py", "ci/consume.py"):
+            with open(os.path.join(ROOT, name), encoding="utf-8") as handle:
+                self.assertNotIn("docker", handle.read())
 
     def test_check_tools_refuses_without_process(self):
         from unittest import mock

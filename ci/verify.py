@@ -60,7 +60,7 @@ def config_digest(config):
 def check_isolation(observed, policy):
     expected = policy["isolation"]
     for key in ("network_mode", "readonly_rootfs", "cap_drop", "security_opt", "privileged", "user",
-                "memory", "memory_swap", "pids_limit"):
+                "memory", "memory_swap", "pids_limit", "tmpfs"):
         if key in expected and observed.get(key) != expected[key]:
             raise ReceiptError(f"isolation field {key!r} differs from the policy")
     if observed.get("mounts") != expected.get("mounts"):
@@ -163,7 +163,7 @@ def build_receipt(*, policy, spec, run, observation, raw_subjects, attestation_b
         "items": sorted(spec["items"], key=lambda item: item["item_id"]),
         "declared": declared,
         "observed": {key: observation[key] for key in (
-            "image_id", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
+            "image_id", "image_tools", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
             "exit_code", "signal", "started_at", "ended_at", "wall_ms", "cpu_usec",
             "max_rss_bytes", "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes",
             "sealed_output_sha256")},
@@ -176,7 +176,7 @@ def build_receipt(*, policy, spec, run, observation, raw_subjects, attestation_b
     return receipt
 
 
-OBSERVED_KEYS = ("image_id", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
+OBSERVED_KEYS = ("image_id", "image_tools", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
                  "exit_code", "signal", "started_at", "ended_at", "wall_ms", "cpu_usec",
                  "max_rss_bytes", "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes",
                  "sealed_output_sha256")
@@ -226,6 +226,16 @@ def verify_receipt(receipt, *, policy, spec, outputs_tar, observation):
         raise ReceiptError("image_id does not match the policy pin")
     if receipt["image"]["tools"] != policy["tools"]["versions"]:
         raise ReceiptError("the tool set differs from the frozen policy")
+    expected_tools = {}
+    git_pin = policy["tools"]["versions"].get("git")
+    python_pin = policy["tools"]["versions"].get("python")
+    if git_pin and git_pin != "unused":
+        expected_tools["git"] = f"git version {git_pin.split(':', 1)[-1].split('-', 1)[0]}"
+        expected_tools["git_dpkg"] = git_pin
+    if python_pin and python_pin != "unused":
+        expected_tools["python"] = f"Python {python_pin}"
+    if receipt["observed"]["image_tools"] != expected_tools:
+        raise ReceiptError("the observed image tools differ from the pinned tools")
     items = receipt["items"]
     licences = receipt["licence_set"]
     if len(licences) != 1:

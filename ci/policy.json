@@ -1,7 +1,7 @@
 {
   "policy_version": "ci-policy-v1",
   "schema_path": "ci/schema/ci-v1.json",
-  "schema_sha256": "21c0071ab1f3661941e74d60285e86597441791f427881867fb7dc692d20fae4",
+  "schema_sha256": "5d6e79ef5c33739636ba9860a8e6418203b7885dcaea89792a21390867716109",
   "licence_allowlist": [
     "CC-BY-SA-4.0"
   ],
@@ -93,7 +93,10 @@
         "hard": 64
       }
     ],
-    "tmp_inodes": 128
+    "tmp_inodes": 128,
+    "tmpfs": {
+      "/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=128"
+    }
   },
   "limits": {
     "files": 64,

@@ -57,7 +57,7 @@ def docker_command(spec, policy, input_dir, out_dir, container_name, cgroup_pare
         "--user", isolation["user"],
         "--read-only",
         "--log-driver", "none",
-        "--tmpfs", f"/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes={isolation['tmp_inodes']}",
+        "--tmpfs", f"/tmp:{isolation['tmpfs']['/tmp']}",
         "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges",
         "--pids-limit", "64",
@@ -220,6 +220,7 @@ def isolation_subset(inspect, policy):
         "memory_swap": host.get("MemorySwap"),
         "pids_limit": host.get("PidsLimit"),
         "nano_cpus": host.get("NanoCpus"),
+        "tmpfs": host.get("Tmpfs") or {},
         "ulimits": sorted(({"name": item.get("Name"), "soft": item.get("Soft"), "hard": item.get("Hard")}
                            for item in (host.get("Ulimits") or [])), key=lambda item: item["name"]),
         "mounts": sorted(mounts, key=lambda item: item["role"]),
@@ -360,6 +361,8 @@ def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, 
         return 0
     if not os.path.isdir(input_dir) or not os.path.isdir(out_dir):
         raise RunError("input and output directories must exist")
+    from .steps import check_image_tools
+    image_tools = check_image_tools(policy_path)
     if os.listdir(out_dir):
         raise RunError("the output tmpfs must be empty before the run")
     observed = _run(spec, policy, input_dir, out_dir, wall_seconds)
@@ -395,6 +398,7 @@ def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, 
         "stderr_bytes": observed["stderr_bytes"],
         "limit_hit": observed["limit_hit"],
         "sealed_output_sha256": fileset_digest(files),
+        "image_tools": image_tools,
     }
     data = canon.dumps(observation)
     if len(data) > limits.MAX_OBSERVATION_BYTES:
