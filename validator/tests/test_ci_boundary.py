@@ -467,6 +467,17 @@ class PinSetTests(unittest.TestCase):
         self.assertEqual(pin_set_missing(value), [])
 
 
+class SignerFormatTests(unittest.TestCase):
+    def test_real_signer_workflow_and_ref(self):
+        import json as jsonlib
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            loaded = jsonlib.load(handle)
+        attestation = loaded["attestation"]
+        self.assertIn(".github/workflows/", attestation["signer_workflow"])
+        self.assertNotIn("@", attestation["signer_workflow"])
+        self.assertTrue(attestation["signer_ref"].startswith("refs/"))
+
+
 class PinsManifestTests(unittest.TestCase):
     def test_pins_manifest_matches_the_files(self):
         bootstrap = os.path.join(ROOT, "ci/pins.json")
