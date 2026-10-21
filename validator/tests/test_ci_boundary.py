@@ -1019,6 +1019,11 @@ class ToolProbesValidationTests(unittest.TestCase):
                 ci_verify.check_tool_probes(value, policy(None))
 
     def test_wall_time(self):
+        for bad in (5.5, True, None):
+            value = self.probes()
+            value[0]["wall_ms"] = bad
+            with self.assertRaises(ci_verify.ReceiptError):
+                ci_verify.check_tool_probes(value, policy(None))
         value = self.probes()
         value[0]["wall_ms"] = 10_001
         with self.assertRaises(ci_verify.ReceiptError):
@@ -1235,6 +1240,73 @@ class ToolCheckTests(unittest.TestCase):
                 "Config": {"User": isolation["user"],
                            "Env": [f"{key}={val}" for key, val in value["env"].items()]},
                 "Mounts": []}
+
+    def test_tool_probe_substep_and_cleanup_timeouts(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        calls = []
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        bounded_calls = []
+        def bounded(command, **kwargs):
+            bounded_calls.append((command, kwargs))
+            if command[:2] == ["docker", "start"]:
+                return b"git version 2.47.0\n"
+            return json.dumps([inspect_doc]).encode()
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 3, 5, 7, 9]):
+            steps._tool_probe(value, ["/usr/bin/git", "--version"], 1, 10)
+        create = [entry for entry in calls if entry[0][:2] == ["docker", "create"]][0]
+        cleanup = [entry for entry in calls if entry[0][:3] == ["docker", "rm", "-f"]][0]
+        absence = [entry for entry in calls if entry[0][:2] == ["docker", "inspect"]][0]
+        start = [entry for entry in bounded_calls if entry[0][:2] == ["docker", "start"]][0]
+        inspect = [entry for entry in bounded_calls if entry[0][:2] == ["docker", "inspect"]][0]
+        self.assertEqual(create[1]["timeout"], 7)
+        self.assertEqual(start[1]["timeout"], 5)
+        self.assertEqual(inspect[1]["timeout"], 3)
+        self.assertEqual(cleanup[1]["timeout"], 5)
+        self.assertEqual(absence[1]["timeout"], 5)
+
+    def test_tool_probe_over_deadline_stops_before_the_next_probe(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = self._policy()
+        probe = {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
+                 "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+                 "exit_code": 0, "cleanup": "verified", "wall_ms": 1}
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "policy.json")
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "_tool_probe", side_effect=[probe, probe, probe]) as probe_mock, \
+                 mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 31, 31, 31, 31]):
+                with self.assertRaises(steps.StepError):
+                    steps.check_image_tools(path)
+                self.assertEqual(probe_mock.call_count, 1)
+
+    def test_tool_probe_start_timeout_and_still_exists_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=subprocess.TimeoutExpired("docker", 10)):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1, 10)
 
     def test_tool_probe_rejects_argv_mismatch(self):
         from unittest import mock
