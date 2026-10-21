@@ -386,11 +386,12 @@ test('profile without a scoring identity: a calm state with “Sign in”, never
 
 // ---- sharing ----
 const share = await import('../public/js/components/share-dialog.js');
+const PRODUCT = CONFIG.productName || strings['site.brand'];
 const parts = (me, alias = null) => share.shareParts({ me: board.parseMe(me), listLabel: 'Official', scopeLabel: 'All courses', alias });
 
 test('the share text is a whitelist: product, list, scope, window, score, kind of place, catalog and rules', () => {
-  assert.equal(share.shareText(parts(meKim())), 'Learn to read code · Official list · All courses · week of Mon, Oct 19 (UTC) · 211.11 points · place 3 of 340 · catalog c7 · rules r2');
-  assert.equal(share.shareText(parts(meNotPublished())), 'Learn to read code · Official list · All courses · week of Mon, Oct 19 (UTC) · 211.11 points · not on the list (for comparison: place 3, with 339 readers on it) · catalog c7 · rules r2');
+  assert.equal(share.shareText(parts(meKim())), `${PRODUCT} · Official list · All courses · week of Mon, Oct 19 (UTC) · 211.11 points · place 3 of 340 · catalog c7 · rules r2`);
+  assert.equal(share.shareText(parts(meNotPublished())), `${PRODUCT} · Official list · All courses · week of Mon, Oct 19 (UTC) · 211.11 points · not on the list (for comparison: place 3, with 339 readers on it) · catalog c7 · rules r2`);
   assert.match(share.shareText(parts(meKim({ rank: { kind: 'none', value: null, participants: 0 }, own_cursor: null }))), /211\.11 points · unranked · catalog c7/);
   assert.match(share.shareText(parts(meKim({ window: { kind: 'all', start: null, end: null } }))), / · all time · /);
   const withAttempts = meKim({ attempts: [{ question_id: 'secret-question-7', course_id: 'python', outcome: 'correct', accepted_at: 1792400000, rank_eligible: true, issue_id: 'iss-1' }] });
@@ -399,7 +400,7 @@ test('the share text is a whitelist: product, list, scope, window, score, kind o
 });
 
 test('the public name only for a published, visible row, and only when asked for', () => {
-  assert.match(share.shareText(parts(meKim(), 'kim')), /^Learn to read code · kim · Official list/);
+  assert.ok(share.shareText(parts(meKim(), 'kim')).startsWith(`${PRODUCT} · kim · Official list`));
   assert.doesNotMatch(share.shareText(parts(meNotPublished(), 'kim')), /kim/);
   const hidden = meKim({ published: false, moderation: 'hidden', rank: { kind: 'hypothetical', value: 3, participants: 339 }, own_cursor: null });
   assert.doesNotMatch(share.shareText(parts(hidden, 'kim')), /kim/);

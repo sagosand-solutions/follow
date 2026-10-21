@@ -80,5 +80,8 @@ CI runs the checks above. Question code is checked statically and is never execu
 | Platform code | [AGPL-3.0](LICENSE) |
 | Question schema, concept maps, and validator | [MIT](LICENSES/MIT.txt) |
 | Course and question content | [CC BY-SA 4.0](LICENSES/CC-BY-SA-4.0.txt) |
+| Letter outlines in the logo's wordmark (`public/js/components/logo.js`) | [SIL OFL 1.1](LICENSES/OFL-1.1.txt) |
 
 Directories under a license other than AGPL-3.0 say so in their own README.
+
+The wordmark's letter outlines are drawn from JetBrains Mono, Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono), under the SIL Open Font License 1.1, whose full text and the font's copyright notice are in [`LICENSES/OFL-1.1.txt`](LICENSES/OFL-1.1.txt). The font declares no Reserved Font Name.

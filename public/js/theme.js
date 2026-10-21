@@ -1,3 +1,5 @@
+import { faviconSvg } from './components/logo.js';
+
 const KEY = 'ui.theme';
 export const THEMES = ['auto', 'light', 'dark', 'paper', 'slate', 'contrast'];
 let sessionMode = 'auto';
@@ -36,13 +38,19 @@ export function applyTheme(mode, root = globalThis.document && globalThis.docume
   syncThemeColor(root);
 }
 
-// The browser chrome follows the page background (meta theme-color), read from the theme's own --bg token.
+// The browser chrome follows the page background (meta theme-color), read from the theme's own --bg token, and the tab's
+// icon is redrawn in the theme's stage colours (the static favicon.svg stays in place when a token cannot be read).
 function syncThemeColor(root) {
   const doc = root && root.ownerDocument;
   if (!doc || !globalThis.getComputedStyle) return;
+  const style = globalThis.getComputedStyle(root);
+  const token = (name) => style.getPropertyValue(name).trim();
   const meta = doc.querySelector('meta[name="theme-color"]');
-  const bg = globalThis.getComputedStyle(root).getPropertyValue('--bg').trim();
+  const bg = token('--bg');
   if (meta && bg) meta.setAttribute('content', bg);
+  const icon = doc.querySelector('link[rel="icon"]');
+  const svg = faviconSvg({ tile: token('--stage-bg'), caret: token('--accent-attention'), ink: token('--stage-ink') });
+  if (icon && svg) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(svg)}`);
 }
 
 export function initTheme(storage = defaultStorage()) {

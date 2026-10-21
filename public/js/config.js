@@ -4,7 +4,7 @@ const release = new URL(import.meta.url).searchParams.get('v');
 
 export const CONFIG = {
   release,
-  productName: null,
+  productName: 'Readfirst',
   // The study layer ships once its notes are reviewed and listed in a manifest (no probing for missing files).
   studyLayer: false,
   // Account screens (sign-in, premium, checkout) run on a fake client in test mode until the server exists.
