@@ -1210,18 +1210,19 @@ class ToolCheckTests(unittest.TestCase):
     def test_tool_probe_cleanup_failure_is_red(self):
         from unittest import mock
         from ci import steps
-        state = {"Image": "sha256:" + "2" * 64, "State": {"Status": "exited", "ExitCode": 0}}
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
         def run(command, **kwargs):
-            if command[:2] == ["docker", "create"]:
-                return mock.Mock(returncode=0, stderr=b"", stdout=b"")
-            if command[:2] == ["docker", "rm"]:
-                return mock.Mock(returncode=0, stderr=b"", stdout=b"")
-            return mock.Mock(returncode=0, stderr=b"", stdout=b"")  # still exists
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")  # rm 0 and inspect rc 0: still exists
         with mock.patch("ci.steps.subprocess.run", side_effect=run), \
              mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
-                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
-            with self.assertRaises(steps.StepError):
-                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "still exists"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
 
     def _conform_inspect(self, value):
         isolation = value["isolation"]
@@ -1474,30 +1475,59 @@ class ToolCheckTests(unittest.TestCase):
     def test_tool_probe_unclear_removal_is_red(self):
         from unittest import mock
         from ci import steps
-        state = {"Image": "sha256:" + "2" * 64, "State": {"Status": "exited", "ExitCode": 0}}
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
         def run(command, **kwargs):
             if command[:2] == ["docker", "inspect"]:
                 return mock.Mock(returncode=1, stderr=b"permission denied", stdout=b"")
             return mock.Mock(returncode=0, stderr=b"", stdout=b"")
         with mock.patch("ci.steps.subprocess.run", side_effect=run), \
              mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
-                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
-            with self.assertRaises(steps.StepError):
-                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "could not be verified"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
 
     def test_tool_probe_image_mismatch_is_red(self):
         from unittest import mock
         from ci import steps
-        state = {"Image": "sha256:" + "9" * 64, "State": {"Status": "exited", "ExitCode": 0}}
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = "sha256:" + "9" * 64
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
         def run(command, **kwargs):
             if command[:2] == ["docker", "inspect"]:
                 return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
             return mock.Mock(returncode=0, stderr=b"", stdout=b"")
         with mock.patch("ci.steps.subprocess.run", side_effect=run), \
              mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
-                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
-            with self.assertRaises(steps.StepError):
-                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "image id differs"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_tool_probe_bad_state_is_red(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 1}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git", "--version"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaisesRegex(steps.StepError, "did not exit cleanly"):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
 
     def test_check_image_tools_refuses_without_process(self):
         from unittest import mock
