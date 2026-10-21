@@ -229,10 +229,10 @@ def check_tools(policy_path):
                                  "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
                                  "--cpus", str(isolation["nano_cpus"] / 1_000_000_000),
                                  "--log-driver", "none",
-                                 "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes=64",
+                                 "--tmpfs", f"/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes={isolation['tmp_inodes']}",
                                  image] + args, timeout=120, limit=64 * 1024)
         finally:
-            subprocess.run(["docker", "rm", "-f", name], check=False,
+            subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     git_pin = policy["tools"]["versions"].get("git")

@@ -92,7 +92,8 @@
         "soft": 64,
         "hard": 64
       }
-    ]
+    ],
+    "tmp_inodes": 128
   },
   "limits": {
     "files": 64,
@@ -154,5 +155,5 @@
   "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
   "cgroup_name_prefix": "ci-fixture-",
   "spec_path": "ci/specs/git-pilot-2.json",
-  "spec_sha256": "0da67d07b09ed01201a762c6da6da3f8fd82317207bac8ab30881c6f3a7f6ab0"
+  "spec_sha256": "f2a368df3e9430f47f70ec65bf51dd14691885da6afb0ba1ead1ac6ff6b4933c"
 }

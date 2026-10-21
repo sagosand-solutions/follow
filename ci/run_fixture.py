@@ -57,7 +57,7 @@ def docker_command(spec, policy, input_dir, out_dir, container_name, cgroup_pare
         "--user", isolation["user"],
         "--read-only",
         "--log-driver", "none",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes=64",
+        "--tmpfs", f"/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes={isolation['tmp_inodes']}",
         "--cap-drop", "ALL",
         "--security-opt", "no-new-privileges",
         "--pids-limit", "64",

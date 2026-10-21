@@ -71,6 +71,7 @@ def policy(tmp):
             "memory_swap": 268435456,
             "pids_limit": 64,
             "nano_cpus": 1000000000,
+            "tmp_inodes": 64,
             "ulimits": [{"name": "nofile", "soft": 256, "hard": 256},
                         {"name": "nproc", "soft": 64, "hard": 64}],
         },

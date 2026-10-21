@@ -68,7 +68,7 @@ def _write(repo, path, text):
     target.write_text(text, encoding="utf-8", newline="")
 
 
-def _save(case, index, command, completed, records):
+def _save(case, index, command, completed, records, synthetic=False):
     directory = OUT / case
     directory.mkdir(parents=True, exist_ok=True)
     stem = f"{index:02d}"
@@ -76,13 +76,13 @@ def _save(case, index, command, completed, records):
     (directory / f"{stem}.stderr").write_text(completed.stderr, encoding="utf-8", newline="")
     records.append({"index": index, "command": " ".join(command),
                     "stdout": f"{stem}.stdout", "stderr": f"{stem}.stderr",
-                    "exit": completed.returncode, "expected_exit": 0})
+                    "exit": completed.returncode, "expected_exit": 0, "synthetic": synthetic})
 
 
 def _cat(case, index, repo, path, records):
     command = ["cat", str(repo / path)]
     completed = subprocess.CompletedProcess(command, 0, (repo / path).read_text(encoding="utf-8"), "")
-    _save(case, index, command, completed, records)
+    _save(case, index, command, completed, records, synthetic=True)
 
 
 def _init(case):
