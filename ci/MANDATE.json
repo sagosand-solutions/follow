@@ -1,7 +1,9 @@
 {
   "mandate_version": "ci-mandate-v1",
-  "enabled": false,
-  "approval_decision": null,
-  "allowed_specs": [],
-  "not_after": null
+  "enabled": true,
+  "approval_decision": "first run of ci/specs/git-pilot-2.json (synthetic Git fixture) on the approved attestation channel, by the project owner's 2026-10-21 approval; one dispatch, then disabled",
+  "allowed_specs": [
+    "ci/specs/git-pilot-2.json"
+  ],
+  "not_after": "2026-10-22T10:26:29Z"
 }
