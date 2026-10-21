@@ -7,6 +7,7 @@ import { registerRoute, startRouter, setNotFound } from './router.js';
 import { store } from './progress.js';
 import { loadCourses, loadCatalog } from './data.js';
 import { continueAcross } from './catalog.js';
+import { siteFooter } from './components/ui.js';
 import { homeView } from './views/home.js';
 import { courseView } from './views/course.js';
 import { lessonView } from './views/lesson.js';
@@ -68,7 +69,7 @@ async function boot() {
   window.addEventListener('hashchange', refreshContinue);
   document.addEventListener('progresschange', refreshContinue);
   refreshContinue();
-  document.getElementById('site-footer').replaceChildren(h('div', { class: 'shell' }, h('p', {}, t('footer.draft')), h('p', {}, t('footer.license'))));
+  document.getElementById('site-footer').replaceChildren(siteFooter({ draft: t('footer.draft'), licences: t('footer.licences'), source: t('about.source'), repoUrl: CONFIG.repoUrl }));
 
   registerRoute('/', homeView);
   registerRoute('/course', courseView);

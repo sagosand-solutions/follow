@@ -1,4 +1,4 @@
-// Small presentational components for the clean look: eyebrow label, fact pills, instruction note, source card.
+// Small presentational components for the clean look: eyebrow label, fact pills, instruction note, source card, footer.
 // Text is always given as whole translated strings; a fact pill takes a template with ONE {b} placeholder that is
 // rendered in bold, so translations may put the number anywhere.
 import { h } from '../dom.js';
@@ -23,9 +23,15 @@ export function noteBox({ title, text, icon = '”' }) {
   return h('div', { class: 'note' }, h('span', { class: 'note__icon', 'aria-hidden': 'true' }, icon), h('p', { class: 'note__title' }, title), text ? h('p', { class: 'note__text' }, text) : null);
 }
 
+// The footer: one quiet line. The licences are spelled out in About (each question names its own), and the source code
+// is one click away from every page.
+export function siteFooter({ draft, licences, source, repoUrl }) {
+  return h('div', { class: 'shell' }, h('p', { class: 'site-footer__line' }, draft, ' · ', h('a', { href: '#/about' }, licences), ' · ', h('a', { href: repoUrl }, source)));
+}
+
 // link: { href, label } is optional (e.g. the licence text).
 export function sourceCard({ title, text, link = null }) {
-  return h('section', { class: 'source' }, h('h2', { class: 'source__title' }, title), h('p', { class: 'source__text' }, text, link ? ' ' : null, link ? h('a', { href: link.href }, link.label) : null));
+  return h('section', { class: 'source' }, h('h2', { class: 'source__title visually-hidden' }, title), h('p', { class: 'source__text' }, text, link ? ' ' : null, link ? h('a', { href: link.href }, link.label) : null));
 }
 
 // The instruction note helps the first questions and is noise afterwards: shown until this many questions are answered.

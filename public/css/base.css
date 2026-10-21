@@ -75,10 +75,16 @@ main { padding-block: var(--s-5) var(--s-8); }
 
 .site-footer { color: var(--muted); font-size: var(--text-sm); }
 .site-footer .shell { padding-block: var(--s-6); display: grid; gap: var(--s-1); border-top: 1px solid var(--line); }
+.site-footer__line { margin: 0; }
+.site-footer a { color: inherit; text-underline-offset: 0.2em; }
+.site-footer a:hover { color: var(--ink); }
 
 .stack { display: grid; gap: var(--s-5); }
 .stack--loose { gap: var(--s-7); }
 .prose-page { max-width: var(--measure); }
+/* Text that belongs together sits close; the space goes between the sections. */
+.prose-page__intro, .prose-page__section { display: grid; gap: var(--s-3); }
+.prose-page__intro p, .prose-page__section > * { margin: 0; }
 .prose > * + * { margin-block-start: var(--s-3); }
 .lead { font-size: var(--text-lg); color: var(--muted); max-width: 34rem; }
 .muted { color: var(--muted); }
