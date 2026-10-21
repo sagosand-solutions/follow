@@ -16,7 +16,7 @@ import os
 import sys
 
 # Replaced only when the registered test mandate exists. None means "the workflow can never run".
-PINNED_MANDATE_SHA256 = None
+PINNED_MANDATE_SHA256 = "4f2ba981f311d217ee5816e53f523f221bc1d1b8f492956a53c2ab0cf6149d9c"
 
 
 class Refused(Exception):
