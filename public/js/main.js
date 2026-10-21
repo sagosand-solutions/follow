@@ -2,6 +2,7 @@ import { CONFIG } from './config.js';
 import { initTheme, setTheme, readTheme, THEMES } from './theme.js';
 import { loadLocale, t } from './i18n.js';
 import { h } from './dom.js';
+import { brandLink, drawsWordmark } from './components/logo.js';
 import { registerRoute, startRouter, setNotFound } from './router.js';
 import { store } from './progress.js';
 import { loadCourses, loadCatalog } from './data.js';
@@ -38,7 +39,7 @@ async function boot() {
   const catalog = await loadCatalog();
   const manyCourses = !!catalog && catalog.length > 1;
   const header = document.getElementById('site-header');
-  const tagline = h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand__mark', 'aria-hidden': 'true' }, h('span'), h('span'), h('span')), h('span', { class: 'brand__text' }, CONFIG.productName ? CONFIG.productName : t('site.brand')));
+  const tagline = brandLink(CONFIG.productName, t('site.brand'));
   // One native select: keyboard and screen-reader friendly, and it scales to any number of themes.
   const themeButton = h('select', { class: 'theme-select', 'aria-label': t('theme.label'), name: 'theme' }, THEMES.map((mode) => h('option', { value: mode }, t(`theme.name.${mode}`))));
   themeButton.value = readTheme();
@@ -54,6 +55,7 @@ async function boot() {
   const navList = h('div', { class: 'nav__list', id: 'nav-list' }, h('a', { href: manyCourses ? '#/' : '#/course' }, t(manyCourses ? 'nav.courses' : 'nav.course')), CONFIG.scoringUi ? h('a', { href: '#/profile' }, t('nav.profile')) : null, h('a', { href: '#/about' }, t('nav.about')), continueSlot, accountSlot, themeBox);
   const navToggle = h('button', { type: 'button', class: 'nav__toggle', 'aria-expanded': 'false', 'aria-controls': 'nav-list' }, t('nav.menu'));
   const nav = h('nav', { 'aria-label': t('nav.label'), class: 'nav' }, navToggle, navList);
+  header.classList.toggle('site-header--wordmark', drawsWordmark(CONFIG.productName));
   header.replaceChildren(h('div', { class: 'shell' }, tagline, nav));
   wireNavMenu({ nav, toggle: navToggle, list: navList, continueSlot, narrow: window.matchMedia('(max-width: 37.49rem)') });
   const refreshContinue = async () => {

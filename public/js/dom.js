@@ -21,6 +21,16 @@ function append(node, children) {
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// An SVG element: attributes are set as given (no event handlers), children are nodes.
+export function svgNode(tag, attrs = {}, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value !== false && value !== null && value !== undefined) node.setAttribute(key, String(value));
+  }
+  append(node, children);
+  return node;
+}
 const ICONS = {
   correct: ['M4 10.5l4 4 8-9'],
   partial: ['M10 3a7 7 0 1 0 0 14z'],
