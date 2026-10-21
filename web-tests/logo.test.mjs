@@ -37,7 +37,7 @@ test('the favicon takes only plain hex colours, so a token can never write marku
 // A page root whose computed tokens are given, with a theme-color meta and a favicon link.
 function page(values) {
   const meta = { attrs: { content: '#0b1020' }, setAttribute(k, v) { this.attrs[k] = v; } };
-  const link = { attrs: { href: 'favicon.svg' }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k] ?? null; } };
+  const link = { attrs: { href: 'favicon.svg' }, setAttribute(k, v) { this.attrs[k] = v; }, getAttribute(k) { return this.attrs[k] ?? null; }, removeAttribute(k) { delete this.attrs[k]; } };
   const doc = { querySelector: (sel) => (sel === 'meta[name="theme-color"]' ? meta : sel === 'link[rel="icon"]' ? link : null) };
   const el = { ownerDocument: doc, setAttribute() {}, removeAttribute() {} };
   globalThis.getComputedStyle = () => ({ getPropertyValue: (name) => values[name] ?? '' });
@@ -64,6 +64,17 @@ test('a later theme whose token cannot be read brings back the static favicon, n
   tokens['--stage-bg'] = '#12151b';
   applyTheme('slate', p.el);
   assert.match(decodeURIComponent(p.link.attrs.href), /fill="#12151b"/, 'a readable theme redraws it again');
+});
+
+test('a favicon link without an href goes back to having none, never the text "null"', () => {
+  const tokens = { '--bg': '#0b1020', '--stage-bg': '#1d1914', '--accent-attention': '#ffc83d', '--stage-ink': '#f1e9dc' };
+  const p = page(tokens);
+  delete p.link.attrs.href;
+  applyTheme('paper', p.el);
+  assert.ok(p.link.attrs.href.startsWith('data:image/svg+xml,'));
+  tokens['--stage-bg'] = '';
+  applyTheme('slate', p.el);
+  assert.equal('href' in p.link.attrs, false);
 });
 
 test('a page without a favicon link still gets its theme colour', () => {
