@@ -1,0 +1,70 @@
+{
+  "spec_version": "ci-spec-v1",
+  "fixture_id": "git-pilot-1",
+  "batch_id": "git-pilot-1",
+  "image_ref": null,
+  "argv": [
+    "/runtime/bin/python3",
+    "/input/script.py"
+  ],
+  "inputs": [
+    {
+      "role": "fixture",
+      "path": "fixture.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 0
+    },
+    {
+      "role": "script",
+      "path": "script.py",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 0
+    },
+    {
+      "role": "config",
+      "path": "config.json",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 0
+    }
+  ],
+  "config": {
+    "env": {
+      "TZ": "UTC",
+      "LC_ALL": "C.UTF-8",
+      "LANG": "C.UTF-8",
+      "PATH": "/runtime/bin",
+      "HOME": "/home",
+      "TMPDIR": "/tmp",
+      "HOSTNAME": "fixture",
+      "PYTHONHASHSEED": "0",
+      "PYTHONSAFEPATH": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONNOUSERSITE": "1",
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "GIT_CONFIG_NOSYSTEM": "1",
+      "GIT_CONFIG_GLOBAL": "/home/.gitconfig",
+      "GIT_CONFIG_COUNT": "0",
+      "GIT_TERMINAL_PROMPT": "0",
+      "GIT_OPTIONAL_LOCKS": "0",
+      "GIT_DISCOVERY_ACROSS_FILESYSTEM": "0",
+      "GIT_CEILING_DIRECTORIES": "/work",
+      "GIT_AUTHOR_DATE": "@0 +0000",
+      "GIT_COMMITTER_DATE": "@0 +0000"
+    },
+    "settings": {}
+  },
+  "licence_set": [
+    "CC-BY-SA-4.0"
+  ],
+  "expected_paths": [],
+  "artifacts": {},
+  "items": [
+    {
+      "item_id": "git-pilot-1-fixture-1",
+      "licence": {
+        "license": "CC-BY-SA-4.0",
+        "gate": "draft-only"
+      }
+    }
+  ]
+}
