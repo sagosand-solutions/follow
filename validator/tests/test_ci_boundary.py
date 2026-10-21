@@ -1208,6 +1208,65 @@ class AuthorizationMarkerTests(unittest.TestCase):
         self.assertFalse(AUTH_MARKER.startswith("ci-artifacts/"))
         self.assertEqual(AUTH_MARKER, ".ci-run-authorized.json")
 
+    def test_default_marker_written_by_run_is_read_by_reaper(self):
+        from unittest import mock
+        from ci import reaper, run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            old = os.getcwd()
+            os.chdir(temp)
+            self.addCleanup(os.chdir, old)
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            with open(spec_path, "w") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w") as handle:
+                json.dump(policy(None), handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+            self.assertTrue(os.path.exists(".ci-run-authorized.json"))
+            calls = []
+            def run_cmd(command, **kwargs):
+                calls.append(command)
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            with mock.patch("ci.reaper.subprocess.run", side_effect=run_cmd):
+                self.assertEqual(reaper.main([]), 0)
+            self.assertEqual(calls[0][:3], ["docker", "ps", "-aq"])
+            self.assertIn(f"label=ci-fixture.run={reaper.run_label()}", calls[0])
+
+    def test_env_marker_is_ignored(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            old = os.getcwd()
+            os.chdir(temp)
+            self.addCleanup(os.chdir, old)
+            env_marker = os.path.join(temp, "env-marker.json")
+            with open(env_marker, "w") as handle:
+                json.dump({"label": reaper.run_label()}, handle)
+            with mock.patch.dict(os.environ, {"CI_AUTH_MARKER": env_marker}), \
+                 mock.patch("ci.reaper.subprocess.run") as run_mock:
+                self.assertEqual(reaper.main([]), 0)
+                run_mock.assert_not_called()
+
+    def test_env_marker_string_is_gone(self):
+        for name in ("ci/reaper.py", "ci/run_fixture.py"):
+            with open(os.path.join(ROOT, name), encoding="utf-8") as handle:
+                self.assertNotIn("CI_AUTH_MARKER", handle.read())
+
+    def test_gitignore_covers_the_marker(self):
+        with open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as handle:
+            text = handle.read()
+        lines = {line.strip() for line in text.splitlines()}
+        self.assertIn(".ci-run-authorized.json", lines)
+        self.assertIn(".ci-run-authorized.json.tmp", lines)
+        self.assertIn("ci-artifacts/", lines)
+
     def test_marker_is_not_tracked_in_the_tree(self):
         import pathlib
         self.assertEqual(list(pathlib.Path(ROOT).glob("**/*run-authorized*")), [])
