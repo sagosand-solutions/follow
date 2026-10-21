@@ -75,8 +75,9 @@ def _read_beneath(root, relative, cap):
 def prepare_inputs(spec_path, dest):
     with open(spec_path, "rb") as handle:
         spec = canon.loads(handle.read())
-    candidate = os.path.splitext(os.path.abspath(spec_path))[0]
-    base = candidate if os.path.isdir(candidate) else os.path.dirname(os.path.abspath(spec_path))
+    base = os.path.splitext(os.path.abspath(spec_path))[0]
+    if not os.path.isdir(base):
+        raise StepError(f"spec input directory is missing: {base}")
     os.makedirs(dest, exist_ok=True)
     if os.listdir(dest):
         raise StepError("the input directory must be empty")
@@ -87,7 +88,9 @@ def prepare_inputs(spec_path, dest):
             raise StepError(f"input {item['path']!r} cannot be read: {exc.strerror}") from None
         if len(data) != item["bytes"] or _sha(data) != item["sha256"]:
             raise StepError(f"input {item['path']!r} does not match its reviewed hash")
-        _write_new(os.path.join(dest, item["path"]), data, 0o444)
+        target = os.path.join(dest, item["path"])
+        os.makedirs(os.path.dirname(target) or dest, exist_ok=True)
+        _write_new(target, data, 0o444)
     return 0
 
 

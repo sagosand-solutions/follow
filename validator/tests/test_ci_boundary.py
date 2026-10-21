@@ -517,6 +517,102 @@ class PinsManifestTests(unittest.TestCase):
         self.assertEqual(pins["signer_ref"], policy["attestation"]["signer_ref"])
 
 
+class PrepareInputsNegativeTests(unittest.TestCase):
+    def _spec(self, temp, inputs):
+        spec_dir = os.path.join(temp, "case")
+        os.makedirs(spec_dir, exist_ok=True)
+        for item in inputs:
+            data = item.get("content", b"x")
+            parts = item["path"].split("/")
+            unsafe = item["path"].startswith("/") or any(part in ("", ".", "..") for part in parts)
+            if not unsafe:
+                path = os.path.join(spec_dir, item["path"])
+                os.makedirs(os.path.dirname(path) or spec_dir, exist_ok=True)
+                with open(path, "wb") as handle:
+                    handle.write(data)
+            item["bytes"] = len(data)
+            item["sha256"] = hashlib.sha256(data).hexdigest()
+        spec = {"inputs": [{key: item[key] for key in ("role", "path", "sha256", "bytes")}
+                           for item in inputs]}
+        spec_path = os.path.join(temp, "case.json")
+        with open(spec_path, "w") as handle:
+            json.dump(spec, handle)
+        return spec_path
+
+    def test_content_deviation_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"abc"}])
+            source = os.path.join(temp, "case", "a.txt")
+            with open(source, "wb") as handle:
+                handle.write(b"abd")
+            with self.assertRaisesRegex(steps.StepError, "reviewed hash"):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_same_size_different_hash_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"abc"}])
+            with open(os.path.join(temp, "case", "a.txt"), "wb") as handle:
+                handle.write(b"abd")
+            with self.assertRaisesRegex(steps.StepError, "reviewed hash"):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_unsafe_input_paths_are_rejected(self):
+        from ci import steps
+        for bad in ("../x", "/abs", "a//b", "./x", "a/../b"):
+            with tempfile.TemporaryDirectory() as temp:
+                spec_path = self._spec(temp, [{"role": "fixture", "path": bad, "content": b"x"}])
+                with self.assertRaisesRegex(steps.StepError, "unsafe input path"):
+                    steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_symlink_input_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"x"}])
+            source = os.path.join(temp, "case", "a.txt")
+            os.unlink(source)
+            os.symlink("/etc/passwd", source)
+            with self.assertRaises(steps.StepError):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_nonempty_dest_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"x"}])
+            dest = os.path.join(temp, "dest")
+            os.makedirs(dest)
+            with open(os.path.join(dest, "existing"), "w") as handle:
+                handle.write("x")
+            with self.assertRaisesRegex(steps.StepError, "must be empty"):
+                steps.prepare_inputs(spec_path, dest)
+
+    def test_missing_file_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"x"}])
+            os.unlink(os.path.join(temp, "case", "a.txt"))
+            with self.assertRaises(steps.StepError):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_nested_input_gets_its_parent(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "sub/x.txt", "content": b"x"}])
+            dest = os.path.join(temp, "dest")
+            steps.prepare_inputs(spec_path, dest)
+            self.assertTrue(os.path.isfile(os.path.join(dest, "sub", "x.txt")))
+
+    def test_spec_without_its_directory_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "orphan.json")
+            with open(spec_path, "w") as handle:
+                json.dump({"inputs": []}, handle)
+            with self.assertRaisesRegex(steps.StepError, "spec input directory is missing"):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+
 class RealSpecInputTests(unittest.TestCase):
     def test_prepare_inputs_on_every_real_spec(self):
         from ci.steps import prepare_inputs
