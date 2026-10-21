@@ -485,6 +485,16 @@
 .new-word__text[hidden] { display: none; }
 .new-word__text > p { margin: 0; }
 .new-word__example { color: var(--muted); }
+/* A reminder is the same disclosure, quieter: a muted term in normal weight and a thin muted sign. A block of reminders only
+   loses the attention edge. */
+.new-word__item--met .new-word__toggle { font-weight: 600; }
+.new-word__item--met .new-word__term { color: var(--muted); }
+.new-word__item--met .new-word__toggle:hover .new-word__term { color: var(--ink); }
+.new-word__item--met .new-word__sign { border-width: 1px; color: var(--muted); font-weight: 400; }
+/* Where reminders follow new words, a hairline keeps them apart from the heading that names the new ones. */
+.new-word__item:not(.new-word__item--met) + .new-word__item--met { border-top: 1px solid var(--line); padding-top: var(--s-1); }
+.new-word--met { border-inline-start-color: var(--line-strong); }
+.new-word--met .new-word__label { color: var(--muted); }
 .practised { margin: 0; font-weight: 600; }
 .lesson-card__practised { display: block; font-size: var(--text-sm); }
 .course-end { display: grid; gap: var(--s-3); padding: var(--s-5); border: 2px solid var(--accent-attention); border-radius: var(--radius); background: var(--surface); }
@@ -682,6 +692,7 @@ p.board__gap { margin: 0; text-align: center; color: var(--muted); font-weight: 
   .path { grid-template-columns: 1fr 1fr 1.4fr; align-items: stretch; }
   /* The number keeps its own height and the card row takes the rest, so the three cards start on one line and end on one. */
   .path__step { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: stretch; }
-  .path__body { grid-template-rows: 1fr; grid-auto-rows: auto; }
+  /* A course card fills its row (the skip link, if any, sits below it); a "coming soon" step keeps its lines together at the top. */
+  .path__step:not(.path__step--soon) .path__body { grid-template-rows: 1fr; grid-auto-rows: auto; }
 }
 @media (forced-colors: active) { .path__n { border: 2px solid CanvasText; } .path__step:not(.path__step--soon) .path__n { forced-color-adjust: none; background: CanvasText; border-color: CanvasText; color: Canvas; } .path__step--soon .path__body { border: 1px dashed CanvasText; } }

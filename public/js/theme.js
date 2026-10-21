@@ -56,7 +56,10 @@ function syncThemeColor(root) {
   const svg = faviconSvg({ tile: token('--stage-bg'), caret: token('--accent-attention'), ink: token('--stage-ink') });
   if (!icon) return;
   if (!staticIcons.has(icon)) staticIcons.set(icon, icon.getAttribute('href'));
-  icon.setAttribute('href', svg ? `data:image/svg+xml,${encodeURIComponent(svg)}` : staticIcons.get(icon));
+  const original = staticIcons.get(icon);
+  if (svg) icon.setAttribute('href', `data:image/svg+xml,${encodeURIComponent(svg)}`);
+  else if (original === null) icon.removeAttribute('href');      // a link that had no href goes back to having none
+  else icon.setAttribute('href', original);
 }
 
 export function initTheme(storage = defaultStorage()) {
