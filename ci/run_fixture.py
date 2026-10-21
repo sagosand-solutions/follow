@@ -344,14 +344,15 @@ def _run(spec, policy, input_dir, out_dir, wall_seconds=10):
 
 
 def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, wall_seconds=10, dry_run=False,
-        marker=None):
+        marker=None, mandate_path=None):
     if not dry_run:
         try:
             workflow_guard.require_mandate()
         except workflow_guard.Refused as exc:
             raise RunError(f"no registered test mandate: {exc}") from None
     with open(spec_path, "rb") as handle:
-        spec = canon.loads(handle.read())
+        spec_bytes = handle.read()
+    spec = canon.loads(spec_bytes)
     with open(policy_path, "rb") as handle:
         policy = canon.loads(handle.read())
     _require(policy["image"]["ref"] == spec["image_ref"], "the spec image differs from the policy image")
@@ -363,10 +364,27 @@ def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, 
     if not os.path.isdir(input_dir) or not os.path.isdir(out_dir):
         raise RunError("input and output directories must exist")
     marker = marker or labels.AUTH_MARKER
+    label = labels.run_label(strict=True)
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    attempt = os.environ.get("GITHUB_RUN_ATTEMPT")
+    source = os.environ.get("GITHUB_SHA")
+    if not label or not run_id or not attempt or not source:
+        raise RunError("no trusted run identity; refusing to write an authorization marker")
+    # Bind the mandate bytes the guard accepted. The enabled flag is the guard's decision, not the
+    # marker's: the hash only says which file authorized this start.
+    mandate_path = mandate_path or workflow_guard.MANDATE_PATH
+    try:
+        with open(mandate_path, "rb") as handle:
+            mandate_sha = hashlib.sha256(handle.read()).hexdigest()
+    except OSError as exc:
+        raise RunError(f"cannot bind the mandate to the marker: {exc.strerror}") from None
+    data = {"label": label, "run_id": run_id, "run_attempt": attempt,
+            "source_digest": source, "spec_sha256": hashlib.sha256(spec_bytes).hexdigest(),
+            "mandate_sha256": mandate_sha}
     os.makedirs(os.path.dirname(marker) or ".", exist_ok=True)
     tmp = marker + ".tmp"
     with open(tmp, "w", encoding="utf-8") as handle:
-        json.dump({"label": labels.run_label()}, handle, sort_keys=True)
+        json.dump(data, handle, sort_keys=True)
         handle.write("\n")
     os.replace(tmp, marker)
     from .steps import check_image_tools

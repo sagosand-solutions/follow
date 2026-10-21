@@ -1185,24 +1185,49 @@ class BindingMutationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             spec_path = os.path.join(temp, "spec.json")
             policy_path = os.path.join(temp, "policy.json")
+            mandate_path = os.path.join(temp, "MANDATE.json")
+            with open(mandate_path, "wb") as handle:
+                handle.write(b"mandate")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
             with open(spec_path, "w") as handle:
                 json.dump(spec(), handle)
             with open(policy_path, "w") as handle:
-                json.dump(policy(None), handle)
+                json.dump(data, handle)
             input_dir = os.path.join(temp, "input")
             out_dir = os.path.join(temp, "out")
             os.makedirs(input_dir); os.makedirs(out_dir)
-            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
                  mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")), \
                  mock.patch("ci.run_fixture._run") as run_mock:
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
                                     os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
-                                    marker=os.path.join(temp, "auth.json"))
+                                    marker=os.path.join(temp, "auth.json"), mandate_path=mandate_path)
                 run_mock.assert_not_called()
 
 
 class AuthorizationMarkerTests(unittest.TestCase):
+    def _layout(self, temp):
+        old = os.getcwd()
+        os.chdir(temp)
+        self.addCleanup(os.chdir, old)
+        os.makedirs(os.path.join(temp, "ci/specs"))
+        spec_path = os.path.join(temp, "ci/specs/git-pilot-1.json")
+        with open(spec_path, "w", encoding="utf-8") as handle:
+            json.dump(spec(), handle)
+        with open(spec_path, "rb") as handle:
+            spec_sha = _sha_bytes(handle.read())
+        data = policy(None)
+        data["spec_path"] = spec_path
+        data["spec_sha256"] = spec_sha
+        policy_path = os.path.join(temp, "ci/policy.json")
+        _write_json(policy_path, data)
+        with open(os.path.join(temp, "ci/MANDATE.json"), "wb") as handle:
+            handle.write(b"mandate")
+        return spec_path, policy_path, data
+
     def test_marker_is_outside_the_upload_directory(self):
         from ci.labels import AUTH_MARKER
         self.assertFalse(AUTH_MARKER.startswith("ci-artifacts/"))
@@ -1212,19 +1237,12 @@ class AuthorizationMarkerTests(unittest.TestCase):
         from unittest import mock
         from ci import reaper, run_fixture, steps, workflow_guard
         with tempfile.TemporaryDirectory() as temp:
-            old = os.getcwd()
-            os.chdir(temp)
-            self.addCleanup(os.chdir, old)
-            spec_path = os.path.join(temp, "spec.json")
-            policy_path = os.path.join(temp, "policy.json")
-            with open(spec_path, "w") as handle:
-                json.dump(spec(), handle)
-            with open(policy_path, "w") as handle:
-                json.dump(policy(None), handle)
+            spec_path, policy_path, _ = self._layout(temp)
             input_dir = os.path.join(temp, "input")
             out_dir = os.path.join(temp, "out")
             os.makedirs(input_dir); os.makedirs(out_dir)
-            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
                  mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
@@ -1234,10 +1252,11 @@ class AuthorizationMarkerTests(unittest.TestCase):
             def run_cmd(command, **kwargs):
                 calls.append(command)
                 return mock.Mock(returncode=0, stdout=b"", stderr=b"")
-            with mock.patch("ci.reaper.subprocess.run", side_effect=run_cmd):
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch("ci.reaper.subprocess.run", side_effect=run_cmd):
                 self.assertEqual(reaper.main([]), 0)
             self.assertEqual(calls[0][:3], ["docker", "ps", "-aq"])
-            self.assertIn(f"label=ci-fixture.run={reaper.run_label()}", calls[0])
+            self.assertIn("label=ci-fixture.run=7-2", calls[0])
 
     def test_env_marker_is_ignored(self):
         from unittest import mock
@@ -1247,7 +1266,7 @@ class AuthorizationMarkerTests(unittest.TestCase):
             os.chdir(temp)
             self.addCleanup(os.chdir, old)
             env_marker = os.path.join(temp, "env-marker.json")
-            with open(env_marker, "w") as handle:
+            with open(env_marker, "w", encoding="utf-8") as handle:
                 json.dump({"label": reaper.run_label()}, handle)
             with mock.patch.dict(os.environ, {"CI_AUTH_MARKER": env_marker}), \
                  mock.patch("ci.reaper.subprocess.run") as run_mock:
@@ -1277,23 +1296,116 @@ class AuthorizationMarkerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             spec_path = os.path.join(temp, "spec.json")
             policy_path = os.path.join(temp, "policy.json")
-            with open(spec_path, "w") as handle:
+            mandate_path = os.path.join(temp, "MANDATE.json")
+            with open(mandate_path, "wb") as handle:
+                handle.write(b"mandate")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w", encoding="utf-8") as handle:
                 json.dump(spec(), handle)
-            with open(policy_path, "w") as handle:
-                json.dump(policy(None), handle)
+            with open(spec_path, "rb") as handle:
+                spec_sha = _sha_bytes(handle.read())
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
             input_dir = os.path.join(temp, "input")
             out_dir = os.path.join(temp, "out")
             os.makedirs(input_dir); os.makedirs(out_dir)
             marker = os.path.join(temp, "run-authorized.json")
-            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
                  mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
                                     os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
-                                    marker=marker)
+                                    marker=marker, mandate_path=mandate_path)
             self.assertTrue(os.path.exists(marker))
             with open(marker, "rb") as handle:
-                self.assertEqual(json.load(handle)["label"], run_fixture.labels.run_label())
+                written = json.load(handle)
+            self.assertEqual(written["label"], "7-2")
+            self.assertEqual(written["run_id"], "7")
+            self.assertEqual(written["run_attempt"], "2")
+            self.assertEqual(written["source_digest"], "a" * 40)
+            self.assertEqual(written["spec_sha256"], spec_sha)
+            self.assertEqual(written["mandate_sha256"], _sha_bytes(b"mandate"))
+
+    def test_mandate_env_is_ignored(self):
+        from unittest import mock
+        from ci import reaper, run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path, policy_path, _ = self._layout(temp)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            forged = os.path.join(temp, "forged.json")
+            with open(forged, "wb") as handle:
+                handle.write(b"forged")
+            env = dict(IDENTITY, CI_MANDATE_FILE=forged)
+            with mock.patch.dict(os.environ, env), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+            with open(".ci-run-authorized.json", "rb") as handle:
+                written = json.load(handle)
+            with open(workflow_guard.MANDATE_PATH, "rb") as handle:
+                expected = _sha_bytes(handle.read())
+            self.assertEqual(written["mandate_sha256"], expected)
+            with mock.patch.dict(os.environ, env), \
+                 mock.patch.object(reaper, "reap", return_value=0) as reap_mock:
+                self.assertEqual(reaper.main([]), 0)
+                reap_mock.assert_called_once()
+
+    def test_run_refuses_without_run_identity(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            mandate_path = os.path.join(temp, "MANDATE.json")
+            with open(mandate_path, "wb") as handle:
+                handle.write(b"mandate")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w", encoding="utf-8") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True):
+                with self.assertRaises(run_fixture.RunError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=marker, mandate_path=mandate_path)
+            self.assertFalse(os.path.exists(marker))
+
+    def test_run_refuses_without_the_mandate(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            data = policy(None)
+            data["spec_sha256"] = "c" * 64
+            with open(spec_path, "w", encoding="utf-8") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(workflow_guard, "require_mandate", return_value=True):
+                with self.assertRaises(run_fixture.RunError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
+                                    marker=marker, mandate_path=os.path.join(temp, "missing.json"))
+            self.assertFalse(os.path.exists(marker))
 
     def test_run_does_not_write_the_marker_when_the_guard_refuses(self):
         from unittest import mock
@@ -1301,15 +1413,16 @@ class AuthorizationMarkerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             spec_path = os.path.join(temp, "spec.json")
             policy_path = os.path.join(temp, "policy.json")
-            with open(spec_path, "w") as handle:
+            with open(spec_path, "w", encoding="utf-8") as handle:
                 json.dump(spec(), handle)
-            with open(policy_path, "w") as handle:
+            with open(policy_path, "w", encoding="utf-8") as handle:
                 json.dump(policy(None), handle)
             input_dir = os.path.join(temp, "input")
             out_dir = os.path.join(temp, "out")
             os.makedirs(input_dir); os.makedirs(out_dir)
             marker = os.path.join(temp, "run-authorized.json")
-            with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")):
+            with mock.patch.object(workflow_guard, "require_mandate",
+                                   side_effect=workflow_guard.Refused("no")):
                 with self.assertRaises(run_fixture.RunError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
                                     os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
@@ -2468,6 +2581,42 @@ class LaunchRefusalTests(unittest.TestCase):
                 run_mock.assert_not_called()
 
 
+IDENTITY = {"GITHUB_RUN_ID": "7", "GITHUB_RUN_ATTEMPT": "2", "GITHUB_SHA": "a" * 40}
+
+
+def _sha_bytes(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _write_json(path, data):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(data, handle)
+
+
+def _frozen(temp, spec_bytes=b"spec"):
+    spec_path = os.path.join(temp, "spec.json")
+    with open(spec_path, "wb") as handle:
+        handle.write(spec_bytes)
+    policy_path = os.path.join(temp, "policy.json")
+    _write_json(policy_path, {"spec_path": spec_path,
+                              "spec_sha256": _sha_bytes(spec_bytes)})
+    mandate_path = os.path.join(temp, "MANDATE.json")
+    with open(mandate_path, "wb") as handle:
+        handle.write(b"mandate")
+    return policy_path, mandate_path, {"spec_path": spec_path,
+                                       "spec_sha256": _sha_bytes(spec_bytes)}
+
+
+def _marker(path, policy, mandate=b"mandate", **overrides):
+    data = {"label": "7-2", "run_id": "7", "run_attempt": "2",
+            "source_digest": "a" * 40, "spec_sha256": policy["spec_sha256"],
+            "mandate_sha256": _sha_bytes(mandate)}
+    data.update(overrides)
+    _write_json(path, data)
+    return data
+
+
 class ReaperTests(unittest.TestCase):
     def test_reaper_without_authorized_marker_does_nothing(self):
         from unittest import mock
@@ -2477,28 +2626,373 @@ class ReaperTests(unittest.TestCase):
                 self.assertEqual(reaper.main([], marker=os.path.join(temp, "missing.json")), 0)
                 run_mock.assert_not_called()
 
-    def test_reaper_wrong_authorized_label_does_nothing(self):
+    def test_valid_marker_reaps(self):
         from unittest import mock
         from ci import reaper
         with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
             marker = os.path.join(temp, "auth.json")
-            with open(marker, "w") as handle:
-                json.dump({"label": "other-1"}, handle)
-            with mock.patch("ci.reaper.subprocess.run") as run_mock:
-                self.assertEqual(reaper.main([], marker=marker), 0)
-                run_mock.assert_not_called()
-
-    def test_reaper_with_authorized_label_reaps_after_expiry(self):
-        from unittest import mock
-        from ci import reaper
-        with tempfile.TemporaryDirectory() as temp:
-            marker = os.path.join(temp, "auth.json")
-            label = reaper.run_label()
-            with open(marker, "w") as handle:
-                json.dump({"label": label}, handle)
-            with mock.patch.object(reaper, "reap", return_value=0) as reap_mock:
-                self.assertEqual(reaper.main([], marker=marker), 0)
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap", return_value=0) as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 0)
                 reap_mock.assert_called_once()
+
+    def test_wrong_label_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, label="other-1")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_null_marker_is_red_not_missing(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "w", encoding="utf-8") as handle:
+                handle.write("null")
+            with self.assertRaisesRegex(reaper.ReaperError, "null"):
+                reaper._read_marker(marker)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker), 1)
+                reap_mock.assert_not_called()
+
+    def test_broken_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "w", encoding="utf-8") as handle:
+                handle.write("{")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_symlink_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            real = os.path.join(temp, "real.json")
+            _marker(real, policy)
+            marker = os.path.join(temp, "auth.json")
+            os.symlink(real, marker)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_oversized_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "wb") as handle:
+                handle.write(b"x" * 4097)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_oversized_marker_is_rejected_by_the_bounded_read(self):
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            data = {"label": "7-2", "run_id": "7", "run_attempt": "2",
+                    "source_digest": "a" * 40, "spec_sha256": "c" * 64,
+                    "mandate_sha256": "d" * 64, "pad": "x" * 4096}
+            _write_json(marker, data)
+            with self.assertRaisesRegex(reaper.ReaperError, "too large"):
+                reaper._read_marker(marker)
+
+    def test_directory_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            os.makedirs(marker)
+            with self.assertRaisesRegex(reaper.ReaperError, "not a regular file"):
+                reaper._read_marker(marker)
+            with mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker), 1)
+                reap_mock.assert_not_called()
+
+    def test_fifo_marker_is_red_without_hanging(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            os.mkfifo(marker)
+            outcome = {}
+            def call():
+                try:
+                    reaper._read_marker(marker)
+                except BaseException as exc:
+                    outcome["error"] = exc
+            thread = threading.Thread(target=call, daemon=True)
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), "FIFO marker open blocked without O_NONBLOCK")
+            self.assertRegex(str(outcome.get("error")), "not a regular file")
+            with mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker), 1)
+                reap_mock.assert_not_called()
+
+    def test_policy_spec_hash_mismatch_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with open(policy_path, "rb") as handle:
+                frozen = json.load(handle)
+            frozen["spec_sha256"] = "e" * 64
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(frozen, handle)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_missing_spec_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.unlink(policy["spec_path"])
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_unreadable_spec_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        if os.geteuid() == 0:
+            self.skipTest("root can read a mode-000 file")
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.chmod(policy["spec_path"], 0)
+            try:
+                with mock.patch.dict(os.environ, IDENTITY), \
+                     mock.patch.object(reaper, "reap") as reap_mock:
+                    self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                                 mandate_path=mandate_path), 1)
+                    reap_mock.assert_not_called()
+            finally:
+                os.chmod(policy["spec_path"], 0o600)
+
+    def test_policy_without_spec_path_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with open(policy_path, "rb") as handle:
+                frozen = json.load(handle)
+            frozen.pop("spec_path")
+            with open(policy_path, "w", encoding="utf-8") as handle:
+                json.dump(frozen, handle)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_unreadable_policy_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        if os.geteuid() == 0:
+            self.skipTest("root can read a mode-000 file")
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.chmod(policy_path, 0)
+            try:
+                with mock.patch.dict(os.environ, IDENTITY), \
+                     mock.patch.object(reaper, "reap") as reap_mock:
+                    self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                                 mandate_path=mandate_path), 1)
+                    reap_mock.assert_not_called()
+            finally:
+                os.chmod(policy_path, 0o600)
+
+    def test_reap_requires_a_label(self):
+        from ci import reaper
+        with self.assertRaises(TypeError):
+            reaper.reap()
+
+    def test_missing_policy_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            _, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker,
+                                             policy_path=os.path.join(temp, "missing.json"),
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_extra_key_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, extra="x")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_run_identity_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, run_id="9")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_source_digest_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, source_digest="b" * 40)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_spec_hash_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, spec_sha256="c" * 64)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_wrong_mandate_hash_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, mandate_sha256="d" * 64)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_changed_spec_after_the_policy_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with open(policy["spec_path"], "wb") as handle:
+                handle.write(b"changed")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_missing_mandate_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            os.unlink(mandate_path)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_missing_identity_with_a_marker_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+
+    def test_no_identity_and_no_marker_is_zero(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=os.path.join(temp, "missing.json")), 0)
+                reap_mock.assert_not_called()
+
+    def test_local_one_is_not_a_fallback(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
+            marker = os.path.join(temp, "auth.json")
+            _marker(marker, policy, label="local-1")
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
+            with mock.patch.dict(os.environ, {}, clear=True), \
+                 mock.patch.object(reaper, "reap") as reap_mock:
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
+                reap_mock.assert_not_called()
 
     def test_reaper_filter_argv(self):
         from unittest import mock
@@ -2523,25 +3017,26 @@ class ReaperTests(unittest.TestCase):
         from ci.labels import run_label
         with mock.patch.dict(os.environ, {"GITHUB_RUN_ID": "7", "GITHUB_RUN_ATTEMPT": "3"}):
             self.assertEqual(run_label(), "7-3")
+            self.assertEqual(run_label(strict=True), "7-3")
 
-    def test_reaper_rm_failure_is_red(self):
+    def test_run_label_strict_has_no_local_fallback(self):
         from unittest import mock
-        from ci import reaper
-        with mock.patch.object(reaper, "_list", side_effect=[["a"], []]), \
-             mock.patch("ci.reaper.subprocess.run") as run_mock:
-            run_mock.return_value = mock.Mock(returncode=1)
-            with self.assertRaises(reaper.ReaperError):
-                reaper.reap("1-1")
+        from ci.labels import run_label
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(run_label(), "local-1")
+            self.assertIsNone(run_label(strict=True))
 
     def test_reaper_called_process_error(self):
         from unittest import mock
         from ci import reaper
         with tempfile.TemporaryDirectory() as temp:
+            policy_path, mandate_path, policy = _frozen(temp)
             marker = os.path.join(temp, "auth.json")
-            with open(marker, "w") as handle:
-                json.dump({"label": reaper.run_label()}, handle)
-            with mock.patch.object(reaper, "_list", side_effect=subprocess.CalledProcessError(1, "docker")):
-                self.assertEqual(reaper.main([], marker=marker), 1)
+            _marker(marker, policy)
+            with mock.patch.dict(os.environ, IDENTITY), \
+                 mock.patch.object(reaper, "_list", side_effect=subprocess.CalledProcessError(1, "docker")):
+                self.assertEqual(reaper.main([], marker=marker, policy_path=policy_path,
+                                             mandate_path=mandate_path), 1)
 
     def test_no_leftovers(self):
         from unittest import mock
