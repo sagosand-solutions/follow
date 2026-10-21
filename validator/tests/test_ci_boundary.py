@@ -624,7 +624,9 @@ class GitPilot2Tests(unittest.TestCase):
             self.assertEqual(len(data), item["bytes"])
         for forbidden in ("question", "options", "answer", "feedback", "records"):
             self.assertNotIn(forbidden, jsonlib.dumps(spec))
-        self.assertEqual(spec["expected_paths"], ["git-pilot-2.txt"])
+        self.assertEqual(len(spec["expected_paths"]), 25)
+        self.assertIn("case1/01.stdout", spec["expected_paths"])
+        self.assertIn("case3/06.stdout", spec["expected_paths"])
 
 
 class SignerFormatTests(unittest.TestCase):

@@ -11,14 +11,14 @@
     {
       "role": "fixture",
       "path": "fixture.json",
-      "sha256": "f978cdcf47e74b05ac96f614e55c894caf64eb62a2ed0501eea454d9ca1d150c",
-      "bytes": 332
+      "sha256": "6814c89e9bf4fd35578f7742ef7205c1f50f304d7535ea0eca9eaf734ccd6e64",
+      "bytes": 236
     },
     {
       "role": "script",
       "path": "script.py",
-      "sha256": "01fedf69380fe55317f20eb21961dfc9767cc4b00957d7e760c0abbc0f7554bb",
-      "bytes": 2579
+      "sha256": "37b092599effffbb12bedaa2ab8f00d0bb6a7086825ad3e47dbd1735f0fe2d79",
+      "bytes": 6342
     }
   ],
   "config": {
@@ -63,13 +63,205 @@
     "CC-BY-SA-4.0"
   ],
   "expected_paths": [
-    "git-pilot-2.txt"
+    "case1/01.stdout",
+    "case1/01.stderr",
+    "case1/meta.json",
+    "case2/01.stdout",
+    "case2/01.stderr",
+    "case2/02.stdout",
+    "case2/02.stderr",
+    "case2/03.stdout",
+    "case2/03.stderr",
+    "case2/04.stdout",
+    "case2/04.stderr",
+    "case2/meta.json",
+    "case3/01.stdout",
+    "case3/01.stderr",
+    "case3/02.stdout",
+    "case3/02.stderr",
+    "case3/03.stdout",
+    "case3/03.stderr",
+    "case3/04.stdout",
+    "case3/04.stderr",
+    "case3/05.stdout",
+    "case3/05.stderr",
+    "case3/06.stdout",
+    "case3/06.stderr",
+    "case3/meta.json"
   ],
   "artifacts": {
-    "git-pilot-2.txt": {
+    "case1/01.stdout": {
       "type": "file",
       "format": "text",
       "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case1/01.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case1/meta.json": {
+      "type": "file",
+      "format": "json",
+      "media": "application/json",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/01.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/01.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/02.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/02.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/03.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/03.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/04.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/04.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case2/meta.json": {
+      "type": "file",
+      "format": "json",
+      "media": "application/json",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/01.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/01.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/02.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/02.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/03.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/03.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/04.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/04.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/05.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/05.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/06.stdout": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/06.stderr": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    },
+    "case3/meta.json": {
+      "type": "file",
+      "format": "json",
+      "media": "application/json",
       "encoding": "utf-8",
       "is_trace": false
     }
