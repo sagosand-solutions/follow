@@ -1,0 +1,145 @@
+{
+  "policy_version": "ci-policy-v1",
+  "schema_path": "ci/schema/ci-v1.json",
+  "schema_sha256": "21c0071ab1f3661941e74d60285e86597441791f427881867fb7dc692d20fae4",
+  "licence_allowlist": [
+    "CC-BY-SA-4.0"
+  ],
+  "tools": {
+    "gh_version": null,
+    "sigstore_trusted_root_sha256": null,
+    "versions": {
+      "git": null,
+      "python": null,
+      "pytest": null
+    }
+  },
+  "image": {
+    "ref": null,
+    "image_id": null
+  },
+  "actions": {
+    "checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "upload": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+    "download": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
+    "attest": "4d101475d8b20a2381f78447822ac1eab6504dd8"
+  },
+  "isolation": {
+    "network_mode": "none",
+    "readonly_rootfs": true,
+    "cap_drop": [
+      "ALL"
+    ],
+    "security_opt": [
+      "no-new-privileges"
+    ],
+    "privileged": false,
+    "user": "65534:65534",
+    "mounts": [
+      {
+        "role": "input",
+        "destination": "/input",
+        "read_only": true
+      },
+      {
+        "role": "out",
+        "destination": "/out",
+        "read_only": false
+      }
+    ],
+    "env_allowlist": [
+      "TZ",
+      "LC_ALL",
+      "LANG",
+      "PATH",
+      "HOME",
+      "TMPDIR",
+      "PYTHONHASHSEED",
+      "PYTHONSAFEPATH",
+      "PYTHONDONTWRITEBYTECODE",
+      "PYTHONNOUSERSITE",
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+      "GIT_CONFIG_NOSYSTEM",
+      "GIT_CONFIG_GLOBAL",
+      "GIT_CONFIG_COUNT",
+      "GIT_TERMINAL_PROMPT",
+      "GIT_OPTIONAL_LOCKS",
+      "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+      "GIT_CEILING_DIRECTORIES",
+      "GIT_AUTHOR_DATE",
+      "GIT_COMMITTER_DATE",
+      "HOSTNAME"
+    ],
+    "memory": 268435456,
+    "memory_swap": 268435456,
+    "pids_limit": 64,
+    "nano_cpus": 1000000000,
+    "ulimits": [
+      {
+        "name": "nofile",
+        "soft": 256,
+        "hard": 256
+      },
+      {
+        "name": "nproc",
+        "soft": 64,
+        "hard": 64
+      }
+    ]
+  },
+  "limits": {
+    "files": 64,
+    "artifact_bytes": 4194304,
+    "raw_tar_bytes": 4718592,
+    "observation_bytes": 65536,
+    "zip_bytes": 8388608,
+    "entries": 128,
+    "path_bytes": 4096,
+    "total_path_bytes": 65536,
+    "stdout_bytes": 65536,
+    "stderr_bytes": 65536,
+    "compression_ratio": 100,
+    "out_tmpfs_bytes": 8388608,
+    "out_tmpfs_inodes": 128,
+    "wall_ms": 10000,
+    "cpu_usec": 5000000,
+    "memory_bytes": 268435456
+  },
+  "attestation": {
+    "issuer": "https://token.actions.githubusercontent.com",
+    "signer_workflow": null,
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "trusted_root_path": null,
+    "trusted_root_sha256": null,
+    "gh_profile": "gh-attestation-v1",
+    "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479",
+    "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json"
+  },
+  "fixture_item_prefix": "git-pilot-1-",
+  "env": {
+    "TZ": "UTC",
+    "LC_ALL": "C.UTF-8",
+    "LANG": "C.UTF-8",
+    "PATH": "/runtime/bin",
+    "HOME": "/home",
+    "TMPDIR": "/tmp",
+    "HOSTNAME": "fixture",
+    "PYTHONHASHSEED": "0",
+    "PYTHONSAFEPATH": "1",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONNOUSERSITE": "1",
+    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_CONFIG_GLOBAL": "/home/.gitconfig",
+    "GIT_CONFIG_COUNT": "0",
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM": "0",
+    "GIT_CEILING_DIRECTORIES": "/work",
+    "GIT_AUTHOR_DATE": "@0 +0000",
+    "GIT_COMMITTER_DATE": "@0 +0000"
+  },
+  "cgroup_root": "/sys/fs/cgroup",
+  "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
+  "cgroup_name_prefix": "ci-fixture-"
+}

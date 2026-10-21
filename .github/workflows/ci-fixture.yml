@@ -1,0 +1,170 @@
+name: ci-fixture
+
+# Disabled by construction: the guard refuses until ci/MANDATE.json is enabled, its sha256 is pinned in
+# ci/workflow_guard.py, and the policy pins the image, tools and attestation signer. No user input is interpolated into
+# run/env/with/name/path; the active spec comes from the reviewed ci/ACTIVE.json, not from a workflow input.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Checkout the reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Require the registered test mandate
+        run: python3 -m ci.workflow_guard .
+      - name: Create the bounded output tmpfs
+        run: |
+          sudo mkdir -p /out /input /sys/fs/cgroup/ci-fixture
+          sudo mount -t tmpfs -o size=8m,nr_inodes=128,nosuid,nodev,noexec,mode=0777 tmpfs /out
+          sudo chown 65534:65534 /out
+          sudo chown "$(id -u):$(id -g)" /input
+          sudo chown -R "$(id -u):$(id -g)" /sys/fs/cgroup/ci-fixture
+          echo "+cpu +memory +pids" | sudo tee /sys/fs/cgroup/cgroup.subtree_control >/dev/null
+          echo "+cpu +memory +pids" | sudo tee /sys/fs/cgroup/ci-fixture/cgroup.subtree_control >/dev/null
+          mkdir -p ci-artifacts
+      - name: Copy the reviewed inputs and run the fixture container
+        run: |
+          SPEC=$(python3 -c 'import json; print(json.load(open("ci/ACTIVE.json"))["spec"])')
+          python3 -m ci.steps prepare-inputs --spec "$SPEC" --dest /input
+          python3 -m ci.run_fixture --spec "$SPEC" --policy ci/policy.json \
+            --input /input --out /out \
+            --raw ci-artifacts/raw.tar --observation ci-artifacts/observation.json
+      - name: Upload the raw artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ci-${{ github.run_id }}-${{ github.run_attempt }}-raw
+          path: ci-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+
+  attest:
+    needs: generate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout the reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Require the registered test mandate
+        run: python3 -m ci.workflow_guard .
+      - name: Fetch the raw artifact with the bounded API client
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m ci.fetch_artifact --name "ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-raw" \
+            --out raw.zip --max-bytes 8388608
+          python3 -m ci.steps extract-wrapper --zip raw.zip --dest raw
+      - name: Treat the two raw files as opaque bounded bytes
+        run: python3 -m ci.steps check-raw --dir raw
+      - name: Attest raw.tar
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: raw/raw.tar
+      - name: Attest observation.json
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: raw/observation.json
+
+  verify:
+    needs: attest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+    steps:
+      - name: Checkout the reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Require the registered test mandate and the pinned tools
+        run: |
+          python3 -m ci.workflow_guard .
+          python3 -m ci.steps check-tools --policy ci/policy.json
+      - name: Fetch the raw artifact through the bounded API client
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m ci.fetch_artifact \
+            --name "ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-raw" \
+            --out raw.zip --max-bytes 8388608
+          python3 -m ci.steps extract-wrapper --zip raw.zip --dest raw
+      - name: Verify both attestations with the pinned parameters
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m ci.steps attest-verify --policy ci/policy.json \
+            --bundle-out bundle.bin raw/raw.tar raw/observation.json
+      - name: Repack the sealed outputs, build the receipt and check its structure
+        run: |
+          SPEC=$(python3 -c 'import json; print(json.load(open("ci/ACTIVE.json"))["spec"])')
+          python3 -m ci.steps write-run --out run.json
+          python3 -m ci.steps pack-outputs --raw raw/raw.tar --out outputs.tar
+          python3 -m ci.verify build --policy ci/policy.json --spec "$SPEC" \
+            --run run.json --observation raw/observation.json --raw raw/raw.tar \
+            --bundle bundle.bin --outputs outputs.tar --out receipt.json
+          python3 -m ci.verify verify --policy ci/policy.json --spec "$SPEC" \
+            --receipt receipt.json --outputs outputs.tar --sibling receipt.sha256 \
+            --observation raw/observation.json
+      - name: Upload the sealed output and the receipt
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ci-${{ github.run_id }}-${{ github.run_attempt }}-sealed
+          path: |
+            bundle.bin
+            outputs.tar
+            receipt.json
+            receipt.sha256
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: false
+
+  attest-receipt:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout the reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Require the registered test mandate
+        run: python3 -m ci.workflow_guard .
+      - name: Fetch the sealed artifact with the bounded API client
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m ci.fetch_artifact --name "ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-sealed" \
+            --out sealed.zip --max-bytes 8388608
+          python3 -m ci.steps extract-wrapper --zip sealed.zip --dest sealed \
+            --allow outputs.tar receipt.json receipt.sha256 bundle.bin
+      - name: Attest outputs.tar
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: sealed/outputs.tar
+      - name: Attest receipt.json
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: sealed/receipt.json
