@@ -4,6 +4,7 @@ import contextlib
 import copy
 import glob
 import hashlib
+import inspect
 import io
 import json
 import os
@@ -1199,15 +1200,23 @@ class BindingMutationTests(unittest.TestCase):
             input_dir = os.path.join(temp, "input")
             out_dir = os.path.join(temp, "out")
             os.makedirs(input_dir); os.makedirs(out_dir)
+            order = []
+            def pull(*args, **kwargs):
+                order.append("pull")
+            def probe(*args, **kwargs):
+                order.append("probe")
+                raise steps.StepError("probe")
             with mock.patch.dict(os.environ, IDENTITY), \
                  mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
-                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")), \
+                 mock.patch("ci.run_fixture._prepull", side_effect=pull), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=probe), \
                  mock.patch("ci.run_fixture._run") as run_mock:
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
                                     os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"),
                                     marker=os.path.join(temp, "auth.json"), mandate_path=mandate_path)
                 run_mock.assert_not_called()
+                self.assertEqual(order, ["pull", "probe"])
 
 
 class AuthorizationMarkerTests(unittest.TestCase):
@@ -1245,6 +1254,7 @@ class AuthorizationMarkerTests(unittest.TestCase):
             os.makedirs(input_dir); os.makedirs(out_dir)
             with mock.patch.dict(os.environ, IDENTITY), \
                  mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch("ci.run_fixture._prepull", return_value=None), \
                  mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
@@ -1315,6 +1325,7 @@ class AuthorizationMarkerTests(unittest.TestCase):
             marker = os.path.join(temp, "run-authorized.json")
             with mock.patch.dict(os.environ, IDENTITY), \
                  mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch("ci.run_fixture._prepull", return_value=None), \
                  mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
@@ -1344,6 +1355,7 @@ class AuthorizationMarkerTests(unittest.TestCase):
             env = dict(IDENTITY, CI_MANDATE_FILE=forged)
             with mock.patch.dict(os.environ, env), \
                  mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch("ci.run_fixture._prepull", return_value=None), \
                  mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")):
                 with self.assertRaises(steps.StepError):
                     run_fixture.run(spec_path, policy_path, input_dir, out_dir,
@@ -3372,6 +3384,160 @@ class HardeningTests(unittest.TestCase):
             archive_file.writestr("observation.json", b"{}")
         files = archive.parse_zip(buffer.getvalue(), allowed_names={"raw.tar", "observation.json"})
         self.assertEqual(len(files["raw.tar"]), 200)
+
+
+class ImagePullTests(unittest.TestCase):
+    def test_prepull_pulls_with_a_180_second_budget_and_checks_the_id(self):
+        from unittest import mock
+        from ci import run_fixture
+        value = policy(None)
+        calls = []
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[:2] == ["docker", "pull"]:
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            if command[:3] == ["docker", "info", "--format"]:
+                return mock.Mock(returncode=0, stdout=b"overlay2\n", stderr=b"")
+            return mock.Mock(returncode=0,
+                             stdout=(value["image"]["image_id"] + "\n").encode(), stderr=b"")
+        stderr = io.StringIO()
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=fake_run), \
+             contextlib.redirect_stderr(stderr):
+            run_fixture._prepull(spec(), value)
+        self.assertIn("storage driver 'overlay2'", stderr.getvalue())
+        self.assertEqual(calls[0][0], ["docker", "pull", spec()["image_ref"]])
+        self.assertEqual(calls[0][1]["timeout"], 180)
+        self.assertEqual(calls[1][0], ["docker", "info", "--format", "{{.Driver}}"])
+        self.assertEqual(calls[2][0][:4], ["docker", "image", "inspect", "--format"])
+
+    def test_prepull_timeout_is_red(self):
+        from unittest import mock
+        from ci import run_fixture
+        with mock.patch.object(run_fixture.subprocess, "run",
+                               side_effect=__import__("subprocess").TimeoutExpired("docker pull", 180)):
+            with self.assertRaisesRegex(run_fixture.RunError, "180"):
+                run_fixture._prepull(spec(), policy(None))
+
+    def test_prepull_requires_a_digest(self):
+        from unittest import mock
+        from ci import run_fixture
+        value = spec()
+        value["image_ref"] = "docker.io/library/python:3.13-bookworm"
+        with mock.patch.object(run_fixture.subprocess, "run") as run_mock:
+            with self.assertRaisesRegex(run_fixture.RunError, "pinned by digest"):
+                run_fixture._prepull(value, policy(None))
+            run_mock.assert_not_called()
+
+    def test_prepull_inspect_failure_is_red(self):
+        from unittest import mock
+        from ci import run_fixture
+        calls = []
+        def fake_run(command, **kwargs):
+            calls.append(command)
+            if command[:2] == ["docker", "pull"]:
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            if command[:3] == ["docker", "info", "--format"]:
+                return mock.Mock(returncode=0, stdout=b"overlay2\n", stderr=b"")
+            raise __import__("subprocess").CalledProcessError(1, "docker image inspect")
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(run_fixture.RunError, "image inspect failed"):
+                run_fixture._prepull(spec(), policy(None))
+
+    def test_prepull_info_failure_is_tolerated_and_logged(self):
+        from unittest import mock
+        from ci import run_fixture
+        value = policy(None)
+        def fake_run(command, **kwargs):
+            if command[:2] == ["docker", "pull"]:
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            if command[:3] == ["docker", "info", "--format"]:
+                raise __import__("subprocess").CalledProcessError(1, "docker info")
+            return mock.Mock(returncode=0,
+                             stdout=(value["image"]["image_id"] + "\n").encode(), stderr=b"")
+        stderr = io.StringIO()
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=fake_run), \
+             contextlib.redirect_stderr(stderr):
+            run_fixture._prepull(spec(), value)
+        self.assertIn("storage driver 'unknown'", stderr.getvalue())
+
+    def test_prepull_info_timeout_is_tolerated_and_logged(self):
+        from unittest import mock
+        from ci import run_fixture
+        value = policy(None)
+        def fake_run(command, **kwargs):
+            if command[:2] == ["docker", "pull"]:
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            if command[:3] == ["docker", "info", "--format"]:
+                raise __import__("subprocess").TimeoutExpired("docker info", 30)
+            return mock.Mock(returncode=0,
+                             stdout=(value["image"]["image_id"] + "\n").encode(), stderr=b"")
+        stderr = io.StringIO()
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=fake_run), \
+             contextlib.redirect_stderr(stderr):
+            run_fixture._prepull(spec(), value)
+        self.assertIn("storage driver 'unknown'", stderr.getvalue())
+
+    def test_prepull_inspect_timeout_is_red(self):
+        from unittest import mock
+        from ci import run_fixture
+        def fake_run(command, **kwargs):
+            if command[:2] == ["docker", "pull"]:
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            if command[:3] == ["docker", "info", "--format"]:
+                return mock.Mock(returncode=0, stdout=b"overlay2\n", stderr=b"")
+            raise __import__("subprocess").TimeoutExpired("docker image inspect", 30)
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(run_fixture.RunError, "image inspect exceeded"):
+                run_fixture._prepull(spec(), policy(None))
+
+    def test_prepull_pull_failure_is_red(self):
+        from unittest import mock
+        from ci import run_fixture
+        error = __import__("subprocess").CalledProcessError(1, "docker pull")
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=error):
+            with self.assertRaisesRegex(run_fixture.RunError, "failed"):
+                run_fixture._prepull(spec(), policy(None))
+
+    def test_prepull_wrong_image_id_is_red(self):
+        from unittest import mock
+        from ci import run_fixture
+        def fake_run(command, **kwargs):
+            if command[:2] == ["docker", "pull"]:
+                return mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            if command[:3] == ["docker", "info", "--format"]:
+                return mock.Mock(returncode=0, stdout=b"overlay2\n", stderr=b"")
+            return mock.Mock(returncode=0, stdout=b"sha256:other\n", stderr=b"")
+        with mock.patch.object(run_fixture.subprocess, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(run_fixture.RunError, "storage driver 'overlay2'"):
+                run_fixture._prepull(spec(), policy(None))
+
+    def test_run_inner_checks_the_local_image_id(self):
+        from unittest import mock
+        from ci import run_fixture
+        payload = b'[{"Id": "sha256:other", "RepoDigests": []}]'
+        with mock.patch.object(run_fixture.subprocess, "run",
+                               return_value=mock.Mock(returncode=0, stdout=payload, stderr=b"")):
+            with self.assertRaisesRegex(run_fixture.RunError, "local image id"):
+                run_fixture._run_inner(spec(), policy(None), "/input", "/out", 1,
+                                       "name", "cgroup", "/tmp/cgroup")
+
+    def test_order_is_marker_then_pull_then_probes(self):
+        from ci import run_fixture
+        source = inspect.getsource(run_fixture.run)
+        self.assertLess(source.index("os.replace(tmp, marker)"),
+                        source.index("_prepull(spec, policy)"))
+        self.assertLess(source.index("_prepull(spec, policy)"),
+                        source.index("check_image_tools(policy_path)"))
+
+    def test_fixture_run_and_tool_create_always_use_pull_never(self):
+        from ci import steps
+        self.assertIn("--pull=never", docker_command(spec(), policy(None), "/input", "/out", "name"))
+        self.assertIn("--pull=never", steps._tool_create_command(policy(None), ["/bin/true"], 1))
+
+    def test_fixture_inner_has_no_implicit_pull(self):
+        from ci import run_fixture
+        self.assertNotIn('"docker", "pull"', inspect.getsource(run_fixture._run_inner))
+        self.assertIn('"docker", "pull"', inspect.getsource(run_fixture._prepull))
 
 
 class DockerCommandTests(unittest.TestCase):

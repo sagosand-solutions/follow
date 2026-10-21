@@ -51,7 +51,7 @@ def _require(condition, message):
 def docker_command(spec, policy, input_dir, out_dir, container_name, cgroup_parent=None):
     isolation = policy["isolation"]
     command = [
-        "docker", "run", "--name", container_name, "--label", labels.label_argument(),
+        "docker", "run", "--pull=never", "--name", container_name, "--label", labels.label_argument(),
         "--network", isolation["network_mode"],
         *(["--cgroup-parent", cgroup_parent] if cgroup_parent else []),
         "--user", isolation["user"],
@@ -228,15 +228,46 @@ def isolation_subset(inspect, policy):
     }
 
 
+def _prepull(spec, policy):
+    image = spec["image_ref"]
+    _require(image.startswith("ghcr.io/") or image.startswith("docker.io/"), "the image is not pinned by a registry digest")
+    _require("@sha256:" in image, "the image is not pinned by digest")
+    try:
+        subprocess.run(["docker", "pull", image], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=180)
+    except subprocess.TimeoutExpired:
+        raise RunError("the image pull exceeded its 180 s budget") from None
+    except subprocess.CalledProcessError as exc:
+        raise RunError(f"the image pull failed with exit code {exc.returncode}") from None
+    try:
+        driver_result = subprocess.run(["docker", "info", "--format", "{{.Driver}}"], check=True,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+        driver = driver_result.stdout.decode().strip()
+    except (subprocess.SubprocessError, OSError):
+        driver = "unknown"
+    print(f"ci.run_fixture: docker storage driver {driver!r}", file=sys.stderr)
+    try:
+        result = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", image], check=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+    except subprocess.TimeoutExpired:
+        raise RunError("the image inspect exceeded its 30 s budget") from None
+    except subprocess.CalledProcessError as exc:
+        raise RunError(f"the image inspect failed with exit code {exc.returncode}") from None
+    observed = result.stdout.decode().strip()
+    if observed != policy["image"]["image_id"]:
+        raise RunError(f"the pulled image id {observed!r} differs from the pinned image id "
+                       f"(storage driver {driver!r})")
+
+
 def _run_inner(spec, policy, input_dir, out_dir, wall_seconds, name, cgroup_parent_name, cgroup_path):
     image = spec["image_ref"]
     _require(image.startswith("ghcr.io/") or image.startswith("docker.io/"), "the image is not pinned by a registry digest")
     _require("@sha256:" in image, "the image is not pinned by digest")
-    subprocess.run(["docker", "pull", image], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     pulled = subprocess.run(["docker", "image", "inspect", image], check=True,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     inspect_image = json.loads(pulled.stdout)[0]
     image_id = inspect_image["Id"]
+    _require(image_id == policy["image"]["image_id"], "the local image id differs from the pinned image id")
     wanted = image.split("@", 1)[1]
     if wanted not in (inspect_image.get("RepoDigests") or []):
         # RepoDigests entries are repo@sha256:..., compare the digest suffix.
@@ -387,6 +418,9 @@ def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, 
         json.dump(data, handle, sort_keys=True)
         handle.write("\n")
     os.replace(tmp, marker)
+    # Order is deliberate: the marker authorizes cleanup, then the explicit pull makes the
+    # image local, and only then may the bounded tool probes and fixture run.
+    _prepull(spec, policy)
     from .steps import check_image_tools
     tool_probes = check_image_tools(policy_path)
     image_tools = tool_probes["versions"]
