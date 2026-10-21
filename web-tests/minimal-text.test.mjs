@@ -142,3 +142,10 @@ test('a free question names its author and links its licence in the quiet credit
   assert.equal(credit.all((n) => n.tag === 'a')[0].attrs.href, CONFIG.licenseUrl);
   assert.match(byClass(credit, 'source__title')[0].className, /visually-hidden/);
 });
+
+test('on the wide path a course card fills its row, while a “coming soon” step keeps its lines together', () => {
+  const css = readFileSync(new URL('../public/css/components.css', import.meta.url), 'utf8');
+  assert.match(css, /\.path__step \{ grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: stretch; \}/);
+  assert.match(css, /\.path__step:not\(\.path__step--soon\) \.path__body \{ grid-template-rows: 1fr; grid-auto-rows: auto; \}/);
+  assert.doesNotMatch(css, /(^|\n)\s*\.path__body \{ grid-template-rows: 1fr/, 'never on every step: it would split a coming-soon step');
+});
