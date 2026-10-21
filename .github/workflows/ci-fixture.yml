@@ -14,7 +14,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout the reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Require the registered test mandate
+        run: python3 -m ci.workflow_guard .
+      - name: Require a single first run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m ci.once
+
   generate:
+    needs: gate
     runs-on: ubuntu-24.04
     permissions: {}
     steps:

@@ -118,20 +118,20 @@ def _enable_controllers(path):
         raise RunError(f"cannot enable the controllers in {path}: {exc.strerror}") from None
 
 
-def _limit_fsize(limit):
-    def apply():
-        resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
-    return apply
+def _join_or_fail(thread, label):
+    thread.join(timeout=5)
+    if thread.is_alive():
+        raise RunError(f"the {label} reader thread survived; refusing further subprocesses")
 
 
 def _inspect(name):
     with tempfile.TemporaryDirectory() as temp:
         path = os.path.join(temp, "inspect.json")
+        command = [sys.executable, "-m", "ci.limit_exec", str(4 * 1024 * 1024), "docker", "inspect", name]
         with open(path, "wb") as handle:
             try:
-                subprocess.run(["docker", "inspect", name], check=True, stdout=handle,
-                               stderr=subprocess.DEVNULL, timeout=30,
-                               preexec_fn=_limit_fsize(4 * 1024 * 1024))
+                subprocess.run(command, check=True, stdout=handle,
+                               stderr=subprocess.DEVNULL, timeout=30)
             except subprocess.CalledProcessError as exc:
                 raise RunError(f"docker inspect failed with {exc.returncode}") from None
         if os.path.getsize(path) > 4 * 1024 * 1024:
@@ -263,8 +263,8 @@ def _run_inner(spec, policy, input_dir, out_dir, wall_seconds, name, cgroup_pare
         limit_hit.append("wall")
         subprocess.run(["docker", "kill", name], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         process.wait(timeout=5)
-    out_thread.join(timeout=5)
-    err_thread.join(timeout=5)
+    _join_or_fail(out_thread, "stdout")
+    _join_or_fail(err_thread, "stderr")
     cpu_usec, max_rss = _read_final_counters(cgroup_path)
     wall_ms = int((time.monotonic() - started) * 1000)
     ended_at = _now()
@@ -272,8 +272,6 @@ def _run_inner(spec, policy, input_dir, out_dir, wall_seconds, name, cgroup_pare
         limit_hit.append("stdout")
     if truncated.get("stderr"):
         limit_hit.append("stderr")
-    if out_thread.is_alive() or err_thread.is_alive():
-        limit_hit.append("stdout")
     inspect = _inspect(name)
     entrypoint = inspect["Config"].get("Entrypoint") or []
     cmd = inspect["Config"].get("Cmd") or []
