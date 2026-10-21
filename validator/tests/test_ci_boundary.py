@@ -611,6 +611,22 @@ class PinSetTests(unittest.TestCase):
         self.assertEqual(pin_set_missing(value), [])
 
 
+class GitPilot2Tests(unittest.TestCase):
+    def test_input_hashes_and_no_question_data(self):
+        import json as jsonlib
+        spec_path = os.path.join(ROOT, "ci/specs/git-pilot-2.json")
+        with open(spec_path, "rb") as handle:
+            spec = jsonlib.load(handle)
+        for item in spec["inputs"]:
+            path = os.path.join(ROOT, "ci/specs/git-pilot-2", item["path"])
+            data = open(path, "rb").read()
+            self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
+            self.assertEqual(len(data), item["bytes"])
+        for forbidden in ("question", "options", "answer", "feedback", "records"):
+            self.assertNotIn(forbidden, jsonlib.dumps(spec))
+        self.assertEqual(spec["expected_paths"], ["git-pilot-2.txt"])
+
+
 class SignerFormatTests(unittest.TestCase):
     def test_real_signer_workflow_and_ref(self):
         import json as jsonlib
@@ -633,7 +649,8 @@ class PinsManifestTests(unittest.TestCase):
             policy = json.load(handle)
         self.assertEqual(pins["policy_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/policy.json"), "rb").read()).hexdigest())
         self.assertEqual(pins["schema_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/schema/ci-v1.json"), "rb").read()).hexdigest())
-        self.assertEqual(pins["spec_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/specs/git-pilot-1.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["spec_sha256"],
+                         hashlib.sha256(open(os.path.join(ROOT, policy["spec_path"]), "rb").read()).hexdigest())
         self.assertEqual(pins["trusted_root_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/trust/trusted_root.jsonl"), "rb").read()).hexdigest())
         self.assertEqual(pins["image"]["index_digest"], policy["image"]["ref"].split("@", 1)[1])
         self.assertEqual(pins["image"]["manifest_amd64_digest"], policy["image"]["manifest_digest"])
@@ -888,6 +905,37 @@ class RealSpecInputTests(unittest.TestCase):
 
 
 class ToolCheckTests(unittest.TestCase):
+    def test_container_versions_match(self):
+        from unittest import mock
+        from ci import steps
+        policy_path = os.path.join(ROOT, "ci/policy.json")
+        completed = mock.Mock(stdout=b"gh version 2.102.0 (2026-09-30)\n", stderr=b"")
+        def bounded(command, timeout, limit):
+            if "/usr/bin/git" in command:
+                return b"git version 2.39.5\n"
+            if "/usr/bin/dpkg-query" in command:
+                return b"1:2.39.5-0+deb12u3\n"
+            if "/usr/local/bin/python3" in command:
+                return b"Python 3.13.16\n"
+            return b""
+        with mock.patch.object(steps, "require_pins", return_value=None), \
+             mock.patch("ci.steps.workflow_guard.require_mandate", return_value=True), \
+             mock.patch("ci.steps.subprocess.run", return_value=completed), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded):
+            self.assertEqual(steps.check_tools(policy_path), 0)
+
+    def test_container_git_mismatch_is_rejected(self):
+        from unittest import mock
+        from ci import steps
+        policy_path = os.path.join(ROOT, "ci/policy.json")
+        completed = mock.Mock(stdout=b"gh version 2.102.0 (2026-09-30)\n", stderr=b"")
+        with mock.patch.object(steps, "require_pins", return_value=None), \
+             mock.patch("ci.steps.workflow_guard.require_mandate", return_value=True), \
+             mock.patch("ci.steps.subprocess.run", return_value=completed), \
+             mock.patch("ci.steps._run_bounded", return_value=b"git version 2.40.0\n"):
+            with self.assertRaises(steps.StepError):
+                steps.check_tools(policy_path)
+
     def test_check_tools_refuses_without_process(self):
         from unittest import mock
         from ci import steps, workflow_guard

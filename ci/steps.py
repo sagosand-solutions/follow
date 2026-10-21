@@ -212,6 +212,31 @@ def check_tools(policy_path):
     match = re.search(r"gh version (\S+)", first)
     if match is None or match.group(1) != wanted:
         raise StepError(f"gh version does not match the pinned {wanted!r}")
+    isolation = policy["isolation"]
+    image = policy["image"]["ref"]
+
+    def in_image(args):
+        return _run_bounded(["docker", "run", "--rm", "--network", isolation["network_mode"],
+                             "--read-only", "--user", isolation["user"], "--cap-drop", "ALL",
+                             "--security-opt", "no-new-privileges",
+                             "--pids-limit", str(isolation["pids_limit"]),
+                             "--memory", f"{isolation['memory'] // (1024 * 1024)}m",
+                             "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
+                             "--cpus", "1", "--log-driver", "none",
+                             "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes=64",
+                             image] + args, timeout=120, limit=64 * 1024)
+
+    git_pin = policy["tools"]["versions"].get("git")
+    if git_pin and git_pin != "unused":
+        upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
+        if in_image(["/usr/bin/git", "--version"]).decode().strip() != f"git version {upstream}":
+            raise StepError(f"git --version does not match the pinned {git_pin!r}")
+        if in_image(["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"]).decode().strip() != git_pin:
+            raise StepError("the image dpkg git version does not match the pin")
+    python_pin = policy["tools"]["versions"].get("python")
+    if python_pin and python_pin != "unused":
+        if in_image(["/usr/local/bin/python3", "--version"]).decode().strip() != f"Python {python_pin}":
+            raise StepError(f"python3 --version does not match the pinned {python_pin!r}")
     return 0
 
 

@@ -1,0 +1,77 @@
+{
+  "spec_version": "ci-spec-v1",
+  "fixture_id": "git-pilot-2",
+  "batch_id": "git-pilot-2",
+  "image_ref": "docker.io/library/python:3.13-bookworm@sha256:073ffebb96ae4d0ed73ccad59f08c47bd84af8a79f5258130f8458ac50ad9ff4",
+  "argv": [
+    "/usr/local/bin/python3",
+    "/input/script.py"
+  ],
+  "inputs": [
+    {
+      "role": "fixture",
+      "path": "fixture.json",
+      "sha256": "f978cdcf47e74b05ac96f614e55c894caf64eb62a2ed0501eea454d9ca1d150c",
+      "bytes": 332
+    },
+    {
+      "role": "script",
+      "path": "script.py",
+      "sha256": "01fedf69380fe55317f20eb21961dfc9767cc4b00957d7e760c0abbc0f7554bb",
+      "bytes": 2579
+    }
+  ],
+  "config": {
+    "env": {
+      "TZ": "UTC",
+      "LC_ALL": "C.UTF-8",
+      "LANG": "C.UTF-8",
+      "PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "HOME": "/home",
+      "TMPDIR": "/tmp",
+      "HOSTNAME": "fixture",
+      "PYTHONHASHSEED": "0",
+      "PYTHONSAFEPATH": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONNOUSERSITE": "1",
+      "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+      "GIT_CONFIG_NOSYSTEM": "1",
+      "GIT_CONFIG_GLOBAL": "/home/.gitconfig",
+      "GIT_CONFIG_COUNT": "0",
+      "GIT_TERMINAL_PROMPT": "0",
+      "GIT_OPTIONAL_LOCKS": "0",
+      "GIT_DISCOVERY_ACROSS_FILESYSTEM": "0",
+      "GIT_CEILING_DIRECTORIES": "/work",
+      "GIT_AUTHOR_DATE": "@0 +0000",
+      "GIT_COMMITTER_DATE": "@0 +0000",
+      "GPG_KEY": "7169605F62C751356D054A26A821E680E5FA6305",
+      "PYTHON_VERSION": "3.13.16",
+      "PYTHON_SHA256": "f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    },
+    "settings": {}
+  },
+  "items": [
+    {
+      "item_id": "git-pilot-2-fixture-1",
+      "licence": {
+        "license": "CC-BY-SA-4.0",
+        "gate": "draft-only"
+      }
+    }
+  ],
+  "licence_set": [
+    "CC-BY-SA-4.0"
+  ],
+  "expected_paths": [
+    "git-pilot-2.txt"
+  ],
+  "artifacts": {
+    "git-pilot-2.txt": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
+    }
+  }
+}

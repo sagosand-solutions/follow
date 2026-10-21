@@ -8,9 +8,13 @@
   "tools": {
     "gh_version": "2.102.0",
     "versions": {
-      "git": "unused",
+      "git": "1:2.39.5-0+deb12u3",
       "python": "3.13.16",
       "pytest": "unused"
+    },
+    "git_source": {
+      "layer": "sha256:452dd3e2e5d15af56b0b904e51f931640571d75bc1712e974bfefbf71ed585b0",
+      "path": "var/lib/dpkg/status"
     }
   },
   "image": {
@@ -149,6 +153,6 @@
   "cgroup_root": "/sys/fs/cgroup",
   "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
   "cgroup_name_prefix": "ci-fixture-",
-  "spec_path": "ci/specs/git-pilot-1.json",
-  "spec_sha256": "1a33d1bd8c7089e9775651ec073746eaea7706b29476e6416aee7c964e1a5d38"
+  "spec_path": "ci/specs/git-pilot-2.json",
+  "spec_sha256": "0ba43026392cb80011b8eb823a84208a4c192bbf254d0fce48a581403b661d5d"
 }

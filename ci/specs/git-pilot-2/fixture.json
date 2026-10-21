@@ -1,0 +1,9 @@
+{
+  "repository": "synthetic-git-pilot-2",
+  "author": {"name": "Fixture Author", "email": "fixture@example.invalid"},
+  "branch": "feature",
+  "commits": [
+    {"message": "initial", "path": "file.txt", "content": "alpha\nbeta\ngamma\n"},
+    {"message": "change beta", "path": "file.txt", "content": "alpha\nBETA\ngamma\n"}
+  ]
+}
