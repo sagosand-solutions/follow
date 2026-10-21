@@ -1301,6 +1301,60 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("actions: read", block)
         self.assertNotIn("GH_TOKEN", block)
 
+    def test_generate_switches_docker_to_cgroupfs_before_any_run(self):
+        text = self._text()
+        generate = text.split("  generate:", 1)[1].split("  attest:", 1)[0]
+        guard = generate.index("python3 -m ci.workflow_guard")
+        switch = generate.index("Switch Docker to the reviewed cgroupfs driver")
+        tmpfs = generate.index("Create the bounded output tmpfs")
+        run = generate.index("python3 -m ci.run_fixture")
+        self.assertLess(guard, switch)
+        self.assertLess(switch, tmpfs)
+        self.assertLess(switch, run)
+        block = generate[switch:tmpfs]
+        self.assertIn("/etc/docker/daemon.json", block)
+        self.assertIn('"exec-opts":["native.cgroupdriver=cgroupfs"]', block)
+        self.assertIn("sudo timeout 60s systemctl restart docker", block)
+        self.assertIn("docker info --format '{{.CgroupDriver}}'", block)
+        self.assertIn('[ "$driver" = "cgroupfs" ]', block)
+        self.assertIn("timeout-minutes: 2", block)
+        self.assertIn("sudo timeout 60s systemctl restart docker", block)
+        self.assertIn("deadline=$((SECONDS + 30))", block)
+        self.assertIn('while [ "$SECONDS" -lt "$deadline" ]', block)
+        self.assertNotIn("while true", block)
+        self.assertIn("previous daemon.json defaults", block)
+        self.assertIn("timeout 5s docker info", block)
+        self.assertIn("stat -c%s /etc/docker/daemon.json", block)
+        self.assertIn("its content is not logged", block)
+        self.assertNotIn("sudo cat", block)
+        self.assertIn("exit 1", block)
+
+    def test_generate_job_has_a_timeout(self):
+        text = self._text()
+        generate = text.split("  generate:", 1)[1].split("  attest:", 1)[0]
+        self.assertIn("timeout-minutes: 10", generate)
+
+    def test_cgroup_switch_is_only_in_generate(self):
+        text = self._text()
+        self.assertEqual(text.count("native.cgroupdriver=cgroupfs"), 1)
+        self.assertEqual(text.count("systemctl restart docker"), 1)
+        generate = text.split("  generate:", 1)[1].split("  attest:", 1)[0]
+        self.assertIn("native.cgroupdriver", generate)
+        self.assertIn("systemctl restart docker", generate)
+        for block in (text.split("  gate:", 1)[1].split("  generate:", 1)[0],
+                      text.split("  attest:", 1)[1].split("  verify:", 1)[0],
+                      text.split("  verify:", 1)[1].split("  attest-receipt:", 1)[0],
+                      text.split("  attest-receipt:", 1)[1]):
+            self.assertNotIn("native.cgroupdriver", block)
+            self.assertNotIn("systemctl restart docker", block)
+
+    def test_cgroup_switch_is_not_used_in_the_fixture_process(self):
+        text = self._text()
+        generate = text.split("  generate:", 1)[1].split("  attest:", 1)[0]
+        run_block = generate.split("Copy the reviewed inputs and run the fixture container", 1)[1]
+        self.assertNotIn("native.cgroupdriver", run_block)
+        self.assertNotIn("systemctl restart docker", run_block)
+
     def test_no_user_input_interpolation(self):
         text = self._text()
         self.assertNotIn("inputs.", text)

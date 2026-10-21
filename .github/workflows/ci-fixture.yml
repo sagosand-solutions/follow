@@ -34,6 +34,7 @@ jobs:
   generate:
     needs: gate
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions: {}
     steps:
       - name: Checkout the reviewed revision
@@ -42,6 +43,27 @@ jobs:
           persist-credentials: false
       - name: Require the registered test mandate
         run: python3 -m ci.workflow_guard .
+      - name: Switch Docker to the reviewed cgroupfs driver
+        timeout-minutes: 2
+        run: |
+          # The hosted VM is ephemeral: its previous daemon.json defaults (registry mirrors,
+          # feature flags, etc.) are not preserved or merged; the fixture only needs cgroupfs.
+          sudo mkdir -p /etc/docker
+          if [ -f /etc/docker/daemon.json ]; then
+            echo "replacing the runner's /etc/docker/daemon.json ($(sudo stat -c%s /etc/docker/daemon.json) bytes); its content is not logged"
+          fi
+          printf '%s\n' '{"exec-opts":["native.cgroupdriver=cgroupfs"]}' | sudo tee /etc/docker/daemon.json >/dev/null
+          sudo timeout 60s systemctl restart docker
+          deadline=$((SECONDS + 30))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            driver=$(timeout 5s docker info --format '{{.CgroupDriver}}' 2>/dev/null || true)
+            if [ "$driver" = "cgroupfs" ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "docker did not report the cgroupfs driver within 30 s" >&2
+          exit 1
       - name: Create the bounded output tmpfs
         run: |
           sudo mkdir -p /out /input /sys/fs/cgroup/ci-fixture
