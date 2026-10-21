@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://follow.example/schema/ci-v1.json",
+  "title": "CI fixture receipt ci-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profile", "scope", "schema_sha256", "run", "provenance", "image", "batch_id", "items",
+               "declared", "observed", "artifacts", "limits", "outputs_artifact_sha256", "licence_set"],
+  "properties": {
+    "profile": {"const": "ci-v1"},
+    "scope": {"const": "fixture-only"},
+    "schema_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "run_attempt", "workflow_sha", "event", "ref", "commit_sha", "tree_sha"],
+      "properties": {
+        "run_id": {"type": "integer", "minimum": 1},
+        "run_attempt": {"type": "integer", "minimum": 1},
+        "workflow_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "event": {"const": "workflow_dispatch"},
+        "ref": {"type": "string", "minLength": 1},
+        "commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "tree_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw"],
+      "properties": {
+        "raw": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["subjects", "attestation_bundle_sha256"],
+          "properties": {
+            "subjects": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "sha256"],
+                "properties": {
+                  "name": {"enum": ["raw.tar", "observation.json"]},
+                  "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+                }
+              }
+            },
+            "attestation_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_digest", "image_id", "tools"],
+      "properties": {
+        "ref_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "image_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "tools": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "batch_id": {"type": "string", "minLength": 1},
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item_id", "licence"],
+        "properties": {
+          "item_id": {"type": "string", "minLength": 1},
+          "licence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["license", "gate"],
+            "properties": {
+              "license": {"type": "string", "minLength": 1},
+              "gate": {"const": "draft-only"}
+            }
+          }
+        }
+      }
+    },
+    "declared": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixture_id", "inputs", "inputspec_sha256", "argv", "config", "config_digest"],
+      "properties": {
+        "fixture_id": {"type": "string", "minLength": 1},
+        "inputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "path", "sha256", "bytes"],
+            "properties": {
+              "role": {"enum": ["fixture", "script", "config"]},
+              "path": {"type": "string", "minLength": 1},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "bytes": {"type": "integer", "minimum": 0}
+            }
+          }
+        },
+        "inputspec_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "config": {"type": "object"},
+        "config_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "observed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image_id", "isolation_sha256", "inputs_sha256", "argv", "config_digest",
+                   "exit_code", "signal", "started_at", "ended_at", "wall_ms", "cpu_usec",
+                   "max_rss_bytes", "stdout_sha256", "stderr_sha256", "stdout_bytes", "stderr_bytes", "sealed_output_sha256"],
+      "properties": {
+        "image_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "isolation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "inputs_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "argv": {"type": "array", "items": {"type": "string"}},
+        "config_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "exit_code": {"type": "integer"},
+        "signal": {"type": ["string", "null"]},
+        "started_at": {"type": "string", "minLength": 1},
+        "ended_at": {"type": "string", "minLength": 1},
+        "wall_ms": {"type": "integer", "minimum": 0},
+        "cpu_usec": {"type": "integer", "minimum": 0},
+        "max_rss_bytes": {"type": "integer", "minimum": 0},
+        "stdout_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stderr_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stdout_bytes": {"type": "integer", "minimum": 0},
+        "stderr_bytes": {"type": "integer", "minimum": 0},
+        "sealed_output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "type", "format", "media", "encoding", "executable",
+                     "is_trace", "sha256", "bytes", "truncated", "complete"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "minLength": 1},
+          "format": {"type": "string", "minLength": 1},
+          "media": {"type": "string", "minLength": 1},
+          "encoding": {"type": "string", "minLength": 1},
+          "executable": {"const": false},
+          "is_trace": {"type": "boolean"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "bytes": {"type": "integer", "minimum": 0},
+          "truncated": {"const": false},
+          "complete": {"const": true}
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "bytes", "limit_hit", "usage"],
+      "properties": {
+        "files": {"const": 64},
+        "bytes": {"const": 4194304},
+        "limit_hit": {"type": "array", "items": {"enum": ["stdout", "stderr", "wall", "cpu", "memory", "pids"]}},
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["artifact_bytes"],
+          "properties": {"artifact_bytes": {"type": "integer", "minimum": 0, "maximum": 4194304}}
+        }
+      }
+    },
+    "outputs_artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "licence_set": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}

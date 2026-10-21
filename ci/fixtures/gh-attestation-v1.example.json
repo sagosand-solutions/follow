@@ -1,0 +1,26 @@
+[
+  {
+    "verificationResult": {
+      "statement": {
+        "predicateType": "https://slsa.dev/provenance/v1",
+        "subject": [
+          {"name": "raw.tar", "digest": {"sha256": "1111111111111111111111111111111111111111111111111111111111111111"}}
+        ],
+        "predicate": {
+          "runDetails": {
+            "metadata": {
+              "invocationId": "https://github.com/example/repo/actions/runs/1/attempts/1"
+            }
+          }
+        }
+      },
+      "signature": {
+        "certificate": {
+          "issuer": "https://token.actions.githubusercontent.com",
+          "sourceRepositoryURI": "https://github.com/example/repo",
+          "sourceRepositoryDigest": "0123456789abcdef0123456789abcdef01234567"
+        }
+      }
+    }
+  }
+]
