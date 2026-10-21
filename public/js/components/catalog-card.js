@@ -1,5 +1,5 @@
-// Course catalog: one card per course (title, description, free count, honest premium note) and the premium note
-// on a course page. Text is whole translated sentences; numbers come from the catalog and the course files.
+// Course catalog: one card per course (title, description, free count, premium status) and the premium note on a
+// course page. Text is whole translated sentences; numbers come from the catalog and the course files.
 import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { store } from '../progress.js';
@@ -18,7 +18,7 @@ function progressLine(course) {
   if (!course) return null;
   const ids = [...new Set(course.levels.flatMap((l) => l.lessons.flatMap((x) => x.questions)))];
   const answered = ids.filter((id) => store.latest(id)).length;
-  return answered ? t('course.lesson.progress', { answered, total: ids.length }) : t('course.lesson.notStarted');
+  return answered ? t('course.lesson.progress', { answered, total: ids.length }) : null;
 }
 
 // entries: parsed catalog list; courses: Map of id -> parsed course file (a course that failed to load has no entry).
@@ -33,18 +33,20 @@ function audiencePill(entry) {
   return null;
 }
 
-function courseCard(entry, courses, tag = 'li', extraClass = '') {
+// On the path the section headings say who the courses are for, so the cards there carry no audience pill. A course not
+// started shows no progress line, and the premium details are on the course page.
+function courseCard(entry, courses, tag = 'li', extraClass = '', { audience = true } = {}) {
   const course = courses.get(entry.id) || null;
   const free = entry.free !== null ? entry.free : course ? courseCounts(course).questions : null;
-  const pills = facts([audiencePill(entry), { template: pluralTemplate(free, t('catalog.free.one'), t('catalog.free')), bold: free }, entry.premium ? { template: t('catalog.premium') } : null], t('facts.label'));
+  const progress = progressLine(course);
+  const pills = facts([audience ? audiencePill(entry) : null, { template: pluralTemplate(free, t('catalog.free.one'), t('catalog.free')), bold: free }, entry.premium ? { template: t('catalog.premium') } : null], t('facts.label'));
   return h(
     tag,
     { class: `course-card ${extraClass}`.trim() },
     h('h3', { class: 'course-card__title' }, h('a', { href: courseHref(entry.id) }, entry.title)),
     h('p', { class: 'course-card__text' }, entry.description),
     pills,
-    entry.premium && entry.premium.questions ? h('p', { class: 'muted small' }, t('catalog.premium.count', { n: entry.premium.questions })) : null,
-    h('p', { class: 'course-card__progress small' }, progressLine(course)),
+    progress ? h('p', { class: 'course-card__progress small' }, progress) : null,
   );
 }
 
@@ -70,9 +72,8 @@ export function firstQuestionOf(entry, course) {
 
 // entries: parsed catalog list; courses: Map of id -> parsed course file (a course that failed to load has no entry).
 // The path comes from the catalog: step n is the course with `path_step: n`. Without one, steps 1 and 2 stay "Coming soon"
-// (no link) and step 3 is the default course, as before. A beginner course on the path gets "Start" (the main button for a
-// reader with no answers yet) and "Already write code? Skip ahead", which moves focus to "Go deeper". The other courses
-// are listed under "Go deeper"; without any path the page is a plain grid.
+// (no link) and step 3 is the default course, as before. A beginner course on the path gets "Already write code? Skip
+// ahead", which moves focus to the heading over the other courses; the page's main button already starts it. Without any path the page is a plain grid, and there each card says who it is for.
 export function catalogSection(entries, courses, startId = DEFAULT_COURSE) {
   const head = h('h2', { id: 'catalog-title' }, t('catalog.title'));
   const byStep = new Map(entries.filter((e) => e.pathStep !== null && e.pathStep !== undefined && courses.has(e.id)).map((e) => [e.pathStep, e]));
@@ -81,8 +82,9 @@ export function catalogSection(entries, courses, startId = DEFAULT_COURSE) {
   if (!byStep.size) return h('section', { class: 'catalog', 'aria-labelledby': 'catalog-title' }, head, h('ul', { class: 'catalog__list' }, entries.map((e) => courseCard(e, courses))));
   const onPath = new Set(byStep.values());
   const rest = entries.filter((e) => !onPath.has(e));
-  const deeper = rest.length ? h('h3', { class: 'path__heading', id: 'path-deeper', tabindex: '-1' }, t('path.deeper')) : null;
-  const fresh = store.answers().length === 0;
+  // When every course off the path is for people who already code, the heading says so once instead of a pill per card.
+  const allExperienced = rest.length > 0 && rest.every((e) => e.audience === 'experienced');
+  const deeper = rest.length ? h('h3', { class: 'path__heading', id: 'path-deeper', tabindex: '-1' }, t(allExperienced ? 'catalog.audience.experienced' : 'path.deeper')) : null;
   const stepItem = (n) => {
     const entry = byStep.get(n);
     const label = h('span', { class: 'visually-hidden' }, t('path.step', { n }));
@@ -93,15 +95,13 @@ export function catalogSection(entries, courses, startId = DEFAULT_COURSE) {
     }
     const extra = [];
     if (entry.audience === 'beginner') {
-      const first = firstQuestionOf(entry, courses.get(entry.id));
-      if (first) extra.push(h('div', { class: 'actions actions--row' }, h('a', { class: `button ${fresh ? 'button--primary' : 'button--secondary'}`, href: `#/q/${first}` }, t('path.start'))));
       if (deeper) {
         const skip = h('button', { type: 'button', class: 'path__skip small' }, t('path.skip'));
         skip.addEventListener('click', () => { deeper.focus({ preventScroll: true }); deeper.scrollIntoView({ block: 'start', behavior: 'auto' }); });
         extra.push(h('p', {}, skip));
       }
     }
-    return h('li', { class: 'path__step' }, h('span', { class: 'path__n', 'aria-hidden': 'true' }, String(n)), h('div', { class: 'path__body' }, label, courseCard(entry, courses, 'div', 'path__card'), ...extra));
+    return h('li', { class: 'path__step' }, h('span', { class: 'path__n', 'aria-hidden': 'true' }, String(n)), h('div', { class: 'path__body' }, label, courseCard(entry, courses, 'div', 'path__card', { audience: false }), ...extra));
   };
   return h(
     'section',
@@ -110,6 +110,6 @@ export function catalogSection(entries, courses, startId = DEFAULT_COURSE) {
     h('h3', { class: 'path__heading' }, t('path.heading')),
     h('ol', { class: 'path' }, [1, 2, 3].map(stepItem)),
     deeper,
-    rest.length ? h('ul', { class: 'catalog__list' }, rest.map((e) => courseCard(e, courses))) : null,
+    rest.length ? h('ul', { class: 'catalog__list' }, rest.map((e) => courseCard(e, courses, 'li', '', { audience: !allExperienced }))) : null,
   );
 }

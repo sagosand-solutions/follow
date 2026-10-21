@@ -6,10 +6,10 @@ import { catalogSection, firstQuestionOf } from '../components/catalog-card.js';
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
-import { nextUp, homeHintKey } from '../course-nav.js';
+import { nextUp } from '../course-nav.js';
 import { lastRead } from '../moments.js';
 import { reviewQueue } from '../review.js';
-import { eyebrow, facts, courseCounts, pluralTemplate } from '../components/ui.js';
+import { facts, courseCounts, pluralTemplate } from '../components/ui.js';
 import { CONFIG } from '../config.js';
 
 // The headline carries one highlighted phrase; both strings are translated whole.
@@ -80,41 +80,41 @@ export async function homeView() {
     if (firstId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${firstId}` }, t('home.start')));
     // With a course catalog right below, a second "browse" button would only push the cards down.
     if (!catalog || catalog.length < 2 || !(index && index.onboarding_question)) actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: browseHref }, t('home.browse')));
-    // Honest storage facts; never a promise the current storage mode cannot keep.
-    after.push(h('p', { class: 'hero__facts' }, store.persistent ? t('home.facts.saved') : t('home.facts.memory')));
   }
+  // Only a storage mode that loses answers needs saying here (where progress lives is on each course page and in About).
+  if (!store.persistent) after.push(h('p', { class: 'hero__facts' }, t('home.facts.memory')));
 
   // Fact pills: the numbers come from the course data; "No account needed" is true only while the account UI is off.
   const counts = courseCounts(course);
   const free = catalog ? freeTotal(catalog) : null;
   const platformPills = catalog && catalog.length > 1 && free !== null;
   const pills = facts(
-    platformPills ? [{ template: pluralTemplate(free, t('catalog.free.one'), t('catalog.free')), bold: free }, { template: t('facts.courses'), bold: catalog.length }, CONFIG.accountsUi ? null : { template: t('facts.noAccount') }] : [
+    platformPills ? [{ template: pluralTemplate(free, t('catalog.free.one'), t('catalog.free')), bold: free }, CONFIG.accountsUi ? null : { template: t('facts.noAccount') }] : [
       { template: pluralTemplate(counts.questions, t('facts.question'), t('facts.questions')), bold: counts.questions || null },
       { template: pluralTemplate(counts.lessons, t('facts.lesson'), t('facts.lessons')), bold: counts.lessons || null },
       CONFIG.accountsUi ? null : { template: t('facts.noAccount') },
     ],
     t('facts.label'),
   );
-  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, eyebrow(platformPills ? t('home.eyebrow.platform', { n: catalog.length }) : t('home.eyebrow')), h('h1', {}, ...headline()), ...intro, pills, actions), stage);
-  const notes = h('div', { class: 'home-notes stack' }, ...after, h('p', { class: 'hero__hint' }, t(homeHintKey({ hasProgress: answeredCount > 0, persistent: store.persistent }))));
+  const hero = h('div', { class: 'hero' }, h('div', { class: 'hero__text' }, h('h1', {}, ...headline()), ...intro, pills, actions), stage);
 
   const parts = [hero];
   if (catalog) parts.push(catalogSection(catalog, new Map(entries.map((e) => [e.id, e.course]))));
-  if (course) {
+  // The map is the reader's own: it appears once something is answered (a new visitor sees the courses, not empty squares).
+  if (course && answeredCount > 0) {
     parts.push(
       h(
         'section',
         { class: 'map-card', 'aria-labelledby': 'map-title' },
         h('h2', { id: 'map-title' }, t('home.map.title')),
         catalog && catalog.length > 1 ? h('p', { class: 'kicker' }, course.title) : null,
-        h('p', { class: 'muted map-intro map-intro--wide' }, answeredCount ? t('home.map.some', { summary: summaryText(ids) }) : t('home.map.empty')),
+        h('p', { class: 'muted map-intro map-intro--wide' }, t('home.map.some', { summary: summaryText(ids) })),
         // The phone map shows counts, not squares, so it gets a sentence that does not mention squares.
-        h('p', { class: 'muted map-intro map-intro--phone' }, answeredCount ? t('home.map.some.phone', { summary: summaryText(ids) }) : t('home.map.empty.phone')),
+        h('p', { class: 'muted map-intro map-intro--phone' }, t('home.map.some.phone', { summary: summaryText(ids) })),
         readingMap(course, nextId),
       ),
     );
   }
-  parts.splice(catalog ? 2 : 1, 0, notes);
+  if (after.length) parts.splice(catalog ? 2 : 1, 0, h('div', { class: 'home-notes stack' }, ...after));
   return { title: t('site.brand'), node: h('div', { class: 'home' }, ...parts) };
 }

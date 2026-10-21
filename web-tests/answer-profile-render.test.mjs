@@ -68,13 +68,15 @@ const answerRadio = (root, value) => root.all((n) => n.tag === 'input' && n.attr
 const checkButton = (root) => root.all((n) => n.tag === 'button' && /Check/.test(n.text()))[0];
 
 for (const scoringUi of [false, true]) {
-  test(`practice question (scoringUi=${scoringUi}): practice chip and note, four options plus "I'm not sure", no challenge link and no points`, async () => {
+  test(`practice question (scoringUi=${scoringUi}): practice chip, the note only where scores exist, four options plus "I'm not sure", no challenge link and no points`, async () => {
     CONFIG.scoringUi = scoringUi;
     store.reset();
     const root = await render('synthetic-practice-question');
     const all = text(root);
     assert.match(all, /Practice/);
-    assert.match(all, /four choices and no points/);
+    // The note explains that practice never counts toward a score or leaderboard; without scoring there is nothing to explain.
+    if (scoringUi) assert.match(all, /four choices and no points/);
+    else assert.doesNotMatch(all, /four choices and no points|leaderboard/);
     assert.equal(root.all((n) => n.tag === 'a' && /challenge/.test(n.attrs.href || '')).length, 0, 'no challenge link');
     const radios = root.all((n) => n.tag === 'input' && n.attrs.type === 'radio');
     assert.equal(radios.length, 5, 'four options and the separate "not sure" row');
