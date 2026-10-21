@@ -1094,9 +1094,17 @@ class ToolProbesValidationTests(unittest.TestCase):
         from unittest import mock
         from ci import steps, workflow_guard
         value = policy(None)
-        probes = [{"value": "x", "argv": ["/usr/bin/git", "--version"], "image_id": value["image"]["image_id"],
-                   "isolation": {}, "isolation_sha256": "0" * 64, "exit_code": 0,
-                   "cleanup": "verified", "wall_ms": 1}]
+        probes = [
+            {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
+             "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+             "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+            {"value": "2.47.0", "argv": ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
+             "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+             "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+            {"value": "Python 3.14.0", "argv": ["/usr/local/bin/python3", "--version"],
+             "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+             "exit_code": 0, "cleanup": "verified", "wall_ms": 1},
+        ]
         state = {"n": 0}
         def clock():
             state["n"] += 1
