@@ -138,11 +138,11 @@ test('“New word” cards above the code, every time the question opens, as tex
 // A storage double for the per-word choice: a Map, or one that throws on every call (private mode, blocked storage).
 const memoryStorage = () => { const m = new Map(); return { m, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
 const brokenStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
-const words = (root) => root.all((n) => n.className === 'new-word__item').map((item) => {
+const words = (root) => root.all((n) => n.className.split(' ').includes('new-word__item')).map((item) => {
   const button = item.all((n) => n.tag === 'button')[0];
   const panel = item.all((n) => n.className === 'new-word__text')[0];
   const sign = button.all((n) => n.className === 'new-word__sign')[0];
-  return { item, button, panel, term: text(button.all((n) => n.className === 'new-word__term')[0]), open: button.attrs['aria-expanded'] === 'true', hidden: 'hidden' in panel.attrs, sign: text(sign) };
+  return { item, button, panel, term: text(button.all((n) => n.className === 'new-word__term')[0]), open: button.attrs['aria-expanded'] === 'true', hidden: 'hidden' in panel.attrs, sign: text(sign), met: item.className.split(' ').includes('new-word__item--met') };
 });
 const reusedCourse = () => ({ ...course, levels: [{ ...course.levels[0], lessons: course.levels[0].lessons.map((l) => (l.id !== 'b1-2' ? l : { ...l, introductions: l.introductions.map((x) => (x.id === 'B12-I1' ? { ...x, before_question_ids: l.questions } : x)) })) }] });
 const [P1, P2] = ['b1-2-a-pocket-uses-its-latest-number', 'b1-2-reading-a-second-pocket-keeps-its-number'];
@@ -200,6 +200,62 @@ test('new words open the first time the reader meets them and fold after that; t
   } finally { delete globalThis.localStorage; store.reset(); }
 });
 
+const block = (root) => root.all((n) => n.className.split(' ').includes('new-word'))[0];
+const label = (root) => text(block(root).all((n) => n.className === 'new-word__label')[0]);
+
+test('new words come first and open under “New words”; reminders follow, folded and quieter; all reminders get their own heading', async () => {
+  fresh();
+  globalThis.localStorage = memoryStorage();
+  const reused = reusedCourse();
+  try {
+    const first = (await questionView({ id: P1, course: reused })).node;
+    assert.equal(label(first), 'New words', 'all new');
+    assert.deepEqual(words(first).map((w) => [w.term, w.open, w.met]), [['Give a name a number (assignment)', true, false], ['The latest number for each name', true, false]]);
+    assert.equal(block(first).className, 'new-word');
+    // Mixed: one word met on the first question, one new here. The new one leads, whatever the lesson's order.
+    const mixed = (await questionView({ id: P2, course: reused })).node;
+    assert.equal(label(mixed), 'New word', 'the heading names the new word');
+    assert.deepEqual(words(mixed).map((w) => [w.term, w.open, w.met]), [['Read another pocket now', true, false], ['Give a name a number (assignment)', false, true]]);
+    assert.equal(block(mixed).className, 'new-word', 'a block with a new word keeps its attention edge');
+    // All reminders: a neutral heading, a quieter block, every word folded and still a working disclosure.
+    const again = (await questionView({ id: P1, course: reused })).node;
+    assert.equal(label(again), "Words you've met");
+    assert.equal(block(again).className, 'new-word new-word--met');
+    const met = words(again);
+    assert.deepEqual(met.map((w) => [w.open, w.met, w.sign]), [[false, true, '+'], [false, true, '+']]);
+    for (const w of met) {
+      assert.equal(w.button.tag, 'button');
+      assert.equal(w.button.attrs['aria-controls'], w.panel.attrs.id);
+    }
+    met[0].button.click();
+    assert.deepEqual([words(again)[0].open, words(again)[0].hidden, words(again)[0].sign, words(again)[0].met], [true, false, '−', true], 'opened by hand, still a reminder');
+    const one = (await questionView({ id: P2, course: reused })).node;
+    assert.equal(label(one), "Words you've met");
+    fresh();
+    globalThis.localStorage = memoryStorage();
+    const single = { ...course, levels: [{ ...course.levels[0], lessons: course.levels[0].lessons.map((l) => (l.id !== 'b1-2' ? l : { ...l, introductions: l.introductions.filter((x) => x.id === 'B12-I5') })) }] };
+    const s1 = (await questionView({ id: P2, course: single })).node;
+    assert.equal(label(s1), 'New word');
+    const s2 = (await questionView({ id: P2, course: single })).node;
+    assert.equal(label(s2), "A word you've met");
+  } finally { delete globalThis.localStorage; store.reset(); }
+});
+
+test('a word that is new here stays new and first when answering redraws the page', async () => {
+  fresh();
+  globalThis.localStorage = memoryStorage();
+  const reused = reusedCourse();
+  try {
+    await questionView({ id: P1, course: reused });
+    const node = (await questionView({ id: P2, course: reused })).node;
+    node.all((n) => n.tag === 'input' && n.attrs.type === 'radio')[0].click();
+    node.all((n) => n.tag === 'button' && /Check/.test(n.text()))[0].dispatchEvent({ type: 'click', preventDefault() {} });
+    assert.ok(node.all((n) => n.className.split(' ').includes('verdict')).length, 'answered and redrawn');
+    assert.equal(label(node), 'New word');
+    assert.deepEqual(words(node).map((w) => [w.term, w.met]), [['Read another pocket now', false], ['Give a name a number (assignment)', true]]);
+  } finally { delete globalThis.localStorage; store.reset(); }
+});
+
 test('answering redraws the page but keeps each word as the reader left it', async () => {
   fresh();
   globalThis.localStorage = memoryStorage();
@@ -220,7 +276,8 @@ test('without storage, or with storage that throws, every word opens every time 
     try {
       for (let visit = 0; visit < 2; visit += 1) {
         const node = (await questionView({ id: P1, course })).node;
-        assert.deepEqual(words(node).map((w) => w.open), [true, true], `visit ${visit + 1}`);
+        assert.deepEqual(words(node).map((w) => [w.open, w.met]), [[true, false], [true, false]], `visit ${visit + 1}`);
+        assert.equal(label(node), 'New words', 'nothing remembered: every word is new');
         words(node)[0].button.click();
         assert.equal(words(node)[0].open, false, 'the button works in memory mode');
       }
@@ -279,4 +336,23 @@ test('a course that is not for beginners has no end card and no practised line',
   const page = (await courseView({ id: course.id })).node;
   assert.equal(page.all((n) => n.className === 'course-end').length, 0);
   store.reset();
+});
+
+test('a reminder looks quieter without new text: muted term, thin sign, a hairline after the new words, a block of reminders without the attention edge', () => {
+  const css = readFileSync(new URL('../public/css/components.css', import.meta.url), 'utf8');
+  assert.match(css, /\.new-word__item--met \.new-word__term \{ color: var\(--muted\); \}/);
+  assert.match(css, /\.new-word__item--met \.new-word__sign \{ border-width: 1px; color: var\(--muted\); font-weight: 400; \}/);
+  assert.match(css, /\.new-word__item--met \.new-word__toggle \{ font-weight: 600; \}/);
+  assert.match(css, /\.new-word__item:not\(\.new-word__item--met\) \+ \.new-word__item--met \{ border-top: 1px solid var\(--line\);/);
+  assert.match(css, /\.new-word--met \{ border-inline-start-color: var\(--line-strong\); \}/);
+});
+
+test('the word block on its own: without a set of new words every word is new and open', async () => {
+  const { newWordCards } = await import('../public/js/components/beginner.js');
+  const intros = lesson('b1-2').introductions.slice(0, 2).map((x) => ({ id: x.id, questionIds: x.before_question_ids, term: x.term, explanation: x.explanation, example: x.example }));
+  const [node] = newWordCards(intros);
+  assert.equal(node.className, 'new-word');
+  assert.equal(text(node.all((n) => n.className === 'new-word__label')[0]), 'New words');
+  assert.deepEqual(node.all((n) => n.className.split(' ').includes('new-word__item')).map((i) => i.className), ['new-word__item', 'new-word__item']);
+  assert.deepEqual(newWordCards([]), []);
 });

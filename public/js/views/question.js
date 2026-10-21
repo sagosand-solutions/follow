@@ -6,7 +6,7 @@ import { renderCodeBlock } from '../components/code-block.js';
 import { store } from '../progress.js';
 import { loadQuestion, findCourseOf, loadConcepts, loadTrace, findLessonOf } from '../data.js';
 import { renderArtifact } from '../components/artifact.js';
-import { newWordCards, wordsOpen } from '../components/beginner.js';
+import { newWordCards, wordsState } from '../components/beginner.js';
 import { introductionsFor } from '../lesson-extras.js';
 import { courseHref, reviewHref } from '../catalog.js';
 import { CONFIG } from '../config.js';
@@ -68,10 +68,10 @@ export async function questionView({ id, course: suppliedCourse = null, reviewMo
   // Local question and review flows stay local; only the explicit challenge route uses server scoring.
   // A beginner-practice question (explicit profile only) is local practice: no points line, no challenge, never a leaderboard.
   const ctx = { q, where, concepts, root, course, reviewMode, scoring: null, practice: isPractice(q), intros: where ? introductionsFor(where.lesson, q.id) : [] };
-  // Each new word's open state is decided once when the question opens and kept across redraws (answering redraws the page);
-  // the reader's own +/− choice is remembered per word.
+  // Each word's open state, and whether it is new here, are decided once when the question opens and kept across redraws
+  // (answering redraws the page); the reader's own +/− choice is remembered per word.
   const wordMemory = (x) => createChoice(`word.${course.id}.${where.lesson.id}.${x.id}`);
-  ctx.words = { open: wordsOpen(ctx.intros, wordMemory), onToggle: (wordId, open) => { ctx.words.open.set(wordId, open); wordMemory({ id: wordId }).set(open ? 'open' : 'closed'); } };
+  ctx.words = { ...wordsState(ctx.intros, wordMemory), onToggle: (wordId, open) => { ctx.words.open.set(wordId, open); wordMemory({ id: wordId }).set(open ? 'open' : 'closed'); } };
   const record = store.latest(id);
   const usable = currentAnswer(q, record) ? record : null;
   draw(ctx, usable, !!record && !usable);

@@ -18,12 +18,13 @@ export function practisedLine(summary, className = 'practised', tag = 'p') {
   return summary ? h(tag, { class: className }, ...sentence(t('lesson.practised'), 'what', renderInline(summary))) : null;
 }
 
-// Which new words start open on this question: the reader's own last choice for the word, else open the first time the reader
-// meets the word (on whichever question of the lesson that is, a direct link included) and folded after that, when it is a
-// reminder. `memoryFor(intro)` gives that word's remembered choice ('open', 'closed' or 'seen'); without storage it remembers
-// nothing, so every word opens every time.
-export function wordsOpen(intros, memoryFor) {
+// The words on this question, decided once when it opens: `fresh` holds the words the reader meets for the first time (on
+// whichever question of the lesson that is, a direct link included), the others are reminders. `open` is the reader's own
+// last choice for a word, else open when fresh and folded when a reminder. `memoryFor(intro)` gives that word's remembered
+// choice ('open', 'closed' or 'seen'); without storage it remembers nothing, so every word is fresh and open every time.
+export function wordsState(intros, memoryFor) {
   const open = new Map();
+  const fresh = new Set();
   for (const x of intros) {
     const memory = memoryFor(x);
     const choice = memory.get();
@@ -31,17 +32,19 @@ export function wordsOpen(intros, memoryFor) {
     else if (choice === 'seen') open.set(x.id, false);
     else {
       open.set(x.id, true);
+      fresh.add(x.id);
       memory.set('seen');
     }
   }
-  return open;
+  return { open, fresh };
 }
 
 const SIGN = { true: '\u2212', false: '+' };
 
-// One new word: its term is a disclosure button (aria-expanded, aria-controls) with a visible + or − just before it, and the
+// One word: its term is a disclosure button (aria-expanded, aria-controls) with a visible + or − just before it, and the
 // explanation and example below it, in line with the term. The button's name is the term; the state is announced from aria-expanded, so the sign itself is hidden.
-function wordItem(x, isOpen, onToggle) {
+// A reminder (a word met before) looks quieter; what it does is the same.
+function wordItem(x, isOpen, onToggle, met) {
   const panelId = `new-word-panel-${x.id}`;   // its own prefix: no word id can make it equal the label's id
   const sign = h('span', { class: 'new-word__sign', 'aria-hidden': 'true' }, SIGN[isOpen]);
   const panel = h('div', { class: 'new-word__text', id: panelId, hidden: !isOpen }, h('p', {}, renderInline(x.explanation)), h('p', { class: 'new-word__example' }, ...sentence(t('intro.example'), 'example', renderInline(x.example))));
@@ -54,17 +57,22 @@ function wordItem(x, isOpen, onToggle) {
     sign.replaceChildren(document.createTextNode(SIGN[now]));
     onToggle(x.id, now);
   });
-  return h('div', { class: 'new-word__item' }, h('h3', { class: 'new-word__head' }, button), panel);
+  return h('div', { class: met ? 'new-word__item new-word__item--met' : 'new-word__item' }, h('h3', { class: 'new-word__head' }, button), panel);
 }
 
 // The question's introductions in one calm block above the code, one disclosure per word, so a folded word takes one line
-// and the code stays as close to the top as it can on a phone. `open` maps word ids to their state (missing = open).
-export function newWordCards(intros, { open = new Map(), onToggle = () => {} } = {}) {
+// and the code stays as close to the top as it can on a phone. New words come first, then the reminders. The heading names
+// the new words, or, when every word is a reminder, the words already met (the block is then quieter too). `open` maps word
+// ids to their state (missing = open); `fresh` holds the new ones (missing = every word is new).
+export function newWordCards(intros, { open = new Map(), fresh = null, onToggle = () => {} } = {}) {
   if (!intros.length) return [];
-  const label = intros.length === 1 ? t('intro.label') : t('intro.labelMany');
-  return [h('section', { class: 'new-word', 'aria-labelledby': 'new-word-label' },
+  const isFresh = (x) => !fresh || fresh.has(x.id);
+  const ordered = [...intros.filter(isFresh), ...intros.filter((x) => !isFresh(x))];
+  const freshCount = intros.filter(isFresh).length;
+  const label = freshCount === 1 ? t('intro.label') : freshCount > 1 ? t('intro.labelMany') : intros.length === 1 ? t('intro.metOne') : t('intro.metMany');
+  return [h('section', { class: freshCount ? 'new-word' : 'new-word new-word--met', 'aria-labelledby': 'new-word-label' },
     h('h2', { class: 'new-word__label', id: 'new-word-label' }, label),
-    ...intros.map((x) => wordItem(x, open.get(x.id) !== false, onToggle)))];
+    ...ordered.map((x) => wordItem(x, open.get(x.id) !== false, onToggle, !isFresh(x))))];
 }
 
 // The path's "coming soon" steps by number (the same page text as the home path).

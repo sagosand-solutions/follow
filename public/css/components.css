@@ -485,6 +485,16 @@
 .new-word__text[hidden] { display: none; }
 .new-word__text > p { margin: 0; }
 .new-word__example { color: var(--muted); }
+/* A reminder is the same disclosure, quieter: a muted term in normal weight and a thin muted sign. A block of reminders only
+   loses the attention edge. */
+.new-word__item--met .new-word__toggle { font-weight: 600; }
+.new-word__item--met .new-word__term { color: var(--muted); }
+.new-word__item--met .new-word__toggle:hover .new-word__term { color: var(--ink); }
+.new-word__item--met .new-word__sign { border-width: 1px; color: var(--muted); font-weight: 400; }
+/* Where reminders follow new words, a hairline keeps them apart from the heading that names the new ones. */
+.new-word__item:not(.new-word__item--met) + .new-word__item--met { border-top: 1px solid var(--line); padding-top: var(--s-1); }
+.new-word--met { border-inline-start-color: var(--line-strong); }
+.new-word--met .new-word__label { color: var(--muted); }
 .practised { margin: 0; font-weight: 600; }
 .lesson-card__practised { display: block; font-size: var(--text-sm); }
 .course-end { display: grid; gap: var(--s-3); padding: var(--s-5); border: 2px solid var(--accent-attention); border-radius: var(--radius); background: var(--surface); }
