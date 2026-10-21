@@ -410,10 +410,10 @@ def _probe_isolation(inspect, policy):
             "mounts": []}
 
 
-def _tool_probe(policy, args, index, timeout=10):
+def _tool_create_command(policy, args, index):
     isolation = policy["isolation"]
     name = f"ci-tool-{os.getpid()}-{index}"
-    create = ["docker", "create", "--name", name, "--label", labels.label_argument(),
+    create = ["docker", "create", "--pull=never", "--name", name, "--label", labels.label_argument(),
               "--network", isolation["network_mode"], "--read-only", "--user", isolation["user"],
               "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
               "--pids-limit", str(isolation["pids_limit"]),
@@ -426,6 +426,12 @@ def _tool_probe(policy, args, index, timeout=10):
     for key, value in sorted(policy["env"].items()):
         create += ["-e", f"{key}={value}"]
     create += [policy["image"]["ref"], *args]
+    return create
+
+
+def _tool_probe(policy, args, index, timeout=10):
+    create = _tool_create_command(policy, args, index)
+    name = create[create.index("--name") + 1]
     started = time.monotonic()
     deadline = started + timeout
 
