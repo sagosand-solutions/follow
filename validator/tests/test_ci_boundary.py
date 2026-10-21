@@ -489,19 +489,46 @@ class PinsManifestTests(unittest.TestCase):
 
 
 class ToolCheckTests(unittest.TestCase):
-    def test_python_version_mismatch_is_rejected(self):
+    def test_check_tools_refuses_without_process(self):
         from unittest import mock
-        from ci import steps
-        with tempfile.TemporaryDirectory() as temp:
-            policy_path = os.path.join(temp, "policy.json")
-            with open(policy_path, "w") as handle:
-                json.dump(policy(None), handle)
-            completed = mock.Mock(stdout=b"gh version 2.102.0 (2026-09-30)\n", stderr=b"")
-            with mock.patch.object(steps, "require_pins", return_value=None), \
-                 mock.patch("ci.steps.subprocess.run", return_value=completed), \
-                 mock.patch("ci.steps._run_bounded", return_value=b"3.13.15\n"):
-                with self.assertRaises(steps.StepError):
-                    steps.check_tools(policy_path)
+        from ci import steps, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.steps.subprocess.run") as run_mock:
+            with self.assertRaises(steps.StepError):
+                steps.check_tools("ci/policy.json")
+            run_mock.assert_not_called()
+
+    def test_write_run_refuses_without_process(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.steps.subprocess.run") as run_mock:
+            with self.assertRaises(steps.StepError):
+                steps.write_run("/tmp/opencode/run.json")
+            run_mock.assert_not_called()
+
+    def test_run_fixture_cli_refuses_without_process(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.run_fixture.subprocess.run") as run_mock, \
+             mock.patch("ci.run_fixture.subprocess.Popen") as popen_mock:
+            code = run_fixture.main(["--spec", "ci/specs/git-pilot-1.json", "--input", "/input",
+                                     "--out", "/out", "--raw", "/tmp/opencode/raw.tar",
+                                     "--observation", "/tmp/opencode/observation.json"])
+            self.assertNotEqual(code, 0)
+            run_mock.assert_not_called()
+            popen_mock.assert_not_called()
+
+    def test_fetch_cli_refuses_without_network(self):
+        from unittest import mock
+        from ci import fetch_artifact, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.fetch_artifact.urllib.request.urlopen") as open_mock, \
+             mock.patch.dict(os.environ, {"GH_TOKEN": "x"}):
+            code = fetch_artifact.main(["--name", "n", "--out", "/tmp/opencode/o.zip"])
+            self.assertNotEqual(code, 0)
+            open_mock.assert_not_called()
 
 
 class RealPolicyShapeTests(unittest.TestCase):

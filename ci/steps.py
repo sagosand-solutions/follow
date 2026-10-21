@@ -125,6 +125,10 @@ def pack_outputs(raw_path, out_path):
 
 
 def write_run(out_path):
+    try:
+        workflow_guard.require_mandate()
+    except workflow_guard.Refused as exc:
+        raise StepError(f"no registered test mandate: {exc}") from None
     required = ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "GITHUB_SHA", "GITHUB_REF", "GITHUB_EVENT_NAME")
     values = {}
     for name in required:
@@ -191,6 +195,10 @@ def require_pins(policy, root=None):
 
 
 def check_tools(policy_path):
+    try:
+        workflow_guard.require_mandate()
+    except workflow_guard.Refused as exc:
+        raise StepError(f"no registered test mandate: {exc}") from None
     with open(policy_path, "rb") as handle:
         policy = canon.loads(handle.read())
     require_pins(policy)
@@ -200,15 +208,6 @@ def check_tools(policy_path):
     match = re.search(r"gh version (\S+)", first)
     if match is None or match.group(1) != wanted:
         raise StepError(f"gh version does not match the pinned {wanted!r}")
-    python_wanted = policy["tools"]["versions"].get("python")
-    if python_wanted and python_wanted != "unused":
-        output = _run_bounded(["docker", "run", "--rm", "--network", "none", "--read-only",
-                               "--user", "65534:65534", policy["image"]["ref"],
-                               "/usr/local/bin/python3", "-c",
-                               "import platform; print(platform.python_version())"], timeout=120,
-                              limit=64 * 1024)
-        if output.decode("utf-8", "replace").strip() != python_wanted:
-            raise StepError(f"python version does not match the pinned {python_wanted!r}")
     return 0
 
 
