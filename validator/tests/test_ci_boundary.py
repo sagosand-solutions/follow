@@ -38,7 +38,8 @@ def policy(tmp):
         "cgroup_root": "/sys/fs/cgroup",
         "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
         "cgroup_name_prefix": "ci-fixture-",
-        "tools": {"versions": {"git": "2.47.0", "python": "3.14.0", "pytest": "8.3.0"}},
+        "tools": {"gh_version": "2.102.0",
+                  "versions": {"git": "2.47.0", "python": "3.14.0", "pytest": "8.3.0"}},
         "limits": {"files": 64, "artifact_bytes": 4194304, "raw_tar_bytes": 4718592,
                    "observation_bytes": 65536, "zip_bytes": 8388608, "entries": 128,
                    "path_bytes": 4096, "total_path_bytes": 65536, "stdout_bytes": 65536,
@@ -441,14 +442,17 @@ class AttestationStructureTests(unittest.TestCase):
 
 
 class PinSetTests(unittest.TestCase):
-    def test_real_policy_is_incomplete(self):
+    def test_real_policy_pin_set_is_complete(self):
         import json as jsonlib
         from ci.workflow_guard import pin_set_missing
         with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
             loaded = jsonlib.load(handle)
-        missing = pin_set_missing(loaded)
-        self.assertIn("image.ref", missing)
-        self.assertIn("attestation.signer_workflow", missing)
+        self.assertEqual(pin_set_missing(loaded), [])
+
+    def test_real_policy_still_has_no_mandate(self):
+        import json as jsonlib
+        with open(os.path.join(ROOT, "ci/MANDATE.json"), "rb") as handle:
+            self.assertFalse(jsonlib.load(handle)["enabled"])
 
     def test_complete_pin_set(self):
         from ci.workflow_guard import pin_set_missing
@@ -456,10 +460,75 @@ class PinSetTests(unittest.TestCase):
                  "image": {"ref": "ghcr.io/x/y@sha256:" + "1" * 64, "image_id": "sha256:" + "2" * 64},
                  "tools": {"gh_version": "2", "versions": {"git": "1", "python": "1", "pytest": "1"}},
                  "actions": {"checkout": "a" * 40, "upload": "b" * 40, "attest": "c" * 40},
-                 "attestation": {"issuer": "i", "signer_workflow": "w", "predicate_type": "p",
+                 "attestation": {"issuer": "i", "signer_workflow": "w", "signer_ref": "refs/heads/main",
+                                 "predicate_type": "p",
                                  "trusted_root_path": "r", "trusted_root_sha256": "d" * 64,
                                  "gh_example_sha256": "e" * 64}}
         self.assertEqual(pin_set_missing(value), [])
+
+
+class PinsManifestTests(unittest.TestCase):
+    def test_pins_manifest_matches_the_files(self):
+        bootstrap = os.path.join(ROOT, "ci/pins.json")
+        if not os.path.exists(bootstrap):
+            self.skipTest("no pins manifest")
+        with open(bootstrap, "rb") as handle:
+            pins = json.load(handle)
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            policy = json.load(handle)
+        self.assertEqual(pins["policy_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/policy.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["schema_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/schema/ci-v1.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["spec_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/specs/git-pilot-1.json"), "rb").read()).hexdigest())
+        self.assertEqual(pins["trusted_root_sha256"], hashlib.sha256(open(os.path.join(ROOT, "ci/trust/trusted_root.jsonl"), "rb").read()).hexdigest())
+        self.assertEqual(pins["image"]["index_digest"], policy["image"]["ref"].split("@", 1)[1])
+        self.assertEqual(pins["image"]["manifest_amd64_digest"], policy["image"]["manifest_digest"])
+        self.assertEqual(pins["image"]["config_digest"], policy["image"]["image_id"])
+        self.assertEqual(pins["tools"], policy["tools"]["versions"])
+        self.assertEqual(pins["actions"], policy["actions"])
+        self.assertEqual(pins["signer_ref"], policy["attestation"]["signer_ref"])
+
+
+class ToolCheckTests(unittest.TestCase):
+    def test_check_tools_refuses_without_process(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.steps.subprocess.run") as run_mock:
+            with self.assertRaises(steps.StepError):
+                steps.check_tools("ci/policy.json")
+            run_mock.assert_not_called()
+
+    def test_write_run_refuses_without_process(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.steps.subprocess.run") as run_mock:
+            with self.assertRaises(steps.StepError):
+                steps.write_run("/tmp/opencode/run.json")
+            run_mock.assert_not_called()
+
+    def test_run_fixture_cli_refuses_without_process(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.run_fixture.subprocess.run") as run_mock, \
+             mock.patch("ci.run_fixture.subprocess.Popen") as popen_mock:
+            code = run_fixture.main(["--spec", "ci/specs/git-pilot-1.json", "--input", "/input",
+                                     "--out", "/out", "--raw", "/tmp/opencode/raw.tar",
+                                     "--observation", "/tmp/opencode/observation.json"])
+            self.assertNotEqual(code, 0)
+            run_mock.assert_not_called()
+            popen_mock.assert_not_called()
+
+    def test_fetch_cli_refuses_without_network(self):
+        from unittest import mock
+        from ci import fetch_artifact, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.fetch_artifact.urllib.request.urlopen") as open_mock, \
+             mock.patch.dict(os.environ, {"GH_TOKEN": "x"}):
+            code = fetch_artifact.main(["--name", "n", "--out", "/tmp/opencode/o.zip"])
+            self.assertNotEqual(code, 0)
+            open_mock.assert_not_called()
 
 
 class RealPolicyShapeTests(unittest.TestCase):
@@ -1049,7 +1118,8 @@ class HardeningTests(unittest.TestCase):
                                  "gh_profile": "gh-attestation-v1",
                                  "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json",
                                  "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479",
-                                 "issuer": "issuer", "signer_workflow": "wf", "predicate_type": "p"}}
+                                 "issuer": "issuer", "signer_workflow": "wf", "signer_ref": "refs/heads/main",
+                                 "predicate_type": "p"}}
         with self.assertRaises(Exception):
             require_pins(value)
         value["attestation"]["trusted_root_path"] = "root.json"

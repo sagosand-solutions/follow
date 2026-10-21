@@ -1,0 +1,24 @@
+{
+  "policy_sha256": "cc75175079c37a43cba1699a0df42c93deca3aa8aeced30d1ac2cf1eaf8cc9b1",
+  "schema_sha256": "21c0071ab1f3661941e74d60285e86597441791f427881867fb7dc692d20fae4",
+  "spec_sha256": "1a33d1bd8c7089e9775651ec073746eaea7706b29476e6416aee7c964e1a5d38",
+  "trusted_root_sha256": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
+  "image": {
+    "index_digest": "sha256:073ffebb96ae4d0ed73ccad59f08c47bd84af8a79f5258130f8458ac50ad9ff4",
+    "manifest_amd64_digest": "sha256:b1029db400b3f9fbcb116ca35b48862f4e18db863c7b7f85466b41a20c073375",
+    "config_digest": "sha256:2a66f41838f79d3cd5c7eb749304d18d6660d0cf8547f6f38a258ffa2854ed4e"
+  },
+  "actions": {
+    "checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "upload": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+    "download": "9000827ccba6bdab643e8b6fd33ac0654aef8333",
+    "attest": "4d101475d8b20a2381f78447822ac1eab6504dd8"
+  },
+  "tools": {
+    "git": "unused",
+    "python": "3.13.16",
+    "pytest": "unused"
+  },
+  "signer_workflow": "sagosand-solutions/follow/.github/workflows/ci-fixture.yml",
+  "signer_ref": "refs/heads/main"
+}

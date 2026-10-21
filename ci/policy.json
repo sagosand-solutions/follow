@@ -8,14 +8,15 @@
   "tools": {
     "gh_version": "2.102.0",
     "versions": {
-      "git": null,
-      "python": null,
-      "pytest": null
+      "git": "unused",
+      "python": "3.13.16",
+      "pytest": "unused"
     }
   },
   "image": {
-    "ref": null,
-    "image_id": null
+    "ref": "docker.io/library/python:3.13-bookworm@sha256:073ffebb96ae4d0ed73ccad59f08c47bd84af8a79f5258130f8458ac50ad9ff4",
+    "image_id": "sha256:2a66f41838f79d3cd5c7eb749304d18d6660d0cf8547f6f38a258ffa2854ed4e",
+    "manifest_digest": "sha256:b1029db400b3f9fbcb116ca35b48862f4e18db863c7b7f85466b41a20c073375"
   },
   "actions": {
     "checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
@@ -67,7 +68,10 @@
       "GIT_CEILING_DIRECTORIES",
       "GIT_AUTHOR_DATE",
       "GIT_COMMITTER_DATE",
-      "HOSTNAME"
+      "HOSTNAME",
+      "GPG_KEY",
+      "PYTHON_VERSION",
+      "PYTHON_SHA256"
     ],
     "memory": 268435456,
     "memory_swap": 268435456,
@@ -106,20 +110,21 @@
   },
   "attestation": {
     "issuer": "https://token.actions.githubusercontent.com",
-    "signer_workflow": null,
+    "signer_workflow": "sagosand-solutions/follow/.github/workflows/ci-fixture.yml",
     "predicate_type": "https://slsa.dev/provenance/v1",
-    "trusted_root_path": null,
-    "trusted_root_sha256": null,
+    "trusted_root_path": "ci/trust/trusted_root.jsonl",
+    "trusted_root_sha256": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
     "gh_profile": "gh-attestation-v1",
     "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479",
-    "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json"
+    "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json",
+    "signer_ref": "refs/heads/main"
   },
   "fixture_item_prefix": "git-pilot-1-",
   "env": {
     "TZ": "UTC",
     "LC_ALL": "C.UTF-8",
     "LANG": "C.UTF-8",
-    "PATH": "/runtime/bin",
+    "PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "HOME": "/home",
     "TMPDIR": "/tmp",
     "HOSTNAME": "fixture",
@@ -136,9 +141,14 @@
     "GIT_DISCOVERY_ACROSS_FILESYSTEM": "0",
     "GIT_CEILING_DIRECTORIES": "/work",
     "GIT_AUTHOR_DATE": "@0 +0000",
-    "GIT_COMMITTER_DATE": "@0 +0000"
+    "GIT_COMMITTER_DATE": "@0 +0000",
+    "GPG_KEY": "7169605F62C751356D054A26A821E680E5FA6305",
+    "PYTHON_VERSION": "3.13.16",
+    "PYTHON_SHA256": "f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
   },
   "cgroup_root": "/sys/fs/cgroup",
   "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
-  "cgroup_name_prefix": "ci-fixture-"
+  "cgroup_name_prefix": "ci-fixture-",
+  "spec_path": "ci/specs/git-pilot-1.json",
+  "spec_sha256": "1a33d1bd8c7089e9775651ec073746eaea7706b29476e6416aee7c964e1a5d38"
 }

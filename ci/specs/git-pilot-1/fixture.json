@@ -1,0 +1,8 @@
+{
+  "repository": "synthetic-pilot",
+  "branch": "main",
+  "commits": [
+    {"id": "a1b2c3d", "message": "initial"},
+    {"id": "d4e5f6a", "message": "second"}
+  ]
+}
