@@ -3,6 +3,7 @@
 import os
 
 LABEL_KEY = "ci-fixture.run"
+AUTH_MARKER = ".ci-run-authorized.json"
 
 
 def run_label():

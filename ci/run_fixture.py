@@ -343,7 +343,8 @@ def _run(spec, policy, input_dir, out_dir, wall_seconds=10):
             raise RunError("the container could not be removed; refusing to pack")
 
 
-def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, wall_seconds=10, dry_run=False):
+def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, wall_seconds=10, dry_run=False,
+        marker=None):
     if not dry_run:
         try:
             workflow_guard.require_mandate()
@@ -361,11 +362,13 @@ def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, 
         return 0
     if not os.path.isdir(input_dir) or not os.path.isdir(out_dir):
         raise RunError("input and output directories must exist")
-    marker = os.environ.get("CI_AUTH_MARKER", "ci-artifacts/run-authorized.json")
+    marker = marker or labels.AUTH_MARKER
     os.makedirs(os.path.dirname(marker) or ".", exist_ok=True)
-    with open(marker, "w", encoding="utf-8") as handle:
+    tmp = marker + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
         json.dump({"label": labels.run_label()}, handle, sort_keys=True)
         handle.write("\n")
+    os.replace(tmp, marker)
     from .steps import check_image_tools
     tool_probes = check_image_tools(policy_path)
     image_tools = tool_probes["versions"]

@@ -7,11 +7,10 @@ probe container survived the deadline, the run is already red, and no receipt ma
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 
-from .labels import LABEL_KEY, run_label
+from .labels import AUTH_MARKER, LABEL_KEY, run_label
 
 
 class ReaperError(RuntimeError):
@@ -47,8 +46,8 @@ def _authorized(marker, label):
     return data.get("label") == label
 
 
-def main(argv=None):
-    marker = os.environ.get("CI_AUTH_MARKER", "ci-artifacts/run-authorized.json")
+def main(argv=None, marker=None):
+    marker = marker or AUTH_MARKER
     if not _authorized(marker, run_label()):
         print("ci.reaper: no authorized start for this run; nothing to reap")
         return 0
