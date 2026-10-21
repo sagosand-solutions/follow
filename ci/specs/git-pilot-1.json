@@ -2,37 +2,19 @@
   "spec_version": "ci-spec-v1",
   "fixture_id": "git-pilot-1",
   "batch_id": "git-pilot-1",
-  "image_ref": null,
-  "argv": [
-    "/runtime/bin/python3",
-    "/input/script.py"
-  ],
+  "image_ref": "docker.io/library/python:3.13-bookworm@sha256:073ffebb96ae4d0ed73ccad59f08c47bd84af8a79f5258130f8458ac50ad9ff4",
+  "argv": ["/usr/local/bin/python3", "/input/script.py"],
   "inputs": [
-    {
-      "role": "fixture",
-      "path": "fixture.json",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "bytes": 0
-    },
-    {
-      "role": "script",
-      "path": "script.py",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "bytes": 0
-    },
-    {
-      "role": "config",
-      "path": "config.json",
-      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-      "bytes": 0
-    }
+    {"role": "fixture", "path": "fixture.json", "sha256": "2d3d0393df9a3d55d9ec9c7caa7ea4cdd8d7346f1852fae0a29b8333638ce731", "bytes": 166},
+    {"role": "script", "path": "script.py", "sha256": "a93d3e81ff16cf5a15a1e05bd23d0069d2bc8c8f710dde19b68af0ac34050d67", "bytes": 899},
+    {"role": "config", "path": "config.json", "sha256": "b2c324753e403e5c47f6d54fcf712fc2b9757b5c1743fad1f3b228ba84c4a640", "bytes": 42}
   ],
   "config": {
     "env": {
       "TZ": "UTC",
       "LC_ALL": "C.UTF-8",
       "LANG": "C.UTF-8",
-      "PATH": "/runtime/bin",
+      "PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
       "HOME": "/home",
       "TMPDIR": "/tmp",
       "HOSTNAME": "fixture",
@@ -53,18 +35,18 @@
     },
     "settings": {}
   },
-  "licence_set": [
-    "CC-BY-SA-4.0"
-  ],
-  "expected_paths": [],
-  "artifacts": {},
   "items": [
-    {
-      "item_id": "git-pilot-1-fixture-1",
-      "licence": {
-        "license": "CC-BY-SA-4.0",
-        "gate": "draft-only"
-      }
+    {"item_id": "git-pilot-1-fixture-1", "licence": {"license": "CC-BY-SA-4.0", "gate": "draft-only"}}
+  ],
+  "licence_set": ["CC-BY-SA-4.0"],
+  "expected_paths": ["git-fixture.txt"],
+  "artifacts": {
+    "git-fixture.txt": {
+      "type": "file",
+      "format": "text",
+      "media": "text/plain",
+      "encoding": "utf-8",
+      "is_trace": false
     }
-  ]
+  }
 }

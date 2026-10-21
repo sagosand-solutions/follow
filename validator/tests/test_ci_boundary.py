@@ -441,14 +441,17 @@ class AttestationStructureTests(unittest.TestCase):
 
 
 class PinSetTests(unittest.TestCase):
-    def test_real_policy_is_incomplete(self):
+    def test_real_policy_pin_set_is_complete(self):
         import json as jsonlib
         from ci.workflow_guard import pin_set_missing
         with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
             loaded = jsonlib.load(handle)
-        missing = pin_set_missing(loaded)
-        self.assertIn("image.ref", missing)
-        self.assertIn("attestation.signer_workflow", missing)
+        self.assertEqual(pin_set_missing(loaded), [])
+
+    def test_real_policy_still_has_no_mandate(self):
+        import json as jsonlib
+        with open(os.path.join(ROOT, "ci/MANDATE.json"), "rb") as handle:
+            self.assertFalse(jsonlib.load(handle)["enabled"])
 
     def test_complete_pin_set(self):
         from ci.workflow_guard import pin_set_missing

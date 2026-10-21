@@ -8,14 +8,15 @@
   "tools": {
     "gh_version": "2.102.0",
     "versions": {
-      "git": null,
-      "python": null,
-      "pytest": null
+      "git": "1:2.39.5-0+deb12u3",
+      "python": "3.13.16",
+      "pytest": "unused"
     }
   },
   "image": {
-    "ref": null,
-    "image_id": null
+    "ref": "docker.io/library/python:3.13-bookworm@sha256:073ffebb96ae4d0ed73ccad59f08c47bd84af8a79f5258130f8458ac50ad9ff4",
+    "image_id": "sha256:2a66f41838f79d3cd5c7eb749304d18d6660d0cf8547f6f38a258ffa2854ed4e",
+    "manifest_digest": "sha256:b1029db400b3f9fbcb116ca35b48862f4e18db863c7b7f85466b41a20c073375"
   },
   "actions": {
     "checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",
@@ -106,10 +107,10 @@
   },
   "attestation": {
     "issuer": "https://token.actions.githubusercontent.com",
-    "signer_workflow": null,
+    "signer_workflow": "sagosand-solutions/follow/.github/workflows/ci-fixture.yml@refs/heads/main",
     "predicate_type": "https://slsa.dev/provenance/v1",
-    "trusted_root_path": null,
-    "trusted_root_sha256": null,
+    "trusted_root_path": "ci/trust/trusted_root.jsonl",
+    "trusted_root_sha256": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
     "gh_profile": "gh-attestation-v1",
     "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479",
     "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json"
@@ -119,7 +120,7 @@
     "TZ": "UTC",
     "LC_ALL": "C.UTF-8",
     "LANG": "C.UTF-8",
-    "PATH": "/runtime/bin",
+    "PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "HOME": "/home",
     "TMPDIR": "/tmp",
     "HOSTNAME": "fixture",
@@ -140,5 +141,7 @@
   },
   "cgroup_root": "/sys/fs/cgroup",
   "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
-  "cgroup_name_prefix": "ci-fixture-"
+  "cgroup_name_prefix": "ci-fixture-",
+  "spec_path": "ci/specs/git-pilot-1.json",
+  "spec_sha256": "7b7f2dd2c67175aad4ef93b462d4b198ad6f4321d02f52b7ab3e341b11601e39"
 }
