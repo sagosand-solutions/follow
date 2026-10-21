@@ -8,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import tarfile
@@ -612,6 +613,31 @@ class PinSetTests(unittest.TestCase):
 
 
 class GitPilot2Tests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("git"), "git is not installed")
+    def test_script_outputs_match_expected_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            inp = os.path.join(temp, "input")
+            out = os.path.join(temp, "out")
+            tmp = os.path.join(temp, "tmp")
+            for path in (inp, out, tmp):
+                os.makedirs(path)
+            shutil.copy(os.path.join(ROOT, "ci/specs/git-pilot-2/fixture.json"),
+                        os.path.join(inp, "fixture.json"))
+            shutil.copy(os.path.join(ROOT, "ci/specs/git-pilot-2/script.py"),
+                        os.path.join(inp, "script.py"))
+            env = dict(os.environ, CI_PILOT_INPUT=inp, CI_PILOT_OUT=out, CI_PILOT_TMP=tmp)
+            subprocess.run([sys.executable, os.path.join(inp, "script.py")], env=env,
+                           check=True, timeout=120, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            with open(os.path.join(ROOT, "ci/specs/git-pilot-2.json"), "rb") as handle:
+                spec = json.load(handle)
+            produced = set()
+            for root, _dirs, files in os.walk(out):
+                for name in files:
+                    path = os.path.join(root, name)
+                    self.assertFalse(os.path.islink(path))
+                    produced.add(os.path.relpath(path, out))
+            self.assertEqual(produced, set(spec["expected_paths"]))
+
     def test_input_hashes_and_no_question_data(self):
         import json as jsonlib
         spec_path = os.path.join(ROOT, "ci/specs/git-pilot-2.json")

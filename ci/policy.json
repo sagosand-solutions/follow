@@ -154,5 +154,5 @@
   "cgroup_parent_dir": "/sys/fs/cgroup/ci-fixture",
   "cgroup_name_prefix": "ci-fixture-",
   "spec_path": "ci/specs/git-pilot-2.json",
-  "spec_sha256": "07a06874399e9e06c92c4b3baccd706d6b8c726800a3ad2b785498db9ffca340"
+  "spec_sha256": "0da67d07b09ed01201a762c6da6da3f8fd82317207bac8ab30881c6f3a7f6ab0"
 }

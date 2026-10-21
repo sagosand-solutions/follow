@@ -16,6 +16,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import itertools
 
 from . import archive, canon, limits, schema, workflow_guard
 
@@ -214,17 +215,25 @@ def check_tools(policy_path):
         raise StepError(f"gh version does not match the pinned {wanted!r}")
     isolation = policy["isolation"]
     image = policy["image"]["ref"]
+    counter = itertools.count(1)
 
     def in_image(args):
-        return _run_bounded(["docker", "run", "--rm", "--network", isolation["network_mode"],
-                             "--read-only", "--user", isolation["user"], "--cap-drop", "ALL",
-                             "--security-opt", "no-new-privileges",
-                             "--pids-limit", str(isolation["pids_limit"]),
-                             "--memory", f"{isolation['memory'] // (1024 * 1024)}m",
-                             "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
-                             "--cpus", "1", "--log-driver", "none",
-                             "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes=64",
-                             image] + args, timeout=120, limit=64 * 1024)
+        name = f"ci-tools-{os.getpid()}-{next(counter)}"
+        try:
+            return _run_bounded(["docker", "run", "--rm", "--name", name,
+                                 "--network", isolation["network_mode"],
+                                 "--read-only", "--user", isolation["user"], "--cap-drop", "ALL",
+                                 "--security-opt", "no-new-privileges",
+                                 "--pids-limit", str(isolation["pids_limit"]),
+                                 "--memory", f"{isolation['memory'] // (1024 * 1024)}m",
+                                 "--memory-swap", f"{isolation['memory_swap'] // (1024 * 1024)}m",
+                                 "--cpus", str(isolation["nano_cpus"] / 1_000_000_000),
+                                 "--log-driver", "none",
+                                 "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes=64",
+                                 image] + args, timeout=120, limit=64 * 1024)
+        finally:
+            subprocess.run(["docker", "rm", "-f", name], check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     git_pin = policy["tools"]["versions"].get("git")
     if git_pin and git_pin != "unused":
