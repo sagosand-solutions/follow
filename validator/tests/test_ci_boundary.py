@@ -1271,6 +1271,8 @@ class ToolCheckTests(unittest.TestCase):
         absence = [entry for entry in calls if entry[0][:2] == ["docker", "inspect"]][0]
         start = [entry for entry in bounded_calls if entry[0][:2] == ["docker", "start"]][0]
         inspect = [entry for entry in bounded_calls if entry[0][:2] == ["docker", "inspect"]][0]
+        self.assertIn("--label", create[0])
+        self.assertIn("ci-fixture.run=", " ".join(create[0]))
         self.assertEqual(create[1]["timeout"], 7)
         self.assertEqual(start[1]["timeout"], 5)
         self.assertEqual(inspect[1]["timeout"], 3)
@@ -1310,6 +1312,38 @@ class ToolCheckTests(unittest.TestCase):
                 with self.assertRaises(steps.StepError):
                     steps.check_image_tools(path)
                 self.assertEqual(probe_mock.call_count, 1)
+
+    def test_tool_probe_create_late_gives_zero_starts(self):
+        from unittest import mock
+        from ci import steps
+        bounded = []
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: bounded.append(command)), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 11]):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1, 10)
+        self.assertFalse(any(command[:2] == ["docker", "start"] for command in bounded))
+
+    def test_tool_probe_substep_timeout_is_not_rounded_up(self):
+        from unittest import mock
+        from ci import steps
+        calls = []
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=subprocess.TimeoutExpired("docker", 1)), \
+             mock.patch("ci.steps.time.monotonic", side_effect=[0, 9.95, 9.96, 9.97]):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1, 10)
+        create = [entry for entry in calls if entry[0][:2] == ["docker", "create"]][0]
+        self.assertAlmostEqual(create[1]["timeout"], 0.05)
 
     def test_tool_probe_start_timeout_and_still_exists_is_red(self):
         from unittest import mock
@@ -2319,6 +2353,54 @@ class LaunchRefusalTests(unittest.TestCase):
 
 
 class ReaperTests(unittest.TestCase):
+    def test_reaper_cli_refuses_without_mandate_and_no_process(self):
+        from unittest import mock
+        from ci import reaper, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            self.assertEqual(reaper.main([]), 0)
+            run_mock.assert_not_called()
+
+    def test_reaper_filter_argv(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0, stdout=b"", stderr=b"")
+            reaper._list("7-3")
+            self.assertEqual(run_mock.call_args.args[0],
+                             ["docker", "ps", "-aq", "--filter", "label=ci-fixture.run=7-3"])
+
+    def test_reaper_rm_argv(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a"], []]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            self.assertEqual(reaper.reap("7-3"), 1)
+            self.assertEqual(run_mock.call_args.args[0], ["docker", "rm", "-f", "a"])
+
+    def test_run_label_from_environment(self):
+        from unittest import mock
+        from ci.labels import run_label
+        with mock.patch.dict(os.environ, {"GITHUB_RUN_ID": "7", "GITHUB_RUN_ATTEMPT": "3"}):
+            self.assertEqual(run_label(), "7-3")
+
+    def test_reaper_rm_failure_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a"], []]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=1)
+            with self.assertRaises(reaper.ReaperError):
+                reaper.reap("1-1")
+
+    def test_reaper_called_process_error(self):
+        from unittest import mock
+        from ci import reaper, workflow_guard
+        with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+             mock.patch.object(reaper, "_list", side_effect=subprocess.CalledProcessError(1, "docker")):
+            self.assertEqual(reaper.main([]), 1)
+
     def test_no_leftovers(self):
         from unittest import mock
         from ci import reaper

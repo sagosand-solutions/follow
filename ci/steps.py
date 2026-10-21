@@ -441,9 +441,15 @@ def _tool_probe(policy, args, index, timeout=10):
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         except subprocess.TimeoutExpired:
             raise StepError("tool container create timed out") from None
-        output = _run_bounded(["docker", "start", "-a", name], timeout=sub_remaining(), limit=64 * 1024)
-        inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=sub_remaining(),
-                                          limit=4 * 1024 * 1024).decode("utf-8"))
+        try:
+            output = _run_bounded(["docker", "start", "-a", name], timeout=sub_remaining(), limit=64 * 1024)
+        except subprocess.TimeoutExpired:
+            raise StepError("tool probe start timed out") from None
+        try:
+            inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=sub_remaining(),
+                                              limit=4 * 1024 * 1024).decode("utf-8"))
+        except subprocess.TimeoutExpired:
+            raise StepError("tool probe inspect timed out") from None
         entry = inspect[0] if isinstance(inspect, list) else {}
         state = entry.get("State", {})
         if state.get("Status") != "exited" or state.get("ExitCode") != 0:

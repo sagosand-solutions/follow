@@ -9,6 +9,7 @@ from __future__ import annotations
 import subprocess
 import sys
 
+from . import workflow_guard
 from .labels import LABEL_KEY, run_label
 
 
@@ -37,6 +38,11 @@ def reap(label=None):
 
 
 def main(argv=None):
+    try:
+        workflow_guard.require_mandate()
+    except workflow_guard.Refused:
+        print("ci.reaper: no mandate; nothing to reap")
+        return 0
     try:
         code = reap()
     except (ReaperError, subprocess.SubprocessError, OSError) as exc:
