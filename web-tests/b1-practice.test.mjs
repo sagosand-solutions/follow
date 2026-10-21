@@ -176,7 +176,7 @@ test('the instruction: whole on the first question of a lesson, folded to "How t
   const second = (await questionView({ id: 'b1-2-reading-a-second-pocket-keeps-its-number', course })).node;
   const fold = second.all((n) => n.tag === 'details')[0];
   assert.equal(text(fold.all((n) => n.tag === 'summary')[0]), 'How to answer');
-  assert.match(text(fold), /Read the code, then choose what it does\. Take your time/);
+  assert.match(text(fold), /Read the code, then choose what it does\. No rush/);
   // many answers later the standard note has faded, but practice keeps its folded instruction
   for (let i = 0; i < 5; i += 1) store.recordAnswer({ questionId: `other-${i}`, optionId: 'x', score: 1 });
   const later = (await questionView({ id: 'b1-2-reading-a-second-pocket-keeps-its-number', course })).node;

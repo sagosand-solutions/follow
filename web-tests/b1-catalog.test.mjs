@@ -85,32 +85,40 @@ test('the catalog keeps a valid audience and path step and nothing else', () => 
 
 const courseMap = async (entries) => new Map(await Promise.all(entries.filter((e) => e.id !== 'missing').map(async (e) => [e.id, JSON.parse(readFileSync(new URL(`courses/${e.id}.json`, site), 'utf8'))])));
 
-test('the path from the catalog: the beginner course is step 1 with Start and “Skip ahead”; every card says who it is for', async () => {
+test('the path from the catalog: the beginner course is step 1 with “Skip ahead”; the headings say who the courses are for', async () => {
   store.reset();
   const entries = parseCatalog(realCatalog);
   const node = catalogSection(entries, await courseMap(entries));
   const steps = node.all((n) => n.className.split(' ').includes('path__step'));
   assert.equal(steps.length, 3);
   assert.match(text(steps[0]), /Read like a computer/);
-  assert.match(text(steps[0]), /For beginners/);
   assert.match(text(steps[1]), /Coming soon/);
   assert.match(text(steps[2]), /Python: reading code/);
-  assert.doesNotMatch(text(steps[2]), /For beginners|already code/, 'the path’s last step carries no audience pill');
-  const start = steps[0].all((n) => n.tag === 'a' && text(n) === 'Start')[0];
-  assert.equal(start.attrs.href, `#/q/${B1.start_question}`);
-  assert.match(start.className, /button--primary/, 'the main button for a reader with no answers');
+  for (const step of steps) assert.doesNotMatch(text(step), /For beginners|already code/, 'no audience pill under “Start here if you are new”');
+  assert.equal(steps[0].all((n) => n.tag === 'a' && /#\/q\//.test(n.attrs.href || '')).length, 0, 'the page’s main button starts the course; no second Start');
   const deeper = node.all((n) => n.attrs.id === 'path-deeper')[0];
-  assert.equal(text(deeper), 'Go deeper');
+  assert.equal(text(deeper), 'For people who already code');
   let focused = null;
   deeper.focus = () => { focused = deeper; };
   steps[0].all((n) => n.tag === 'button' && /Skip ahead/.test(text(n)))[0].click();
   assert.equal(focused, deeper);
   const deeperCards = node.all((n) => n.tag === 'li' && n.className === 'course-card');
-  assert.deepEqual(deeperCards.map((c) => /For people who already code/.test(text(c))), [true, true]);
+  assert.deepEqual(deeperCards.map((c) => /For people who already code/.test(text(c))), [false, false], 'the heading says it once');
+  for (const card of node.all((n) => n.className.split(' ').includes('course-card'))) {
+    assert.doesNotMatch(text(card), /Not started|in preparation/, 'a card shows no status before the first answer and no premium details');
+  }
   store.recordAnswer({ questionId: 'b1-1-robot-keeps-each-printed-line', optionId: 'x', score: 1 });
   const again = catalogSection(entries, await courseMap(entries));
-  assert.match(again.all((n) => n.tag === 'a' && text(n) === 'Start')[0].className, /button--secondary/);
+  assert.match(text(again.all((n) => n.className.split(' ').includes('path__step'))[0]), /1 of 30/);
   store.reset();
+});
+
+test('when a course off the path is not for people who already code, the heading stays “Go deeper” and the cards say who they are for', async () => {
+  const entries = parseCatalog({ ...realCatalog, courses: realCatalog.courses.map((c) => (c.id === 'sql' ? (({ audience, ...rest }) => rest)(c) : c)) });
+  const node = catalogSection(entries, await courseMap(entries));
+  assert.equal(text(node.all((n) => n.attrs.id === 'path-deeper')[0]), 'Go deeper');
+  const deeperCards = node.all((n) => n.tag === 'li' && n.className === 'course-card');
+  assert.deepEqual(deeperCards.map((c) => /For people who already code/.test(text(c))), [true, false]);
 });
 
 test('no audience, no pill; a path course that is not loaded gets no link; a catalog without the fields keeps today’s path', async () => {
@@ -144,8 +152,7 @@ test('the live catalog marks Read like a computer as step 1 and keeps the other 
   assert.match(text(steps[0]), /Read like a computer|For beginners/);
   assert.match(text(steps[2]), /Python: reading code/);
   assert.doesNotMatch(text(steps[2]), /For beginners|already code/);
-  const deeper = node.all((n) => n.tag === 'li' && n.className === 'course-card');
-  assert.deepEqual(deeper.map((c) => /For people who already code/.test(text(c))), [true, true]);
+  assert.equal(text(node.all((n) => n.attrs.id === 'path-deeper')[0]), 'For people who already code');
   assert.deepEqual(alreadyCodeSign(live).all((n) => n.tag === 'a').map((a) => a.attrs.href), ['#/course', '#/course/production', '#/course/sql']);
 });
 
@@ -168,12 +175,10 @@ test('the beginner course page: “Beginner course · Free” and the sign; othe
   store.reset();
 });
 
-test('the sign once in the first lesson: above its first question only', async () => {
+test('the sign is on the course page only: no question carries it, so the first question opens with its code', async () => {
   withCatalog(realCatalog);
   const { questionView } = await import('../public/js/views/question.js');
-  const first = (await questionView({ id: B1.start_question, course: b1Course })).node;
-  assert.equal(first.all((n) => n.className === 'note already-code').length, 1);
-  for (const id of ['b1-1-robot-leaves-unprinted-values-quiet', 'b1-2-a-pocket-uses-its-latest-number']) {
+  for (const id of [B1.start_question, 'b1-1-robot-leaves-unprinted-values-quiet', 'b1-2-a-pocket-uses-its-latest-number']) {
     const other = (await questionView({ id, course: b1Course })).node;
     assert.equal(other.all((n) => n.className === 'note already-code').length, 0, id);
   }

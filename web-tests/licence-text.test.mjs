@@ -6,7 +6,7 @@ const root = new URL('../public/', import.meta.url).pathname;
 const strings = JSON.parse(readFileSync(`${root}i18n/en.json`, 'utf8'));
 
 test('site-wide licence text never claims that all content is open', () => {
-  for (const key of ['footer.license', 'about.license.text']) {
+  for (const key of ['about.license.text']) {
     const text = strings[key];
     assert.match(text, /free/i, `${key} names the free part`);
     assert.match(text, /own licence/i, `${key} says other content carries its own licence`);
@@ -32,6 +32,18 @@ test('the phone map shows counts: cells are hidden only on narrow screens', () =
 });
 
 test('the phone map sentence does not mention squares', () => {
-  for (const key of ['home.map.empty.phone', 'home.map.some.phone']) assert.doesNotMatch(strings[key], /square|cell/i, key);
-  assert.match(strings['home.map.empty'], /square/i, 'the wide sentence still describes the squares');
+  assert.doesNotMatch(strings['home.map.some.phone'], /square|cell/i);
+  assert.match(strings['home.map.some'], /square/i, 'the wide sentence still describes the squares');
+});
+
+test('the footer is one quiet line: the draft notice, the licences in About and the source code', async () => {
+  const { text } = await import('./support/dom-stub.mjs');
+  const { siteFooter } = await import('../public/js/components/ui.js');
+  const node = siteFooter({ draft: strings['footer.draft'], licences: strings['footer.licences'], source: strings['about.source'], repoUrl: 'https://example.invalid/repo' });
+  const links = node.all((n) => n.tag === 'a');
+  assert.deepEqual(links.map((a) => a.attrs.href), ['#/about', 'https://example.invalid/repo']);
+  assert.equal(node.all((n) => n.tag === 'p').length, 1);
+  assert.ok(text(node).startsWith(strings['footer.draft']), 'the draft notice stays in the footer');
+  assert.equal(strings['footer.draft'], 'Early draft.');
+  assert.doesNotMatch(JSON.stringify(strings['footer.draft']), /CC BY-SA|AGPL|MIT/, 'no licence claim in the footer; About states them');
 });

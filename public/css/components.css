@@ -401,6 +401,7 @@
 .continue-card { display: grid; gap: var(--s-3); justify-items: start; padding: var(--s-5); border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); border-inline-start: 6px solid var(--accent-attention); }
 .continue-card h2 { font-size: var(--text-lg); }
 .continue-card p { color: var(--muted); }
+.continue-card .continue-card__where { margin: 0; color: var(--ink); font-weight: 700; font-size: var(--text-lg); }
 .nav__continue:empty { display: none; }
 .nav .nav__link--continue { display: inline-flex; align-items: center; min-height: var(--tap); padding-inline: var(--s-4); border-radius: 999px; background: var(--accent-attention); color: var(--on-accent-attention); font-weight: 800; font-size: 0.9375rem; text-decoration: none; }
 .nav .nav__link--continue:hover { background: var(--accent-attention-hover); }
@@ -498,10 +499,10 @@
 .note--fold > summary { display: flex; align-items: center; min-height: var(--tap); cursor: pointer; }
 .note--fold > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
 .note--fold[open] > .note__text { padding-block-end: var(--s-2); }
-.source { display: grid; gap: var(--s-1); padding: var(--s-4) var(--s-5); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-.source__title { margin: 0; font-size: var(--text-base); }
+.source { margin: 0; }
+/* The credit is one quiet line: it names author and licence without a box or a visible heading. */
 .source__text { margin: 0; color: var(--muted); font-size: var(--text-sm); }
-@media (forced-colors: active) { .eyebrow::before { background: CanvasText; } .facts li, .note, .source { border-color: CanvasText; } }
+@media (forced-colors: active) { .eyebrow::before { background: CanvasText; } .facts li, .note { border-color: CanvasText; } }
 
 /* === clean views: hero column, block actions, question note === */
 .hero__text { justify-items: stretch; }
@@ -529,6 +530,8 @@
 .hero__shortcut-links a:hover { background: var(--surface-2); }
 .step-pointer { margin-block-start: var(--s-2); }
 .hint--keys { align-self: center; }
+/* A keyboard shortcut means nothing on a touch screen without a keyboard. */
+@media (hover: none) and (pointer: coarse) { .hint--keys { display: none; } }
 @media (forced-colors: active) { .hero__shortcut-links a { border: 1px solid ButtonText; } }
 
 /* === moments === */
@@ -568,12 +571,13 @@
 @media (min-width: 60rem) { .catalog__list { grid-template-columns: repeat(3, 1fr); } }
 @media (forced-colors: active) { .course-card { border: 1px solid CanvasText; } }
 
-/* Phone: the course cards come right after the first buttons; the code stage follows them. */
+/* Phone: the course cards come right after the first buttons. The hero's code stage stays out: below the cards it would be
+   a code box without a question, and the first button opens real code with one. */
 @media (max-width: 59.99rem) {
   .home > .hero { display: contents; }
   .home .hero__text { order: 1; }
   .home > .catalog { order: 2; }
-  .home .hero-stage { order: 3; }
+  .home .hero-stage { display: none; }
   .home > .home-notes { order: 4; }
   .home > .map-card { order: 5; }
 }
@@ -676,7 +680,8 @@ p.board__gap { margin: 0; text-align: center; color: var(--muted); font-weight: 
 .path__card { padding: var(--s-4); }
 @media (min-width: 60rem) {
   .path { grid-template-columns: 1fr 1fr 1.4fr; align-items: stretch; }
-  .path__step { grid-template-columns: 1fr; }
-  .path__step--soon .path__body, .path__card { height: 100%; }
+  /* The number keeps its own height and the card row takes the rest, so the three cards start on one line and end on one. */
+  .path__step { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: stretch; }
+  .path__body { grid-template-rows: 1fr; grid-auto-rows: auto; }
 }
 @media (forced-colors: active) { .path__n { border: 2px solid CanvasText; } .path__step:not(.path__step--soon) .path__n { forced-color-adjust: none; background: CanvasText; border-color: CanvasText; color: Canvas; } .path__step--soon .path__body { border: 1px dashed CanvasText; } }

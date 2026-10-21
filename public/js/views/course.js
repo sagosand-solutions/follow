@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { loadCourse, loadCatalog } from '../data.js';
 import { reviewHref, DEFAULT_COURSE } from '../catalog.js';
-import { premiumNote, alreadyCodeSign } from '../components/catalog-card.js';
+import { premiumNote, alreadyCodeSign, firstQuestionOf } from '../components/catalog-card.js';
 import { practisedLine, courseEndCard } from '../components/beginner.js';
 import { practiceSummary, courseFinished } from '../lesson-extras.js';
 import { store } from '../progress.js';
@@ -29,6 +29,14 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
   const entry = catalog ? catalog.find((c) => c.id === id) : null;
   const lessonTitles = new Map();
   for (const level of course.levels) for (const l of level.lessons) lessonTitles.set(l.id, l.title);
+  // "Builds on" is only said when it is not simply the lesson right before (the list already shows that order).
+  const order = course.levels.flatMap((level) => level.lessons.map((l) => l.id));
+  const buildsOn = (lesson) => {
+    const ids = (lesson.builds_on || []).filter((x) => lessonTitles.has(x));
+    return ids.length === 1 && ids[0] === order[order.indexOf(lesson.id) - 1] ? [] : ids.map((x) => lessonTitles.get(x));
+  };
+  // One level named like the course needs no heading of its own on screen.
+  const quietLevel = (level) => course.levels.length === 1 && level.title === course.title;
 
   const records = store.answers();
   const target = hasProgress(course, records) ? nextUp(course, records) : null;
@@ -42,15 +50,16 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
     h(
       'section',
       { class: 'level' },
-      h('div', { class: 'level__head' }, h('p', { class: 'kicker' }, t(`level.${level.level}`)), h('h2', {}, level.title)),
+      h('div', { class: quietLevel(level) ? 'level__head visually-hidden' : 'level__head' }, h('p', { class: 'kicker' }, t(`level.${level.level}`)), h('h2', {}, level.title)),
       h(
         'ol',
         { class: 'lessons' },
         level.lessons.map((lesson) => {
           const answered = lesson.questions.filter((id) => store.latest(id)).length;
           const state = readState(answered, lesson.questions.length);
-          const status = state === 'none' ? t('course.lesson.notStarted') : t('course.lesson.progress', { answered, total: lesson.questions.length });
-          const builds = (lesson.builds_on || []).map((id) => lessonTitles.get(id)).filter(Boolean);
+          // The cells already show a lesson not started, so only progress is said in words.
+          const status = state === 'none' ? '' : t('course.lesson.progress', { answered, total: lesson.questions.length });
+          const builds = buildsOn(lesson);
           return h(
             'li',
             { class: 'lesson-card' },
@@ -143,18 +152,23 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
   // A finished beginner course says so first, with the next step on the path.
   const ending = courseFinished(course, (qid) => !!store.latest(qid)) ? await courseEndCard(course, entry, catalog) : null;
   const continueText = target ? t('course.continue.text', { lesson: target.lessonTitle, n: target.position, total: target.total }) : null;
+  // Before the first answer the way forward is one button to the course's first question (Continue takes over after that).
+  const first = !hasProgress(course, records) ? firstQuestionOf(entry, course) : null;
+  const startAction = first ? h('div', { class: 'actions actions--row' }, h('a', { class: 'button button--primary', href: `#/q/${first}` }, t('course.start'))) : null;
+  // The map is the reader's own record: it appears once something is answered (the lesson cards show their cells before).
+  const mapCard = hasProgress(course, records) ? h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)) : null;
   const continueCard = target
     ? h(
         'section',
-        { class: 'continue-card' },
-        h('h2', {}, t('continue.title')),
-        h('p', {}, continueText),
+        { class: 'continue-card', 'aria-label': t('continue.title') },
+        // The button says Continue; the card only says where (the button's own name keeps both for assistive technology).
+        h('p', { class: 'continue-card__where' }, t('course.continue.where', { lesson: target.lessonTitle, n: target.position, total: target.total })),
         h('a', { class: 'button button--primary', href: `#/q/${target.questionId}`, 'aria-label': continueText }, t('continue.title')),
       )
     : null;
 
   return {
     title: course.title || t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(entry && entry.audience === 'beginner' ? (entry.premium ? t('course.eyebrow.beginner') : t('course.eyebrow.beginnerFree')) : id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, { template: pluralTemplate(c.levels, t('facts.level'), t('facts.levels')), bold: c.levels || null }], t('facts.label')); })()), entry && entry.audience === 'beginner' ? alreadyCodeSign(catalog) : null, ending, continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, h('section', { class: 'map-card', 'aria-labelledby': 'map-title' }, h('h2', { id: 'map-title' }, t('home.map.title')), readingMap(course, nextId)), ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(entry && entry.audience === 'beginner' ? (entry.premium ? t('course.eyebrow.beginner') : t('course.eyebrow.beginnerFree')) : id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, c.levels > 1 ? { template: t('facts.levels'), bold: c.levels } : null], t('facts.label')); })(), startAction), entry && entry.audience === 'beginner' ? alreadyCodeSign(catalog) : null, ending, continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, mapCard, ...levels, limits),
   };
 }

@@ -6,7 +6,7 @@ import { store } from '../progress.js';
 import { errorNode } from './errors.js';
 import { currentAnswer } from '../answers.js';
 import { cells } from '../components/map.js';
-import { eyebrow, facts, pluralTemplate } from '../components/ui.js';
+import { eyebrow, facts } from '../components/ui.js';
 import { summaryNode } from '../components/summary.js';
 import { lessonEnding } from './lesson-end.js';
 import { practisedLine, courseEndCard } from '../components/beginner.js';
@@ -15,7 +15,8 @@ import { reviewQueue } from '../review.js';
 import { CONFIG } from '../config.js';
 
 function statusOf(answer) {
-  if (!answer) return t('lesson.status.none');
+  // On screen the cells already show what is not answered yet; a screen reader hears it with the row.
+  if (!answer) return h('span', { class: 'visually-hidden' }, t('lesson.status.none'));
   if (answer.outcome === 'unknown') return t('lesson.status.unknown');
   return t(`lesson.status.${answer.score}`);
 }
@@ -58,7 +59,7 @@ export async function lessonView({ id }) {
     ),
   );
 
-  const parts = [h('div', { class: 'course-head' }, eyebrow(`${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), summaryNode(lesson.summary, 'lead lesson-summary'), facts([{ template: pluralTemplate(lesson.questions.length, t('facts.question'), t('facts.questions')), bold: lesson.questions.length || null }], t('facts.label')), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
+  const parts = [h('div', { class: 'course-head' }, eyebrow(`${t(`level.${entry.level.level}`)} · ${entry.level.title}`), h('h1', {}, lesson.title), summaryNode(lesson.summary, 'lead lesson-summary'), cells(lesson.questions)), h('section', { class: 'stack' }, h('h2', {}, t('lesson.questions')), list)];
 
   if (questions && answered.length === lesson.questions.length) {
     const full = answered.filter((a) => a.outcome === 'answered' && a.score === 1).length;

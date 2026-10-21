@@ -189,7 +189,7 @@ test('the question view has no challenge link, no points and no scoring lines fo
   assert.match(view, /ctx\.practice \? '' : t\('points\.none'\)/);
   assert.match(view, /!!ctx\.scoring && !ctx\.practice && !ctx\.reviewMode/);
   assert.match(view, /ctx\.practice \? h\('span', \{ class: 'chip' \}, t\('q\.practice'\)\)/);
-  assert.match(view, /ctx\.practice \? h\('p', \{ class: 'muted small' \}, t\('q\.practice\.note'\)\)/);
+  assert.match(view, /ctx\.practice && CONFIG\.scoringUi \? h\('p', \{ class: 'muted small' \}, t\('q\.practice\.note'\)\)/, 'the note only where scores exist');
 });
 
 test('the challenge view refuses a practice question before any scoring request, with the flag on or off', async () => {
