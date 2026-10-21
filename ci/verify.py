@@ -219,7 +219,6 @@ def check_tool_probes(probes, policy):
         raise ReceiptError("the tool probe count does not match the pinned tools")
     keys = {"value", "argv", "image_id", "isolation", "isolation_sha256", "exit_code", "cleanup", "wall_ms"}
     seen = set()
-    total = 0
     for probe in probes:
         if not isinstance(probe, dict) or set(probe) != keys:
             raise ReceiptError("a tool probe has an unexpected key set")
@@ -232,12 +231,12 @@ def check_tool_probes(probes, policy):
             raise ReceiptError(f"tool probe value does not match the pin: {name}")
         if probe.get("image_id") != policy["image"]["image_id"]:
             raise ReceiptError("a tool probe has a different image id")
-        if probe.get("exit_code") != 0 or probe.get("cleanup") != "verified":
+        exit_code = probe.get("exit_code")
+        if type(exit_code) is not int or exit_code != 0 or probe.get("cleanup") != "verified":
             raise ReceiptError("a tool probe did not exit cleanly or was not cleaned up")
         wall = probe.get("wall_ms")
         if not isinstance(wall, int) or isinstance(wall, bool) or wall < 0 or wall > 10_000:
             raise ReceiptError("a tool probe wall time is outside its budget")
-        total += wall
         isolation = probe.get("isolation")
         if not isinstance(isolation, dict) or isolation != _expected_probe_isolation(policy):
             raise ReceiptError("a tool probe isolation differs from the policy")
@@ -245,8 +244,6 @@ def check_tool_probes(probes, policy):
             raise ReceiptError("a tool probe isolation hash is inconsistent")
     if seen != {item[0] for item in expected}:
         raise ReceiptError("the tool probe set is incomplete")
-    if total > 30_000:
-        raise ReceiptError("the tool probe budget of 30 seconds was exceeded")
     return True
 
 

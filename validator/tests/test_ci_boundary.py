@@ -1008,20 +1008,25 @@ class ToolProbesValidationTests(unittest.TestCase):
         value = self.probes()
         value[0]["isolation"]["network_mode"] = "bridge"
         value[0]["isolation_sha256"] = canon.sha256_canonical(value[0]["isolation"])
-        with self.assertRaises(ci_verify.ReceiptError):
+        with self.assertRaisesRegex(ci_verify.ReceiptError, "isolation differs from the policy"):
             ci_verify.check_tool_probes(value, policy(None))
 
     def test_exit_code(self):
-        value = self.probes()
-        value[0]["exit_code"] = 1
-        with self.assertRaises(ci_verify.ReceiptError):
-            ci_verify.check_tool_probes(value, policy(None))
+        for bad in (1, False, 0.0):
+            value = self.probes()
+            value[0]["exit_code"] = bad
+            with self.assertRaises(ci_verify.ReceiptError):
+                ci_verify.check_tool_probes(value, policy(None))
 
     def test_wall_time(self):
         value = self.probes()
-        value[0]["wall_ms"] = 1_000_000_000
+        value[0]["wall_ms"] = 10_001
         with self.assertRaises(ci_verify.ReceiptError):
             ci_verify.check_tool_probes(value, policy(None))
+        value = self.probes()
+        for probe in value:
+            probe["wall_ms"] = 10_000
+        ci_verify.check_tool_probes(value, policy(None))
 
     def test_cleanup(self):
         value = self.probes()
@@ -1055,6 +1060,28 @@ class ToolProbesValidationTests(unittest.TestCase):
             ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
                                      observation=obs)
 
+    def test_probe_timeout_argument_is_derived(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = policy(None)
+        def probe(value_text, argv):
+            return {"value": value_text, "argv": argv,
+                    "image_id": value["image"]["image_id"], "isolation": {}, "isolation_sha256": "0" * 64,
+                    "exit_code": 0, "cleanup": "verified", "wall_ms": 1}
+        probes = [probe("git version 2.47.0", ["/usr/bin/git", "--version"]),
+                  probe("2.47.0", ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"]),
+                  probe("Python 3.14.0", ["/usr/local/bin/python3", "--version"])]
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "policy.json")
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "_tool_probe", side_effect=probes) as probe_mock, \
+                 mock.patch("ci.steps.time.monotonic", return_value=0):
+                steps.check_image_tools(path)
+                self.assertEqual(probe_mock.call_args_list[0].args[3], 10)
+
     def test_producer_budget_is_enforced(self):
         from unittest import mock
         from ci import steps, workflow_guard
@@ -1068,10 +1095,11 @@ class ToolProbesValidationTests(unittest.TestCase):
                 json.dump(value, handle)
             with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
                  mock.patch.object(steps, "require_pins", return_value=None), \
-                 mock.patch.object(steps, "_tool_probe", side_effect=probes), \
-                 mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 31, 31]):
+                 mock.patch.object(steps, "_tool_probe", side_effect=probes) as probe_mock, \
+                 mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 30, 30, 30, 30]):
                 with self.assertRaises(steps.StepError):
                     steps.check_image_tools(path)
+                self.assertEqual(probe_mock.call_count, 1)
 
 
 

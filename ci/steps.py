@@ -427,14 +427,19 @@ def _tool_probe(policy, args, index, timeout=10):
         create += ["-e", f"{key}={value}"]
     create += [policy["image"]["ref"], *args]
     started = time.monotonic()
+    deadline = started + timeout
+
+    def sub_remaining():
+        return max(0.1, deadline - time.monotonic())
+
     try:
         try:
-            subprocess.run(create, check=True, timeout=min(30, timeout),
+            subprocess.run(create, check=True, timeout=sub_remaining(),
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         except subprocess.TimeoutExpired:
             raise StepError("tool container create timed out") from None
-        output = _run_bounded(["docker", "start", "-a", name], timeout=timeout, limit=64 * 1024)
-        inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=min(10, timeout),
+        output = _run_bounded(["docker", "start", "-a", name], timeout=sub_remaining(), limit=64 * 1024)
+        inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=sub_remaining(),
                                           limit=4 * 1024 * 1024).decode("utf-8"))
         entry = inspect[0] if isinstance(inspect, list) else {}
         state = entry.get("State", {})
@@ -457,11 +462,11 @@ def _tool_probe(policy, args, index, timeout=10):
                 "wall_ms": int((ended - started) * 1000)}
     finally:
         try:
-            subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
+            subprocess.run(["docker", "rm", "-f", name], check=False, timeout=5,
                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         except subprocess.TimeoutExpired:
             raise StepError("tool container removal timed out") from None
-        check = subprocess.run(["docker", "inspect", name], check=False, timeout=30,
+        check = subprocess.run(["docker", "inspect", name], check=False, timeout=5,
                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         if check.returncode == 0:
             raise StepError("tool container still exists after removal")
@@ -492,6 +497,8 @@ def check_image_tools(policy_path):
         if remaining() <= 0:
             raise StepError("the tool probe budget of 30 seconds was exceeded")
         probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1, max(0.1, min(10, remaining())))
+        if time.monotonic() > deadline:
+            raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
         probes.append(probe)
         versions["git"] = probe["value"]
         if probe["value"] != f"git version {upstream}":
@@ -500,6 +507,8 @@ def check_image_tools(policy_path):
             raise StepError("the tool probe budget of 30 seconds was exceeded")
         probe = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2,
                             max(0.1, min(10, remaining())))
+        if time.monotonic() > deadline:
+            raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
         probes.append(probe)
         versions["git_dpkg"] = probe["value"]
         if probe["value"] != git_pin:
@@ -509,6 +518,8 @@ def check_image_tools(policy_path):
             raise StepError("the tool probe budget of 30 seconds was exceeded")
         probe = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3,
                             max(0.1, min(10, remaining())))
+        if time.monotonic() > deadline:
+            raise StepError("the tool probe execution deadline of 30 seconds was exceeded")
         probes.append(probe)
         versions["python"] = probe["value"]
         if probe["value"] != f"Python {python_pin}":
