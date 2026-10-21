@@ -363,12 +363,29 @@ def _probe_isolation(inspect, policy):
     host = inspect["HostConfig"]
     config = inspect["Config"]
     isolation = policy["isolation"]
-    for key in ("NetworkMode", "ReadonlyRootfs", "CapDrop", "SecurityOpt", "Privileged", "Memory",
-                "MemorySwap", "PidsLimit", "NanoCpus", "Ulimits"):
-        if host.get(key) != isolation.get(key):
-            raise StepError(f"tool probe isolation differs at {key}")
-    if (host.get("Tmpfs") or {}) != isolation.get("tmpfs"):
+    checks = (
+        ("NetworkMode", host.get("NetworkMode"), isolation["network_mode"]),
+        ("ReadonlyRootfs", host.get("ReadonlyRootfs"), isolation["readonly_rootfs"]),
+        ("CapDrop", sorted(host.get("CapDrop") or []), isolation["cap_drop"]),
+        ("SecurityOpt", sorted(host.get("SecurityOpt") or []), isolation["security_opt"]),
+        ("Privileged", host.get("Privileged"), isolation["privileged"]),
+        ("Memory", host.get("Memory"), isolation["memory"]),
+        ("MemorySwap", host.get("MemorySwap"), isolation["memory_swap"]),
+        ("PidsLimit", host.get("PidsLimit"), isolation["pids_limit"]),
+        ("NanoCpus", host.get("NanoCpus"), isolation["nano_cpus"]),
+        ("User", config.get("User"), isolation["user"]),
+    )
+    for name, observed, expected in checks:
+        if observed != expected:
+            raise StepError(f"tool probe isolation differs at {name}")
+    ulimits = sorted(({"name": item.get("Name"), "soft": item.get("Soft"), "hard": item.get("Hard")}
+                      for item in (host.get("Ulimits") or [])), key=lambda item: item["name"])
+    if ulimits != isolation["ulimits"]:
+        raise StepError("tool probe ulimits differ from the policy")
+    if (host.get("Tmpfs") or {}) != isolation["tmpfs"]:
         raise StepError("tool probe tmpfs options differ from the policy")
+    if inspect.get("Mounts") or []:
+        raise StepError("tool probe must not have mounts")
     env = {}
     for item in config.get("Env") or []:
         if "=" in item:
@@ -395,7 +412,10 @@ def _tool_probe(policy, args, index):
         create += ["-e", f"{key}={value}"]
     create += [policy["image"]["ref"], *args]
     try:
-        subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        try:
+            subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        except subprocess.TimeoutExpired:
+            raise StepError("tool container create timed out") from None
         output = _run_bounded(["docker", "start", "-a", name], timeout=10, limit=64 * 1024)
         inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=10,
                                           limit=4 * 1024 * 1024).decode("utf-8"))

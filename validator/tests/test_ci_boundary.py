@@ -1042,6 +1042,34 @@ class ToolCheckTests(unittest.TestCase):
             with self.assertRaises(steps.StepError):
                 steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
 
+    def test_probe_isolation_accepts_policy_conform_inspect(self):
+        from ci import steps
+        value = self._policy()
+        isolation = value["isolation"]
+        inspect = {"HostConfig": {"NetworkMode": isolation["network_mode"],
+                                  "ReadonlyRootfs": isolation["readonly_rootfs"],
+                                  "CapDrop": list(isolation["cap_drop"]),
+                                  "SecurityOpt": list(isolation["security_opt"]),
+                                  "Privileged": isolation["privileged"],
+                                  "Memory": isolation["memory"],
+                                  "MemorySwap": isolation["memory_swap"],
+                                  "PidsLimit": isolation["pids_limit"],
+                                  "NanoCpus": isolation["nano_cpus"],
+                                  "Ulimits": [{"Name": item["name"], "Soft": item["soft"], "Hard": item["hard"]}
+                                              for item in isolation["ulimits"]],
+                                  "Tmpfs": dict(isolation["tmpfs"])},
+                   "Config": {"User": isolation["user"],
+                              "Env": [f"{key}={val}" for key, val in value["env"].items()]},
+                   "Mounts": []}
+        steps._probe_isolation(inspect, value)
+        inspect["Config"]["User"] = "0:0"
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+        inspect["Config"]["User"] = isolation["user"]
+        inspect["Mounts"] = [{"Destination": "/input"}]
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+
     def test_probe_isolation_env_mismatch_is_red(self):
         from ci import steps
         value = self._policy()
@@ -1070,7 +1098,7 @@ class ToolCheckTests(unittest.TestCase):
                 return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
             return mock.Mock(returncode=0, stderr=b"", stdout=b"")
         with mock.patch("ci.steps.subprocess.run", side_effect=run):
-            with self.assertRaises(subprocess.TimeoutExpired):
+            with self.assertRaises(steps.StepError):
                 steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
         self.assertTrue(any(command[:3] == ["docker", "rm", "-f"] for command in calls))
 
