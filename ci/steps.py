@@ -232,8 +232,11 @@ def check_tools(policy_path):
                                  "--tmpfs", f"/tmp:rw,noexec,nosuid,nodev,size=16m,nr_inodes={isolation['tmp_inodes']}",
                                  image] + args, timeout=120, limit=64 * 1024)
         finally:
-            subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                subprocess.run(["docker", "rm", "-f", name], check=False, timeout=30,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except subprocess.TimeoutExpired:
+                pass
 
     git_pin = policy["tools"]["versions"].get("git")
     if git_pin and git_pin != "unused":

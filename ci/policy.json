@@ -124,7 +124,7 @@
     "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json",
     "signer_ref": "refs/heads/main"
   },
-  "fixture_item_prefix": "git-pilot-1-",
+  "fixture_item_prefix": "git-pilot-2-",
   "env": {
     "TZ": "UTC",
     "LC_ALL": "C.UTF-8",

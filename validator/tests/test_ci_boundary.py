@@ -613,6 +613,20 @@ class PinSetTests(unittest.TestCase):
         self.assertEqual(pin_set_missing(value), [])
 
 
+class ActiveSpecBindingTests(unittest.TestCase):
+    def test_active_spec_items_match_the_policy_prefix(self):
+        import json as jsonlib
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            policy = jsonlib.load(handle)
+        with open(os.path.join(ROOT, "ci/ACTIVE.json"), "rb") as handle:
+            active = jsonlib.load(handle)
+        with open(os.path.join(ROOT, active["spec"]), "rb") as handle:
+            spec = jsonlib.load(handle)
+        self.assertTrue(spec["items"])
+        for item in spec["items"]:
+            self.assertTrue(item["item_id"].startswith(policy["fixture_item_prefix"]))
+
+
 class GitPilot2Tests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("git"), "git is not installed")
     def test_script_outputs_match_expected_paths(self):
