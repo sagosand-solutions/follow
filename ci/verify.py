@@ -183,6 +183,73 @@ OBSERVED_KEYS = ("image_id", "image_tools", "tool_probes_sha256", "isolation_sha
                  "sealed_output_sha256")
 
 
+def _expected_probes(policy):
+    versions = policy["tools"]["versions"]
+    probes = []
+    if versions.get("git") not in (None, "unused"):
+        upstream = versions["git"].split(":", 1)[-1].split("-", 1)[0]
+        probes.append(("git", ["/usr/bin/git", "--version"], f"git version {upstream}"))
+        probes.append(("git_dpkg", ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], versions["git"]))
+    if versions.get("python") not in (None, "unused"):
+        probes.append(("python", ["/usr/local/bin/python3", "--version"], f"Python {versions['python']}"))
+    return probes
+
+
+def _expected_probe_isolation(policy):
+    isolation = policy["isolation"]
+    return {"network_mode": isolation["network_mode"],
+            "readonly_rootfs": isolation["readonly_rootfs"],
+            "cap_drop": sorted(isolation["cap_drop"]),
+            "security_opt": sorted(isolation["security_opt"]),
+            "privileged": isolation["privileged"],
+            "user": isolation["user"],
+            "memory": isolation["memory"],
+            "memory_swap": isolation["memory_swap"],
+            "pids_limit": isolation["pids_limit"],
+            "nano_cpus": isolation["nano_cpus"],
+            "ulimits": isolation["ulimits"],
+            "tmpfs": isolation["tmpfs"],
+            "env": policy["env"],
+            "mounts": []}
+
+
+def check_tool_probes(probes, policy):
+    expected = _expected_probes(policy)
+    if not isinstance(probes, list) or len(probes) != len(expected):
+        raise ReceiptError("the tool probe count does not match the pinned tools")
+    keys = {"value", "argv", "image_id", "isolation", "isolation_sha256", "exit_code", "cleanup", "wall_ms"}
+    seen = set()
+    total = 0
+    for probe in probes:
+        if not isinstance(probe, dict) or set(probe) != keys:
+            raise ReceiptError("a tool probe has an unexpected key set")
+        name = next((item[0] for item in expected if item[1] == probe.get("argv")), None)
+        if name is None or name in seen:
+            raise ReceiptError("the tool probes are not one-to-one with the pinned tools")
+        seen.add(name)
+        expected_value = next(item[2] for item in expected if item[0] == name)
+        if probe.get("value") != expected_value:
+            raise ReceiptError(f"tool probe value does not match the pin: {name}")
+        if probe.get("image_id") != policy["image"]["image_id"]:
+            raise ReceiptError("a tool probe has a different image id")
+        if probe.get("exit_code") != 0 or probe.get("cleanup") != "verified":
+            raise ReceiptError("a tool probe did not exit cleanly or was not cleaned up")
+        wall = probe.get("wall_ms")
+        if not isinstance(wall, int) or isinstance(wall, bool) or wall < 0 or wall > 10_000:
+            raise ReceiptError("a tool probe wall time is outside its budget")
+        total += wall
+        isolation = probe.get("isolation")
+        if not isinstance(isolation, dict) or isolation != _expected_probe_isolation(policy):
+            raise ReceiptError("a tool probe isolation differs from the policy")
+        if probe.get("isolation_sha256") != canon.sha256_canonical(isolation):
+            raise ReceiptError("a tool probe isolation hash is inconsistent")
+    if seen != {item[0] for item in expected}:
+        raise ReceiptError("the tool probe set is incomplete")
+    if total > 30_000:
+        raise ReceiptError("the tool probe budget of 30 seconds was exceeded")
+    return True
+
+
 def verify_receipt(receipt, *, policy, spec, outputs_tar, observation):
     """Validate semantics and recompute every hash from the final sealed bytes."""
     with open(policy["schema_path"], "rb") as handle:
@@ -238,24 +305,8 @@ def verify_receipt(receipt, *, policy, spec, outputs_tar, observation):
     if receipt["observed"]["image_tools"] != expected_tools:
         raise ReceiptError("the observed image tools differ from the pinned tools")
     probes = observation.get("tool_probes")
-    if not isinstance(probes, list) or len(probes) != len(expected_tools):
-        raise ReceiptError("the tool probe observations are missing or incomplete")
-    expected_argv = {"git": ["/usr/bin/git", "--version"],
-                     "git_dpkg": ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"],
-                     "python": ["/usr/local/bin/python3", "--version"]}
-    for probe in probes:
-        name = next((key for key, args in expected_argv.items() if args == probe.get("argv")), None)
-        if name is None:
-            raise ReceiptError("a tool probe has an unexpected argv")
-        if probe.get("image_id") != policy["image"]["image_id"]:
-            raise ReceiptError("a tool probe has a different image id")
-        if probe.get("exit_code") != 0 or probe.get("cleanup") != "verified":
-            raise ReceiptError("a tool probe did not exit cleanly or was not cleaned up")
-        isolation = probe.get("isolation")
-        if not isinstance(isolation, dict) or probe.get("isolation_sha256") != canon.sha256_canonical(isolation):
-            raise ReceiptError("a tool probe isolation hash is inconsistent")
-    if receipt["observed"]["tool_probes_sha256"] != canon.sha256_canonical(probes):
-        raise ReceiptError("the tool probe observation hash is inconsistent")
+    check_tool_probes(probes, policy)
+
     items = receipt["items"]
     licences = receipt["licence_set"]
     if len(licences) != 1:

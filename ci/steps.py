@@ -410,7 +410,7 @@ def _probe_isolation(inspect, policy):
             "mounts": []}
 
 
-def _tool_probe(policy, args, index):
+def _tool_probe(policy, args, index, timeout=10):
     isolation = policy["isolation"]
     name = f"ci-tool-{os.getpid()}-{index}"
     create = ["docker", "create", "--name", name,
@@ -429,11 +429,12 @@ def _tool_probe(policy, args, index):
     started = time.monotonic()
     try:
         try:
-            subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            subprocess.run(create, check=True, timeout=min(30, timeout),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         except subprocess.TimeoutExpired:
             raise StepError("tool container create timed out") from None
-        output = _run_bounded(["docker", "start", "-a", name], timeout=10, limit=64 * 1024)
-        inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=10,
+        output = _run_bounded(["docker", "start", "-a", name], timeout=timeout, limit=64 * 1024)
+        inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=min(10, timeout),
                                           limit=4 * 1024 * 1024).decode("utf-8"))
         entry = inspect[0] if isinstance(inspect, list) else {}
         state = entry.get("State", {})
@@ -483,20 +484,31 @@ def check_image_tools(policy_path):
     versions = {}
     probes = []
     deadline = time.monotonic() + 30
+
+    def remaining():
+        return deadline - time.monotonic()
     if git_pin and git_pin != "unused":
         upstream = git_pin.split(":", 1)[-1].split("-", 1)[0]
-        probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1)
+        if remaining() <= 0:
+            raise StepError("the tool probe budget of 30 seconds was exceeded")
+        probe = _tool_probe(policy, ["/usr/bin/git", "--version"], 1, max(0.1, min(10, remaining())))
         probes.append(probe)
         versions["git"] = probe["value"]
         if probe["value"] != f"git version {upstream}":
             raise StepError(f"git --version does not match the pinned {git_pin!r}")
-        probe = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2)
+        if remaining() <= 0:
+            raise StepError("the tool probe budget of 30 seconds was exceeded")
+        probe = _tool_probe(policy, ["/usr/bin/dpkg-query", "-W", "-f=${Version}", "git"], 2,
+                            max(0.1, min(10, remaining())))
         probes.append(probe)
         versions["git_dpkg"] = probe["value"]
         if probe["value"] != git_pin:
             raise StepError("the image dpkg git version does not match the pin")
     if python_pin and python_pin != "unused":
-        probe = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3)
+        if remaining() <= 0:
+            raise StepError("the tool probe budget of 30 seconds was exceeded")
+        probe = _tool_probe(policy, ["/usr/local/bin/python3", "--version"], 3,
+                            max(0.1, min(10, remaining())))
         probes.append(probe)
         versions["python"] = probe["value"]
         if probe["value"] != f"Python {python_pin}":

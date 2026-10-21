@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Static tests for the disabled CI fixture boundary: canon, archives, schema, receipt, guard and workflow."""
 import contextlib
+import copy
 import glob
 import hashlib
 import io
@@ -134,8 +135,21 @@ def observation(files):
     }
     obs["isolation"] = dict(policy(None)["isolation"])
     obs["isolation"]["env"] = dict(ENV)
-    probe_isolation = dict(policy(None)["isolation"])
-    probe_isolation["env"] = dict(ENV)
+    _iso = policy(None)["isolation"]
+    probe_isolation = {"network_mode": _iso["network_mode"],
+                       "readonly_rootfs": _iso["readonly_rootfs"],
+                       "cap_drop": sorted(_iso["cap_drop"]),
+                       "security_opt": sorted(_iso["security_opt"]),
+                       "privileged": _iso["privileged"],
+                       "user": _iso["user"],
+                       "memory": _iso["memory"],
+                       "memory_swap": _iso["memory_swap"],
+                       "pids_limit": _iso["pids_limit"],
+                       "nano_cpus": _iso["nano_cpus"],
+                       "ulimits": _iso["ulimits"],
+                       "tmpfs": _iso["tmpfs"],
+                       "env": dict(ENV),
+                       "mounts": []}
     probe_hash = canon.sha256_canonical(probe_isolation)
     obs["tool_probes"] = [
         {"value": "git version 2.47.0", "argv": ["/usr/bin/git", "--version"],
@@ -962,6 +976,105 @@ class RealSpecInputTests(unittest.TestCase):
                     self.assertEqual(len(data), item["bytes"])
                     self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
 
+
+class ToolProbesValidationTests(unittest.TestCase):
+    def probes(self):
+        return copy.deepcopy(observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})["tool_probes"])
+
+    def test_unexpected_key(self):
+        value = self.probes()
+        value[0]["extra"] = True
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_wrong_count(self):
+        value = self.probes()[:-1]
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_no_bijection_duplicate_git(self):
+        value = self.probes()
+        value[2] = copy.deepcopy(value[0])
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_value_mismatch(self):
+        value = self.probes()
+        value[2]["value"] = "Python 9.9.9"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_isolation_bridge_with_matching_hash(self):
+        value = self.probes()
+        value[0]["isolation"]["network_mode"] = "bridge"
+        value[0]["isolation_sha256"] = canon.sha256_canonical(value[0]["isolation"])
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_exit_code(self):
+        value = self.probes()
+        value[0]["exit_code"] = 1
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_wall_time(self):
+        value = self.probes()
+        value[0]["wall_ms"] = 1_000_000_000
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_cleanup(self):
+        value = self.probes()
+        value[0]["cleanup"] = "unverified"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_argv_mismatch(self):
+        value = self.probes()
+        value[0]["argv"] = ["/usr/bin/git"]
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_image_id_mismatch(self):
+        value = self.probes()
+        value[0]["image_id"] = "sha256:" + "9" * 64
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_isolation_hash_mismatch(self):
+        value = self.probes()
+        value[0]["isolation_sha256"] = "0" * 64
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.check_tool_probes(value, policy(None))
+
+    def test_tool_probes_sha_mismatch(self):
+        receipt, outputs = receipt_bundle()
+        obs = observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})
+        receipt["observed"]["tool_probes_sha256"] = "0" * 64
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
+                                     observation=obs)
+
+    def test_producer_budget_is_enforced(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = policy(None)
+        probes = [{"value": "x", "argv": ["/usr/bin/git", "--version"], "image_id": value["image"]["image_id"],
+                   "isolation": {}, "isolation_sha256": "0" * 64, "exit_code": 0,
+                   "cleanup": "verified", "wall_ms": 1}]
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "policy.json")
+            with open(path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "_tool_probe", side_effect=probes), \
+                 mock.patch("ci.steps.time.monotonic", side_effect=[0, 0, 31, 31]):
+                with self.assertRaises(steps.StepError):
+                    steps.check_image_tools(path)
+
+
+
 class BindingMutationTests(unittest.TestCase):
     def test_tmpfs_mismatch_is_rejected(self):
         import json as jsonlib
@@ -1074,6 +1187,25 @@ class ToolCheckTests(unittest.TestCase):
                 "Config": {"User": isolation["user"],
                            "Env": [f"{key}={val}" for key, val in value["env"].items()]},
                 "Mounts": []}
+
+    def test_tool_probe_rejects_argv_mismatch(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["Config"]["Cmd"] = ["/usr/bin/git"]
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"]
+                 else json.dumps([inspect_doc]).encode())):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
 
     def test_tool_probe_end_to_end_positive(self):
         from unittest import mock
