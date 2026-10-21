@@ -1042,6 +1042,91 @@ class ToolCheckTests(unittest.TestCase):
             with self.assertRaises(steps.StepError):
                 steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
 
+    def _conform_inspect(self, value):
+        isolation = value["isolation"]
+        return {"HostConfig": {"NetworkMode": isolation["network_mode"],
+                               "ReadonlyRootfs": isolation["readonly_rootfs"],
+                               "CapDrop": list(isolation["cap_drop"]),
+                               "SecurityOpt": list(isolation["security_opt"]),
+                               "Privileged": isolation["privileged"],
+                               "Memory": isolation["memory"],
+                               "MemorySwap": isolation["memory_swap"],
+                               "PidsLimit": isolation["pids_limit"],
+                               "NanoCpus": isolation["nano_cpus"],
+                               "Ulimits": [{"Name": item["name"], "Soft": item["soft"], "Hard": item["hard"]}
+                                           for item in isolation["ulimits"]],
+                               "Tmpfs": dict(isolation["tmpfs"])},
+                "Config": {"User": isolation["user"],
+                           "Env": [f"{key}={val}" for key, val in value["env"].items()]},
+                "Mounts": []}
+
+    def test_tool_probe_end_to_end_positive(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        def bounded(command, **kwargs):
+            if command[:2] == ["docker", "start"]:
+                return b"git version 2.47.0\n"
+            return json.dumps([inspect_doc]).encode()
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded):
+            self.assertEqual(steps._tool_probe(value, ["/usr/bin/git", "--version"], 1),
+                             "git version 2.47.0")
+
+    def test_tool_probe_end_to_end_rejects_nonconform_inspect(self):
+        from unittest import mock
+        from ci import steps
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        inspect_doc["HostConfig"]["NetworkMode"] = "bridge"
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        def bounded(command, **kwargs):
+            if command[:2] == ["docker", "start"]:
+                return b"git version 2.47.0\n"
+            return json.dumps([inspect_doc]).encode()
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=bounded):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(value, ["/usr/bin/git", "--version"], 1)
+
+    def test_check_image_tools_happy_path(self):
+        from unittest import mock
+        from ci import steps, workflow_guard
+        value = self._policy()
+        inspect_doc = self._conform_inspect(value)
+        inspect_doc["Image"] = value["image"]["image_id"]
+        inspect_doc["State"] = {"Status": "exited", "ExitCode": 0}
+        outputs = iter([b"git version 2.47.0\n", json.dumps([inspect_doc]).encode(),
+                        b"2.47.0\n", json.dumps([inspect_doc]).encode(),
+                        b"Python 3.14.0\n", json.dumps([inspect_doc]).encode()])
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path = os.path.join(temp, "policy.json")
+            with open(policy_path, "w") as handle:
+                json.dump(value, handle)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch("ci.steps.subprocess.run", side_effect=run), \
+                 mock.patch("ci.steps._run_bounded", side_effect=lambda *a, **k: next(outputs)):
+                self.assertEqual(steps.check_image_tools(policy_path),
+                                 {"git": "git version 2.47.0", "git_dpkg": "2.47.0",
+                                  "python": "Python 3.14.0"})
+
     def test_probe_isolation_accepts_policy_conform_inspect(self):
         from ci import steps
         value = self._policy()
@@ -1067,6 +1152,10 @@ class ToolCheckTests(unittest.TestCase):
             steps._probe_isolation(inspect, value)
         inspect["Config"]["User"] = isolation["user"]
         inspect["Mounts"] = [{"Destination": "/input"}]
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+        inspect["Mounts"] = []
+        inspect["HostConfig"]["Ulimits"] = [{"Name": "nofile", "Soft": 999, "Hard": 999}]
         with self.assertRaises(steps.StepError):
             steps._probe_isolation(inspect, value)
 
