@@ -5,6 +5,7 @@ import io
 import json
 import os
 import re
+import shutil
 import tarfile
 import tempfile
 import unittest
@@ -351,14 +352,35 @@ class ReceiptTests(unittest.TestCase):
 
 
 class GuardTests(unittest.TestCase):
-    def test_guard_refuses_without_pin(self):
-        self.assertIsNone(workflow_guard.PINNED_MANDATE_SHA256)
-        with self.assertRaises(workflow_guard.Refused):
-            workflow_guard.check(ROOT)
-
-    def test_mandate_is_disabled(self):
+    def test_guard_pin_and_mandate_are_consistent(self):
+        # Either no mandate is registered (pin None, mandate disabled, guard refuses) or exactly one is: the pin is the
+        # sha256 of the enabled mandate, which names only the first smoke-test spec and has an expiry.
         with open(os.path.join(ROOT, "ci/MANDATE.json"), "rb") as handle:
-            self.assertFalse(json.loads(handle.read())["enabled"])
+            raw = handle.read()
+        mandate = json.loads(raw)
+        if workflow_guard.PINNED_MANDATE_SHA256 is None:
+            self.assertFalse(mandate["enabled"])
+            with self.assertRaises(workflow_guard.Refused):
+                workflow_guard.check(ROOT)
+            return
+        self.assertEqual(workflow_guard.PINNED_MANDATE_SHA256, hashlib.sha256(raw).hexdigest())
+        self.assertIs(mandate["enabled"], True)
+        self.assertEqual(mandate["allowed_specs"], ["ci/specs/git-pilot-1.json"])
+        self.assertRegex(mandate["not_after"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+    def test_guard_refuses_a_changed_mandate(self):
+        if workflow_guard.PINNED_MANDATE_SHA256 is None:
+            self.skipTest("no mandate is registered")
+        with tempfile.TemporaryDirectory() as root:
+            shutil.copytree(os.path.join(ROOT, "ci"), os.path.join(root, "ci"))
+            path = os.path.join(root, "ci/MANDATE.json")
+            with open(path, "rb") as handle:
+                mandate = json.loads(handle.read())
+            mandate["allowed_specs"].append("ci/specs/other.json")
+            with open(path, "w") as handle:
+                json.dump(mandate, handle)
+            with self.assertRaises(workflow_guard.Refused):
+                workflow_guard.check(root)
 
 
 class AttestationStructureTests(unittest.TestCase):
@@ -448,11 +470,6 @@ class PinSetTests(unittest.TestCase):
         with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
             loaded = jsonlib.load(handle)
         self.assertEqual(pin_set_missing(loaded), [])
-
-    def test_real_policy_still_has_no_mandate(self):
-        import json as jsonlib
-        with open(os.path.join(ROOT, "ci/MANDATE.json"), "rb") as handle:
-            self.assertFalse(jsonlib.load(handle)["enabled"])
 
     def test_complete_pin_set(self):
         from ci.workflow_guard import pin_set_missing
@@ -770,6 +787,15 @@ class ConsumerTests(unittest.TestCase):
 
 
 class EntryPointGuardTests(unittest.TestCase):
+    # Each launch/network entry point must consult the guard before any process or socket. The guard is forced to refuse
+    # here so the tests hold whether or not a mandate is currently registered.
+    def setUp(self):
+        from unittest import mock
+        patcher = mock.patch.object(workflow_guard, "require_mandate",
+                                    side_effect=workflow_guard.Refused("no registered test mandate (test)"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_fetch_refuses_without_process_or_socket(self):
         from unittest import mock
         from ci import fetch_artifact
