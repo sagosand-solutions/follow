@@ -2318,6 +2318,31 @@ class LaunchRefusalTests(unittest.TestCase):
                 run_mock.assert_not_called()
 
 
+class ReaperTests(unittest.TestCase):
+    def test_no_leftovers(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", return_value=[]):
+            self.assertEqual(reaper.reap("1-1"), 0)
+
+    def test_leftovers_are_removed_and_red(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a", "b"], []]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            self.assertEqual(reaper.reap("1-1"), 1)
+
+    def test_failed_removal_is_red(self):
+        from unittest import mock
+        from ci import reaper
+        with mock.patch.object(reaper, "_list", side_effect=[["a"], ["a"]]), \
+             mock.patch("ci.reaper.subprocess.run") as run_mock:
+            run_mock.return_value = mock.Mock(returncode=0)
+            with self.assertRaises(reaper.ReaperError):
+                reaper.reap("1-1")
+
+
 class OnceTests(unittest.TestCase):
     def test_pagination_covers_all_pages(self):
         from ci import once
@@ -2469,6 +2494,13 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(sha, loaded["actions"][mapping[name]])
                 seen += 1
         self.assertGreaterEqual(seen, 3)
+
+    def test_reaper_step_and_timeout(self):
+        text = self._text()
+        generate = text.split("  generate:", 1)[1]
+        self.assertIn("timeout-minutes: 10", generate)
+        self.assertIn("if: always()", generate)
+        self.assertLess(generate.index("ci.reaper"), generate.index("upload-artifact"))
 
     def test_verify_has_no_id_token(self):
         text = self._text()
@@ -2628,6 +2660,7 @@ class DockerCommandTests(unittest.TestCase):
         for flag in ("--network none", "--user 65534:65534", "--read-only", "--cap-drop ALL",
                      "--security-opt no-new-privileges", "--memory-swap 256m", "--cpus 1"):
             self.assertIn(flag, joined)
+        self.assertIn("--label ci-fixture.run=", joined)
         self.assertNotIn("--privileged", joined)
         self.assertNotIn("/var/run/docker.sock", joined)
 

@@ -23,7 +23,7 @@ import tempfile
 import threading
 import time
 
-from . import archive, canon, limits, workflow_guard
+from . import archive, canon, labels, limits, workflow_guard
 
 
 class RunError(RuntimeError):
@@ -51,7 +51,7 @@ def _require(condition, message):
 def docker_command(spec, policy, input_dir, out_dir, container_name, cgroup_parent=None):
     isolation = policy["isolation"]
     command = [
-        "docker", "run", "--name", container_name,
+        "docker", "run", "--name", container_name, "--label", labels.label_argument(),
         "--network", isolation["network_mode"],
         *(["--cgroup-parent", cgroup_parent] if cgroup_parent else []),
         "--user", isolation["user"],

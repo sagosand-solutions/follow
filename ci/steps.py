@@ -18,7 +18,7 @@ import sys
 import tempfile
 import time
 
-from . import archive, canon, limits, schema, workflow_guard
+from . import archive, canon, labels, limits, schema, workflow_guard
 
 
 class StepError(RuntimeError):
@@ -413,7 +413,7 @@ def _probe_isolation(inspect, policy):
 def _tool_probe(policy, args, index, timeout=10):
     isolation = policy["isolation"]
     name = f"ci-tool-{os.getpid()}-{index}"
-    create = ["docker", "create", "--name", name,
+    create = ["docker", "create", "--name", name, "--label", labels.label_argument(),
               "--network", isolation["network_mode"], "--read-only", "--user", isolation["user"],
               "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
               "--pids-limit", str(isolation["pids_limit"]),

@@ -81,6 +81,9 @@ jobs:
           python3 -m ci.run_fixture --spec "$SPEC" --policy ci/policy.json \
             --input /input --out /out \
             --raw ci-artifacts/raw.tar --observation ci-artifacts/observation.json
+      - name: Reap leftover fixture containers
+        if: always()
+        run: python3 -m ci.reaper
       - name: Upload the raw artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
