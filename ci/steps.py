@@ -293,12 +293,50 @@ def _limit_wrapper(command, limit):
     return [sys.executable, "-m", "ci.limit_exec", str(limit)] + list(command)
 
 
+def _read_regular(path, cap):
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    except OSError as exc:
+        raise StepError(f"cannot read {path}: {exc.strerror}") from None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise StepError(f"{path} is not a regular file")
+        data = os.read(fd, cap + 1)
+        if len(data) > cap:
+            raise StepError(f"{path} exceeds {cap} bytes")
+        return data
+    finally:
+        os.close(fd)
+
+
+GH_ATTESTATION_LIMIT = 30
+
+
+def _download_bundle(subject, repo, predicate, download_dir):
+    subject = os.path.abspath(subject)
+    subject_data = _read_regular(subject, limits.MAX_RAW_TAR_BYTES)
+    expected = f"sha256:{_sha(subject_data)}.jsonl"
+    command = ["bash", "-c", 'cd "$1" || exit 97; shift; exec "$@"', "_", download_dir,
+               "gh", "attestation", "download", subject, "--repo", repo,
+               "--predicate-type", predicate, "--limit", str(GH_ATTESTATION_LIMIT)]
+    _run_bounded(command, timeout=120, limit=4 * 1024 * 1024)
+    if sorted(os.listdir(download_dir)) != [expected]:
+        raise StepError("the attestation download did not produce exactly its expected bundle")
+    target = os.path.join(download_dir, expected)
+    return target, _read_regular(target, 4 * 1024 * 1024)
+
+
 def _run_bounded(command, timeout, limit):
     with tempfile.TemporaryDirectory() as temp:
         stdout_path = os.path.join(temp, "stdout")
         stderr_path = os.path.join(temp, "stderr")
         with open(stdout_path, "wb") as out, open(stderr_path, "wb") as err:
-            subprocess.run(_limit_wrapper(command, limit), check=True, stdout=out, stderr=err, timeout=timeout)
+            try:
+                subprocess.run(_limit_wrapper(command, limit), check=True, stdout=out, stderr=err, timeout=timeout)
+            except subprocess.CalledProcessError as exc:
+                raise StepError(f"the bounded command failed with exit code {exc.returncode}") from None
+            except subprocess.TimeoutExpired:
+                raise StepError("the bounded command timed out") from None
         if os.path.getsize(stdout_path) > limit or os.path.getsize(stderr_path) > limit:
             raise StepError("the command output exceeded its cap")
         with open(stdout_path, "rb") as handle:
@@ -342,20 +380,21 @@ def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=
         for index, subject in enumerate(subjects):
             if bundle_paths is not None:
                 target = bundle_paths[index]
-                if not os.path.exists(target) or os.path.getsize(target) > 4 * 1024 * 1024:
-                    raise StepError("the provided attestation bundle is missing or over its cap")
+                data = _read_regular(target, 4 * 1024 * 1024)
             else:
-                target = os.path.join(temp, f"bundle-{index}.jsonl")
-                _run_bounded(["gh", "attestation", "download", subject, "--repo", repo,
-                              "--output", target], timeout=120, limit=4 * 1024 * 1024)
-            if not os.path.exists(target) or os.path.getsize(target) > 4 * 1024 * 1024:
-                raise StepError("the attestation bundle exceeded its cap")
+                download_dir = os.path.join(temp, f"download-{index}")
+                os.makedirs(download_dir)
+                target, data = _download_bundle(subject, repo, predicate, download_dir)
             command = ["gh", "attestation", "verify", subject, "--repo", repo,
                        "--bundle", target, "--signer-workflow", signer, "--source-ref", signer_ref,
                        "--cert-oidc-issuer", issuer, "--source-digest", source_digest,
                        "--deny-self-hosted-runners", "--format", "json",
                        "--predicate-type", predicate, "--custom-trusted-root", root_path]
             output = _run_bounded(command, timeout=120, limit=4 * 1024 * 1024)
+            after = _read_regular(target, 4 * 1024 * 1024)
+            if after != data:
+                raise StepError("the attestation bundle changed during verification")
+            data = after
             payload = json.loads(output.decode("utf-8"))
             with open(subject, "rb") as handle:
                 subject_sha = _sha(handle.read(limits.MAX_RAW_TAR_BYTES + 1))
@@ -363,7 +402,6 @@ def attest_verify(policy_path, subjects, bundle_out, bundle_paths=None, context=
                                       subject_sha256=subject_sha, issuer=issuer, predicate=predicate,
                                       repo=repo, run_id=run_id, attempt=attempt,
                                       source_digest=source_digest)
-            data = _read(target, 4 * 1024 * 1024)
             digests[os.path.basename(subject)] = _sha(data)
             chunks.append(data)
     bundle = b"".join(chunks)

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Static tests for the disabled CI fixture boundary: canon, archives, schema, receipt, guard and workflow."""
+import contextlib
 import glob
 import hashlib
 import io
@@ -7,6 +8,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import threading
 import tarfile
 import tempfile
@@ -1178,6 +1180,298 @@ class FullChainTests(unittest.TestCase):
                 self.assertEqual(observed["max_rss_bytes"], 456)
                 commands = [call.args[0] for call in run_mock.call_args_list]
                 self.assertTrue(any(command[:3] == ["docker", "rm", "-f"] for command in commands))
+
+
+class AttestationDownloadTests(unittest.TestCase):
+    def _call(self, temp, subject=b"raw", download_dir=None):
+        from unittest import mock
+        from ci import steps
+        subject_path = os.path.join(temp, "raw.tar")
+        with open(subject_path, "wb") as handle:
+            handle.write(subject)
+        download_dir = download_dir or os.path.join(temp, "download")
+        os.makedirs(download_dir, exist_ok=True)
+        expected = "sha256:" + hashlib.sha256(subject).hexdigest() + ".jsonl"
+        seen = {}
+        def fake_run(command, timeout, limit):
+            seen["command"] = command
+            with open(os.path.join(download_dir, expected), "wb") as handle:
+                handle.write(b"bundle")
+        with mock.patch.object(steps, "_run_bounded", side_effect=fake_run):
+            target, data = steps._download_bundle(subject_path, "o/r", "https://example/predicate", download_dir)
+        return target, data, expected, seen
+
+    def test_download_uses_the_digest_filename_and_no_output_flag(self):
+        with tempfile.TemporaryDirectory() as temp:
+            target, data, expected, seen = self._call(temp)
+        command = seen["command"]
+        self.assertEqual(os.path.basename(target), expected)
+        self.assertEqual(data, b"bundle")
+        self.assertEqual(command[0], "bash")
+        self.assertIn('cd "$1"', command[2])
+        self.assertIn("|| exit 97", command[2])
+        self.assertEqual(command[4], os.path.dirname(target))
+        self.assertIn("gh", command)
+        self.assertIn("attestation", command)
+        self.assertIn("download", command)
+        self.assertIn("--predicate-type", command)
+        self.assertIn("--limit", command)
+        self.assertIn("--repo", command)
+        self.assertEqual(command[command.index("--repo") + 1], "o/r")
+        self.assertEqual(command[-1], "30")
+        self.assertNotIn("--output", command)
+
+    def test_relative_subject_is_made_absolute_for_the_download_cwd(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            subject = os.path.join(temp, "raw.tar")
+            with open(subject, "wb") as handle:
+                handle.write(b"raw")
+            download_dir = os.path.join(temp, "download")
+            os.makedirs(download_dir)
+            expected = "sha256:" + hashlib.sha256(b"raw").hexdigest() + ".jsonl"
+            seen = {}
+            def fake_run(command, timeout, limit):
+                seen["command"] = command
+                with open(os.path.join(download_dir, expected), "wb") as handle:
+                    handle.write(b"bundle")
+            old = os.getcwd()
+            os.chdir(temp)
+            try:
+                with mock.patch.object(steps, "_run_bounded", side_effect=fake_run):
+                    steps._download_bundle("raw.tar", "o/r", "p", download_dir)
+            finally:
+                os.chdir(old)
+            self.assertEqual(seen["command"][8], subject)
+            self.assertTrue(os.path.isabs(seen["command"][8]))
+
+    def test_unexpected_extra_file_is_red(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            subject = os.path.join(temp, "raw.tar")
+            with open(subject, "wb") as handle:
+                handle.write(b"raw")
+            download_dir = os.path.join(temp, "download")
+            os.makedirs(download_dir)
+            expected = "sha256:" + hashlib.sha256(b"raw").hexdigest() + ".jsonl"
+            def fake_run(command, timeout, limit):
+                with open(os.path.join(download_dir, expected), "wb") as handle:
+                    handle.write(b"bundle")
+                with open(os.path.join(download_dir, "other"), "wb") as handle:
+                    handle.write(b"x")
+            with mock.patch.object(steps, "_run_bounded", side_effect=fake_run):
+                with self.assertRaises(steps.StepError):
+                    steps._download_bundle(subject, "o/r", "p", download_dir)
+
+    def test_missing_expected_bundle_is_red(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            subject = os.path.join(temp, "raw.tar")
+            with open(subject, "wb") as handle:
+                handle.write(b"raw")
+            download_dir = os.path.join(temp, "download")
+            os.makedirs(download_dir)
+            with mock.patch.object(steps, "_run_bounded"):
+                with self.assertRaises(steps.StepError):
+                    steps._download_bundle(subject, "o/r", "p", download_dir)
+
+    def test_symlink_bundle_is_red(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            subject = os.path.join(temp, "raw.tar")
+            with open(subject, "wb") as handle:
+                handle.write(b"raw")
+            download_dir = os.path.join(temp, "download")
+            os.makedirs(download_dir)
+            expected = "sha256:" + hashlib.sha256(b"raw").hexdigest() + ".jsonl"
+            real = os.path.join(temp, "real.jsonl")
+            with open(real, "wb") as handle:
+                handle.write(b"bundle")
+            def fake_run(command, timeout, limit):
+                os.symlink(real, os.path.join(download_dir, expected))
+            with mock.patch.object(steps, "_run_bounded", side_effect=fake_run):
+                with self.assertRaises(steps.StepError):
+                    steps._download_bundle(subject, "o/r", "p", download_dir)
+
+    def test_directory_and_fifo_bundles_are_red(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            directory = os.path.join(temp, "bundle")
+            os.makedirs(directory)
+            with self.assertRaisesRegex(steps.StepError, "not a regular file"):
+                steps._read_regular(directory, 1024)
+            os.rmdir(directory)
+            fifo = os.path.join(temp, "fifo")
+            os.mkfifo(fifo)
+            outcome = {}
+            def call():
+                try:
+                    steps._read_regular(fifo, 1024)
+                except BaseException as exc:
+                    outcome["error"] = exc
+            thread = threading.Thread(target=call, daemon=True)
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), "FIFO bundle open blocked")
+            self.assertRegex(str(outcome.get("error")), "not a regular file")
+
+    def test_bounded_output_over_the_limit_is_a_step_error(self):
+        from ci import steps
+        with self.assertRaises(steps.StepError):
+            steps._run_bounded([sys.executable, "-c", "import sys; sys.stdout.write('x' * 5000000)"],
+                               timeout=10, limit=4 * 1024 * 1024)
+
+    def test_bounded_timeout_is_a_step_error(self):
+        from ci import steps
+        with self.assertRaises(steps.StepError):
+            steps._run_bounded([sys.executable, "-c", "import time; time.sleep(5)"],
+                               timeout=0.2, limit=1024)
+
+    def test_oversized_bundle_is_red(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            subject = os.path.join(temp, "raw.tar")
+            with open(subject, "wb") as handle:
+                handle.write(b"raw")
+            download_dir = os.path.join(temp, "download")
+            os.makedirs(download_dir)
+            expected = "sha256:" + hashlib.sha256(b"raw").hexdigest() + ".jsonl"
+            def fake_run(command, timeout, limit):
+                with open(os.path.join(download_dir, expected), "wb") as handle:
+                    handle.write(b"x" * (4 * 1024 * 1024 + 1))
+            with mock.patch.object(steps, "_run_bounded", side_effect=fake_run):
+                with self.assertRaisesRegex(steps.StepError, "exceeds"):
+                    steps._download_bundle(subject, "o/r", "p", download_dir)
+
+
+class AttestationVerifyTests(unittest.TestCase):
+    def _setup(self, temp):
+        root = os.path.join(temp, "trusted_root.jsonl")
+        with open(root, "wb") as handle:
+            handle.write(b"root")
+        policy = {"attestation": {
+            "signer_workflow": "o/r/.github/workflows/ci.yml@refs/heads/main",
+            "signer_ref": "refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com",
+            "predicate_type": "https://slsa.dev/provenance/v1",
+            "trusted_root_path": root,
+            "trusted_root_sha256": hashlib.sha256(b"root").hexdigest(),
+        }}
+        policy_path = os.path.join(temp, "policy.json")
+        with open(policy_path, "w", encoding="utf-8") as handle:
+            json.dump(policy, handle)
+        subjects = []
+        for name, payload in (("raw.tar", b"raw"), ("observation.json", b"obs")):
+            path = os.path.join(temp, name)
+            with open(path, "wb") as handle:
+                handle.write(payload)
+            subjects.append(path)
+        return policy_path, subjects
+
+    def _context(self):
+        return {"repo": "o/r", "source_digest": "a" * 40, "run_id": "1", "run_attempt": "1"}
+
+    def test_two_subjects_bind_the_read_bundle_bytes(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, subjects = self._setup(temp)
+            bundle_out = os.path.join(temp, "bundle.bin")
+            payloads = {}
+            def fake_run(command, timeout, limit):
+                if command[0] == "bash":
+                    subject = command[8]
+                    with open(subject, "rb") as handle:
+                        subject_digest = hashlib.sha256(handle.read()).hexdigest()
+                    name = "sha256:" + subject_digest + ".jsonl"
+                    payload = b"bundle-" + os.path.basename(subject).encode()
+                    with open(os.path.join(command[4], name), "wb") as handle:
+                        handle.write(payload)
+                    payloads[os.path.basename(subject)] = payload
+                    return b""
+                return b"[]"
+            printed = io.StringIO()
+            with mock.patch.object(steps.workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "check_attestation_payload", return_value=None), \
+                 mock.patch.object(steps, "_run_bounded", side_effect=fake_run), \
+                 contextlib.redirect_stdout(printed):
+                steps.attest_verify(policy_path, subjects, bundle_out, context=self._context())
+            expected = b"".join(payloads[os.path.basename(item)] for item in subjects)
+            with open(bundle_out, "rb") as handle:
+                self.assertEqual(handle.read(), expected)
+            report = json.loads(printed.getvalue())
+            self.assertEqual(report["bundles"],
+                             {os.path.basename(item): hashlib.sha256(payloads[os.path.basename(item)]).hexdigest()
+                              for item in subjects})
+            self.assertEqual(report["bundle_sha256"], hashlib.sha256(expected).hexdigest())
+
+    def test_bundle_paths_are_read_and_bound(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, subjects = self._setup(temp)
+            bundle_out = os.path.join(temp, "bundle.bin")
+            paths = []
+            payloads = {}
+            for index, subject in enumerate(subjects):
+                path = os.path.join(temp, f"provided-{index}.jsonl")
+                payload = b"provided-" + str(index).encode()
+                with open(path, "wb") as handle:
+                    handle.write(payload)
+                paths.append(path)
+                payloads[os.path.basename(subject)] = payload
+            seen = []
+            def fake_run(command, timeout, limit):
+                seen.append(command)
+                return b"[]"
+            printed = io.StringIO()
+            with mock.patch.object(steps.workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "check_attestation_payload", return_value=None), \
+                 mock.patch.object(steps, "_run_bounded", side_effect=fake_run), \
+                 contextlib.redirect_stdout(printed):
+                steps.attest_verify(policy_path, subjects, bundle_out,
+                                    bundle_paths=paths, context=self._context())
+            expected = b"".join(payloads[os.path.basename(item)] for item in subjects)
+            with open(bundle_out, "rb") as handle:
+                self.assertEqual(handle.read(), expected)
+            self.assertTrue(all(command[0] == "gh" for command in seen))
+            report = json.loads(printed.getvalue())
+            self.assertEqual(report["bundles"],
+                             {os.path.basename(item): hashlib.sha256(payloads[os.path.basename(item)]).hexdigest()
+                              for item in subjects})
+
+    def test_bundle_changed_during_verify_is_red(self):
+        from unittest import mock
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            policy_path, subjects = self._setup(temp)
+            bundle_out = os.path.join(temp, "bundle.bin")
+            def fake_run(command, timeout, limit):
+                if command[0] == "bash":
+                    subject = command[8]
+                    with open(subject, "rb") as handle:
+                        subject_digest = hashlib.sha256(handle.read()).hexdigest()
+                    name = "sha256:" + subject_digest + ".jsonl"
+                    with open(os.path.join(command[4], name), "wb") as handle:
+                        handle.write(b"original")
+                    return b""
+                bundle = command[command.index("--bundle") + 1]
+                with open(bundle, "wb") as handle:
+                    handle.write(b"changed")
+                return b"[]"
+            with mock.patch.object(steps.workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "require_pins", return_value=None), \
+                 mock.patch.object(steps, "check_attestation_payload", return_value=None), \
+                 mock.patch.object(steps, "_run_bounded", side_effect=fake_run):
+                with self.assertRaisesRegex(steps.StepError, "changed during verification"):
+                    steps.attest_verify(policy_path, subjects[:1], bundle_out, context=self._context())
 
 
 class StepsCliTests(unittest.TestCase):
