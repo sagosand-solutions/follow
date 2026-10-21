@@ -467,6 +467,129 @@ class AttestationStructureTests(unittest.TestCase):
                                       repo="o/r", run_id="7", attempt="1", source_digest="b" * 40)
 
 
+# Public gh 2.102 verification output from CI runs 39576152446 and 39571150316;
+# no secrets, only Sigstore statements and certificates.
+class RealAttestationFixtureTests(unittest.TestCase):
+    REPO = "sagosand-solutions/follow"
+    ISSUER = "https://token.actions.githubusercontent.com"
+    PREDICATE = "https://slsa.dev/provenance/v1"
+    DIGEST = "8994911941d1ac91e4e757185530f07fe531d332e96ffb19854609eed50e0e5d"
+    RUN4 = "39576152446"
+    RUN3 = "39571150316"
+    SOURCE4 = "eb541679b0b7554c6399ae127998b1d48eb48e2e"
+    SOURCE3 = "46fbc53cfd92390f3aabfb57de72bb897b4394a7"
+
+    def _payload(self, name):
+        with open(os.path.join(ROOT, "validator/tests", name), "rb") as handle:
+            return json.load(handle)
+
+    def _check(self, payload, subject_name, run_id, source_digest, attempt="1"):
+        check_attestation_payload(payload, subject_name=subject_name, subject_sha256=self.DIGEST,
+                                  issuer=self.ISSUER, predicate=self.PREDICATE, repo=self.REPO,
+                                  run_id=run_id, attempt=attempt, source_digest=source_digest)
+
+    def _run4_entry(self):
+        payload = self._payload("gh-verify-run4.json")
+        for entry in payload:
+            statement = entry["verificationResult"]["statement"]
+            metadata = statement["predicate"]["runDetails"]["metadata"]
+            if (metadata["invocationId"].endswith(f"runs/{self.RUN4}/attempts/1")
+                    and statement["subject"][0]["name"] == "raw.tar"):
+                return payload, entry
+        self.fail("the run4 raw.tar entry was not found")
+
+    def test_run4_outputs_entry_is_selected(self):
+        self._check(self._payload("gh-verify-run4.json"), "outputs.tar", self.RUN4, self.SOURCE4)
+
+    def test_run4_raw_entry_ignores_same_digest_under_another_name(self):
+        # The real online payload has outputs.tar and raw.tar with the same digest from the
+        # same invocation. Selecting on invocation alone used to match two entries; the
+        # subject name must disambiguate them.
+        self._check(self._payload("gh-verify-run4.json"), "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_run4_raw_entry_does_not_match_the_run3_entry(self):
+        self._check(self._payload("gh-verify-run4.json"), "raw.tar", self.RUN4, self.SOURCE4)
+        with self.assertRaises(Exception):
+            self._check(self._payload("gh-verify-run4.json"), "raw.tar", self.RUN3, self.SOURCE4)
+
+    def test_issuer_is_bound(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["signature"]["certificate"]["issuer"] = "other"
+        with self.assertRaisesRegex(steps.StepError, "pinned issuer"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_predicate_type_is_bound(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["statement"]["predicateType"] = "other"
+        with self.assertRaisesRegex(steps.StepError, "pinned predicate"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_source_repository_uri_is_bound(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["signature"]["certificate"]["sourceRepositoryURI"] = "https://github.com/other/repo"
+        with self.assertRaisesRegex(steps.StepError, "pinned source repository"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_source_digest_is_bound(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["signature"]["certificate"]["sourceRepositoryDigest"] = "c" * 40
+        with self.assertRaisesRegex(steps.StepError, "pinned source digest"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_attempt_is_bound(self):
+        from ci import steps
+        payload, _ = self._run4_entry()
+        with self.assertRaisesRegex(steps.StepError, "no single gh-attestation-v1 entry"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4, attempt="2")
+
+    def test_selection_requires_the_digest(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["statement"]["subject"][0]["digest"]["sha256"] = "f" * 64
+        with self.assertRaisesRegex(steps.StepError, "no single gh-attestation-v1 entry"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_duplicate_exact_subject_in_one_entry_is_ambiguous(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["statement"]["subject"].append(
+            {"name": "raw.tar", "digest": {"sha256": self.DIGEST}})
+        with self.assertRaisesRegex(steps.StepError, "ambiguous subject"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_missing_certificate_is_red(self):
+        from ci import steps
+        payload, entry = self._run4_entry()
+        entry["verificationResult"]["signature"].pop("certificate")
+        with self.assertRaisesRegex(steps.StepError, "no single gh-attestation-v1 entry"):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+    def test_run3_payload_is_accepted(self):
+        self._check(self._payload("gh-verify-run3.json"), "raw.tar", self.RUN3, self.SOURCE3)
+
+    def test_unknown_subject_name_is_rejected(self):
+        with self.assertRaises(Exception):
+            self._check(self._payload("gh-verify-run4.json"), "other.tar", self.RUN4, self.SOURCE4)
+
+    def test_same_digest_under_another_name_inside_the_selected_entry_is_red(self):
+        payload = self._payload("gh-verify-run4.json")
+        for entry in payload:
+            statement = entry["verificationResult"]["statement"]
+            metadata = statement["predicate"]["runDetails"]["metadata"]
+            if (metadata["invocationId"].endswith(f"runs/{self.RUN4}/attempts/1")
+                    and statement["subject"][0]["name"] == "raw.tar"):
+                statement["subject"].append({"name": "other.tar", "digest": {"sha256": self.DIGEST}})
+                break
+        else:
+            self.fail("the run4 raw.tar entry was not found")
+        with self.assertRaises(Exception):
+            self._check(payload, "raw.tar", self.RUN4, self.SOURCE4)
+
+
 class PinSetTests(unittest.TestCase):
     def test_real_policy_pin_set_is_complete(self):
         import json as jsonlib
@@ -1018,7 +1141,7 @@ class ConsumerTests(unittest.TestCase):
                 passed = attest_mock.call_args_list[0].kwargs.get("bundle_paths")
                 self.assertTrue(passed)
                 self.assertNotEqual(passed[0], bundle)
-                self.assertEqual(os.path.basename(passed[0]), "bundle.bin")
+                self.assertEqual(os.path.basename(passed[0]), "bundle.jsonl")
 
     def test_consumer_requires_pins_before_any_subprocess(self):
         from unittest import mock

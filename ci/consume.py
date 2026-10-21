@@ -103,7 +103,7 @@ def consume(*, policy_path, spec_path, observation_path, outputs_path, receipt_p
             _write(target, data)
             sealed_paths.append(target)
         raw_bundle = os.path.join(bundle_dir, "raw.bundle")
-        bundle_copy = os.path.join(temp, "bundle.bin")
+        bundle_copy = os.path.join(temp, "bundle.jsonl")
         _write(bundle_copy, snapshot["bundle"])
         raw_context = steps.attest_verify(policy_path, raw_paths, raw_bundle,
                                           bundle_paths=[bundle_copy] * len(raw_paths), context=context)

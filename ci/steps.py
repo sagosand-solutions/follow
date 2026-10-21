@@ -257,10 +257,26 @@ def check_attestation_payload(payload, *, subject_name, subject_sha256, issuer, 
             continue
         run_details = statement.get("predicate", {}).get("runDetails", {})
         metadata = run_details.get("metadata", {}) if isinstance(run_details, dict) else {}
-        if isinstance(metadata, dict) and metadata.get("invocationId") == expected_invocation:
+        if not isinstance(metadata, dict) or metadata.get("invocationId") != expected_invocation:
+            continue
+        subjects = statement.get("subject")
+        if not isinstance(subjects, list):
+            continue
+        exact = 0
+        for candidate in subjects:
+            if not isinstance(candidate, dict):
+                continue
+            digest = candidate.get("digest")
+            if not isinstance(digest, dict):
+                continue
+            if candidate.get("name") == subject_name and digest.get("sha256") == subject_sha256:
+                exact += 1
+        if exact > 1:
+            raise StepError("the verified output has an ambiguous subject in one attestation entry")
+        if exact == 1:
             matching.append((result, statement, certificate))
     if len(matching) != 1:
-        raise StepError("the verified output has no single gh-attestation-v1 entry for this run and attempt")
+        raise StepError("the verified output has no single gh-attestation-v1 entry for this run, attempt and subject")
     result, statement, certificate = matching[0]
     if certificate.get("issuer") != issuer:
         raise StepError("the verified certificate does not carry exactly the pinned issuer")
