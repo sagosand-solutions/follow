@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Remove every container carrying this run's label; red if any existed.
 
-The reaper is the simple technical stop accepted in the 08:30 decision. It runs with ``if: always()`` before the upload:
-if a fixture or probe container survived the deadline, the run is already red, and no receipt may be uploaded green.
+The reaper is the simple technical stop for this run. It runs with ``if: always()`` before the upload: if a fixture or
+probe container survived the deadline, the run is already red, and no receipt may be uploaded green.
 """
 from __future__ import annotations
 
