@@ -361,6 +361,11 @@ def run(spec_path, policy_path, input_dir, out_dir, raw_path, observation_path, 
         return 0
     if not os.path.isdir(input_dir) or not os.path.isdir(out_dir):
         raise RunError("input and output directories must exist")
+    marker = os.environ.get("CI_AUTH_MARKER", "ci-artifacts/run-authorized.json")
+    os.makedirs(os.path.dirname(marker) or ".", exist_ok=True)
+    with open(marker, "w", encoding="utf-8") as handle:
+        json.dump({"label": labels.run_label()}, handle, sort_keys=True)
+        handle.write("\n")
     from .steps import check_image_tools
     tool_probes = check_image_tools(policy_path)
     image_tools = tool_probes["versions"]

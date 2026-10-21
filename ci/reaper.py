@@ -6,10 +6,11 @@ probe container survived the deadline, the run is already red, and no receipt ma
 """
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 import sys
 
-from . import workflow_guard
 from .labels import LABEL_KEY, run_label
 
 
@@ -37,11 +38,19 @@ def reap(label=None):
     return 1
 
 
-def main(argv=None):
+def _authorized(marker, label):
     try:
-        workflow_guard.require_mandate()
-    except workflow_guard.Refused:
-        print("ci.reaper: no mandate; nothing to reap")
+        with open(marker, "rb") as handle:
+            data = json.loads(handle.read())
+    except (OSError, ValueError):
+        return False
+    return data.get("label") == label
+
+
+def main(argv=None):
+    marker = os.environ.get("CI_AUTH_MARKER", "ci-artifacts/run-authorized.json")
+    if not _authorized(marker, run_label()):
+        print("ci.reaper: no authorized start for this run; nothing to reap")
         return 0
     try:
         code = reap()

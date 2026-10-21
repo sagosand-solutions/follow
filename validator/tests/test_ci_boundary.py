@@ -1201,6 +1201,53 @@ class BindingMutationTests(unittest.TestCase):
                 run_mock.assert_not_called()
 
 
+class AuthorizationMarkerTests(unittest.TestCase):
+    def test_run_writes_the_marker_before_tool_probes(self):
+        from unittest import mock
+        from ci import run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            with open(spec_path, "w") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w") as handle:
+                json.dump(policy(None), handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")), \
+                 mock.patch.dict(os.environ, {"CI_AUTH_MARKER": marker}):
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+            self.assertTrue(os.path.exists(marker))
+            with open(marker, "rb") as handle:
+                self.assertEqual(json.load(handle)["label"], run_fixture.labels.run_label())
+
+    def test_run_does_not_write_the_marker_when_the_guard_refuses(self):
+        from unittest import mock
+        from ci import run_fixture, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            with open(spec_path, "w") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w") as handle:
+                json.dump(policy(None), handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            marker = os.path.join(temp, "run-authorized.json")
+            with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
+                 mock.patch.dict(os.environ, {"CI_AUTH_MARKER": marker}):
+                with self.assertRaises(run_fixture.RunError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+            self.assertFalse(os.path.exists(marker))
+
+
 class ToolCheckTests(unittest.TestCase):
     def _policy(self):
         value = policy(None)
@@ -2353,13 +2400,39 @@ class LaunchRefusalTests(unittest.TestCase):
 
 
 class ReaperTests(unittest.TestCase):
-    def test_reaper_cli_refuses_without_mandate_and_no_process(self):
+    def test_reaper_without_authorized_marker_does_nothing(self):
         from unittest import mock
-        from ci import reaper, workflow_guard
-        with mock.patch.object(workflow_guard, "require_mandate", side_effect=workflow_guard.Refused("no")), \
-             mock.patch("ci.reaper.subprocess.run") as run_mock:
-            self.assertEqual(reaper.main([]), 0)
-            run_mock.assert_not_called()
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            with mock.patch.dict(os.environ, {"CI_AUTH_MARKER": os.path.join(temp, "missing.json")}), \
+                 mock.patch("ci.reaper.subprocess.run") as run_mock:
+                self.assertEqual(reaper.main([]), 0)
+                run_mock.assert_not_called()
+
+    def test_reaper_wrong_authorized_label_does_nothing(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            with open(marker, "w") as handle:
+                json.dump({"label": "other-1"}, handle)
+            with mock.patch.dict(os.environ, {"CI_AUTH_MARKER": marker}), \
+                 mock.patch("ci.reaper.subprocess.run") as run_mock:
+                self.assertEqual(reaper.main([]), 0)
+                run_mock.assert_not_called()
+
+    def test_reaper_with_authorized_label_reaps_after_expiry(self):
+        from unittest import mock
+        from ci import reaper
+        with tempfile.TemporaryDirectory() as temp:
+            marker = os.path.join(temp, "auth.json")
+            label = reaper.run_label()
+            with open(marker, "w") as handle:
+                json.dump({"label": label}, handle)
+            with mock.patch.dict(os.environ, {"CI_AUTH_MARKER": marker}), \
+                 mock.patch.object(reaper, "reap", return_value=0) as reap_mock:
+                self.assertEqual(reaper.main([]), 0)
+                reap_mock.assert_called_once()
 
     def test_reaper_filter_argv(self):
         from unittest import mock
