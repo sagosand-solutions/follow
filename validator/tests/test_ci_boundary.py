@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Static tests for the disabled CI fixture boundary: canon, archives, schema, receipt, guard and workflow."""
+import glob
 import hashlib
 import io
 import json
@@ -514,6 +515,26 @@ class PinsManifestTests(unittest.TestCase):
         self.assertEqual(pins["tools"], policy["tools"]["versions"])
         self.assertEqual(pins["actions"], policy["actions"])
         self.assertEqual(pins["signer_ref"], policy["attestation"]["signer_ref"])
+
+
+class RealSpecInputTests(unittest.TestCase):
+    def test_prepare_inputs_on_every_real_spec(self):
+        from ci.steps import prepare_inputs
+        specs = sorted(glob.glob(os.path.join(ROOT, "ci/specs/*.json")))
+        self.assertTrue(specs)
+        for spec_path in specs:
+            with tempfile.TemporaryDirectory() as temp:
+                dest = os.path.join(temp, "input")
+                prepare_inputs(spec_path, dest)
+                with open(spec_path, "rb") as handle:
+                    spec = json.load(handle)
+                for item in spec["inputs"]:
+                    path = os.path.join(dest, item["path"])
+                    self.assertTrue(os.path.isfile(path))
+                    with open(path, "rb") as handle:
+                        data = handle.read()
+                    self.assertEqual(len(data), item["bytes"])
+                    self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
 
 
 class ToolCheckTests(unittest.TestCase):

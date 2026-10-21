@@ -75,7 +75,8 @@ def _read_beneath(root, relative, cap):
 def prepare_inputs(spec_path, dest):
     with open(spec_path, "rb") as handle:
         spec = canon.loads(handle.read())
-    base = os.path.dirname(os.path.abspath(spec_path))
+    candidate = os.path.splitext(os.path.abspath(spec_path))[0]
+    base = candidate if os.path.isdir(candidate) else os.path.dirname(os.path.abspath(spec_path))
     os.makedirs(dest, exist_ok=True)
     if os.listdir(dest):
         raise StepError("the input directory must be empty")
