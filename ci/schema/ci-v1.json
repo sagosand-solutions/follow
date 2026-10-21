@@ -60,7 +60,6 @@
       "properties": {
         "ref_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
         "image_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "image_tools": {"type": "object", "additionalProperties": {"type": "string"}},
         "tools": {"type": "object", "additionalProperties": {"type": "string"}}
       }
     },

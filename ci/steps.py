@@ -16,7 +16,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import itertools
 
 from . import archive, canon, limits, schema, workflow_guard
 
@@ -360,6 +359,25 @@ def _run_bounded(command, timeout, limit):
             return handle.read(limit)
 
 
+def _probe_isolation(inspect, policy):
+    host = inspect["HostConfig"]
+    config = inspect["Config"]
+    isolation = policy["isolation"]
+    for key in ("NetworkMode", "ReadonlyRootfs", "CapDrop", "SecurityOpt", "Privileged", "Memory",
+                "MemorySwap", "PidsLimit", "NanoCpus", "Ulimits"):
+        if host.get(key) != isolation.get(key):
+            raise StepError(f"tool probe isolation differs at {key}")
+    if (host.get("Tmpfs") or {}) != isolation.get("tmpfs"):
+        raise StepError("tool probe tmpfs options differ from the policy")
+    env = {}
+    for item in config.get("Env") or []:
+        if "=" in item:
+            key, value = item.split("=", 1)
+            env[key] = value
+    if env != policy["env"]:
+        raise StepError("tool probe environment differs from the pinned environment")
+
+
 def _tool_probe(policy, args, index):
     isolation = policy["isolation"]
     name = f"ci-tool-{os.getpid()}-{index}"
@@ -373,17 +391,21 @@ def _tool_probe(policy, args, index):
               "--tmpfs", f"/tmp:{isolation['tmpfs']['/tmp']}"]
     for ulimit in isolation["ulimits"]:
         create += ["--ulimit", f"{ulimit['name']}={ulimit['soft']}:{ulimit['hard']}"]
+    for key, value in sorted(policy["env"].items()):
+        create += ["-e", f"{key}={value}"]
     create += [policy["image"]["ref"], *args]
-    subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:
+        subprocess.run(create, check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         output = _run_bounded(["docker", "start", "-a", name], timeout=10, limit=64 * 1024)
         inspect = json.loads(_run_bounded(["docker", "inspect", name], timeout=10,
                                           limit=4 * 1024 * 1024).decode("utf-8"))
-        state = inspect[0].get("State", {}) if isinstance(inspect, list) else {}
+        entry = inspect[0] if isinstance(inspect, list) else {}
+        state = entry.get("State", {})
         if state.get("Status") != "exited" or state.get("ExitCode") != 0:
             raise StepError(f"tool probe failed or did not exit cleanly: {args}")
-        if inspect[0].get("Image") != policy["image"]["image_id"]:
+        if entry.get("Image") != policy["image"]["image_id"]:
             raise StepError("tool probe image id differs from the pinned image id")
+        _probe_isolation(entry, policy)
         return output.decode("utf-8", "replace").strip()
     finally:
         try:
@@ -392,9 +414,12 @@ def _tool_probe(policy, args, index):
         except subprocess.TimeoutExpired:
             raise StepError("tool container removal timed out") from None
         check = subprocess.run(["docker", "inspect", name], check=False, timeout=30,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         if check.returncode == 0:
             raise StepError("tool container still exists after removal")
+        message = (check.stderr or b"").decode("utf-8", "replace").lower()
+        if "no such object" not in message and "no such container" not in message:
+            raise StepError("tool container removal could not be verified")
 
 
 def check_image_tools(policy_path):

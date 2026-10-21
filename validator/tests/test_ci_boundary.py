@@ -71,7 +71,6 @@ def policy(tmp):
             "memory_swap": 268435456,
             "pids_limit": 64,
             "nano_cpus": 1000000000,
-            "tmp_inodes": 64,
             "tmpfs": {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"},
             "ulimits": [{"name": "nofile", "soft": 256, "hard": 256},
                         {"name": "nproc", "soft": 64, "hard": 64}],
@@ -948,6 +947,78 @@ class RealSpecInputTests(unittest.TestCase):
                     self.assertEqual(len(data), item["bytes"])
                     self.assertEqual(hashlib.sha256(data).hexdigest(), item["sha256"])
 
+class BindingMutationTests(unittest.TestCase):
+    def test_tmpfs_mismatch_is_rejected(self):
+        import json as jsonlib
+        from ci.verify import check_isolation
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            loaded = jsonlib.load(handle)
+        observed = dict(loaded["isolation"])
+        observed["env"] = dict(loaded["env"])
+        observed["tmpfs"] = {"/tmp": "rw,size=1m"}
+        with self.assertRaises(Exception):
+            check_isolation(observed, loaded)
+
+    def test_observation_receipt_image_tools_mismatch_is_rejected(self):
+        receipt, outputs = receipt_bundle()
+        obs = observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})
+        obs["image_tools"]["git"] = "git version 9.9.9"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
+                                     observation=obs)
+
+    def test_consistent_bad_image_tools_is_rejected(self):
+        receipt, outputs = receipt_bundle()
+        obs = observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"})
+        obs["image_tools"]["git"] = "git version 9.9.9"
+        receipt["observed"]["image_tools"]["git"] = "git version 9.9.9"
+        with self.assertRaises(ci_verify.ReceiptError):
+            ci_verify.verify_receipt(receipt, policy=policy(None), spec=spec(), outputs_tar=outputs,
+                                     observation=obs)
+
+    def test_isolation_subset_tmpfs_is_not_tautological(self):
+        from ci.run_fixture import isolation_subset
+        value = policy(None)
+        inspect = {
+            "HostConfig": {"NetworkMode": "none", "ReadonlyRootfs": True, "CapDrop": ["ALL"],
+                           "SecurityOpt": ["no-new-privileges"], "Privileged": False,
+                           "Memory": value["isolation"]["memory"], "MemorySwap": value["isolation"]["memory_swap"],
+                           "PidsLimit": value["isolation"]["pids_limit"],
+                           "NanoCpus": value["isolation"]["nano_cpus"],
+                           "Ulimits": [{"Name": "nofile", "Soft": 256, "Hard": 256},
+                                       {"Name": "nproc", "Soft": 64, "Hard": 64}],
+                           "Tmpfs": {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"}},
+            "Config": {"User": "65534:65534",
+                       "Env": [f"{key}={val}" for key, val in value["env"].items()]},
+            "Mounts": [{"Destination": "/input", "RW": False}, {"Destination": "/out", "RW": True}],
+        }
+        subset = isolation_subset(inspect, value)
+        self.assertEqual(subset["tmpfs"], {"/tmp": "rw,noexec,nosuid,nodev,size=16m,nr_inodes=64"})
+        inspect["HostConfig"]["Tmpfs"] = {"/tmp": "rw,size=1m"}
+        changed = isolation_subset(inspect, value)
+        self.assertNotEqual(subset["tmpfs"], changed["tmpfs"])
+
+    def test_run_calls_check_image_tools_before_the_fixture(self):
+        from unittest import mock
+        from ci import run_fixture, steps, workflow_guard
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = os.path.join(temp, "spec.json")
+            policy_path = os.path.join(temp, "policy.json")
+            with open(spec_path, "w") as handle:
+                json.dump(spec(), handle)
+            with open(policy_path, "w") as handle:
+                json.dump(policy(None), handle)
+            input_dir = os.path.join(temp, "input")
+            out_dir = os.path.join(temp, "out")
+            os.makedirs(input_dir); os.makedirs(out_dir)
+            with mock.patch.object(workflow_guard, "require_mandate", return_value=True), \
+                 mock.patch.object(steps, "check_image_tools", side_effect=steps.StepError("probe")), \
+                 mock.patch("ci.run_fixture._run") as run_mock:
+                with self.assertRaises(steps.StepError):
+                    run_fixture.run(spec_path, policy_path, input_dir, out_dir,
+                                    os.path.join(temp, "raw.tar"), os.path.join(temp, "obs.json"))
+                run_mock.assert_not_called()
+
 
 class ToolCheckTests(unittest.TestCase):
     def _policy(self):
@@ -961,10 +1032,56 @@ class ToolCheckTests(unittest.TestCase):
         state = {"Image": "sha256:" + "2" * 64, "State": {"Status": "exited", "ExitCode": 0}}
         def run(command, **kwargs):
             if command[:2] == ["docker", "create"]:
-                return mock.Mock(returncode=0)
+                return mock.Mock(returncode=0, stderr=b"", stdout=b"")
             if command[:2] == ["docker", "rm"]:
-                return mock.Mock(returncode=0)
-            return mock.Mock(returncode=0)  # inspect after removal says it still exists
+                return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")  # still exists
+        with mock.patch("ci.steps.subprocess.run", side_effect=run), \
+             mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
+                 b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
+            with self.assertRaises(steps.StepError):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+
+    def test_probe_isolation_env_mismatch_is_red(self):
+        from ci import steps
+        value = self._policy()
+        inspect = {"HostConfig": {"NetworkMode": "none", "ReadonlyRootfs": True, "CapDrop": ["ALL"],
+                                  "SecurityOpt": ["no-new-privileges"], "Privileged": False,
+                                  "Memory": value["isolation"]["memory"],
+                                  "MemorySwap": value["isolation"]["memory_swap"],
+                                  "PidsLimit": value["isolation"]["pids_limit"],
+                                  "NanoCpus": value["isolation"]["nano_cpus"],
+                                  "Ulimits": [{"Name": "nofile", "Soft": 256, "Hard": 256},
+                                              {"Name": "nproc", "Soft": 64, "Hard": 64}],
+                                  "Tmpfs": value["isolation"]["tmpfs"]},
+                   "Config": {"Env": ["PATH=/wrong"], "User": "65534:65534"}}
+        with self.assertRaises(steps.StepError):
+            steps._probe_isolation(inspect, value)
+
+    def test_tool_probe_create_timeout_still_cleans_up(self):
+        from unittest import mock
+        from ci import steps
+        calls = []
+        def run(command, **kwargs):
+            calls.append(command)
+            if command[:2] == ["docker", "create"]:
+                raise subprocess.TimeoutExpired(command, 30)
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
+        with mock.patch("ci.steps.subprocess.run", side_effect=run):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                steps._tool_probe(self._policy(), ["/usr/bin/git", "--version"], 1)
+        self.assertTrue(any(command[:3] == ["docker", "rm", "-f"] for command in calls))
+
+    def test_tool_probe_unclear_removal_is_red(self):
+        from unittest import mock
+        from ci import steps
+        state = {"Image": "sha256:" + "2" * 64, "State": {"Status": "exited", "ExitCode": 0}}
+        def run(command, **kwargs):
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"permission denied", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
         with mock.patch("ci.steps.subprocess.run", side_effect=run), \
              mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
                  b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
@@ -976,7 +1093,9 @@ class ToolCheckTests(unittest.TestCase):
         from ci import steps
         state = {"Image": "sha256:" + "9" * 64, "State": {"Status": "exited", "ExitCode": 0}}
         def run(command, **kwargs):
-            return mock.Mock(returncode=1)
+            if command[:2] == ["docker", "inspect"]:
+                return mock.Mock(returncode=1, stderr=b"No such object", stdout=b"")
+            return mock.Mock(returncode=0, stderr=b"", stdout=b"")
         with mock.patch("ci.steps.subprocess.run", side_effect=run), \
              mock.patch("ci.steps._run_bounded", side_effect=lambda command, **kw: (
                  b"git version 2.47.0\n" if command[:2] == ["docker", "start"] else json.dumps([state]).encode())):
