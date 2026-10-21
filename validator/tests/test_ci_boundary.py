@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import threading
 import tarfile
 import tempfile
 import unittest
@@ -566,15 +567,77 @@ class PrepareInputsNegativeTests(unittest.TestCase):
                 with self.assertRaisesRegex(steps.StepError, "unsafe input path"):
                     steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
 
-    def test_symlink_input_is_rejected(self):
+    def test_leaf_symlink_with_same_content_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"abc"}])
+            source = os.path.join(temp, "case", "a.txt")
+            target = os.path.join(temp, "case", "real.txt")
+            with open(target, "wb") as handle:
+                handle.write(b"abc")
+            os.unlink(source)
+            os.symlink(target, source)
+            with self.assertRaises(steps.StepError):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_intermediate_symlink_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "sub/x.txt", "content": b"x"}])
+            case = os.path.join(temp, "case")
+            real = os.path.join(case, "real")
+            os.makedirs(real)
+            with open(os.path.join(real, "x.txt"), "wb") as handle:
+                handle.write(b"x")
+            os.rename(os.path.join(case, "sub", "x.txt"), os.path.join(real, "x.txt"))
+            os.rmdir(os.path.join(case, "sub"))
+            os.symlink(real, os.path.join(case, "sub"))
+            with self.assertRaises(steps.StepError):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_spec_directory_symlink_is_rejected(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            real = os.path.join(temp, "real")
+            os.makedirs(real)
+            data = b"x"
+            with open(os.path.join(real, "a.txt"), "wb") as handle:
+                handle.write(data)
+            os.symlink(real, os.path.join(temp, "case"))
+            spec = {"inputs": [{"role": "fixture", "path": "a.txt",
+                                "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}]}
+            spec_path = os.path.join(temp, "case.json")
+            with open(spec_path, "w") as handle:
+                json.dump(spec, handle)
+            with self.assertRaises(steps.StepError):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_directory_input_is_rejected(self):
         from ci import steps
         with tempfile.TemporaryDirectory() as temp:
             spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"x"}])
             source = os.path.join(temp, "case", "a.txt")
             os.unlink(source)
-            os.symlink("/etc/passwd", source)
-            with self.assertRaises(steps.StepError):
+            os.makedirs(source)
+            with self.assertRaisesRegex(steps.StepError, "not a regular file"):
                 steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_oversized_input_is_rejected(self):
+        from ci import limits, steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt",
+                                           "content": b"x" * (limits.MAX_ARTIFACT_BYTES + 1)}])
+            with self.assertRaisesRegex(steps.StepError, "exceeds"):
+                steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+    def test_output_mode_is_0444(self):
+        from ci import steps
+        with tempfile.TemporaryDirectory() as temp:
+            spec_path = self._spec(temp, [{"role": "fixture", "path": "a.txt", "content": b"x"}])
+            dest = os.path.join(temp, "dest")
+            steps.prepare_inputs(spec_path, dest)
+            mode = os.stat(os.path.join(dest, "a.txt")).st_mode & 0o777
+            self.assertEqual(mode, 0o444)
 
     def test_nonempty_dest_is_rejected(self):
         from ci import steps
@@ -611,6 +674,72 @@ class PrepareInputsNegativeTests(unittest.TestCase):
                 json.dump({"inputs": []}, handle)
             with self.assertRaisesRegex(steps.StepError, "spec input directory is missing"):
                 steps.prepare_inputs(spec_path, os.path.join(temp, "dest"))
+
+
+class ReadBeneathTests(unittest.TestCase):
+    def test_leaf_symlink(self):
+        from ci.steps import _read_beneath
+        import ci.steps as steps
+        with tempfile.TemporaryDirectory() as temp:
+            with open(os.path.join(temp, "real"), "wb") as handle:
+                handle.write(b"x")
+            os.symlink("real", os.path.join(temp, "link"))
+            with self.assertRaises((OSError, steps.StepError)):
+                _read_beneath(temp, "link", 10)
+
+    def test_root_symlink(self):
+        from ci.steps import _read_beneath
+        import ci.steps as steps
+        with tempfile.TemporaryDirectory() as temp:
+            real = os.path.join(temp, "real")
+            os.makedirs(real)
+            with open(os.path.join(real, "a"), "wb") as handle:
+                handle.write(b"x")
+            link = os.path.join(temp, "link")
+            os.symlink(real, link)
+            with self.assertRaises((OSError, steps.StepError)):
+                _read_beneath(link, "a", 10)
+
+    def test_intermediate_symlink(self):
+        from ci.steps import _read_beneath
+        import ci.steps as steps
+        with tempfile.TemporaryDirectory() as temp:
+            real = os.path.join(temp, "real")
+            os.makedirs(real)
+            with open(os.path.join(real, "a"), "wb") as handle:
+                handle.write(b"x")
+            os.symlink(real, os.path.join(temp, "sub"))
+            with self.assertRaises((OSError, steps.StepError)):
+                _read_beneath(temp, "sub/a", 10)
+
+    def test_directory_and_fifo(self):
+        from ci.steps import _read_beneath
+        import ci.steps as steps
+        with tempfile.TemporaryDirectory() as temp:
+            os.makedirs(os.path.join(temp, "dir"))
+            with self.assertRaisesRegex(steps.StepError, "not a regular file"):
+                _read_beneath(temp, "dir", 10)
+            os.mkfifo(os.path.join(temp, "fifo"))
+            outcome = {}
+            def call():
+                try:
+                    _read_beneath(temp, "fifo", 10)
+                except BaseException as exc:
+                    outcome["error"] = exc
+            thread = threading.Thread(target=call, daemon=True)
+            thread.start()
+            thread.join(2)
+            self.assertFalse(thread.is_alive(), "FIFO open blocked without O_NONBLOCK")
+            self.assertIn("error", outcome)
+            self.assertRegex(str(outcome["error"]), "not a regular file")
+
+    def test_write_new_refuses_an_existing_path(self):
+        from ci.steps import _write_new
+        with tempfile.TemporaryDirectory() as temp:
+            path = os.path.join(temp, "a")
+            _write_new(path, b"x")
+            with self.assertRaises(FileExistsError):
+                _write_new(path, b"y")
 
 
 class RealSpecInputTests(unittest.TestCase):
