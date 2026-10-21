@@ -164,6 +164,9 @@ def _repo_root():
 
 
 def require_pins(policy, root=None):
+    missing = workflow_guard.pin_set_missing(policy)
+    if missing:
+        raise StepError(f"the pin set is incomplete: {', '.join(missing)}")
     wanted = policy.get("tools", {}).get("gh_version")
     if not wanted:
         raise StepError("the gh version is not pinned in the policy")

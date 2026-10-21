@@ -16,8 +16,10 @@ import hashlib
 import json
 import os
 import shutil
+import resource
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -116,12 +118,29 @@ def _enable_controllers(path):
         raise RunError(f"cannot enable the controllers in {path}: {exc.strerror}") from None
 
 
+def _limit_fsize(limit):
+    def apply():
+        resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
+    return apply
+
+
 def _inspect(name):
-    result = subprocess.run(["docker", "inspect", name], check=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
-    if len(result.stdout) > 4 * 1024 * 1024:
+    with tempfile.TemporaryDirectory() as temp:
+        path = os.path.join(temp, "inspect.json")
+        with open(path, "wb") as handle:
+            try:
+                subprocess.run(["docker", "inspect", name], check=True, stdout=handle,
+                               stderr=subprocess.DEVNULL, timeout=30,
+                               preexec_fn=_limit_fsize(4 * 1024 * 1024))
+            except subprocess.CalledProcessError as exc:
+                raise RunError(f"docker inspect failed with {exc.returncode}") from None
+        if os.path.getsize(path) > 4 * 1024 * 1024:
+            raise RunError("docker inspect output exceeded its cap")
+        with open(path, "rb") as handle:
+            data = handle.read(4 * 1024 * 1024 + 1)
+    if len(data) > 4 * 1024 * 1024:
         raise RunError("docker inspect output exceeded its cap")
-    return json.loads(result.stdout)[0]
+    return json.loads(data)[0]
 
 
 def _create_cgroup(prefix, parent_dir, root="/sys/fs/cgroup"):

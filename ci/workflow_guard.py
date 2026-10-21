@@ -33,6 +33,32 @@ def _load(path):
         return json.loads(handle.read())
 
 
+def pin_set_missing(policy):
+    checks = {
+        "image.ref": policy.get("image", {}).get("ref"),
+        "image.image_id": policy.get("image", {}).get("image_id"),
+        "tools.gh_version": policy.get("tools", {}).get("gh_version"),
+        "tools.versions.git": policy.get("tools", {}).get("versions", {}).get("git"),
+        "tools.versions.python": policy.get("tools", {}).get("versions", {}).get("python"),
+        "tools.versions.pytest": policy.get("tools", {}).get("versions", {}).get("pytest"),
+        "attestation.issuer": policy.get("attestation", {}).get("issuer"),
+        "attestation.signer_workflow": policy.get("attestation", {}).get("signer_workflow"),
+        "attestation.predicate_type": policy.get("attestation", {}).get("predicate_type"),
+        "attestation.trusted_root_path": policy.get("attestation", {}).get("trusted_root_path"),
+        "attestation.trusted_root_sha256": policy.get("attestation", {}).get("trusted_root_sha256"),
+        "attestation.gh_example_sha256": policy.get("attestation", {}).get("gh_example_sha256"),
+        "schema_sha256": policy.get("schema_sha256"),
+    }
+    actions = policy.get("actions", {})
+    for name in ("checkout", "upload", "attest"):
+        value = actions.get(name)
+        if not value or len(value) != 40 or any(char not in "0123456789abcdef" for char in value):
+            checks[f"actions.{name}"] = None
+        else:
+            checks[f"actions.{name}"] = value
+    return [name for name, value in checks.items() if not value]
+
+
 def check(root="."):
     mandate_path = os.path.join(root, "ci/MANDATE.json")
     policy_path = os.path.join(root, "ci/policy.json")
@@ -61,8 +87,9 @@ def check(root="."):
         raise Refused("the active spec is not in the mandate's allowlist")
     spec = _load(os.path.join(root, spec_rel))
     policy = _load(policy_path)
-    if not policy.get("image", {}).get("ref") or not policy.get("image", {}).get("image_id"):
-        raise Refused("the runtime image ref and image id are not pinned")
+    missing = pin_set_missing(policy)
+    if missing:
+        raise Refused(f"the pin set is incomplete: {', '.join(missing)}")
     if not spec.get("image_ref"):
         raise Refused("the spec has no pinned image")
     if spec["image_ref"] != policy["image"]["ref"]:

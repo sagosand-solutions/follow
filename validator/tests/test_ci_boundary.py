@@ -440,6 +440,28 @@ class AttestationStructureTests(unittest.TestCase):
                                       repo="o/r", run_id="7", attempt="1", source_digest="b" * 40)
 
 
+class PinSetTests(unittest.TestCase):
+    def test_real_policy_is_incomplete(self):
+        import json as jsonlib
+        from ci.workflow_guard import pin_set_missing
+        with open(os.path.join(ROOT, "ci/policy.json"), "rb") as handle:
+            loaded = jsonlib.load(handle)
+        missing = pin_set_missing(loaded)
+        self.assertIn("image.ref", missing)
+        self.assertIn("attestation.signer_workflow", missing)
+
+    def test_complete_pin_set(self):
+        from ci.workflow_guard import pin_set_missing
+        value = {"schema_sha256": "c" * 64,
+                 "image": {"ref": "ghcr.io/x/y@sha256:" + "1" * 64, "image_id": "sha256:" + "2" * 64},
+                 "tools": {"gh_version": "2", "versions": {"git": "1", "python": "1", "pytest": "1"}},
+                 "actions": {"checkout": "a" * 40, "upload": "b" * 40, "attest": "c" * 40},
+                 "attestation": {"issuer": "i", "signer_workflow": "w", "predicate_type": "p",
+                                 "trusted_root_path": "r", "trusted_root_sha256": "d" * 64,
+                                 "gh_example_sha256": "e" * 64}}
+        self.assertEqual(pin_set_missing(value), [])
+
+
 class RealPolicyShapeTests(unittest.TestCase):
     def test_check_isolation_reads_top_level_env(self):
         import json as jsonlib
@@ -761,7 +783,12 @@ class FullChainTests(unittest.TestCase):
             if command[:3] == ["docker", "image", "inspect"]:
                 return Completed(0, json.dumps([{"Id": image_id, "RepoDigests": [image]}]).encode())
             if command[:2] == ["docker", "inspect"]:
-                return Completed(0, json.dumps([inspect_doc]).encode())
+                payload = json.dumps([inspect_doc]).encode()
+                handle = kwargs.get("stdout")
+                if hasattr(handle, "write"):
+                    handle.write(payload)
+                    handle.flush()
+                return Completed(0, payload)
             if command[:2] == ["docker", "kill"]:
                 return Completed()
             if command[:3] == ["docker", "rm", "-f"]:
@@ -936,11 +963,17 @@ class HardeningTests(unittest.TestCase):
                                      observation=observation({"a.txt": b"alpha\n", "b.txt": b"beta\n"}))
 
     def test_trusted_root_needs_path_and_hash(self):
-        value = {"tools": {"gh_version": "2.63.2"},
+        value = {"schema_sha256": "c" * 64,
+                 "image": {"ref": "ghcr.io/example/fixture@sha256:" + "1" * 64,
+                           "image_id": "sha256:" + "2" * 64},
+                 "tools": {"gh_version": "2.63.2",
+                           "versions": {"git": "1", "python": "1", "pytest": "1"}},
+                 "actions": {"checkout": "a" * 40, "upload": "b" * 40, "attest": "c" * 40},
                  "attestation": {"trusted_root_path": None, "trusted_root_sha256": "a" * 64,
                                  "gh_profile": "gh-attestation-v1",
                                  "gh_example_path": "ci/fixtures/gh-attestation-v1.example.json",
-                                 "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479"}}
+                                 "gh_example_sha256": "f8ce946ec520846ead9f9e25a40cb766feb1de7d813d18cb33e30d1a6357c479",
+                                 "issuer": "issuer", "signer_workflow": "wf", "predicate_type": "p"}}
         with self.assertRaises(Exception):
             require_pins(value)
         value["attestation"]["trusted_root_path"] = "root.json"
