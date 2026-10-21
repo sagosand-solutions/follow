@@ -22,8 +22,9 @@ class OnceError(RuntimeError):
     pass
 
 
-def _fetch_runs(repo, workflow, commit, token):
-    url = f"{API}/repos/{repo}/actions/workflows/{workflow}/runs?head_sha={commit}&per_page=100"
+def _page(repo, workflow, commit, token, page):
+    url = (f"{API}/repos/{repo}/actions/workflows/{workflow}/runs"
+           f"?head_sha={commit}&per_page=100&page={page}")
     request = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
@@ -32,7 +33,30 @@ def _fetch_runs(repo, workflow, commit, token):
     })
     with urllib.request.urlopen(request, timeout=30) as response:
         payload = json.loads(response.read(2 * 1024 * 1024))
-    return payload.get("workflow_runs", [])
+    return payload.get("workflow_runs", []), int(payload.get("total_count", 0))
+
+
+def _paginate(fetch_page, max_pages=10):
+    runs = []
+    total = None
+    for page in range(1, max_pages + 1):
+        batch, reported = fetch_page(page)
+        if total is None:
+            total = reported
+        elif reported != total:
+            raise OnceError("total_count changed during pagination")
+        runs.extend(batch)
+        if len(runs) >= total:
+            break
+        if not batch:
+            raise OnceError("pagination ended before total_count")
+    if total is None or len(runs) != total:
+        raise OnceError("pagination did not cover total_count")
+    return runs
+
+
+def _fetch_runs(repo, workflow, commit, token):
+    return _paginate(lambda page: _page(repo, workflow, commit, token, page))
 
 
 def check_once(repo, workflow, commit, run_id, attempt, token, fetch=None):

@@ -878,6 +878,21 @@ class LaunchRefusalTests(unittest.TestCase):
 
 
 class OnceTests(unittest.TestCase):
+    def test_pagination_covers_all_pages(self):
+        from ci import once
+        pages = {1: ([{"id": 1}], 2), 2: ([{"id": 2}], 2)}
+        self.assertEqual(once._paginate(lambda page: pages[page]), [{"id": 1}, {"id": 2}])
+
+    def test_pagination_gap_is_rejected(self):
+        from ci import once
+        with self.assertRaises(once.OnceError):
+            once._paginate(lambda page: ([{"id": 1}], 2) if page == 1 else ([], 2))
+
+    def test_pagination_total_mismatch_is_rejected(self):
+        from ci import once
+        with self.assertRaises(once.OnceError):
+            once._paginate(lambda page: ([{"id": 1}], 2) if page == 1 else ([{"id": 2}], 3))
+
     def test_once_refuses_without_a_mandate_and_no_network(self):
         from unittest import mock
         from ci import once, workflow_guard
