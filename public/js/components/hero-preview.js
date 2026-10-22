@@ -9,6 +9,8 @@ import { renderInline } from '../text.js';
 const SHOWN = 3;
 // Longer code is cut after this many lines and fades out (the question itself shows all of it).
 export const PREVIEW_LINES = 8;
+// The phone's compact preview shows this many lines, under the main button, without the caption and the choices.
+export const COMPACT_LINES = 3;
 
 // A choice's answer, without its explanation: its first sentence, without the closing full stop. A full stop inside inline
 // code (between backticks) does not end the sentence.
@@ -44,7 +46,8 @@ function codeLines(source) {
 // question: a parsed question file (the one the link opens); href: where the box leads (the main button's target).
 export function heroPreview(question, { href, label = 'Python' }) {
   const snippet = question.snippets[0];
-  const long = snippet.code.trimEnd().split('\n').length > PREVIEW_LINES;
+  const lines = snippet.code.trimEnd().split('\n').length;
+  const cut = `${lines > PREVIEW_LINES ? ' hero-preview__code--long' : ''}${lines > COMPACT_LINES ? ' hero-preview__code--more' : ''}`;
   return h(
     'a',
     { class: 'code hero-stage hero-preview', href, tabindex: '-1', 'aria-hidden': 'true' },
@@ -52,7 +55,7 @@ export function heroPreview(question, { href, label = 'Python' }) {
       'div',
       { class: 'hero-preview__picture' },
       h('div', { class: 'code__caption' }, h('span', { class: 'code__label' }, snippet.label || label)),
-      h('div', { class: `hero-preview__code${long ? ' hero-preview__code--long' : ''}` }, h('pre', { class: 'code__pre' }, codeLines(snippet.code))),
+      h('div', { class: `hero-preview__code${cut}` }, h('pre', { class: 'code__pre' }, codeLines(snippet.code))),
       h('div', { class: 'hero-preview__ask' }, h('div', { class: 'hero-preview__prompt' }, renderInline(question.prompt)), h('div', { class: 'hero-preview__choices' }, previewChoices(question.options).map((c) => h('div', { class: 'hero-preview__choice' }, renderInline(c))))),
     ),
   );

@@ -33,3 +33,19 @@ test('About names Cloudflare Web Analytics, says the site is cookie-free, and no
   assert.doesNotMatch(text, /no personal data/, 'no broader promise than the provider documents');
   assert.doesNotMatch(text, /no cookies, analytics/);
 });
+
+// A script written into the page could add another site's script without a src attribute in the HTML.
+test('no inline script can load another: the only inline script is the import map, and it maps to this site only', () => {
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].map((m) => ({ attrs: m[1], body: m[2].trim() }));
+  assert.equal(scripts.length, 3, 'the import map, the app and the beacon');
+  const inline = scripts.filter((s) => s.body);
+  assert.deepEqual(inline.map((s) => s.attrs.trim()), ['type="importmap"']);
+  const { imports, ...rest } = JSON.parse(inline[0].body);
+  assert.deepEqual(Object.keys(rest), []);
+  for (const [name, target] of Object.entries(imports)) assert.match(target, /^\.\/js\/[\w/.-]+\.js\?v=\d+$/, `${name} stays on this site`);
+  const sources = scripts.filter((s) => !s.body).map((s) => s.attrs.match(/\ssrc="([^"]+)"/)[1]);
+  assert.equal(sources.length, 2);
+  assert.match(sources[0], /^js\/main\.js\?v=\d+$/);
+  assert.equal(sources[1], 'https://static.cloudflareinsights.com/beacon.min.js');
+  assert.doesNotMatch(html, /\son\w+\s*=/i, 'no inline event handlers');
+});

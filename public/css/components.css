@@ -232,12 +232,20 @@
 .lessons--questions .lesson-link { grid-template-columns: 1fr auto; }
 
 .course-head { display: grid; gap: var(--s-3); }
+/* The course's symbol in its progress ring, beside the title (the same badge as on the course card). */
+.course-head__title { display: flex; align-items: center; gap: var(--s-4); }
+.course-head__title .course-badge { inline-size: 3.5rem; block-size: 3.5rem; }
 /* === /course === */
 
 /* === question === */
 .question { display: grid; gap: var(--s-5); }
 .question__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); }
 .question__meta { display: grid; gap: var(--s-2); }
+.question__where { display: flex; align-items: center; gap: var(--s-3); }
+.question__where .course-badge { inline-size: 2.75rem; block-size: 2.75rem; }
+/* Beside the ring the lesson line needs no lead-in dash (the ring leads), which leaves it room on a phone. */
+.question__where .eyebrow::before { display: none; }
+.question__where > .question__meta { min-inline-size: 0; }
 .question__title { font-size: var(--text-2xl); max-width: 46rem; font-weight: 800; }
 .question__title--long { font-size: var(--text-lg); line-height: 1.4; font-weight: 700; }
 
@@ -636,13 +644,19 @@
 @media (min-width: 60rem) { .catalog__list { grid-template-columns: repeat(3, 1fr); } }
 @media (forced-colors: active) { .course-card { border: 1px solid CanvasText; } }
 
-/* Phone: the course cards come right after the first buttons. The hero's code stage stays out: below the cards it would be
-   a code box without a question, and the first button opens real code with one. */
+/* Phone: the course cards come right after the first buttons. Between them the preview is compact: three lines of code and
+   the question, close under the buttons, without its caption and choices (the button opens all of it). */
 @media (max-width: 59.99rem) {
   .home > .hero { display: contents; }
   .home .hero__text { order: 1; }
+  .home .hero-preview { order: 1; margin-block-start: calc(var(--s-4) - var(--s-8)); }
+  .home .hero-preview .code__caption, .home .hero-preview__choices { display: none; }
+  .home .hero-preview__code { padding-block: var(--s-3); max-block-size: none; mask-image: none; }
+  .home .hero-preview .line:nth-child(n+4) { display: none; }
+  .home .hero-preview__code--more { mask-image: linear-gradient(to bottom, currentColor 55%, transparent); }
+  .home .hero-preview__ask { padding: var(--s-3) var(--s-4) var(--s-4); }
+  .home .hero-preview__prompt { font-size: var(--text-base); }
   .home > .catalog { order: 2; }
-  .home .hero-stage { display: none; }
   .home > .home-notes { order: 4; }
   .home > .map-card { order: 5; }
 }

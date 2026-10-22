@@ -91,17 +91,29 @@ test('after an answer the preview shows the question Continue opens and leads th
   store.reset();
 });
 
-test('when a course is all read the preview shows its first question and leads to the course, like that button', async () => {
+test('when a course is all read the main button leads to the course, so there is no preview (never a question leading elsewhere)', async () => {
   store.reset();
   const ids = read(`courses/${B1.id}.json`).levels.flatMap((l) => l.lessons.flatMap((x) => x.questions));
   ids.forEach((id) => store.recordAnswer({ questionId: id, optionId: 'x', score: 1 }));
   const page = (await homeView()).node;
-  const link = byClass(page, 'hero-preview')[0];
   const browse = page.all((n) => n.tag === 'a' && text(n) === strings['home.browse'])[0];
   assert.ok(browse, 'the browse button is there');
-  assert.equal(link.attrs.href, browse.attrs.href);
-  mouseOnly(link);
-  assert.equal(text(byClass(link, 'hero-preview__prompt')[0]), first.prompt);
+  assert.match(browse.className, /button--primary/);
+  assert.deepEqual(byClass(page, 'hero-preview'), []);
+  assert.deepEqual(byClass(page, 'hero-stage'), []);
+  store.reset();
+});
+
+// Wherever a preview is drawn, the picture is the question its link opens.
+test('every preview on the home page shows the question its link opens', async () => {
+  const python = catalogRaw.courses.find((c) => c.id === 'python');
+  for (const setup of [() => {}, () => store.recordAnswer({ questionId: B1.start_question, optionId: 'x', score: 1 }), () => store.recordAnswer({ questionId: python.start_question, optionId: 'x', score: 1 })]) {
+    store.reset();
+    setup();
+    const link = byClass((await homeView()).node, 'hero-preview')[0];
+    const shown = read(`questions/${link.attrs.href.replace('#/q/', '')}.json`);
+    assert.equal(text(byClass(link, 'hero-preview__prompt')[0]), text(heroPreview(shown, { href: '' }).all((n) => n.className === 'hero-preview__prompt')[0]));
+  }
   store.reset();
 });
 
@@ -123,10 +135,16 @@ test('without a beginner course on the path the preview falls back to the onboar
   }
 });
 
+const withLines = (n) => ({ ...first, snippets: [{ ...first.snippets[0], code: Array.from({ length: n }, (_, i) => `x${i} = ${i}`).join('\n') + '\n' }] });
+const cutClass = (q) => byClass(heroPreview(q, { href: '' }), 'hero-preview__code')[0].className;
+
 test('long code is cut after eight lines and fades; short code is whole', () => {
   const long = read('questions/prod-timeout-does-not-cancel-the-work.json');
   assert.equal(byClass(heroPreview(long, { href: '' }), 'hero-preview__code--long').length, 1);
   assert.equal(byClass(heroPreview(first, { href: '' }), 'hero-preview__code--long').length, 0);
+  // The edge: eight lines are whole, nine are cut (a trailing newline is not a line).
+  assert.doesNotMatch(cutClass(withLines(8)), /--long/);
+  assert.match(cutClass(withLines(9)), /--long/);
   const c = css('components.css');
   assert.match(c, /\.hero-preview__code--long \{ max-block-size: calc\(8 \* var\(--lh-code\) \* var\(--text-code\) \+ 2 \* var\(--s-4\)\); mask-image: linear-gradient\(to bottom, currentColor 70%, transparent\); \}/);
 });

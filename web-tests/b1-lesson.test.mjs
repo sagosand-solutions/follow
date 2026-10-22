@@ -354,5 +354,12 @@ test('the word block on its own: without a set of new words every word is new an
   assert.equal(node.className, 'new-word');
   assert.equal(text(node.all((n) => n.className === 'new-word__label')[0]), 'New words');
   assert.deepEqual(node.all((n) => n.className.split(' ').includes('new-word__item')).map((i) => i.className), ['new-word__item', 'new-word__item']);
+  // Without a map of states every word is open: the panel shows and the sign says it can be folded.
+  assert.deepEqual(node.all((n) => n.className === 'new-word__toggle').map((b) => b.attrs['aria-expanded']), ['true', 'true']);
+  assert.deepEqual(node.all((n) => n.className === 'new-word__text').map((p) => p.attrs.hidden), [undefined, undefined]);
+  assert.deepEqual(node.all((n) => n.className === 'new-word__sign').map((x) => text(x)), ['\u2212', '\u2212']);
+  // The section is named by its own heading.
+  const heading = node.all((n) => n.className === 'new-word__label')[0];
+  assert.equal(node.attrs['aria-labelledby'], heading.attrs.id);
   assert.deepEqual(newWordCards([]), []);
 });

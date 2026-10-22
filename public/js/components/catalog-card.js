@@ -22,10 +22,12 @@ function progressOf(course) {
 }
 
 // The course's symbol in its progress ring. Once something is answered the ring replaces the written count and carries it
-// as its name ("10 of 30 read"); before that it is decoration.
-export function courseBadge(id, course) {
+// as its name ("10 of 30 read"); before that it is decoration. `named` puts the course's title in that name, for places
+// where the title is not written next to the ring.
+export function courseBadge(id, course, { named = false } = {}) {
   const { answered, total } = progressOf(course);
-  return progressBadge(id, { answered, total, label: answered ? t('course.lesson.progress', { answered, total }) : null });
+  const label = !answered ? null : named ? t('course.badge.progress', { course: course.title, answered, total }) : t('course.lesson.progress', { answered, total });
+  return progressBadge(id, { answered, total, label });
 }
 
 // entries: parsed catalog list; courses: Map of id -> parsed course file (a course that failed to load has no entry).

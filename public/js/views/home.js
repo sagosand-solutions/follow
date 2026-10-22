@@ -55,17 +55,15 @@ export async function homeView() {
   const firstId = beginnerCourse ? firstQuestionOf(beginner, beginnerCourse.course) : index && index.onboarding_question;
 
   // The hero shows the question the page's main button opens, as it will look: its code, its prompt and a few choices. The
-  // whole box is a mouse shortcut to the same place as that button (Start for a new visitor, then Continue); the button
-  // stays the only target for the keyboard and screen readers. When everything is read it shows the first question and
-  // leads to the course.
+  // whole box is a mouse shortcut to that question (Start for a new visitor, then Continue); the button stays the only
+  // target for the keyboard and screen readers. When everything is read the main button leads to the course, not to a
+  // question, so there is no preview (a picture of one question must never lead somewhere else).
   let stage = null;
   const started = answeredCount > 0;
-  const shownId = started && nextId ? nextId : firstId;
+  const shownId = started ? nextId : firstId;
   if (shownId) {
     try {
-      const q = await loadQuestion(shownId);
-      const href = !started ? `#/q/${firstId}` : nextId ? `#/q/${nextId}` : browseHref;
-      stage = heroPreview(q, { href });
+      stage = heroPreview(await loadQuestion(shownId), { href: `#/q/${shownId}` });
     } catch {
       stage = null;
     }

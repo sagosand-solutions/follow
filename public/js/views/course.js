@@ -2,7 +2,7 @@ import { h } from '../dom.js';
 import { t } from '../i18n.js';
 import { loadCourse, loadCatalog } from '../data.js';
 import { reviewHref, DEFAULT_COURSE } from '../catalog.js';
-import { premiumNote, alreadyCodeSign, firstQuestionOf } from '../components/catalog-card.js';
+import { premiumNote, alreadyCodeSign, firstQuestionOf, courseBadge } from '../components/catalog-card.js';
 import { practisedLine, courseEndCard } from '../components/beginner.js';
 import { practiceSummary, courseFinished } from '../lesson-extras.js';
 import { store } from '../progress.js';
@@ -169,6 +169,6 @@ export async function courseView({ id = DEFAULT_COURSE } = {}) {
 
   return {
     title: course.title || t('course.title'),
-    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(entry && entry.audience === 'beginner' ? (entry.premium ? t('course.eyebrow.beginner') : t('course.eyebrow.beginnerFree')) : id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('h1', {}, course.title || t('course.title')), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, c.levels > 1 ? { template: t('facts.levels'), bold: c.levels } : null], t('facts.label')); })(), startAction), entry && entry.audience === 'beginner' ? alreadyCodeSign(catalog) : null, ending, continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, mapCard, ...levels, limits),
+    node: h('div', { class: 'stack stack--loose' }, h('div', { class: 'course-head' }, eyebrow(entry && entry.audience === 'beginner' ? (entry.premium ? t('course.eyebrow.beginner') : t('course.eyebrow.beginnerFree')) : id === DEFAULT_COURSE ? t('course.eyebrow') : t('course.eyebrow.other')), h('div', { class: 'course-head__title' }, courseBadge(id, course), h('h1', {}, course.title || t('course.title'))), h('p', { class: 'lead' }, entry && entry.description ? entry.description : t('course.lead')), (() => { const c = courseCounts(course); return facts([{ template: pluralTemplate(c.questions, t('facts.question'), t('facts.questions')), bold: c.questions || null }, { template: pluralTemplate(c.lessons, t('facts.lesson'), t('facts.lessons')), bold: c.lessons || null }, c.levels > 1 ? { template: t('facts.levels'), bold: c.levels } : null], t('facts.label')); })(), startAction), entry && entry.audience === 'beginner' ? alreadyCodeSign(catalog) : null, ending, continueCard, reviewAction, shortcuts, entry ? premiumNote(entry) : null, mapCard, ...levels, limits),
   };
 }
