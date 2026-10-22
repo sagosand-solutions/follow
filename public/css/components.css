@@ -185,6 +185,7 @@
 @media (prefers-reduced-motion: reduce) { .hero-preview:hover { transform: none; } }
 .hero-preview .code__caption { min-height: 2.75rem; padding-inline: var(--s-4); }
 .hero-preview__code { padding-block: var(--s-4); overflow: hidden; }
+.hero-preview__code--long { max-block-size: calc(8 * var(--lh-code) * var(--text-code) + 2 * var(--s-4)); mask-image: linear-gradient(to bottom, currentColor 70%, transparent); }
 .hero-preview__ask { display: grid; gap: var(--s-3); padding: var(--s-4) var(--s-5) var(--s-5); border-block-start: 1px solid var(--stage-line); }
 .hero-preview__prompt { font-size: var(--text-lg); font-weight: 800; line-height: 1.3; }
 .hero-preview__choices { display: grid; gap: var(--s-2); }
