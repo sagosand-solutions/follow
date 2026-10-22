@@ -16,8 +16,13 @@ test('index.html loads exactly one Cloudflare beacon, deferred, with the site to
   const config = tag.match(/\sdata-cf-beacon='([^']*)'/);
   assert.ok(config, 'the beacon carries its configuration');
   assert.deepEqual(JSON.parse(config[1]), { token: TOKEN });
-  assert.match(html, /<script defer [^>]*><\/script>\n<\/body>/, 'the beacon is the last thing in the body');
+  assert.ok(html.trimEnd().endsWith(`${tag}</script>\n</body>\n</html>`), 'the beacon is the last thing in the body');
   assert.equal((html.match(/data-cf-beacon/g) || []).length, 1);
+});
+
+test('the beacon is the only script loaded from another site', () => {
+  const external = [...html.matchAll(/<script\b[^>]*\ssrc\s*=\s*["']?([^"'\s>]+)/gi)].map((m) => m[1]).filter((src) => /^(https?:)?\/\//.test(src));
+  assert.deepEqual(external, ['https://static.cloudflareinsights.com/beacon.min.js']);
 });
 
 test('About names Cloudflare Web Analytics, says the site is cookie-free, and no longer claims no analytics', () => {
