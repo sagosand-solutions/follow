@@ -1,6 +1,7 @@
 // The hero's preview of a question: a real question's code, its prompt and a few of its choices, drawn on the code stage.
-// The whole box is one link with its own name; what it shows is a picture of the question, so it is hidden from assistive
-// technology and nothing inside it can take focus or be answered.
+// The whole box is a shortcut for the mouse to where the page's main button goes. That button is the one target for the
+// keyboard and for assistive technology, so the box is hidden from both (no focus stop, no second reading of the code), and
+// nothing inside it can take focus or be answered.
 import { h } from '../dom.js';
 import { tokenizePython } from '../highlight.js';
 import { renderInline } from '../text.js';
@@ -40,16 +41,16 @@ function codeLines(source) {
   return h('code', { class: 'code__code', translate: 'no', dir: 'ltr', 'data-digits': Math.min(String(lines.length).length, 4) }, lines.map((tokens, i) => h('span', { class: 'line', 'data-line': i + 1 }, tokens.map((tok) => (tok.type === 'plain' ? tok.text : h('span', { class: `tok tok-${tok.type}` }, tok.text))))));
 }
 
-// question: a parsed question file (the one the link opens); href: where the box leads; name: the link's accessible name.
-export function heroPreview(question, { href, name, label = 'Python' }) {
+// question: a parsed question file (the one the link opens); href: where the box leads (the main button's target).
+export function heroPreview(question, { href, label = 'Python' }) {
   const snippet = question.snippets[0];
   const long = snippet.code.trimEnd().split('\n').length > PREVIEW_LINES;
   return h(
     'a',
-    { class: 'code hero-stage hero-preview', href, 'aria-label': name },
+    { class: 'code hero-stage hero-preview', href, tabindex: '-1', 'aria-hidden': 'true' },
     h(
       'div',
-      { class: 'hero-preview__picture', 'aria-hidden': 'true' },
+      { class: 'hero-preview__picture' },
       h('div', { class: 'code__caption' }, h('span', { class: 'code__label' }, snippet.label || label)),
       h('div', { class: `hero-preview__code${long ? ' hero-preview__code--long' : ''}` }, h('pre', { class: 'code__pre' }, codeLines(snippet.code))),
       h('div', { class: 'hero-preview__ask' }, h('div', { class: 'hero-preview__prompt' }, renderInline(question.prompt)), h('div', { class: 'hero-preview__choices' }, previewChoices(question.options).map((c) => h('div', { class: 'hero-preview__choice' }, renderInline(c))))),

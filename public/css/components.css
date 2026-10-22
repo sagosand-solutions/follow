@@ -177,11 +177,10 @@
 .home::before { content: ""; position: absolute; z-index: -1; inset-inline: 0; inset-block-start: calc(-1 * var(--s-6)); block-size: 46rem; background: radial-gradient(closest-side, var(--hero-glow), transparent); pointer-events: none; }
 @media (forced-colors: active) { .home::before { display: none; } }
 
-/* The hero's preview of the first question: one link, drawn on the code stage, with the choices as faint raised boxes that
-   are part of the picture (not controls). */
+/* The hero's preview of the question the main button opens: a mouse shortcut drawn on the code stage (the button is the
+   keyboard's target), with the choices as faint raised boxes that are part of the picture (not controls). */
 .hero-preview { display: block; color: var(--stage-ink); text-decoration: none; transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
 .hero-preview:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
-.hero-preview:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .hero-preview:hover { transform: none; } }
 .hero-preview .code__caption { min-height: 2.75rem; padding-inline: var(--s-4); }
 .hero-preview__code { padding-block: var(--s-4); overflow: hidden; }
