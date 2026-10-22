@@ -584,8 +584,11 @@
    stop; its focus ring is drawn around the card. Any other link or button in a card sits above the stretched area. */
 .course-card { position: relative; }
 .course-card__title a::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
-.course-card__title a:focus-visible { outline: none; }
-.course-card:has(.course-card__title a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Only where :has() works does the ring move from the link to the card; elsewhere the link keeps its own ring. */
+@supports selector(:has(*)) {
+  .course-card__title a:focus-visible { outline: none; }
+  .course-card:has(.course-card__title a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+}
 .course-card a:not(.course-card__title a), .course-card button { position: relative; z-index: 1; }
 .course-card__text { color: var(--muted); line-height: 1.6; }
 /* A started course: an accent edge, twice as thick as a neutral card's (so the state shows by form too), and a filling ring. */

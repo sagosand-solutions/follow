@@ -160,8 +160,9 @@ test('the whole card is the title link: one focus stop with its ring around the 
   const c = css('components.css');
   assert.match(c, /\.course-card \{ position: relative; \}/);
   assert.match(c, /\.course-card__title a::after \{ content: ""; position: absolute; inset: 0; border-radius: var\(--radius\); \}/);
-  assert.match(c, /\.course-card__title a:focus-visible \{ outline: none; \}/);
-  assert.match(c, /\.course-card:has\(\.course-card__title a:focus-visible\) \{ outline: 3px solid var\(--focus\); outline-offset: 2px; \}/, 'the ring goes around the card');
+  // The link gives up its ring only where the card can take it over (a browser without :has() keeps the link's ring).
+  assert.match(c, /@supports selector\(:has\(\*\)\) \{\n  \.course-card__title a:focus-visible \{ outline: none; \}\n  \.course-card:has\(\.course-card__title a:focus-visible\) \{ outline: 3px solid var\(--focus\); outline-offset: 2px; \}\n\}/, 'the ring goes around the card');
+  assert.equal(c.match(/\.course-card__title a:focus-visible \{ outline: none; \}/g).length, 1, 'never outside @supports');
   assert.match(c, /\.course-card a:not\(\.course-card__title a\), \.course-card button \{ position: relative; z-index: 1; \}/, 'other controls keep their own targets');
   // Hover and the pointer belong to course cards only; a coming-soon step is not one and has no link.
   assert.doesNotMatch(c, /path__step--soon[^{]*:hover/);
