@@ -605,7 +605,7 @@
 .course-badge--done .progress-ring__fill { stroke-linecap: butt; }
 @media (forced-colors: active) {
   .course-badge { color: CanvasText; }
-  .progress-ring__track { stroke: GrayText; }
+  .course-badge .progress-ring__track { stroke: GrayText; }
   .progress-ring__fill { stroke: Highlight; }
   .course-card.course-card--started { border: 2px solid Highlight; box-shadow: none; }
 }

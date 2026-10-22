@@ -142,7 +142,9 @@ test('motion: hover lifts a card 2 px with transform and shadow only, Continue g
   // A ring that carries a value shows what is left at >= 3:1 (the control border colour, checked in every theme).
   assert.match(c, /\.course-badge--started \.progress-ring__track \{ stroke: var\(--line-strong\); \}/);
   assert.match(c, /\.progress-ring__fill \{ stroke: var\(--ring-fill\); stroke-width: 3;/);
-  assert.match(c, /@media \(forced-colors: active\) \{\n  \.course-badge \{ color: CanvasText; \}\n  \.progress-ring__track \{ stroke: GrayText; \}\n  \.progress-ring__fill \{ stroke: Highlight; \}/);
+  assert.match(c, /@media \(forced-colors: active\) \{\n  \.course-badge \{ color: CanvasText; \}\n  \.course-badge \.progress-ring__track \{ stroke: GrayText; \}\n  \.progress-ring__fill \{ stroke: Highlight; \}/);
+  // The forced-colours track must outrank the started ring's track rule (same specificity, later in the file).
+  assert.ok(c.indexOf('  .course-badge .progress-ring__track { stroke: GrayText; }') > c.indexOf('.course-badge--started .progress-ring__track { stroke: var(--line-strong); }'));
   assert.match(c, /  \.course-card\.course-card--started \{ border: 2px solid Highlight; box-shadow: none; \}/, 'wins over the plain forced-colours card border');
 });
 
