@@ -144,7 +144,10 @@ test('motion: hover lifts a card 2 px with transform and shadow only, Continue g
   assert.match(c, /\.progress-ring__fill \{ stroke: var\(--ring-fill\); stroke-width: 3;/);
   assert.match(c, /@media \(forced-colors: active\) \{\n  \.course-badge \{ color: CanvasText; \}\n  \.course-badge \.progress-ring__track \{ stroke: GrayText; \}\n  \.progress-ring__fill \{ stroke: Highlight; \}/);
   // The forced-colours track must outrank the started ring's track rule (same specificity, later in the file).
-  assert.ok(c.indexOf('  .course-badge .progress-ring__track { stroke: GrayText; }') > c.indexOf('.course-badge--started .progress-ring__track { stroke: var(--line-strong); }'));
+  // Anchored at the start of a line: a more specific started rule would outrank forced colours again.
+  const startedTrack = c.indexOf('\n.course-badge--started .progress-ring__track { stroke: var(--line-strong); }');
+  assert.ok(startedTrack > -1, 'the started track rule, at the same specificity');
+  assert.ok(c.indexOf('\n  .course-badge .progress-ring__track { stroke: GrayText; }') > startedTrack);
   assert.match(c, /  \.course-card\.course-card--started \{ border: 2px solid Highlight; box-shadow: none; \}/, 'wins over the plain forced-colours card border');
 });
 

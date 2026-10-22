@@ -21,6 +21,7 @@ import { usableTraces } from '../trace.js';
 import { changedToFit } from '../moments.js';
 import { createSeenFlag, createChoice } from '../seen.js';
 import { premiumState } from '../account/premium.js';
+import { courseBadge } from '../components/catalog-card.js';
 import { checkQuestion, isPractice } from '../question-check.js';
 
 const UNKNOWN = '__unknown';
@@ -153,7 +154,8 @@ function draw(ctx, prev, stale = false) {
     meta.append(eyebrow(`${where.lesson.title} · ${t('q.position', { n: where.position + 1, total: where.lesson.questions.length })}`));
     meta.append(progressBar(where.lesson.questions, q.id));
   }
-  header.append(meta);
+  // The course's symbol and its ring, as on the course card; it fills as soon as an answer is given.
+  header.append(ctx.course ? h('div', { class: 'question__where' }, courseBadge(ctx.course.id, ctx.course, { named: true }), meta) : meta);
   if (CONFIG.scoringUi && !ctx.reviewMode && !ctx.practice) header.append(h('a', { class: 'button button--secondary button--small', href: `#/challenge/${encodeURIComponent(q.id)}` }, t('score.challenge.open')));
   const chips = h('p', { class: 'chips' }, h('span', { class: 'chip' }, t(`type.${q.type}`)), q.level ? h('span', { class: 'chip' }, t(`level.${q.level}`)) : null, ctx.practice ? h('span', { class: 'chip' }, t('q.practice')) : null);
 

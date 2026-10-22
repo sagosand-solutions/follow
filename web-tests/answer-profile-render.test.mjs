@@ -143,6 +143,38 @@ test('reopening an answered practice question keeps the practice presentation (r
 });
 
 
+// The course header of a question: the course's symbol in its ring beside the lesson line, filling as soon as the answer is in.
+test('the question\'s course header: the ring is decoration before the answer, then fills and is named with the course and the count', async () => {
+  store.reset();
+  const root = await render('synthetic-practice-question');
+  const badgeOf = (r) => {
+    const [where] = r.all((n) => n.className === 'question__where');
+    assert.ok(where, 'the course header');
+    assert.equal(where.children.length, 2);
+    assert.equal(where.children[1].className, 'question__meta', 'beside the lesson line');
+    return where.children[0];
+  };
+  const before = badgeOf(root);
+  assert.equal(before.className, 'course-badge');
+  assert.equal(before.attrs['aria-hidden'], 'true');
+  assert.equal(before.all((n) => n.attrs.class === 'progress-ring__fill').length, 0);
+  answerRadio(root, 'opt-0').click();
+  checkButton(root).dispatchEvent({ type: 'click', preventDefault() {} });
+  const after = badgeOf(root);
+  assert.equal(after.className, 'course-badge course-badge--started');
+  assert.equal(after.attrs.role, 'img');
+  assert.equal(after.attrs['aria-label'], 'Synthetic: 1 of 2 read');
+  assert.equal(after.all((n) => n.attrs.class === 'progress-ring__fill').length, 1);
+  store.reset();
+});
+
+test('a question without a course has no course header', async () => {
+  store.reset();
+  const view = await questionView({ id: 'synthetic-standard-question' });
+  assert.equal(view.node.all((n) => n.attrs.id === 'q-title').length, 1, 'the question itself is drawn');
+  assert.equal(view.node.all((n) => n.className === 'question__where' || n.className.startsWith('course-badge')).length, 0);
+});
+
 // The scoring profile and free leaderboard views are registered only with CONFIG.scoringUi on and are server-only; the
 // local/mock branches were removed. The 027 isolation (practice excluded, unknown profiles unavailable) is enforced and
 // tested in the scoring model: web-tests/answer-profile.test.mjs and web-tests/scoring.test.mjs.

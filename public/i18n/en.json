@@ -84,6 +84,7 @@
   "course.lead": "Start where you like. The order is a suggestion, nothing is locked.",
   "course.start": "Start",
   "course.lesson.progress": "{answered} of {total} read",
+  "course.badge.progress": "{course}: {answered} of {total} read",
   "course.lesson.buildsOn": "Builds on: {names}",
   "course.limits.title": "Where your progress lives",
   "course.limits.text": "Your progress is saved only in this browser. Clearing site data removes it.",
