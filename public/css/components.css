@@ -170,6 +170,10 @@
 .hero__hint { color: var(--muted); font-size: var(--text-sm); }
 .hero-stage { margin: 0; }
 .welcome { font-size: var(--text-xl); }
+.welcome-row { display: flex; align-items: center; gap: var(--s-4); }
+.welcome-row .course-badge { inline-size: 3.5rem; block-size: 3.5rem; }
+/* Courses start like a new page in the book: a hairline and more air after the hero. */
+.home > .catalog { padding-block-start: var(--s-7); border-block-start: 1px solid var(--line); }
 
 /* === /home === */
 
@@ -572,11 +576,42 @@
 .catalog { display: grid; gap: var(--s-4); }
 .catalog > h2 { font-size: var(--text-xl); }
 .catalog__list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-4); grid-template-columns: 1fr; }
-.course-card { display: grid; align-content: start; gap: var(--s-3); padding: var(--s-5); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.course-card { display: grid; align-content: start; gap: var(--s-3); padding: calc(var(--s-5) + 6px); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.course-card__head { display: flex; align-items: center; gap: var(--s-3); }
 .course-card__title { font-size: var(--text-lg); }
 .course-card__title a { color: var(--ink); text-decoration-thickness: 2px; }
-.course-card__text { color: var(--muted); }
-.course-card__progress { color: var(--muted); }
+/* The whole card is the title link's target, so the hover lift promises only what a click does. The link stays the one focus
+   stop; its focus ring is drawn around the card. Any other link or button in a card sits above the stretched area. */
+.course-card { position: relative; }
+.course-card__title a::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+/* Only where :has() works does the ring move from the link to the card; elsewhere the link keeps its own ring. */
+@supports selector(:has(*)) {
+  .course-card__title a:focus-visible { outline: none; }
+  .course-card:has(.course-card__title a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+}
+.course-card a:not(.course-card__title a), .course-card button { position: relative; z-index: 1; }
+.course-card__text { color: var(--muted); line-height: 1.6; }
+/* A started course: an accent edge, twice as thick as a neutral card's (so the state shows by form too), and a filling ring. */
+.course-card--started { border-color: var(--card-edge-started); box-shadow: inset 0 0 0 1px var(--card-edge-started); }
+.course-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.course-card--started:hover { box-shadow: inset 0 0 0 1px var(--card-edge-started), var(--shadow-card-hover); }
+.course-card:hover .course-badge, .course-card:focus-within .course-badge { color: var(--icon-hover); }
+@media (prefers-reduced-motion: reduce) { .course-card:hover { transform: none; } }
+
+/* Course symbol in its progress ring: a thin track, a thicker filled arc from twelve o'clock. */
+.course-badge { flex: none; display: block; inline-size: 3rem; block-size: 3rem; color: var(--icon-ink); transition: color var(--dur) var(--ease); }
+.progress-ring { display: block; inline-size: 100%; block-size: 100%; overflow: visible; }
+.progress-ring__track { stroke: var(--ring-track); stroke-width: 1.5; }
+/* Once the ring carries a value, what is left must show too: the track takes the control border colour (>= 3:1). */
+.course-badge--started .progress-ring__track { stroke: var(--line-strong); }
+.progress-ring__fill { stroke: var(--ring-fill); stroke-width: 3; stroke-linecap: round; }
+.course-badge--done .progress-ring__fill { stroke-linecap: butt; }
+@media (forced-colors: active) {
+  .course-badge { color: CanvasText; }
+  .course-badge .progress-ring__track { stroke: GrayText; }
+  .progress-ring__fill { stroke: Highlight; }
+  .course-card.course-card--started { border: 2px solid Highlight; box-shadow: none; }
+}
 .premium-note { border-inline-start-color: var(--line-strong); }
 @media (min-width: 60rem) { .catalog__list { grid-template-columns: repeat(3, 1fr); } }
 @media (forced-colors: active) { .course-card { border: 1px solid CanvasText; } }
@@ -684,10 +719,13 @@ p.board__gap { margin: 0; text-align: center; color: var(--muted); font-weight: 
 .path__n { display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 999px; border: 2px solid var(--line-strong); font-weight: 800; color: var(--ink); background: var(--bg); }
 .path__step:not(.path__step--soon) .path__n { background: var(--accent-attention); border-color: var(--accent-attention); color: var(--on-accent-attention); }
 .path__body { min-width: 0; display: grid; gap: var(--s-1); align-content: start; }
-.path__step--soon .path__body { padding: var(--s-3) var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+.path__step--soon .path__body { padding: calc(var(--s-3) + 6px) calc(var(--s-4) + 6px); border: 1px dashed var(--line-strong); border-radius: var(--radius); gap: var(--s-2); }
+.path__step--soon .path__title { color: var(--muted); }
+.path__step--soon .course-badge { opacity: 0.5; }
 .path__title { font-weight: 800; }
 .path__soon { font-weight: 700; color: var(--muted); }
-.path__card { padding: var(--s-4); }
+.path__card { padding: calc(var(--s-4) + 6px); }
+.path__skipline { margin-block-start: calc(-1 * var(--s-2)); }
 @media (min-width: 60rem) {
   .path { grid-template-columns: 1fr 1fr 1.4fr; align-items: stretch; }
   /* The number keeps its own height and the card row takes the rest, so the three cards start on one line and end on one. */

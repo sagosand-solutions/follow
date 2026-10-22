@@ -99,10 +99,10 @@ main { padding-block: var(--s-5) var(--s-8); }
   min-height: var(--tap); padding: var(--s-2) var(--s-5);
   border: 2px solid transparent; border-radius: var(--radius-md);
   font: inherit; font-weight: 800; text-decoration: none; cursor: pointer;
-  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .button--primary { background: var(--accent-attention); color: var(--on-accent-attention); box-shadow: var(--shadow-attention); }
-.button--primary:hover { background: var(--accent-attention-hover); }
+.button--primary:hover { background: var(--accent-attention-hover); box-shadow: var(--shadow-accent-hover); }
 .button--block { width: 100%; }
 .button--secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
 .button--secondary:hover { background: var(--surface-2); }
