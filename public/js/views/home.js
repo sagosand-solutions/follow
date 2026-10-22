@@ -5,7 +5,7 @@ import { activeCourse, courseHref, reviewHref, freeTotal } from '../catalog.js';
 import { catalogSection, firstQuestionOf } from '../components/catalog-card.js';
 import { progressBadge } from '../components/course-icons.js';
 import { store } from '../progress.js';
-import { renderCodeBlock } from '../components/code-block.js';
+import { heroPreview } from '../components/hero-preview.js';
 import { readingMap, summaryText } from '../components/map.js';
 import { nextUp } from '../course-nav.js';
 import { lastRead } from '../moments.js';
@@ -49,14 +49,23 @@ export async function homeView() {
   const reviewCount = course ? reviewQueue(course, records).length : 0;
   const nextId = target ? target.questionId : null;
 
-  // The real onboarding code is the hero: the visitor sees what they will be reading.
+  // A new visitor starts with the beginner course on the path when there is one (and it loads), else the onboarding question.
+  const beginner = catalog ? catalog.find((e) => e.audience === 'beginner' && e.pathStep === 1) : null;
+  const beginnerCourse = beginner ? entries.find((e) => e.id === beginner.id) : null;
+  const firstId = beginnerCourse ? firstQuestionOf(beginner, beginnerCourse.course) : index && index.onboarding_question;
+
+  // The hero shows the question the page's main button opens, as it will look: its code, its prompt and a few choices. The
+  // whole box is a mouse shortcut to the same place as that button (Start for a new visitor, then Continue); the button
+  // stays the only target for the keyboard and screen readers. When everything is read it shows the first question and
+  // leads to the course.
   let stage = null;
-  if (index && index.onboarding_question) {
+  const started = answeredCount > 0;
+  const shownId = started && nextId ? nextId : firstId;
+  if (shownId) {
     try {
-      const q = await loadQuestion(index.onboarding_question);
-      const s = q.snippets[0];
-      stage = renderCodeBlock({ source: s.code, language: q.language || 'python', label: s.label || null, highlightLines: [] });
-      stage.classList.add('hero-stage');
+      const q = await loadQuestion(shownId);
+      const href = !started ? `#/q/${firstId}` : nextId ? `#/q/${nextId}` : browseHref;
+      stage = heroPreview(q, { href });
     } catch {
       stage = null;
     }
@@ -76,10 +85,6 @@ export async function homeView() {
     if (reviewCount > 0) actions.append(h('a', { class: 'button button--secondary button--block', href: reviewHref(active ? active.id : undefined) }, t('review.button', { count: reviewCount })));
   } else {
     intro.push(h('p', { class: 'lead' }, t('home.lead')));
-    // A new visitor starts with the beginner course on the path when there is one (and it loads), else the onboarding question.
-    const beginner = catalog ? catalog.find((e) => e.audience === 'beginner' && e.pathStep === 1) : null;
-    const beginnerCourse = beginner ? entries.find((e) => e.id === beginner.id) : null;
-    const firstId = beginnerCourse ? firstQuestionOf(beginner, beginnerCourse.course) : index && index.onboarding_question;
     if (firstId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${firstId}` }, t('home.start')));
     // With a course catalog right below, a second "browse" button would only push the cards down.
     if (!catalog || catalog.length < 2 || !(index && index.onboarding_question)) actions.append(h('a', { class: index && index.onboarding_question ? 'button button--secondary button--block' : 'button button--primary button--block', href: browseHref }, t('home.browse')));

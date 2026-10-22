@@ -30,6 +30,7 @@
   --scrim: rgba(7, 11, 24, 0.6);
   --shadow-accent-hover: 0 8px 20px -8px rgba(184, 132, 0, 0.55);   /* Continue on hover */
   --shadow-card-hover: 0 12px 24px -14px rgba(17, 22, 52, 0.28);    /* a course card lifted on hover */
+  --hero-glow: rgba(232, 168, 0, 0.05);                               /* the soft light behind the hero (3–5 %) */
 
   /* course symbols, progress rings and card states (the filled arc and a started card's edge are >= 3:1 on --surface) */
   --icon-ink: #4b5278;
@@ -117,7 +118,7 @@
     --stage-bg: #070b18; --stage-bg-raised: #111833; --stage-line: #232d54;
     --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
     --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-    --ring-track: #2a3563; --ring-fill: #ffc83d; --card-edge-started: #d6a93a; --icon-ink: #a3abd0; --icon-hover: #ffc83d; --shadow-accent-hover: 0 8px 22px -8px rgba(255, 200, 61, 0.45); --shadow-card-hover: 0 12px 26px -12px rgba(0, 0, 0, 0.6);
+    --ring-track: #2a3563; --ring-fill: #ffc83d; --card-edge-started: #d6a93a; --icon-ink: #a3abd0; --icon-hover: #ffc83d; --shadow-accent-hover: 0 8px 22px -8px rgba(255, 200, 61, 0.45); --shadow-card-hover: 0 12px 26px -12px rgba(0, 0, 0, 0.6); --hero-glow: rgba(255, 200, 61, 0.05);
   }
 }
 :root[data-theme="dark"] {
@@ -133,7 +134,7 @@
   --stage-bg: #070b18; --stage-bg-raised: #111833; --stage-line: #232d54;
   --mark-right: #8fd6a9; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #7983b3;
   --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  --ring-track: #2a3563; --ring-fill: #ffc83d; --card-edge-started: #d6a93a; --icon-ink: #a3abd0; --icon-hover: #ffc83d; --shadow-accent-hover: 0 8px 22px -8px rgba(255, 200, 61, 0.45); --shadow-card-hover: 0 12px 26px -12px rgba(0, 0, 0, 0.6);
+  --ring-track: #2a3563; --ring-fill: #ffc83d; --card-edge-started: #d6a93a; --icon-ink: #a3abd0; --icon-hover: #ffc83d; --shadow-accent-hover: 0 8px 22px -8px rgba(255, 200, 61, 0.45); --shadow-card-hover: 0 12px 26px -12px rgba(0, 0, 0, 0.6); --hero-glow: rgba(255, 200, 61, 0.05);
 }
 
 /* Selectable themes. Each block defines every colour and effect token; a test keeps the sets identical to :root.
@@ -156,7 +157,7 @@
   --tok-keyword: #ff9ac1; --tok-string: #9be3a8; --tok-number: #ffc07a; --tok-comment: #a99c88; --tok-function: #8fb4ff; --tok-builtin: #7fe0e8; --tok-decorator: #c9a8ff;
   --mark-none: transparent; --mark-right: #1f5a34; --mark-partial: #a87400; --mark-wrong: #8a2a45; --outcome-unknown: #7d6e57;
   --shadow-stage: none;
-  --icon-ink: #5d5040; --icon-hover: #a87400; --ring-track: #ddd2bc; --ring-fill: #a87400; --card-edge-started: #a87400; --shadow-accent-hover: 0 8px 20px -8px rgba(168, 116, 0, 0.5); --shadow-card-hover: 0 12px 24px -14px rgba(42, 33, 24, 0.3);
+  --icon-ink: #5d5040; --icon-hover: #a87400; --ring-track: #ddd2bc; --ring-fill: #a87400; --card-edge-started: #a87400; --shadow-accent-hover: 0 8px 20px -8px rgba(168, 116, 0, 0.5); --shadow-card-hover: 0 12px 24px -14px rgba(42, 33, 24, 0.3); --hero-glow: rgba(212, 150, 0, 0.05);
 }
 
 :root[data-theme="slate"] {
@@ -176,7 +177,7 @@
   --tok-keyword: #ff9ac1; --tok-string: #9be3a8; --tok-number: #ffc07a; --tok-comment: #8f9ab0; --tok-function: #8fb4ff; --tok-builtin: #7fe0e8; --tok-decorator: #c9a8ff;
   --mark-none: transparent; --mark-right: #94d7ad; --mark-partial: #f0c765; --mark-wrong: #f4a3bd; --outcome-unknown: #8590a3;
   --shadow-stage: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  --icon-ink: #a9b2c0; --icon-hover: #ffc83d; --ring-track: #3a4352; --ring-fill: #ffc83d; --card-edge-started: #d6a93a; --shadow-accent-hover: 0 8px 22px -8px rgba(255, 200, 61, 0.4); --shadow-card-hover: 0 12px 26px -12px rgba(0, 0, 0, 0.55);
+  --icon-ink: #a9b2c0; --icon-hover: #ffc83d; --ring-track: #3a4352; --ring-fill: #ffc83d; --card-edge-started: #d6a93a; --shadow-accent-hover: 0 8px 22px -8px rgba(255, 200, 61, 0.4); --shadow-card-hover: 0 12px 26px -12px rgba(0, 0, 0, 0.55); --hero-glow: rgba(255, 200, 61, 0.04);
 }
 
 :root[data-theme="contrast"] {
@@ -196,7 +197,7 @@
   --tok-keyword: #ffb3d9; --tok-string: #b6f0c3; --tok-number: #ffd29a; --tok-comment: #d0d0d0; --tok-function: #b3ccff; --tok-builtin: #9ff0f7; --tok-decorator: #dcc3ff;
   --mark-none: transparent; --mark-right: #9be7b4; --mark-partial: #ffd84d; --mark-wrong: #ffb3c8; --outcome-unknown: #d0d0d0;
   --shadow-stage: 0 0 0 1px #8a8a8a inset;
-  --icon-ink: #e0e0e0; --icon-hover: #ffd84d; --ring-track: #8a8a8a; --ring-fill: #ffd84d; --card-edge-started: #ffd84d; --shadow-accent-hover: none; --shadow-card-hover: 0 0 0 0 transparent;
+  --icon-ink: #e0e0e0; --icon-hover: #ffd84d; --ring-track: #8a8a8a; --ring-fill: #ffd84d; --card-edge-started: #ffd84d; --shadow-accent-hover: none; --shadow-card-hover: 0 0 0 0 transparent; --hero-glow: rgba(255, 216, 77, 0.03);
 }
 
 /* Auto follows the operating system's contrast preference: the same values as the Contrast theme (a test keeps them identical). */
@@ -219,6 +220,6 @@
     --tok-keyword: #ffb3d9; --tok-string: #b6f0c3; --tok-number: #ffd29a; --tok-comment: #d0d0d0; --tok-function: #b3ccff; --tok-builtin: #9ff0f7; --tok-decorator: #dcc3ff;
     --mark-none: transparent; --mark-right: #9be7b4; --mark-partial: #ffd84d; --mark-wrong: #ffb3c8; --outcome-unknown: #d0d0d0;
     --shadow-stage: 0 0 0 1px #8a8a8a inset;
-    --icon-ink: #e0e0e0; --icon-hover: #ffd84d; --ring-track: #8a8a8a; --ring-fill: #ffd84d; --card-edge-started: #ffd84d; --shadow-accent-hover: none; --shadow-card-hover: 0 0 0 0 transparent;
+    --icon-ink: #e0e0e0; --icon-hover: #ffd84d; --ring-track: #8a8a8a; --ring-fill: #ffd84d; --card-edge-started: #ffd84d; --shadow-accent-hover: none; --shadow-card-hover: 0 0 0 0 transparent; --hero-glow: rgba(255, 216, 77, 0.03);
   }
 }
