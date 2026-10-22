@@ -172,6 +172,26 @@
 .welcome { font-size: var(--text-xl); }
 .welcome-row { display: flex; align-items: center; gap: var(--s-4); }
 .welcome-row .course-badge { inline-size: 3.5rem; block-size: 3.5rem; }
+/* A soft light in the accent's tone behind the hero (a token per theme, 3–5 % opacity); never in forced colours. */
+.home { position: relative; isolation: isolate; }
+.home::before { content: ""; position: absolute; z-index: -1; inset-inline: 0; inset-block-start: calc(-1 * var(--s-6)); block-size: 46rem; background: radial-gradient(closest-side, var(--hero-glow), transparent); pointer-events: none; }
+@media (forced-colors: active) { .home::before { display: none; } }
+
+/* The hero's preview of the first question: one link, drawn on the code stage, with the choices as faint raised boxes that
+   are part of the picture (not controls). */
+.hero-preview { display: block; color: var(--stage-ink); text-decoration: none; transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.hero-preview:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); }
+.hero-preview:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .hero-preview:hover { transform: none; } }
+.hero-preview .code__caption { min-height: 2.75rem; padding-inline: var(--s-4); }
+.hero-preview__code { padding-block: var(--s-4); overflow: hidden; }
+.hero-preview__ask { display: grid; gap: var(--s-3); padding: var(--s-4) var(--s-5) var(--s-5); border-block-start: 1px solid var(--stage-line); }
+.hero-preview__prompt { font-size: var(--text-lg); font-weight: 800; line-height: 1.3; }
+.hero-preview__choices { display: grid; gap: var(--s-2); }
+.hero-preview__choice { padding: var(--s-2) var(--s-4); border: 1px solid var(--stage-line); border-radius: var(--radius-md); background: var(--stage-bg-raised); color: var(--stage-ink); box-shadow: 0 2px 0 var(--stage-line); font-size: var(--text-sm); }
+.hero-preview__choice code { font-family: var(--font-code); background: var(--stage-bg); color: var(--stage-ink); border: 1px solid var(--stage-line); }
+@media (forced-colors: active) { .hero-preview__choice { border: 1px solid CanvasText; box-shadow: none; } }
+
 /* Courses start like a new page in the book: a hairline and more air after the hero. */
 .home > .catalog { padding-block-start: var(--s-7); border-block-start: 1px solid var(--line); }
 
