@@ -64,6 +64,8 @@ test('the ring: a track always, a filled arc for the answered share, and a name 
   const third = progressBadge('read-like-a-computer', { answered: 10, total: 30, label: '10 of 30 read' });
   assert.equal(fills(third)[0].attrs['stroke-dasharray'], `${10 / 30} 1`);
   assert.equal(fills(third)[0].attrs.pathLength, '1');
+  assert.equal(fills(third)[0].attrs.transform, 'rotate(-90 24 24)', 'the arc starts at twelve o’clock');
+  assert.equal(third.children[0].attrs['aria-hidden'], 'true', 'the named badge’s drawing is not read on its own');
   assert.equal(third.attrs.role, 'img');
   assert.equal(third.attrs['aria-label'], '10 of 30 read');
   assert.equal(third.attrs['aria-hidden'], undefined);
@@ -137,7 +139,17 @@ test('motion: hover lifts a card 2 px with transform and shadow only, Continue g
   // The started edge is thicker as well as coloured, and forced colours keep the states.
   assert.match(c, /\.course-card--started \{ border-color: var\(--card-edge-started\); box-shadow: inset 0 0 0 1px var\(--card-edge-started\); \}/);
   assert.match(c, /\.progress-ring__track \{ stroke: var\(--ring-track\); stroke-width: 1\.5; \}/);
+  // A ring that carries a value shows what is left at >= 3:1 (the control border colour, checked in every theme).
+  assert.match(c, /\.course-badge--started \.progress-ring__track \{ stroke: var\(--line-strong\); \}/);
   assert.match(c, /\.progress-ring__fill \{ stroke: var\(--ring-fill\); stroke-width: 3;/);
   assert.match(c, /@media \(forced-colors: active\) \{\n  \.course-badge \{ color: CanvasText; \}\n  \.progress-ring__track \{ stroke: GrayText; \}\n  \.progress-ring__fill \{ stroke: Highlight; \}/);
   assert.match(c, /  \.course-card\.course-card--started \{ border: 2px solid Highlight; box-shadow: none; \}/, 'wins over the plain forced-colours card border');
+});
+
+test('layout: a hairline before the courses, the skip line close under its heading, coming-soon steps dashed', () => {
+  const c = css('components.css');
+  assert.match(c, /\.home > \.catalog \{ padding-block-start: var\(--s-7\); border-block-start: 1px solid var\(--line\); \}/);
+  assert.match(c, /\.path__skipline \{ margin-block-start: calc\(-1 \* var\(--s-2\)\); \}/);
+  assert.match(c, /\.path__step--soon \.path__body \{[^}]*border: 1px dashed var\(--line-strong\);/);
+  assert.match(c, /\.course-card__text \{ color: var\(--muted\); line-height: 1\.6; \}/);
 });

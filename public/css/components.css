@@ -592,6 +592,8 @@
 .course-badge { flex: none; display: block; inline-size: 3rem; block-size: 3rem; color: var(--icon-ink); transition: color var(--dur) var(--ease); }
 .progress-ring { display: block; inline-size: 100%; block-size: 100%; overflow: visible; }
 .progress-ring__track { stroke: var(--ring-track); stroke-width: 1.5; }
+/* Once the ring carries a value, what is left must show too: the track takes the control border colour (>= 3:1). */
+.course-badge--started .progress-ring__track { stroke: var(--line-strong); }
 .progress-ring__fill { stroke: var(--ring-fill); stroke-width: 3; stroke-linecap: round; }
 .course-badge--done .progress-ring__fill { stroke-linecap: butt; }
 @media (forced-colors: active) {
