@@ -580,6 +580,13 @@
 .course-card__head { display: flex; align-items: center; gap: var(--s-3); }
 .course-card__title { font-size: var(--text-lg); }
 .course-card__title a { color: var(--ink); text-decoration-thickness: 2px; }
+/* The whole card is the title link's target, so the hover lift promises only what a click does. The link stays the one focus
+   stop; its focus ring is drawn around the card. Any other link or button in a card sits above the stretched area. */
+.course-card { position: relative; }
+.course-card__title a::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+.course-card__title a:focus-visible { outline: none; }
+.course-card:has(.course-card__title a:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.course-card a:not(.course-card__title a), .course-card button { position: relative; z-index: 1; }
 .course-card__text { color: var(--muted); line-height: 1.6; }
 /* A started course: an accent edge, twice as thick as a neutral card's (so the state shows by form too), and a filling ring. */
 .course-card--started { border-color: var(--card-edge-started); box-shadow: inset 0 0 0 1px var(--card-edge-started); }

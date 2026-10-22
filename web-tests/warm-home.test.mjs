@@ -153,3 +153,26 @@ test('layout: a hairline before the courses, the skip line close under its headi
   assert.match(c, /\.path__step--soon \.path__body \{[^}]*border: 1px dashed var\(--line-strong\);/);
   assert.match(c, /\.course-card__text \{ color: var\(--muted\); line-height: 1\.6; \}/);
 });
+
+test('the whole card is the title link: one focus stop with its ring around the card, other controls on top, nothing for coming soon', async () => {
+  const c = css('components.css');
+  assert.match(c, /\.course-card \{ position: relative; \}/);
+  assert.match(c, /\.course-card__title a::after \{ content: ""; position: absolute; inset: 0; border-radius: var\(--radius\); \}/);
+  assert.match(c, /\.course-card__title a:focus-visible \{ outline: none; \}/);
+  assert.match(c, /\.course-card:has\(\.course-card__title a:focus-visible\) \{ outline: 3px solid var\(--focus\); outline-offset: 2px; \}/, 'the ring goes around the card');
+  assert.match(c, /\.course-card a:not\(\.course-card__title a\), \.course-card button \{ position: relative; z-index: 1; \}/, 'other controls keep their own targets');
+  // Hover and the pointer belong to course cards only; a coming-soon step is not one and has no link.
+  assert.doesNotMatch(c, /path__step--soon[^{]*:hover/);
+  store.reset();
+  const entries = parseCatalog(catalogRaw);
+  const node = catalogSection(entries, await courseMap(entries));
+  for (const card of byClass(node, 'course-card')) {
+    const focusable = card.all((n) => n.tag === 'a' || n.tag === 'button' || (n.attrs.tabindex !== undefined && n.attrs.tabindex !== '-1'));
+    assert.equal(focusable.length, 1, 'one focus stop per card');
+    assert.equal(focusable[0].parent.className, 'course-card__title');
+    assert.match(focusable[0].attrs.href, /^#\/course(\/|$)/);
+  }
+  const soon = byClass(node, 'path__step--soon')[0];
+  assert.equal(byClass(soon, 'course-card').length, 0);
+  assert.equal(soon.all((n) => n.tag === 'a' || n.tag === 'button').length, 0);
+});
