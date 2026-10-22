@@ -24,6 +24,7 @@ test('About names Cloudflare Web Analytics, says the site is cookie-free, and no
   const text = strings['about.privacy.text'];
   assert.match(text, /Cloudflare Web Analytics/);
   assert.match(text, /^No cookies\b/, 'the first thing said is that there are no cookies');
-  assert.match(text, /no personal data/);
+  assert.match(text, /sets no cookies and does not follow you across sites/);
+  assert.doesNotMatch(text, /no personal data/, 'no broader promise than the provider documents');
   assert.doesNotMatch(text, /no cookies, analytics/);
 });
