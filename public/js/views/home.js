@@ -3,6 +3,7 @@ import { t } from '../i18n.js';
 import { loadIndex, loadCourses, loadCatalog, loadQuestion, allQuestionIds } from '../data.js';
 import { activeCourse, courseHref, reviewHref, freeTotal } from '../catalog.js';
 import { catalogSection, firstQuestionOf } from '../components/catalog-card.js';
+import { progressBadge } from '../components/course-icons.js';
 import { store } from '../progress.js';
 import { renderCodeBlock } from '../components/code-block.js';
 import { readingMap, summaryText } from '../components/map.js';
@@ -65,7 +66,9 @@ export async function homeView() {
   const intro = [];
   const after = [];
   if (answeredCount > 0) {
-    intro.push(h('p', { class: 'welcome' }, nextId ? t('home.welcomeText', { count: answeredCount, total: ids.length }) : t('home.allDone')));
+    // The same ring as on the course card, beside the sentence that already says the count (so here it is decoration).
+    const welcome = h('p', { class: 'welcome' }, nextId ? t('home.welcomeText', { count: answeredCount, total: ids.length }) : t('home.allDone'));
+    intro.push(h('div', { class: 'welcome-row' }, progressBadge(active.id, { answered: answeredCount, total: ids.length }), welcome));
     const where = course ? lastRead(course, records) : null;
     if (where) intro.push(h('p', { class: 'lead' }, t('moment.readingAt', { lesson: where.lessonTitle, n: where.position })));
     if (nextId) actions.append(h('a', { class: 'button button--primary button--block', href: `#/q/${nextId}` }, t('home.continue')));

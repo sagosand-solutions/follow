@@ -43,7 +43,8 @@ const TEXT = [['ink', 'bg'], ['ink', 'surface'], ['muted', 'bg'], ['muted', 'sur
   ['stage-ink', 'stage-bg'], ['stage-muted', 'stage-bg'], ['stage-linenum', 'stage-bg'], ['stage-link', 'stage-bg'], ['stage-ink', 'stage-mark'], ['stage-linenum', 'stage-mark'], ['stage-ink', 'stage-bg-raised'], ['stage-muted', 'stage-bg-raised'],
   ...SYN.map((n) => [`tok-${n}`, 'stage-bg']), ...SYN.map((n) => [`tok-${n}`, 'stage-mark'])];
 const UI = [['line-strong', 'bg'], ['line-strong', 'surface'], ['focus', 'bg'], ['focus', 'surface'], ['accent-line', 'bg'], ['accent-line', 'surface'], ['stage-mark-edge', 'stage-bg'], ['stage-focus', 'stage-bg'],
-  ['mark-right', 'bg'], ['mark-partial', 'bg'], ['mark-wrong', 'bg'], ['outcome-unknown', 'bg'], ['mark-right', 'surface'], ['mark-partial', 'surface'], ['mark-wrong', 'surface'], ['outcome-unknown', 'surface']];
+  ['mark-right', 'bg'], ['mark-partial', 'bg'], ['mark-wrong', 'bg'], ['outcome-unknown', 'bg'], ['mark-right', 'surface'], ['mark-partial', 'surface'], ['mark-wrong', 'surface'], ['outcome-unknown', 'surface'],
+  ['ring-fill', 'surface'], ['card-edge-started', 'surface'], ['icon-ink', 'surface'], ['icon-hover', 'surface'], ['icon-ink', 'bg']];
 
 for (const [name, t] of Object.entries(themes)) {
   test(`theme ${name}: every colour pair meets WCAG (AAA text for contrast)`, () => {

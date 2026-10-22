@@ -85,7 +85,7 @@ test('the catalog keeps a valid audience and path step and nothing else', () => 
 
 const courseMap = async (entries) => new Map(await Promise.all(entries.filter((e) => e.id !== 'missing').map(async (e) => [e.id, JSON.parse(readFileSync(new URL(`courses/${e.id}.json`, site), 'utf8'))])));
 
-test('the path from the catalog: the beginner course is step 1 with “Skip ahead”; the headings say who the courses are for', async () => {
+test('the path from the catalog: the beginner course is step 1, “Skip ahead” is one line for the whole path; the headings say who the courses are for', async () => {
   store.reset();
   const entries = parseCatalog(realCatalog);
   const node = catalogSection(entries, await courseMap(entries));
@@ -100,7 +100,12 @@ test('the path from the catalog: the beginner course is step 1 with “Skip ahea
   assert.equal(text(deeper), 'For people who already code');
   let focused = null;
   deeper.focus = () => { focused = deeper; };
-  steps[0].all((n) => n.tag === 'button' && /Skip ahead/.test(text(n)))[0].click();
+  for (const step of steps) assert.equal(step.all((n) => n.tag === 'button').length, 0, 'not under one card');
+  const skips = node.all((n) => n.tag === 'button' && /Skip ahead/.test(text(n)));
+  assert.equal(skips.length, 1);
+  const order = node.children.map((c) => c.className || c.tag);
+  assert.deepEqual(order.slice(1, 4), ['path__heading', 'path__skipline', 'path'], 'right under the path’s heading, before the steps');
+  skips[0].click();
   assert.equal(focused, deeper);
   const deeperCards = node.all((n) => n.tag === 'li' && n.className === 'course-card');
   assert.deepEqual(deeperCards.map((c) => /For people who already code/.test(text(c))), [false, false], 'the heading says it once');
@@ -109,7 +114,11 @@ test('the path from the catalog: the beginner course is step 1 with “Skip ahea
   }
   store.recordAnswer({ questionId: 'b1-1-robot-keeps-each-printed-line', optionId: 'x', score: 1 });
   const again = catalogSection(entries, await courseMap(entries));
-  assert.match(text(again.all((n) => n.className.split(' ').includes('path__step'))[0]), /1 of 30/);
+  const first = again.all((n) => n.className.split(' ').includes('path__step'))[0];
+  assert.doesNotMatch(text(first), /1 of 30/, 'the ring replaces the written count');
+  const badge = first.all((n) => n.className.split(' ').includes('course-badge'))[0];
+  assert.equal(badge.attrs.role, 'img');
+  assert.equal(badge.attrs['aria-label'], '1 of 30 read');
   store.reset();
 });
 
