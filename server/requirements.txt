@@ -2,7 +2,7 @@
 # The server package is AGPL-3.0-or-later; these libraries keep their own licenses.
 # The HTTP layer (server/app.py and the API) imports Starlette and runs under Uvicorn; the storage and
 # domain tests stay standard-library-only.
-starlette==1.8.0        # BSD-3-Clause
+starlette==1.10.0        # BSD-3-Clause
 uvicorn==0.54.0         # BSD-3-Clause
 # uvicorn/starlette transitive dependencies:
 anyio==4.15.1           # MIT
