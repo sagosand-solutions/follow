@@ -5,7 +5,7 @@
 starlette==1.8.0        # BSD-3-Clause
 uvicorn==0.54.0         # BSD-3-Clause
 # uvicorn/starlette transitive dependencies:
-anyio==4.15.1           # MIT
+anyio==4.16.0           # MIT
 click==8.5.0            # BSD-3-Clause
 h11==0.16.0             # MIT
 idna==3.20              # BSD-3-Clause
